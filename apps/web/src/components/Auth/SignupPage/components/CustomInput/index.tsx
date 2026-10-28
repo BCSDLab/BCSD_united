@@ -1,0 +1,156 @@
+import { type ComponentPropsWithoutRef, forwardRef } from 'react';
+
+import { cn } from '@bcsdlab/utils';
+import CloseIcon from 'assets/svg/Login/close.svg';
+import CorrectIcon from 'assets/svg/Login/correct.svg';
+import ErrorIcon from 'assets/svg/Login/error.svg';
+import EyeCloseIcon from 'assets/svg/Login/eye-close.svg';
+import EyeOpenIcon from 'assets/svg/Login/eye-open.svg';
+import WarningIcon from 'assets/svg/Login/warning.svg';
+import MobileWarningIcon from 'assets/svg/mobile-warning-icon.svg';
+import FormatTime from 'components/Auth/SignupPage/hooks/useFormatTime';
+import type { InputMessage } from 'interfaces/InputMessage';
+import { useFormContext } from 'react-hook-form';
+import type { UserType } from 'static/auth';
+import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
+import useBooleanState from 'utils/hooks/state/useBooleanState';
+
+import styles from './CustomInput.module.scss';
+
+interface CustomInputProps extends ComponentPropsWithoutRef<'input'> {
+  placeholder?: string;
+  type?: 'text' | 'password';
+  message?: InputMessage | null;
+  isDelete?: boolean;
+  isVisibleButton?: boolean;
+  isTimer?: boolean;
+  timerValue?: number;
+  isButton?: boolean;
+  buttonText?: string;
+  buttonOnClick?: () => void;
+  buttonDisabled?: boolean;
+  userType?: UserType;
+  children?: React.ReactNode;
+  forwardRef?: React.Ref<HTMLInputElement>;
+}
+
+const CustomInput = forwardRef<HTMLInputElement, CustomInputProps>(
+  (
+    {
+      value,
+      placeholder,
+      type = 'text',
+      message = null,
+      isDelete = false,
+      isVisibleButton = false,
+      isTimer = false,
+      timerValue = 180,
+      isButton = false,
+      buttonText = '',
+      buttonOnClick,
+      buttonDisabled,
+      userType,
+      children,
+      ...args
+    },
+    ref,
+  ) => {
+    const { setValue } = useFormContext();
+    const isMobile = useMediaQuery();
+    const [isPasswordVisible, , , togglePasswordVisible] = useBooleanState(false);
+
+    const getInputType = (): 'text' | 'password' => {
+      if (isVisibleButton && type === 'password') {
+        return isPasswordVisible ? 'text' : 'password';
+      }
+
+      return type;
+    };
+
+    const inputType = getInputType();
+    const isDomain = args.name === 'email' && userType === '학생';
+
+    return (
+      <div className={styles.container}>
+        <div className={styles.wrapper}>
+          <div className={styles['input-wrapper']}>
+            <input
+              ref={ref}
+              className={cn({
+                [styles['input-wrapper__input']]: true,
+                [styles['input-wrapper__input--domain']]: isDomain,
+                [styles['input-wrapper__input--button']]: Boolean(isDelete || isVisibleButton),
+              })}
+              type={inputType}
+              placeholder={placeholder}
+              value={value}
+              {...args}
+            />
+
+            {args.name === 'email' && userType === '학생' && (
+              <span className={styles['input-wrapper__email']}>@koreatech.ac.kr</span>
+            )}
+
+            {isTimer && (
+              <span
+                className={cn({
+                  [styles['input-wrapper__timer']]: true,
+                  [styles['input-wrapper__timer--active']]: isDelete && Boolean(value),
+                })}
+              >
+                {FormatTime(timerValue)}
+              </span>
+            )}
+
+            {isDelete && value && (
+              <button
+                type="button"
+                onClick={() => setValue(args.name!, '')}
+                className={styles['input-wrapper__optionButton']}
+                tabIndex={-1}
+              >
+                <CloseIcon />
+              </button>
+            )}
+
+            {isVisibleButton && type === 'password' && (
+              <button
+                type="button"
+                onClick={togglePasswordVisible}
+                className={styles['input-wrapper__optionButton']}
+                tabIndex={-1}
+              >
+                {isPasswordVisible ? <EyeOpenIcon /> : <EyeCloseIcon />}
+              </button>
+            )}
+          </div>
+          {isButton && (
+            <button
+              type="button"
+              className={styles.button}
+              onClick={buttonOnClick}
+              disabled={buttonDisabled || (isTimer && FormatTime(timerValue) === '00:00')}
+            >
+              {buttonText}
+            </button>
+          )}
+        </div>
+        {message && (
+          <div className={styles['message-wrapper']}>
+            {message.type === 'error' && <ErrorIcon />}
+            {message.type === 'success' && <CorrectIcon />}
+            {message.type === 'warning' && (isMobile ? <MobileWarningIcon /> : <WarningIcon />)}
+            <p
+              className={`${styles['message-wrapper__message']} ${styles[`message-wrapper__message--${message.type}`]}`}
+            >
+              {message.content}
+            </p>
+            {children}
+          </div>
+        )}
+      </div>
+    );
+  },
+);
+
+export default CustomInput;

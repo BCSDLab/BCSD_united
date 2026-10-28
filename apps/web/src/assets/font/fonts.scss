@@ -1,0 +1,24 @@
+$weights: (
+  Thin: 100,
+  ExtraLight: 200,
+  Light: 300,
+  Regular: 400,
+  Medium: 500,
+  SemiBold: 600,
+  Bold: 700,
+  ExtraBold: 800,
+  Black: 900,
+);
+
+@each $name, $weight in $weights {
+  @font-face {
+    font-family: Pretendard;
+    src: url("./Pretendard-#{$name}.subset.woff2") format("woff2");
+    font-weight: $weight;
+    font-display: swap;
+  }
+}
+
+:root {
+  --font-pretendard: "Pretendard";
+}

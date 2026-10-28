@@ -1,0 +1,74 @@
+import { useState } from 'react';
+import Image from 'components/ui/Image';
+
+import { cn } from '@bcsdlab/utils';
+import type { LostItemImageDTO } from 'api/articles/entity';
+import ChevronLeft from 'assets/svg/Articles/chevron-left-circle.svg';
+import ChevronRight from 'assets/svg/Articles/chevron-right-circle.svg';
+import SelectedDotIcon from 'assets/svg/Articles/ellipse-blue.svg';
+import NotSelectedDotIcon from 'assets/svg/Articles/ellipse-grey.svg';
+
+import styles from './DisplayImage.module.scss';
+
+interface DisplayImageProps {
+  images: LostItemImageDTO[];
+}
+
+export default function DisplayImage({ images: rawImages }: DisplayImageProps) {
+  const images = rawImages.filter((img) => Boolean(img.image_url));
+  const [image, setImage] = useState(images[0]);
+  const imageIndex = image ? images.findIndex((img) => img.id === image.id) : -1;
+
+  const handleArrowButtonClick = (diff: 1 | -1) => {
+    setImage(images[(imageIndex + diff) % images.length]);
+  };
+
+  return (
+    <div className={styles.container}>
+      {images.length > 0 && (
+        <div className={styles.images}>
+          <Image
+            className={styles.images__image}
+            src={image.image_url}
+            alt="분실물 이미지"
+            width={586}
+            height={527}
+            priority
+          />
+          <button
+            className={cn({
+              [styles.images__button]: true,
+              [styles['images__button--left']]: true,
+              [styles['images__button--hidden']]: images.length === 1 || imageIndex === 0,
+            })}
+            onClick={() => handleArrowButtonClick(-1)}
+            type="button"
+            aria-label="다음 이미지 보기"
+          >
+            <ChevronLeft />
+          </button>
+          <button
+            className={cn({
+              [styles.images__button]: true,
+              [styles['images__button--right']]: true,
+              [styles['images__button--hidden']]: images.length === 1 || imageIndex === images.length - 1,
+            })}
+            onClick={() => handleArrowButtonClick(1)}
+            type="button"
+            aria-label="다음 이미지 보기"
+          >
+            <ChevronRight />
+          </button>
+        </div>
+      )}
+      <div className={styles.navigation}>
+        {images.length > 1 &&
+          images.map((currentImage, index) => (
+            <button key={currentImage.image_url} onClick={() => setImage(currentImage)} type="button">
+              {imageIndex === index ? <SelectedDotIcon /> : <NotSelectedDotIcon />}
+            </button>
+          ))}
+      </div>
+    </div>
+  );
+}

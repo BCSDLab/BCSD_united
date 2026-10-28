@@ -1,0 +1,43 @@
+@use "src/utils/scss/media" as media;
+
+.container {
+  @include media.media-breakpoint(mobile) {
+    width: 100%;
+    height: 34px;
+    margin-top: 32px;
+  }
+}
+
+.progress-content {
+  @include media.media-breakpoint(mobile) {
+    display: flex;
+    justify-content: space-between;
+
+    & > span {
+      color: #b611f5;
+      font-size: 1rem;
+      font-weight: 500;
+      line-height: 1.6;
+    }
+  }
+}
+
+.progress-bar-wrapper {
+  @include media.media-breakpoint(mobile) {
+    width: 100%;
+    height: 3px;
+    border-radius: 3px;
+    background-color: #eee;
+    overflow: hidden;
+    margin-top: 8px;
+  }
+}
+
+.progress-bar {
+  @include media.media-breakpoint(mobile) {
+    height: 100%;
+    background-color: #b611f5;
+    border-radius: 3px;
+    transition: width 0.3s ease-out;
+  }
+}

@@ -1,0 +1,212 @@
+import { createFileRoute, useNavigate, useSearch, useParams } from '@tanstack/react-router';
+
+import React, { useState } from 'react';
+
+
+import { cn } from '@bcsdlab/utils';
+import { useQuery } from '@tanstack/react-query';
+import { busQueries } from 'api/bus/queries';
+import BusIcon from 'assets/svg/Bus/bus-icon-32x32.svg';
+import BusCoursePage from 'components/Bus/BusCoursePage';
+import { ShuttleCategoryTabs } from 'components/Bus/BusCoursePage/components/ShuttleCategoryTabs';
+import ShuttleDetailMobile from 'components/Bus/ShuttleDetailMobile';
+import Layout from 'components/layout';
+import MobilePageHeader from 'components/layout/MobilePageHeader';
+import { SHUTTLE_ROUTE_TYPE_CLASS } from 'static/bus';
+import ROUTES from 'static/routes';
+import useLogger from 'utils/hooks/analytics/useLogger';
+import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
+
+import styles from 'pages/bus/shuttle/ShuttleDetailPage.module.scss';
+
+function asString(value: string | string[]): string {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default function ShuttleDetailPage() {
+  
+  const routeNavigate = useNavigate();
+  const routeQuery: Record<string, string | string[] | undefined> = { ...useSearch({ strict: false }), ...useParams({ strict: false }) };
+  
+  const { routeId } = routeQuery;
+
+  const shuttleTimetableId = routeId ? asString(routeId) : null;
+  const { data: shuttleTimetableDetail } = useQuery({
+    ...busQueries.shuttleTimetableDetail(shuttleTimetableId),
+    staleTime: 1000 * 60 * 10,
+  });
+
+  const [selectedDetail, setSelectedDetail] = useState<string | null>(null);
+
+  const categoryFromURL = routeQuery.category;
+  const category = categoryFromURL ? asString(categoryFromURL) : '전체';
+
+  const isMobile = useMediaQuery();
+  const logger = useLogger();
+
+  const header = (
+    <MobilePageHeader title={shuttleTimetableDetail ? `${shuttleTimetableDetail.route_name} 시간표` : '버스 시간표'} />
+  );
+
+  if (!shuttleTimetableDetail) return header;
+
+  const routeTypeClass = styles[SHUTTLE_ROUTE_TYPE_CLASS[shuttleTimetableDetail.route_type]];
+  const rowLength = shuttleTimetableDetail.node_info.length + 1;
+  const fallbackName = shuttleTimetableDetail.route_info[0]?.name ?? '';
+  const selectedName = selectedDetail ?? fallbackName;
+
+  if (isMobile) {
+    return (
+      <>
+        {header}
+        <ShuttleDetailMobile
+          timetable={shuttleTimetableDetail}
+          selectedName={selectedName}
+          onSelect={(name) => {
+            setSelectedDetail(name);
+            logger.actionEventClick({
+              team: 'CAMPUS',
+              event_label: name === '등교' ? 'go_to_school' : 'go_home',
+              value: `${shuttleTimetableDetail.route_type}_${shuttleTimetableDetail.route_name}`,
+            });
+          }}
+        />
+      </>
+    );
+  }
+
+  return (
+    <BusCoursePage>
+      {/* 카테고리 버튼 */}
+      <ShuttleCategoryTabs
+        category={category}
+        onChange={(v) => routeNavigate({ href: `${ROUTES.BusCourseShuttle()}?category=${v}`, replace: true })}
+      />
+
+      {shuttleTimetableDetail.route_info.length <= 2 && (
+        <div className={styles['time-table-wrapper']}>
+          <div className={styles['time-table-title']}>
+            <div className={styles['bus-icon']}>
+              <BusIcon />
+              <div className={`${styles['bus-type']} ${routeTypeClass ?? ''}`}>{shuttleTimetableDetail.route_type}</div>
+            </div>
+            <div className={styles.header__title}>{shuttleTimetableDetail.route_name} 시간표</div>
+            {shuttleTimetableDetail.sub_name && (
+              <div className={styles.header__subtitle}>{shuttleTimetableDetail.sub_name}</div>
+            )}
+            <div className={styles['detail__button-wrapper']}>
+              {shuttleTimetableDetail.route_info.map(({ name }) => (
+                <button
+                  key={name}
+                  type="button"
+                  className={cn({
+                    [styles.detail__button]: true,
+                    [styles['detail__button--selected']]: selectedName === name,
+                  })}
+                  onClick={() => {
+                    setSelectedDetail(name);
+                    logger.actionEventClick({
+                      team: 'CAMPUS',
+                      event_label: name === '등교' ? 'go_to_school' : 'go_home',
+                      value: `${shuttleTimetableDetail.route_type}_${shuttleTimetableDetail.route_name}`,
+                    });
+                  }}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className={styles['time-table-main-wrapper']}>
+            <div
+              className={`${styles['time-table']} ${styles['time-table--short']}`}
+              style={{ gridTemplateRows: `repeat(${rowLength}, 1fr)` }}
+            >
+              {shuttleTimetableDetail.route_info
+                .filter(({ name }) => selectedName === name)
+                ?.map(({ name, detail, arrival_time }) => (
+                  <React.Fragment key={name}>
+                    <div className={styles['time-table__number']}>
+                      {name}
+                      {detail}
+                    </div>
+                    {arrival_time.map((time, index) => (
+                      // eslint-disable-next-line react/no-array-index-key -- 정류장 도착 시간의 고정 순서 배열이라 재정렬/삽입이 없다.
+                      <div key={index} className={styles['time-table__time']}>
+                        {time ? time.split('/')[0] : time}
+                      </div>
+                    ))}
+                  </React.Fragment>
+                ))}
+
+              <div className={styles['time-table__number']}>승하차장명</div>
+
+              {shuttleTimetableDetail.node_info.map(({ name, detail }) => (
+                <div key={name} className={styles['time-table__node-wrapper']}>
+                  <div className={styles['time-table__node']}>
+                    <div>{name}</div>
+                    {detail && <div className={styles['time-table__node-detail']}>{detail}</div>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {shuttleTimetableDetail.route_info.length > 2 && (
+        <div className={styles['time-table-wrapper']}>
+          <div className={styles['time-table-title']}>
+            <div className={styles['bus-icon']}>
+              <BusIcon />
+              <div className={`${styles['bus-type']} ${routeTypeClass ?? ''}`}>{shuttleTimetableDetail.route_type}</div>
+            </div>
+            <div className={styles.header__title}>{shuttleTimetableDetail.route_name} 시간표</div>
+            {shuttleTimetableDetail.sub_name && (
+              <div className={styles.header__subtitle}>{shuttleTimetableDetail.sub_name}</div>
+            )}
+          </div>
+
+          <div className={styles['time-table']} style={{ gridTemplateRows: `repeat(${rowLength}, 1fr)` }}>
+            <div className={styles['time-table__number']}>승하차장명</div>
+            {shuttleTimetableDetail.node_info.map(({ name, detail }) => (
+              <div key={name} className={`${styles['time-table__node']} ${styles['time-table__node--long']}`}>
+                <div>{name}</div>
+                {detail && <div className={styles['time-table__node-detail']}>{detail}</div>}
+              </div>
+            ))}
+
+            {shuttleTimetableDetail.route_info.map(({ name, detail, arrival_time }) => (
+              <React.Fragment key={name}>
+                <div className={styles['time-table__number']}>
+                  {name}
+                  <br />
+                  {detail}
+                </div>
+                {arrival_time.map((time, index) => (
+                  // eslint-disable-next-line react/no-array-index-key -- 정류장 도착 시간의 고정 순서 배열이라 재정렬/삽입이 없다.
+                  <div key={index} className={styles['time-table__time']}>
+                    {time ? time.split('/')[0] : time}
+                  </div>
+                ))}
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+      )}
+    </BusCoursePage>
+  );
+}
+
+
+
+export const Route = createFileRoute('/bus/shuttle/$routeId/')({
+  validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
+  component: RouteComponent,
+});
+
+function RouteComponent() {
+  const page = <ShuttleDetailPage />;
+  return <Layout mobileHeader="page">{page}</Layout>;
+}

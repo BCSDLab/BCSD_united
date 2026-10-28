@@ -1,0 +1,211 @@
+import React from 'react';
+import { useLocation } from '@tanstack/react-router';
+
+import { cn } from '@bcsdlab/utils';
+import type { Semester } from 'api/timetable/entity';
+import AddIcon from 'assets/svg/add-icon.svg';
+import DownArrowIcon from 'assets/svg/down-arrow-icon.svg';
+import TrashCanIcon from 'assets/svg/trash-can-icon.svg';
+import type { Portal } from 'components/modal/Modal/PortalProvider';
+import useAddSemester from 'components/TimetablePage/hooks/useAddSemester';
+import useDeleteSemester from 'components/TimetablePage/hooks/useDeleteSemester';
+import useSemesterCheck from 'components/TimetablePage/hooks/useMySemester';
+import useResetInvalidSemester from 'components/TimetablePage/hooks/useResetInvalidSemester';
+import useSemesterOptionList from 'components/TimetablePage/hooks/useSemesterOptionList';
+import InducingLoginModal from 'components/ui/InducingLoginModal';
+import useLogger from 'utils/hooks/analytics/useLogger';
+import useModalPortal from 'utils/hooks/layout/useModalPortal';
+import useBooleanState from 'utils/hooks/state/useBooleanState';
+import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
+import { useOutsideClick } from 'utils/hooks/ui/useOutsideClick';
+import { useSemester, useSemesterAction } from 'utils/zustand/semester';
+
+import AddSemesterModal from './AddSemesterModal';
+import DeleteSemesterModal from './DeleteSemesterModal';
+import styles from './SemesterList.module.scss';
+
+function SemesterList({ isViewMode }: { isViewMode?: boolean }) {
+  const logger = useLogger();
+  const semester = useSemester();
+  const isLoggedIn = useIsLoggedIn();
+  const portalManager = useModalPortal();
+  const semesterOptionList = useSemesterOptionList();
+  const { updateSemester } = useSemesterAction();
+  const routeLocation = useLocation();
+  const { pathname } = routeLocation;
+  const isGraduationCalculatorMode = pathname.includes('/graduation');
+
+  const [isOpenSemesterList, , closePopup, triggerPopup] = useBooleanState(false);
+  const [selectedSemester, setSelectedSemester] = React.useState(semester);
+  const [isModalOpen, setModalOpenTrue, setModalOpenFalse] = useBooleanState(false);
+
+  const { mutate: deleteTimetableFrame } = useDeleteSemester(isLoggedIn, selectedSemester);
+
+  const semesterListToggle = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    triggerPopup();
+  };
+
+  const onClickOption = (clickededSemester: Semester) => {
+    updateSemester(clickededSemester);
+    if (isGraduationCalculatorMode) {
+      logger.actionEventClick({
+        team: 'USER',
+        event_label: 'graduation_calculator_semester',
+        value: `학기 드롭다운_${clickededSemester.year}${clickededSemester.term}`,
+      });
+    } else {
+      logger.actionEventClick({
+        team: 'USER',
+        event_label: 'timetable',
+        value: `click_semester_${clickededSemester.year}${clickededSemester.term}`,
+      });
+    }
+    closePopup();
+  };
+
+  const { mutate: addSemester } = useAddSemester(isLoggedIn);
+  const { data: mySemester } = useSemesterCheck();
+  const { containerRef } = useOutsideClick({ onOutsideClick: closePopup });
+
+  const onClickAddSemester = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    if (isLoggedIn) {
+      setModalOpenTrue();
+      portalManager.open((portalOption: Portal) => (
+        <AddSemesterModal
+          onClose={portalOption.close}
+          setModalOpenFalse={setModalOpenFalse}
+          addSemester={addSemester}
+          mySemester={mySemester}
+        />
+      ));
+    } else {
+      portalManager.open((portalOption: Portal) => (
+        <InducingLoginModal
+          actionTitle="학기 추가"
+          detailExplanation="학기 추가는 회원만 사용 가능합니다. 회원가입 또는 로그인 후 이용해주세요 :-)"
+          onClose={portalOption.close}
+        />
+      ));
+    }
+  };
+
+  const handleDeleteSemester = () => {
+    deleteTimetableFrame();
+    closePopup();
+    if (selectedSemester === semester) {
+      updateSemester(semesterOptionList[0].value);
+    }
+  };
+
+  const onClickDeleteSemester = (e: React.MouseEvent<HTMLButtonElement>, semes: Semester) => {
+    e.stopPropagation();
+    if (isLoggedIn) {
+      setSelectedSemester(semes);
+      setModalOpenTrue();
+      portalManager.open((portalOption: Portal) => (
+        <DeleteSemesterModal
+          onClose={portalOption.close}
+          handleDeleteSemester={handleDeleteSemester}
+          setModalOpenFalse={setModalOpenFalse}
+        />
+      ));
+    } else {
+      portalManager.open((portalOption: Portal) => (
+        <InducingLoginModal
+          actionTitle="학기 삭제"
+          detailExplanation="학기 삭제는 회원만 사용 가능합니다. 회원가입 또는 로그인 후 이용해주세요 :-)"
+          onClose={portalOption.close}
+        />
+      ));
+    }
+  };
+
+  useResetInvalidSemester();
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- 언마운트 시 1회만 정리 (portalManager 참조 변경은 무시)
+  React.useEffect(() => () => portalManager.close(), []);
+
+  return (
+    <div
+      className={cn({
+        [styles.select]: true,
+        [styles['select--graduation']]: isGraduationCalculatorMode,
+        [styles['select--opened']]: isOpenSemesterList,
+      })}
+      ref={isModalOpen ? null : containerRef}
+    >
+      <button
+        type="button"
+        onClick={semesterOptionList.length > 0 && semester !== null ? semesterListToggle : onClickAddSemester}
+        className={cn({
+          [styles.select__trigger]: true,
+          [styles['select__trigger--selected']]: isOpenSemesterList,
+          [styles['select__trigger--no-option']]: semesterOptionList.length === 0,
+          [styles['select__trigger--graduation']]: isGraduationCalculatorMode,
+        })}
+      >
+        {semesterOptionList.length > 0 && semester !== null
+          ? semesterOptionList.find((item) => item.value.year === semester.year && item.value.term === semester.term)
+              ?.label || semesterOptionList[0].label
+          : '학기 추가하기'}
+
+        {semesterOptionList.length > 0 && semester !== null ? <DownArrowIcon /> : <AddIcon />}
+      </button>
+
+      {isOpenSemesterList && (
+        <div className={styles.select__content}>
+          <ul
+            className={cn({
+              [styles['select__content--list']]: true,
+              [styles['select__content--graduation']]: isGraduationCalculatorMode,
+            })}
+            role="listbox"
+          >
+            {semesterOptionList.map((optionValue) => (
+              <div
+                role="button"
+                className={cn({
+                  [styles.select__option]: true,
+                  [styles['select__option--selected']]:
+                    optionValue.value.year === semester.year && optionValue.value.term === semester.term,
+                })}
+                onClick={() => onClickOption(optionValue.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    onClickOption(optionValue.value);
+                  }
+                }}
+                tabIndex={0}
+                key={optionValue.label}
+              >
+                <li className={styles['select__option--item']}>{optionValue.label}</li>
+                <div>
+                  {!isViewMode && (
+                    <button
+                      type="button"
+                      className={styles['select__option--delete-button']}
+                      onClick={(e) => onClickDeleteSemester(e, optionValue.value)}
+                    >
+                      <TrashCanIcon />
+                      <div>삭제</div>
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </ul>
+          {!isViewMode && (
+            <button type="button" className={styles['add-button']} onClick={onClickAddSemester}>
+              <div>학기 추가하기</div>
+              <AddIcon />
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default SemesterList;

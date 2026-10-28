@@ -1,0 +1,40 @@
+import type { ReactNode } from 'react';
+import { Link } from '@tanstack/react-router';
+
+import HotArticles from 'components/Articles/components/HotArticle';
+import ROUTES from 'static/routes';
+import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
+import useScrollToTop from 'utils/hooks/ui/useScrollToTop';
+
+import styles from './ArticlesPage.module.scss';
+
+interface ArticlesPageLayoutProps {
+  children: ReactNode;
+  mobileTabMenu?: ReactNode;
+}
+
+export default function ArticlesPageLayout({ children, mobileTabMenu }: ArticlesPageLayoutProps) {
+  useScrollToTop();
+
+  const isMobile = useMediaQuery();
+
+  return (
+    <div className={styles.template}>
+      <div className={styles.content}>
+        {!isMobile && (
+          <div className={styles.header}>
+            <Link  to={ROUTES.Articles()} >
+              <h1 className={styles.header__title}>게시판</h1>
+            </Link>
+          </div>
+        )}
+        {mobileTabMenu}
+        <div className={styles['list-scroll']}>{children}</div>
+      </div>
+
+      <div className={styles.aside}>
+        <HotArticles />
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,13 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "react", "unicorn", "oxc"],
+  "categories": { "correctness": "error" },
+  "rules": {
+    "no-unused-vars": ["error", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_", "ignoreRestSiblings": true }]
+  },
+  "env": { "browser": true, "node": true, "es2024": true },
+  "ignorePatterns": [
+    "**/node_modules/**", "**/dist/**", "**/.wrangler/**", "**/.tanstack/**", ".claude/**",
+    "**/*.d.ts", "**/routeTree.gen.ts", "**/src/generated/**", "apps/api/src/db/schema.ts"
+  ]
+}

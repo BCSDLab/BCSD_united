@@ -1,0 +1,74 @@
+@use "src/utils/scss/media" as media;
+
+.template {
+  position: relative;
+  min-width: 100%;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+
+  @include media.media-breakpoint(mobile) {
+    text-align: center;
+  }
+
+  &__content {
+    width: 390px;
+    margin: 80px auto 50px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+
+    @include media.media-breakpoint(mobile) {
+      align-items: center;
+      margin: 0 24px;
+    }
+  }
+
+  &__logo {
+    display: inline-block;
+    margin-bottom: 40px;
+
+    @include media.media-breakpoint(mobile) {
+      margin-bottom: 52px;
+      align-self: center;
+    }
+  }
+
+  &__image {
+    width: 125px;
+    cursor: pointer;
+
+    @include media.media-breakpoint(mobile) {
+      width: 105px;
+    }
+  }
+
+  &__go-back {
+    position: absolute;
+    top: 20px;
+    left: 15px;
+    background-color: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+
+    @include media.media-breakpoint(mobile) {
+      top: 15px;
+      left: 10px;
+
+      img {
+        width: 30px;
+        height: 30px;
+      }
+    }
+  }
+}
+
+.back-button {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+}

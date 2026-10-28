@@ -1,0 +1,315 @@
+import type { APIResponse } from 'interfaces/APIResponse';
+
+export interface LoginRequest {
+  login_id: string;
+  login_pw: string;
+}
+
+export interface LoginStudentRequest {
+  name: string;
+  phone_number: string;
+  login_id: string;
+  password: string;
+  department: string;
+  student_number: string;
+  gender: string;
+  email: string | null;
+  nickname: string | null;
+}
+
+export interface LoginGeneralRequest {
+  name: string;
+  phone_number: string;
+  login_id: string;
+  password: string;
+  gender: string;
+  email: string | null;
+  nickname: string | null;
+  marketing_notification_agreement: boolean;
+}
+
+export interface LoginResponse extends APIResponse {
+  token: string;
+  refresh_token: string;
+  user_type: 'STUDENT' | 'GENERAL';
+}
+
+export interface NicknameDuplicateCheckResponse extends APIResponse {
+  success: string;
+}
+
+export interface EmailDuplicateCheckResponse extends APIResponse {
+  success: string;
+}
+
+export interface SignupRequest {
+  email: string;
+  password: string;
+  // options
+  name?: string;
+  nickname?: string;
+  gender?: number;
+  major?: string;
+  student_number?: string;
+  phone_number?: string;
+  is_graduated?: boolean;
+}
+
+export interface FindPasswordRequest {
+  email: string;
+}
+
+export interface CheckPasswordRequest {
+  password: string;
+}
+
+export type SignupStudentResponse = APIResponse;
+
+export type SignupGeneralResponse = APIResponse;
+
+export interface RefreshRequest {
+  refresh_token: string;
+}
+
+export interface RefreshResponse extends APIResponse {
+  token: string;
+  refresh_token: string;
+}
+
+export interface WebLoginRequest {
+  login_id: string;
+  login_pw: string;
+  auto_login?: boolean;
+}
+
+export interface WebAuthResponse extends APIResponse {
+  user_type: 'STUDENT' | 'GENERAL';
+  csrf_token: string;
+}
+
+export type WebLogoutResponse = APIResponse;
+
+// 비로그인도 오류가 아니라 authenticated=false인 200이다.
+export interface WebSessionResponse extends APIResponse {
+  authenticated: boolean;
+  user_type: 'STUDENT' | 'GENERAL' | 'COUNCIL' | null;
+  csrf_token: string | null;
+}
+
+// GET /v3/users/me. 학생·총학생회만 student_number, major가 있다.
+export interface UserProfileResponse extends APIResponse {
+  id: number;
+  login_id: string;
+  anonymous_nickname: string | null;
+  email: string;
+  gender: 0 | 1;
+  name: string;
+  nickname: string;
+  phone_number: string;
+  user_type: 'STUDENT' | 'GENERAL' | 'COUNCIL';
+  student_number: string | null;
+  major: string | null;
+}
+
+// 익명 닉네임이 서버 값에 없으면 클라이언트가 만들어 항상 채운다.
+export type UserInfo = Omit<UserProfileResponse, 'anonymous_nickname'> & { anonymous_nickname: string };
+
+export interface UserResponse extends APIResponse {
+  id: number;
+  login_id: string;
+  anonymous_nickname: string;
+  email: string;
+  gender: 0 | 1;
+  major: string; // 학부
+  name: string;
+  nickname: string;
+  phone_number: string;
+  student_number: string;
+  user_type: 'STUDENT';
+}
+
+export interface GeneralUserResponse extends APIResponse {
+  id: number;
+  login_id: string;
+  email: string;
+  gender: 0 | 1;
+  name: string;
+  nickname: string;
+  phone_number: string;
+  user_type: 'GENERAL';
+}
+
+export interface UserAcademicInfoResponse extends APIResponse {
+  id: number;
+  anonymous_nickname: string;
+  email: string;
+  gender: 0 | 1;
+  department: string; // 학부
+  major: string; // 세부 전공
+  name: string;
+  nickname: string;
+  phone_number: string;
+  student_number: string;
+}
+
+export interface UserUpdateRequest {
+  password?: string;
+  gender?: 0 | 1;
+  major?: string;
+  name?: string;
+  nickname?: string;
+  phone_number?: string;
+  student_number?: string;
+  email?: string;
+}
+
+export interface GeneralUserUpdateRequest {
+  gender?: 0 | 1;
+  name?: string;
+  nickname?: string;
+  phone_number?: string;
+  email?: string;
+  password?: string;
+}
+
+export type DeleteResponse = APIResponse;
+
+export type CheckIdResponse = APIResponse;
+
+export interface FindPasswordResponse extends APIResponse {
+  code: number;
+  message: string;
+}
+
+export type CheckPasswordResponse = APIResponse;
+
+export interface UpdateAcademicInfoRequest extends APIResponse {
+  student_number: string;
+  department: string;
+  major?: string;
+}
+
+export interface UpdateAcademicInfoResponse extends APIResponse {
+  student_number: string;
+  department: string;
+  major: string | null;
+}
+
+export type CheckPhoneResponse = APIResponse;
+export interface SmsSendResponse extends APIResponse {
+  target: string;
+  total_count: number;
+  remaining_count: number;
+  current_count: number;
+}
+export type SmsVerifyResponse = APIResponse;
+
+export interface SmsSendRequest {
+  phone_number: string;
+}
+
+export interface SmsVerifyRequest {
+  phone_number: string;
+  verification_code: string;
+}
+
+export interface EmailExistsRequest {
+  email: string;
+}
+
+export type EmailExistsResponse = APIResponse;
+export interface VerificationEmailSendResponse extends APIResponse {
+  target: string;
+  total_count: number;
+  remaining_count: number;
+  current_count: number;
+}
+
+export interface VerificationEmailSendRequest {
+  email: string;
+}
+
+export interface VerificationEmailVerifyRequest {
+  email: string;
+  verification_code: string;
+}
+
+export type VerificationEmailVerifyResponse = APIResponse;
+
+export interface IdFindEmailRequest {
+  email: string;
+  verification_code: string;
+}
+
+export interface IdFindEmailResponse extends APIResponse {
+  login_id: string;
+}
+
+export interface PhoneExistsRequest {
+  phone_number: string;
+}
+
+export type PhoneExistsResponse = APIResponse;
+
+export interface IdExistsRequest {
+  login_id: string;
+}
+
+export type IdExistsResponse = APIResponse;
+
+export interface IdMatchPhoneRequest {
+  login_id: string;
+  phone_number: string;
+}
+
+export type IdMatchPhoneResponse = APIResponse;
+
+export interface IdMatchEmailRequest {
+  login_id: string;
+  email: string;
+}
+
+export type IdMatchEmailResponse = APIResponse;
+
+export interface ResetPasswordSmsRequest {
+  login_id: string;
+  phone_number: string;
+  new_password: string;
+}
+
+export type ResetPasswordSmsResponse = APIResponse;
+
+export interface ResetPasswordEmailRequest {
+  login_id: string;
+  email: string;
+  new_password: string;
+}
+
+export type ResetPasswordEmailResponse = APIResponse;
+
+export interface VerificationSmsSendResponse extends APIResponse {
+  target: string;
+  total_count: number;
+  remaining_count: number;
+  current_count: number;
+}
+
+export interface VerificationSmsSendRequest {
+  phone_number: string;
+}
+
+export type VerificationSmsVerifyResponse = APIResponse;
+
+export interface VerificationSmsVerifyRequest {
+  phone_number: string;
+  verification_code: string;
+}
+
+export interface IdFindSmsResponse extends APIResponse {
+  login_id: string;
+}
+
+export interface IdFindSmsRequest {
+  phone_number: string;
+  verification_code: string;
+}

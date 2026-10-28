@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "koin-web-local",
+  "main": "src/server.ts",
+  "compatibility_date": "2026-10-26",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": { "binding": "ASSETS" },
+  "images": { "binding": "IMAGES" },
+  "observability": { "enabled": true },
+  "env": {
+    "stage": {
+      "name": "koin-web-stage",
+      "images": { "binding": "IMAGES" },
+      "vars": { "NEXT_PUBLIC_SENTRY_ENVIRONMENT": "stage" }
+    },
+    "production": {
+      "name": "koin-web",
+      "images": { "binding": "IMAGES" },
+      "vars": { "NEXT_PUBLIC_SENTRY_ENVIRONMENT": "production" }
+    }
+  }
+}

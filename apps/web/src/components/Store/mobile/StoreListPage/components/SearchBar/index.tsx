@@ -1,0 +1,33 @@
+import { useRouter, useSearch } from '@tanstack/react-router';
+
+import SearchIconGray from 'assets/svg/Store/search-icon-gray.svg';
+import { getCategoryIdFromQuery, getCategoryNameById } from 'components/Store/mobile/common/utils/shopCategories';
+import ROUTES from 'static/routes';
+import useLogger from 'utils/hooks/analytics/useLogger';
+
+import styles from './SearchBar.module.scss';
+
+// KOIN_ORDER_WEBVIEW pages/Home/components/SearchBar 이전. 누르면 검색 화면으로 이동한다
+export default function SearchBar() {
+  const router = useRouter();
+  const routeSearch = useSearch({ strict: false }) as Record<string, string | string[] | undefined>;
+  const logger = useLogger();
+
+  const handleSearchBarClick = () => {
+    const categoryName = getCategoryNameById(getCategoryIdFromQuery(routeSearch.category));
+
+    logger.actionEventClick({
+      team: 'BUSINESS',
+      event_label: 'shop_categories_search',
+      value: `search in ${categoryName}`,
+    });
+    router.navigate({ href: ROUTES.StoreSearch() });
+  };
+
+  return (
+    <button type="button" className={styles['search-bar']} onClick={handleSearchBarClick}>
+      <SearchIconGray className={styles['search-bar__icon']} />
+      <span className={styles['search-bar__placeholder']}>검색어를 입력해주세요.</span>
+    </button>
+  );
+}

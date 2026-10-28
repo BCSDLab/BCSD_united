@@ -1,0 +1,62 @@
+{
+  "source": {
+    "repository": "BCSDLab/KOIN_API_V2",
+    "commit": "a2c4b432af834bb9887475089b9c495ecd6d669b",
+    "flyway": "V1 through V20, applied unmodified to a disposable empty MySQL 8.0 database",
+    "tables": 165,
+    "mongoCollections": ["citybus_timetables", "shuttlebus_timetables", "lost_item_chat_room", "lost_item_chat_user_block", "address_byeongcheon"],
+    "metadata": "source-schema.json",
+    "migrationHashesAndFreshCatalogRows": "source-seeds.json"
+  },
+  "commandsFromAppDirectory": {
+    "generate": "node scripts/generate-schema.mjs",
+    "export": "node scripts/export-sources.mjs /secure/new-snapshot --sources-quiesced",
+    "convert": "node scripts/convert-snapshot.mjs /secure/new-snapshot /secure/new-converted +09:00",
+    "importLocal": "node scripts/import-d1.mjs /secure/new-converted koin-api --local",
+    "importRemote": "node scripts/import-d1.mjs /secure/new-converted koin-api --remote",
+    "freshCatalogOnly": "node scripts/seed-source.mjs /secure/new-catalog.sql",
+    "tests": "node --test scripts/migration.test.mjs"
+  },
+  "exportPrerequisites": [
+    "Node 24, mysql2, mongoexport, mongosh; Wrangler available to import through the workspace dependency",
+    "MYSQL_URL, MONGO_URI, MONGO_DATABASE, REDIS_URL supplied only at execution, never committed",
+    "All Java/API/background writers stopped across all three stores; SCAN is not an atomic Redis snapshot",
+    "Redis ACL permits SCAN, TYPE, per-type reads, TIME, PTTL, and the included EVAL script containing only TIME/PTTL reads; expiry uses Redis server time, not workstation time",
+    "Live Flyway V20 successful and all 165 table names, column types/nullability/defaults/collations/generated expressions, indexes, CHECK constraints and foreign keys match source metadata",
+    "Actual JVM/JDBC DATETIME timezone offset established independently; +09:00 shown in command is an example, not an inferred production setting",
+    "No application traffic on the newly created D1 target until import manifest verification succeeds"
+  ],
+  "representations": {
+    "int": "INTEGER with integer storage class and exact signed/unsigned source ranges; ordinary IDs remain JavaScript numbers",
+    "bigint": "Canonical signed 64-bit decimal TEXT, checked through exact SQLite CAST roundtrip; numeric predicates and ordering require CAST(column AS INTEGER), IDs are never coerced through JavaScript Number",
+    "bigintAutoIncrement": "notification and notification_subscribe use native_sequence, allocated by allocateBigintId and initialized to imported maximum; gaps on failed business operations are allowed as in MySQL",
+    "decimal": "Exact decimal TEXT; exporter refuses numeric JSON conversion, scale and range checked",
+    "binary16": "Canonical lowercase UUID TEXT, exact 16-byte binary conversion",
+    "binaryOther": "BLOB/Uint8Array, base64 in export envelopes and hex SQL literals",
+    "json": "Original MySQL JSON text retained byte-for-byte after syntax validation; JSON_VALID enforced; Drizzle JSON mapping is used only for actual source JSON columns",
+    "timestamp": "UTC SQL datetime text; fractional source digits preserved",
+    "datetime": "Declared source timezone shifted to UTC SQL text, except new_koreatech_articles.registered_at, which is a LocalDate calendar value",
+    "mongoDatetime": "ISO UTC for chat instants; citybus_timetables.updated_at preserves source local calendar display semantics",
+    "dateAndTime": "Unshifted source calendar/date/time strings",
+    "nativeExpiry": "Owner-defined SQL UTC/ISO UTC text or integer epoch milliseconds, encoded explicitly by native-schema.mjs",
+    "onUpdate": "SQLite AFTER UPDATE triggers update source ON UPDATE columns only when other values change and timestamp value is unchanged; SQLite cannot distinguish explicitly reassigning the same old timestamp from omitting that column"
+  },
+  "collation": {
+    "sql": "Source *_ci columns use actual SQLite NOCASE in both DDL and Drizzle custom types; this supports only ASCII folding, not arbitrary MySQL Unicode equality",
+    "storage": "native_collation_key has PRIMARY KEY(scope,owner) and UNIQUE(scope,normalized). Original display text stays unchanged. Converter populates every applicable source unique index. Runtime normalizedUniqueWrites must be in the same atomic batch as writes; normalizedUniqueLookup queries the registry",
+    "normalization": "PAD SPACE for non0900 collations; general_ci uses NFD, other *_ci uses NFKD; lowercase plus combining-mark removal; final-sigma folding; general_ci sharp-s to s, Unicode sharp-s to ss; oe-ligature folding outside general_ci; ae/stroked-l/stroked-d/slashed-o folding only for0900",
+    "verifiedSourceExamples": {"general_ci sharp-s=s": true, "general_ci sharp-s=ss": false, "unicode_ci sharp-s=ss": true, "unicode_ci ae-ligature=ae": false, "0900_ai_ci ae-ligature=ae": true},
+    "limits": "This is an explicit approximation, not MySQL UCA4/UCA9/general_ci weight tables. Context-sensitive contractions, all-script case/mark equivalences, compatibility characters and utf8mb3 supplementary-character restrictions are not fully reproduced. SQL LIKE/equality/sorts remain SQLite semantics unless a domain uses normalized lookup. Imported normalization collisions fail closed; operator must reconcile, never silently merge"
+  },
+  "importSafety": {
+    "checkpoint": "SHA256/byte/count manifest per source file; complete=false on interruption. Export cannot resume an old consistent snapshot: start a new empty output directory. Converted D1 files commit a native_import_checkpoint row with data hash and count; importer resumes only identical checkpoints",
+    "foreignKeys": "Local staging preserves all source constraints, validates PRAGMA foreign_key_check and integrity_check, and emits topologically ordered strongly connected FK components with deferred enforcement; final D1 counts and foreign keys checked again",
+    "limits": "Reject database above 10000000000 bytes, rows above 2MiB including conservative record-header allowance, SQL statements above100000 bytes, or an indivisible FK-component import file above5GiB. No data is truncated or silently omitted",
+    "redis": "Original binary values retained losslessly in native_legacy_redis. Explicit adapters map active business keys; unknown live keyspaces block conversion. Expired values, Spring secondary indexes/shadow copies, obsolete dining notification cache and disconnected socket presence are archived with a declared disposition",
+    "chat": "Reconcile Mongo embedded messages and Redis zsets by decimal TSID; read/deleted flags merge monotonically, richer submillisecond timestamps survive Mongo millisecond truncation, conflicting content/identity/image values block conversion",
+    "payment": "Temporary payment import rebuilds and freezes the current cart graph, requires exact original product/total money equality, retains real PTTL, and blocks if mutable source cart no longer matches",
+    "mongoArchive": "Every original canonical Extended JSON document is also retained in native_legacy_mongo, including historical/unknown fields; no selected-column transform discards source data",
+    "search": "new_articles title bigrams backfilled using the exact domain NFC/lowercase/codepoint/stopword algorithm; ongoing title writes replace their index atomically in the community domain"
+  },
+  "providerReferences": ["https://developers.cloudflare.com/d1/best-practices/import-export-data/", "https://developers.cloudflare.com/d1/platform/limits/", "https://developers.cloudflare.com/d1/sql-api/foreign-keys/"]
+}

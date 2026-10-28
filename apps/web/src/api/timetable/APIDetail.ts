@@ -1,0 +1,284 @@
+import { type APIRequest, HTTP_METHOD } from 'interfaces/APIRequest';
+
+import type {
+  Semester,
+  SemestersResponse,
+  LecturesResponse,
+  SemesterCheckResponse,
+  TimetableLectureInfoResponse,
+  DeleteTimetableLectureResponse,
+  TimetableFrameListResponse,
+  EditTimetableFrameRequest,
+  AddTimetableFrameRequest,
+  DeleteTimetableFrameResponse,
+  DeleteSemesterResponse,
+  VersionType,
+  VersionInfoResponse,
+  TimetableLectureRegularEditRequest,
+  TimetableLectureCustomEditRequest,
+  AddTimetableLectureRegularRequest,
+  AddTimetableLectureCustomRequest,
+  RollbackTimetableLectureRequest,
+  TimetableAllLectureResponse,
+} from './entity';
+
+export class SemesterInfoList<R extends SemestersResponse> implements APIRequest<R> {
+  method = HTTP_METHOD.GET;
+
+  path = '/v3/semesters';
+
+  response!: R;
+
+  auth = false;
+}
+
+export class SemesterCheck<R extends SemesterCheckResponse> implements APIRequest<R> {
+  method = HTTP_METHOD.GET;
+
+  path = '/v3/semesters/check';
+
+  response!: R;
+
+  auth = true;
+}
+
+export class LectureList<R extends LecturesResponse> implements APIRequest<R> {
+  method = HTTP_METHOD.GET;
+
+  path = '/v3/lectures';
+
+  response!: R;
+
+  params: {
+    year: number;
+    term: string;
+  };
+
+  constructor(semester: Semester) {
+    this.params = {
+      year: semester.year,
+      term: semester.term,
+    };
+  }
+}
+
+export class TimetableLectureInfo<R extends TimetableLectureInfoResponse> implements APIRequest<R> {
+  method = HTTP_METHOD.GET;
+
+  path = '/v3/timetables/lecture';
+
+  response!: R;
+
+  auth = true;
+
+  params: Record<string, number>;
+
+  constructor(timeTableFrameId: number) {
+    this.params = {
+      timetable_frame_id: timeTableFrameId,
+    };
+  }
+}
+
+export class TimetableAllLectureInfo<R extends TimetableAllLectureResponse> implements APIRequest<R> {
+  method = HTTP_METHOD.GET;
+
+  path = '/v3/timetables/main/lectures';
+
+  response!: R;
+
+  auth = true;
+}
+
+export class TimetableLectureRegularEdit<R extends TimetableLectureInfoResponse> implements APIRequest<R> {
+  method = HTTP_METHOD.PUT;
+
+  path = '/v3/timetables/lecture/regular';
+
+  response!: R;
+
+  auth = true;
+
+  constructor(public data: TimetableLectureRegularEditRequest) {}
+}
+
+export class TimetableLectureCustomEdit<R extends TimetableLectureInfoResponse> implements APIRequest<R> {
+  method = HTTP_METHOD.PUT;
+
+  path = '/v3/timetables/lecture/custom';
+
+  response!: R;
+
+  auth = true;
+
+  constructor(public data: TimetableLectureCustomEditRequest) {}
+}
+
+export class TimetableLectureRegularAddition<R extends TimetableLectureInfoResponse> implements APIRequest<R> {
+  method = HTTP_METHOD.POST;
+
+  path = '/v3/timetables/lecture/regular';
+
+  response!: R;
+
+  auth = true;
+
+  constructor(public data: AddTimetableLectureRegularRequest) {}
+}
+
+export class TimetableLectureCustomAddition<R extends TimetableLectureInfoResponse> implements APIRequest<R> {
+  method = HTTP_METHOD.POST;
+
+  path = '/v3/timetables/lecture/custom';
+
+  response!: R;
+
+  auth = true;
+
+  constructor(public data: AddTimetableLectureCustomRequest) {}
+}
+
+export class TimetableLectureRollback<R extends TimetableLectureInfoResponse> implements APIRequest<R> {
+  method = HTTP_METHOD.POST;
+
+  path: string;
+
+  response!: R;
+
+  auth = true;
+
+  constructor(public data: RollbackTimetableLectureRequest) {
+    this.path = `/v3/timetables/lecture/rollback?timetable_lectures_id=${data.timetable_lectures_id}`;
+  }
+}
+
+export class TimetableLectureDeletion<R extends DeleteTimetableLectureResponse> implements APIRequest<R> {
+  method = HTTP_METHOD.DELETE;
+
+  path = '/v2/timetables/lecture/:id';
+
+  response!: R;
+
+  auth = true;
+
+  constructor(public id: number | undefined) {
+    this.path = `/v2/timetables/lecture/${id}`;
+  }
+}
+
+export class TimetableFrameList<R extends TimetableFrameListResponse> implements APIRequest<R> {
+  method = HTTP_METHOD.GET;
+
+  path = '/v3/timetables/frame';
+
+  response!: R;
+
+  auth = true;
+
+  params: {
+    year: number;
+    term: string;
+  };
+
+  constructor(semester: Semester) {
+    this.params = {
+      year: semester.year,
+      term: semester.term,
+    };
+  }
+}
+
+export class TimetableFrameAddition<R extends TimetableFrameListResponse> implements APIRequest<R> {
+  method = HTTP_METHOD.POST;
+
+  path = '/v3/timetables/frame';
+
+  response!: R;
+
+  auth = true;
+
+  constructor(public data: AddTimetableFrameRequest) {}
+}
+
+export class TimetableFrameEdit<R extends TimetableFrameListResponse> implements APIRequest<R> {
+  method = HTTP_METHOD.PUT;
+
+  path = '/v3/timetables/frame/:id';
+
+  response!: R;
+
+  auth = true;
+
+  constructor(
+    public id: number,
+    public data: EditTimetableFrameRequest,
+  ) {
+    this.path = `/v3/timetables/frame/${id}`;
+  }
+}
+
+export class DeleteTimetableFrame<R extends DeleteTimetableFrameResponse> implements APIRequest<R> {
+  method = HTTP_METHOD.DELETE;
+
+  path = '/v2/timetables/frame';
+
+  response!: R;
+
+  auth = true;
+
+  params: Record<string, number>;
+
+  constructor(public id: number) {
+    this.params = {
+      id,
+    };
+  }
+}
+
+export class RollbackTimetableFrame<R extends TimetableLectureInfoResponse> implements APIRequest<R> {
+  method = HTTP_METHOD.POST;
+
+  path: string;
+
+  response!: R;
+
+  auth = true;
+
+  constructor(timetableFrameId: number) {
+    this.path = `/v3/timetables/frame/rollback?timetable_frame_id=${timetableFrameId}`;
+  }
+}
+
+export class DeleteSemester<R extends DeleteSemesterResponse> implements APIRequest<R> {
+  method = HTTP_METHOD.DELETE;
+
+  path = '/v3/timetables/frames';
+
+  response!: R;
+
+  auth = true;
+
+  params: {
+    year: number;
+    term: string;
+  };
+
+  constructor(semester: Semester) {
+    this.params = {
+      year: semester.year,
+      term: semester.term,
+    };
+  }
+}
+
+export class VersionInfo<R extends VersionInfoResponse> implements APIRequest<R> {
+  method = HTTP_METHOD.GET;
+
+  response!: R;
+
+  path = 'versions/:type';
+
+  constructor(type: VersionType) {
+    this.path = `/version/${type}`;
+  }
+}

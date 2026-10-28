@@ -1,0 +1,36 @@
+import { Suspense, useEffect } from 'react';
+import { useRouter } from '@tanstack/react-router';
+
+import { DropdownProvider } from 'components/Store/StoreDetailPage/hooks/useDropdown';
+import ROUTES from 'static/routes';
+import { isomorphicSessionStorage } from 'utils/ts/env';
+
+import AverageRating from './components/AverageRating/AverageRating';
+import ReviewButton from './components/ReviewButton';
+import ReviewList from './components/ReviewList/ReviewList';
+import styles from './index.module.scss';
+
+export default function ReviewPage({ id }: { id: string }) {
+  const router = useRouter();
+
+  useEffect(() => {
+    // 리뷰 페이지 진입 시간 기록
+    isomorphicSessionStorage.setItem('enterReviewPage', new Date().getTime().toString());
+  }, []);
+
+  return (
+    <Suspense fallback={<div />}>
+      <div className={styles.container}>
+        <div className={styles['button-wrapper']}>
+          <ReviewButton id={id} goReviewPage={() => router.navigate({ href: ROUTES.Review({ id }) })} />
+        </div>
+        <AverageRating id={id} />
+      </div>
+      <div>
+        <DropdownProvider>
+          <ReviewList id={id} />
+        </DropdownProvider>
+      </div>
+    </Suspense>
+  );
+}

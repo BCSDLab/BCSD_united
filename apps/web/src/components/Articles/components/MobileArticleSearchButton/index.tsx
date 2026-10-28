@@ -1,0 +1,23 @@
+import { useRouter } from '@tanstack/react-router';
+
+import SearchIcon from 'assets/svg/search-01.svg';
+import ROUTES from 'static/routes';
+
+import styles from './MobileArticleSearchButton.module.scss';
+
+export default function MobileArticleSearchButton() {
+  const router = useRouter();
+
+  return (
+    <div className={styles['search-bar']}>
+      <button
+        type="button"
+        className={styles['search-bar__button']}
+        onClick={() => router.navigate({ href: ROUTES.ArticlesSearch() })}
+        aria-label="공지사항 검색"
+      >
+        <SearchIcon />
+      </button>
+    </div>
+  );
+}

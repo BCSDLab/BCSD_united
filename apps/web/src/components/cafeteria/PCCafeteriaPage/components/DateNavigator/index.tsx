@@ -1,0 +1,107 @@
+import { cn } from '@bcsdlab/utils';
+import LeftArrow from 'assets/svg/left-angle-bracket.svg';
+import RightArrow from 'assets/svg/right-angle-bracket.svg';
+import CafeteriaInfoBoundary from 'components/cafeteria/components/CafeteriaInfoBoundary';
+import { useCafeteriaParams } from 'components/cafeteria/hooks/useCafeteriaParams';
+
+import CafeteriaInfoTrigger from './components/CafeteriaInfoTrigger';
+import styles from './DateNavigator.module.scss';
+
+interface DayInfo {
+  weekDay: string;
+  dateOfMonth: number;
+  date: Date;
+}
+
+const generateWeek = (today: Date) => {
+  const WEEK = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
+
+  const currentDate = new Date(today);
+  while (currentDate.getDay() !== 0) {
+    currentDate.setDate(currentDate.getDate() - 1);
+  }
+
+  const week: DayInfo[] = [];
+  for (let i = 0; i < 7; i += 1) {
+    const weekDay = WEEK[i];
+    const dateOfMonth = currentDate.getDate();
+    const newDate = new Date(currentDate);
+    week.push({
+      weekDay,
+      dateOfMonth,
+      date: newDate,
+    });
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+
+  return week;
+};
+
+export default function DateNavigator() {
+  const { date } = useCafeteriaParams();
+
+  const thisWeek = generateWeek(date.current());
+
+  return (
+    <div className={styles.container}>
+      <div className={styles['date-wrapper']}>
+        <div className={styles.date}>
+          <button className={styles.date__button} type="button" aria-label="이전 날짜" onClick={date.setPrevWeek}>
+            <LeftArrow />
+          </button>
+          <button
+            className={cn({
+              [styles.date__button]: true,
+              [styles['date__button--today']]: date.checkToday(date.current()),
+            })}
+            type="button"
+            aria-label="오늘 날짜"
+            onClick={date.setToday}
+          >
+            오늘
+          </button>
+          <button className={styles.date__button} type="button" aria-label="다음 날짜" onClick={date.setNextWeek}>
+            <RightArrow />
+          </button>
+        </div>
+        <CafeteriaInfoBoundary>
+          <CafeteriaInfoTrigger />
+        </CafeteriaInfoBoundary>
+      </div>
+
+      <div className={styles.week}>
+        {thisWeek.map((dayInfo) => (
+          <button
+            key={dayInfo.weekDay}
+            className={cn({
+              [styles['week__one-day']]: true,
+              [styles['week__one-day--selected']]: dayInfo.date.toDateString() === date.current().toDateString(),
+            })}
+            type="button"
+            onClick={() => date.set(dayInfo.date)}
+          >
+            <span
+              className={cn({
+                [styles.week__day]: true,
+                [styles['week--today']]: date.checkToday(dayInfo.date),
+                [styles['week--past']]: date.checkPast(dayInfo.date),
+              })}
+            >
+              {dayInfo.weekDay}
+            </span>
+            <span
+              className={cn({
+                [styles.week__date]: true,
+                [styles['week--today']]: date.checkToday(dayInfo.date),
+                [styles['week--past']]: date.checkPast(dayInfo.date),
+              })}
+            >
+              {dayInfo.dateOfMonth}
+            </span>
+            {date.checkToday(dayInfo.date) && <span className={styles['week__today-dot']} />}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}

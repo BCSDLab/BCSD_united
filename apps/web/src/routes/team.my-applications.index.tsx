@@ -1,0 +1,225 @@
+import Seo from 'components/seo/Seo';
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
+
+import { Suspense, useState } from 'react';
+import type { MouseEventHandler } from 'react';
+
+
+
+
+import { cn } from '@bcsdlab/utils';
+import { useSuspenseInfiniteQuery } from '@tanstack/react-query';
+import type {
+  MyTeamRecruitmentApplication,
+  MyTeamRecruitmentApplicationListRequest,
+  TeamApplicationStatus,
+  TeamRecruitmentSort,
+} from 'api/team/entity';
+import { teamQueries } from 'api/team/queries';
+import EmptyRecruitment from 'assets/svg/common/sleep-bbico.svg';
+import ChatIcon from 'assets/svg/Team/chat-bubble.svg';
+import FilterIcon from 'assets/svg/Team/filter.svg';
+import ErrorBoundary from 'components/boundary/ErrorBoundary';
+import Layout from 'components/layout';
+import MobilePageHeader from 'components/layout/MobilePageHeader';
+import MyApplicationFilterPanel from 'components/Team/components/MyApplicationFilterPanel';
+import RecruitmentCard from 'components/Team/components/RecruitmentCard';
+import formatApplicationStatus from 'components/Team/utils/formatApplicationStatus';
+import ROUTES from 'static/routes';
+import useLogger from 'utils/hooks/analytics/useLogger';
+import useBooleanState from 'utils/hooks/state/useBooleanState';
+import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
+import useInfiniteScroll from 'utils/hooks/ui/useInfiniteScroll';
+
+import styles from 'pages/team/my-applications/MyApplicationsPage.module.scss';
+
+const APPLICATION_STATUS_CLASS = {
+  PENDING: 'applicationStatus--pending',
+  ACCEPTED: 'applicationStatus--accepted',
+  REJECTED: 'applicationStatus--rejected',
+} as const;
+
+interface ApplicationsListSectionProps {
+  requestParams: MyTeamRecruitmentApplicationListRequest;
+  onFilterOpen: (anchorRect: DOMRect) => void;
+  onChatClick: (application: MyTeamRecruitmentApplication) => MouseEventHandler<HTMLButtonElement>;
+}
+
+function ApplicationsListSection({ requestParams, onFilterOpen, onChatClick }: ApplicationsListSectionProps) {
+  const logger = useLogger();
+  const isLoggedIn = useIsLoggedIn();
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useSuspenseInfiniteQuery(
+    teamQueries.infiniteMyApplications(isLoggedIn, requestParams),
+  );
+
+  const applications = data.pages.flatMap((page) => page.applications);
+  const totalCount = data.pages[0]?.total_count ?? 0;
+
+  const scrollTriggerRef = useInfiniteScroll(fetchNextPage, hasNextPage, isFetchingNextPage);
+
+  const handleFilterOpen: MouseEventHandler<HTMLButtonElement> = (event) => {
+    logger.actionEventClick({ team: 'CAMPUS', event_label: 'team_recruitment_applied_post_filter', value: '필터' });
+    onFilterOpen(event.currentTarget.getBoundingClientRect());
+  };
+
+  return (
+    <>
+      <div className={styles['summary-row']}>
+        <p className={styles['total-count']}>총 {totalCount}개의 모집글</p>
+
+        <button type="button" className={styles['filter-button']} onClick={handleFilterOpen}>
+          <span className={styles['filter-button__label']}>필터</span>
+          <FilterIcon />
+        </button>
+      </div>
+
+      <div className={styles.content}>
+        {applications.length === 0 && (
+          <div className={styles.empty}>
+            <EmptyRecruitment />
+            <div className={styles.empty__text}>
+              <p className={styles.empty__title}>지원한 모집글이 없어요.</p>
+              <p className={styles.empty__subtitle}>마음에 드는 모집글에 지원해보세요.</p>
+            </div>
+            <Link to={ROUTES.Team()} className={styles.empty__button}>
+              모집글 둘러보기
+            </Link>
+          </div>
+        )}
+
+        {applications.length > 0 && (
+          <div className={styles.list}>
+            {applications.map((application) => (
+              <RecruitmentCard
+                key={application.application_id}
+                recruitment={application.recruitment}
+                rightSlot={
+                  <span
+                    className={cn({
+                      [styles['application-status']]: true,
+                      [styles[APPLICATION_STATUS_CLASS[application.status]]]: true,
+                    })}
+                  >
+                    {formatApplicationStatus(application.status)}
+                  </span>
+                }
+                footerAction={
+                  application.team_chat_available &&
+                  application.team_chat_room_id !== null && (
+                    <button
+                      type="button"
+                      className={styles['chat-button']}
+                      aria-label="팀 채팅방으로 이동"
+                      onClick={onChatClick(application)}
+                    >
+                      <ChatIcon />
+                    </button>
+                  )
+                }
+              />
+            ))}
+
+            <div ref={scrollTriggerRef} className={styles['scroll-trigger']} />
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+export default function MyApplicationsPage() {
+  const logger = useLogger();
+  
+  const routeNavigate = useNavigate();
+  
+  
+
+  const [isFilterOpen, openFilter, closeFilter] = useBooleanState(false);
+  const [filterAnchorRect, setFilterAnchorRect] = useState<DOMRect | null>(null);
+  const [requestParams, setRequestParams] = useState<MyTeamRecruitmentApplicationListRequest>({
+    statuses: [],
+    sort: 'LATEST_DESC',
+  });
+
+  const handleApplyFilter = (filter: { statuses: TeamApplicationStatus[]; sort: TeamRecruitmentSort }) => {
+    setRequestParams(filter);
+  };
+
+  const handleChatClick =
+    (application: MyTeamRecruitmentApplication): MouseEventHandler<HTMLButtonElement> =>
+    (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (application.team_chat_room_id === null) return;
+
+      logger.actionEventClick({
+        team: 'CAMPUS',
+        event_label: 'team_recruitment_applied_post_chat',
+        value: application.recruitment.title,
+      });
+
+      routeNavigate({ href: ROUTES.TeamChat({
+          recruitmentId: String(application.recruitment.id),
+          chatRoomId: String(application.team_chat_room_id),
+        }) });
+    };
+
+  return (
+    <>
+      <Seo title="내가 지원한 모집글 | KOIN" description="내가 지원한 팀원 모집 게시글과 지원 상태를 확인할 수 있습니다." />
+
+      <MobilePageHeader
+        title="내가 지원한 모집글"
+        onBack={() => routeNavigate({ href: ROUTES.TeamProfile(), replace: true })}
+        background="gray"
+      />
+
+      <main className={styles.page}>
+        <div className={styles.inner}>
+          <h1 className={styles.title}>내가 지원한 모집글</h1>
+
+          <ErrorBoundary key={JSON.stringify(requestParams)} fallbackClassName={styles['error-fallback']}>
+            <Suspense fallback={null}>
+              <ApplicationsListSection
+                requestParams={requestParams}
+                onFilterOpen={(anchorRect) => {
+                  setFilterAnchorRect(anchorRect);
+                  openFilter();
+                }}
+                onChatClick={handleChatClick}
+              />
+            </Suspense>
+          </ErrorBoundary>
+        </div>
+      </main>
+
+      {isFilterOpen && (
+        <MyApplicationFilterPanel
+          isOpen={isFilterOpen}
+          onClose={() => {
+            closeFilter();
+            setFilterAnchorRect(null);
+          }}
+          anchorRect={filterAnchorRect}
+          statuses={requestParams.statuses ?? []}
+          sort={requestParams.sort ?? 'LATEST_DESC'}
+          onApply={handleApplyFilter}
+        />
+      )}
+    </>
+  );
+}
+
+
+
+export const Route = createFileRoute('/team/my-applications/')({
+  validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
+  staticData: { hasPageSeo: true },
+  component: RouteComponent,
+});
+
+function RouteComponent() {
+  const page = <MyApplicationsPage />;
+  return <Layout mobileHeader="page">{page}</Layout>;
+}

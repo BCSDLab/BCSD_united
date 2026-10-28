@@ -1,0 +1,1697 @@
+{
+  "sourceCommit": "a2c4b432af834bb9887475089b9c495ecd6d669b",
+  "reconstructedWith": "8.0.46",
+  "appliedUnmodified": [
+    {
+      "file": "V1__baseline_schema.sql",
+      "sha256": "206c6a246ad456859504b49e2575494104a11de19a6d3d56dfdaf3c4ab878a86"
+    },
+    {
+      "file": "V2__create_department_contacts.sql",
+      "sha256": "d8eb2e68dd5fcd3b96acbd3f3047aa995d034d688033f4c7373988655d7c63c0"
+    },
+    {
+      "file": "V3__create_article_ai_summaries.sql",
+      "sha256": "046578a046ae6815e8d3be4e2c9759ac5e8bafb5d631e34871ff597c1dcb6ad1"
+    },
+    {
+      "file": "V4__create_article_ai_summary_logs.sql",
+      "sha256": "2ba0f2644c80bcfc20d071f2d68bba9a9eb735e58045963ed8b34112b3e3a986"
+    },
+    {
+      "file": "V5__create_team_recruitment_schema.sql",
+      "sha256": "471da6fc6dab637de51f7cccdb4023ae961ccde86cb016afef500a39c09bfaed"
+    },
+    {
+      "file": "V6__add_team_recruitment_outbox_lease.sql",
+      "sha256": "50aca00ba8bf4a24a54e4238cd15def9676cc4ea4490c2e37d89a943baad5448"
+    },
+    {
+      "file": "V7__relax_team_recruitment_deadline_date.sql",
+      "sha256": "e0802202bf43ad6ac2d2baf6b56e14533bfee4c138b0ccd8356878dd807ab22c"
+    },
+    {
+      "file": "V8__fix_user_withdrawal_order_references.sql",
+      "sha256": "bc5a904888477b33635beb42f097b57729a1a55f14120a3dd5e9e5978cd0dbf0"
+    },
+    {
+      "file": "V9__migrate_chat_room_status_read_only_to_active.sql",
+      "sha256": "fb31c6c6207410fb8cab2916c611be28ef7a8545d97993f556762750c748df01"
+    },
+    {
+      "file": "V10__widen_team_recruitment_profile_activity_description.sql",
+      "sha256": "f416cb42a1032ff1f337b044f6f8edc6af65c2c39e13c309f8a6be3eccc91e2a"
+    },
+    {
+      "file": "V11__add_order_number_to_order_v2.sql",
+      "sha256": "b2ee7965984c023efb69ca278f12ca23623b6f2f1dacb679c00d92816d9a21ef"
+    },
+    {
+      "file": "V12__create_dining_soldout_reports.sql",
+      "sha256": "eb6611811bcb04492eb20f814a01a4996fc7ba07cd9d33f01f662d546d4212da"
+    },
+    {
+      "file": "V13__create_dining_report_deliveries.sql",
+      "sha256": "d8f0fee1bc167fad6e9361dcfd64252fc264aad067bf5ba7a40db8d458a76293"
+    },
+    {
+      "file": "V14__decouple_dining_report_delivery.sql",
+      "sha256": "d7fe95dfa31ba8bc88df00201020497d9f3a5bfbb3541df5040a6d376b3a28e6"
+    },
+    {
+      "file": "V15__relax_dining_report_request_key.sql",
+      "sha256": "3db76ed5d2197da5a785564b8b9b01e2ec6287784655bef282775e2c330fef7d"
+    },
+    {
+      "file": "V16__fix_team_recruitment_user_withdrawal.sql",
+      "sha256": "ac347960b98f6e34b5a785e90eb13a5a98aeb1a5b8b1a5642333ce366d15e7c6"
+    },
+    {
+      "file": "V17__create_academic_program_year.sql",
+      "sha256": "e91014e98e64a4b6b1904027c793a9e2827fa17c38f5fb68c601a54a99007f5f"
+    },
+    {
+      "file": "V18__move_department_catalog_to_database.sql",
+      "sha256": "a90cea78333fe0b2d1c26bb2f31ff4a02007389da59db78a6b7d7d29eedf5e99"
+    },
+    {
+      "file": "V19__split_cafeteria_weekend_hours.sql",
+      "sha256": "e09a5923c052732f055c5c4c0b6fbec89b8f5cc4203f9b49462820f95d652dbd"
+    },
+    {
+      "file": "V20__correct_academic_program_catalog_2025_2026.sql",
+      "sha256": "3ee9dd6338f56355d28fdc7a19deca661a20d45a1e9d224a9185117644bb4200"
+    }
+  ],
+  "tables": {
+    "abtest": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "abtest_variable": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "academic_program_year": {
+      "createdBy": "V17__create_academic_program_year.sql",
+      "changes": [
+        {
+          "migration": "V17__create_academic_program_year.sql",
+          "operation": "CREATE TABLE"
+        },
+        {
+          "migration": "V20__correct_academic_program_catalog_2025_2026.sql",
+          "operation": "INSERT INTO"
+        }
+      ]
+    },
+    "access_history": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "access_history_abtest_variable": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "activities": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "admins": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "admins_activity_history": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "article_ai_summaries": {
+      "createdBy": "V3__create_article_ai_summaries.sql",
+      "changes": [
+        {
+          "migration": "V3__create_article_ai_summaries.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "article_ai_summary_logs": {
+      "createdBy": "V4__create_article_ai_summary_logs.sql",
+      "changes": [
+        {
+          "migration": "V4__create_article_ai_summary_logs.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "article_attachments": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "article_keyword_user_map": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "article_keywords": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "article_search_keyword_ip_map": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "article_search_keywords": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "article_view_logs": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "banner_categories": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "banners": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "boards": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "callvan_chat_message": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "callvan_chat_room": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "callvan_notification": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "callvan_participant": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "callvan_post": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "callvan_report": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "callvan_report_attachment": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "callvan_report_process": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "callvan_report_reason": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "campus_delivery_address": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "campus_delivery_address_type": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "cart": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "cart_menu_item": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "cart_menu_item_option": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "catalog": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "club": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "club_category": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "club_event": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "club_event_image": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "club_event_subscription": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "club_hot": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "club_like": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "club_manager": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "club_qna": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "club_recruitment": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "club_recruitment_subscription": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "club_sns": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "comments": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "coop": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "coop_names": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "coop_opens": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        },
+        {
+          "migration": "V19__split_cafeteria_weekend_hours.sql",
+          "operation": "UPDATE"
+        },
+        {
+          "migration": "V19__split_cafeteria_weekend_hours.sql",
+          "operation": "INSERT INTO"
+        }
+      ]
+    },
+    "coop_semester": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        },
+        {
+          "migration": "V19__split_cafeteria_weekend_hours.sql",
+          "operation": "UPDATE"
+        }
+      ]
+    },
+    "coop_shop": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        },
+        {
+          "migration": "V19__split_cafeteria_weekend_hours.sql",
+          "operation": "UPDATE"
+        }
+      ]
+    },
+    "course_type": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "courses": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "department": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        },
+        {
+          "migration": "V18__move_department_catalog_to_database.sql",
+          "operation": "ALTER TABLE"
+        },
+        {
+          "migration": "V18__move_department_catalog_to_database.sql",
+          "operation": "UPDATE"
+        },
+        {
+          "migration": "V20__correct_academic_program_catalog_2025_2026.sql",
+          "operation": "INSERT INTO"
+        }
+      ]
+    },
+    "department_contact_departments": {
+      "createdBy": "V2__create_department_contacts.sql",
+      "changes": [
+        {
+          "migration": "V2__create_department_contacts.sql",
+          "operation": "CREATE TABLE"
+        },
+        {
+          "migration": "V2__create_department_contacts.sql",
+          "operation": "INSERT INTO"
+        }
+      ]
+    },
+    "department_contacts": {
+      "createdBy": "V2__create_department_contacts.sql",
+      "changes": [
+        {
+          "migration": "V2__create_department_contacts.sql",
+          "operation": "CREATE TABLE"
+        },
+        {
+          "migration": "V2__create_department_contacts.sql",
+          "operation": "INSERT INTO"
+        }
+      ]
+    },
+    "detect_graduation_calculation": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "device": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "dining_likes": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "dining_menus": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        },
+        {
+          "migration": "V12__create_dining_soldout_reports.sql",
+          "operation": "ALTER TABLE"
+        }
+      ]
+    },
+    "dining_soldout_report": {
+      "createdBy": "V12__create_dining_soldout_reports.sql",
+      "changes": [
+        {
+          "migration": "V12__create_dining_soldout_reports.sql",
+          "operation": "CREATE TABLE"
+        },
+        {
+          "migration": "V15__relax_dining_report_request_key.sql",
+          "operation": "ALTER TABLE"
+        }
+      ]
+    },
+    "dining_soldout_report_change": {
+      "createdBy": "V12__create_dining_soldout_reports.sql",
+      "changes": [
+        {
+          "migration": "V12__create_dining_soldout_reports.sql",
+          "operation": "CREATE TABLE"
+        },
+        {
+          "migration": "V14__decouple_dining_report_delivery.sql",
+          "operation": "ALTER TABLE"
+        },
+        {
+          "migration": "V14__decouple_dining_report_delivery.sql",
+          "operation": "UPDATE"
+        }
+      ]
+    },
+    "dining_soldout_report_delivery": {
+      "createdBy": "V13__create_dining_report_deliveries.sql",
+      "changes": [
+        {
+          "migration": "V13__create_dining_report_deliveries.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "dining_soldout_report_delivery_attempt": {
+      "createdBy": "V13__create_dining_report_deliveries.sql",
+      "changes": [
+        {
+          "migration": "V13__create_dining_report_deliveries.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "dining_soldout_report_delivery_target": {
+      "createdBy": "V13__create_dining_report_deliveries.sql",
+      "changes": [
+        {
+          "migration": "V13__create_dining_report_deliveries.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "dining_soldout_report_sequence": {
+      "createdBy": "V12__create_dining_soldout_reports.sql",
+      "changes": [
+        {
+          "migration": "V12__create_dining_soldout_reports.sql",
+          "operation": "CREATE TABLE"
+        },
+        {
+          "migration": "V12__create_dining_soldout_reports.sql",
+          "operation": "INSERT INTO"
+        },
+        {
+          "migration": "V13__create_dining_report_deliveries.sql",
+          "operation": "ALTER TABLE"
+        }
+      ]
+    },
+    "event_article_thumbnail_images": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "event_articles": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "event_articles_view_logs": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "general_education_area": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "koin_notice": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "lands": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "lectures": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "lost_item_articles": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "lost_item_images": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "lost_item_reports": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "major": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        },
+        {
+          "migration": "V20__correct_academic_program_catalog_2025_2026.sql",
+          "operation": "INSERT INTO"
+        }
+      ]
+    },
+    "members": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "migrations": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "new_articles": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "new_koin_articles": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "new_koreatech_articles": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "notification": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "notification_subscribe": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "order": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        },
+        {
+          "migration": "V8__fix_user_withdrawal_order_references.sql",
+          "operation": "ALTER TABLE"
+        }
+      ]
+    },
+    "order_delivery": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "order_delivery_v2": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "order_menu": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "order_menu_option": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "order_menu_option_v2": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "order_menu_v2": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "order_takeout": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "order_takeout_v2": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "order_v2": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        },
+        {
+          "migration": "V11__add_order_number_to_order_v2.sql",
+          "operation": "ALTER TABLE"
+        },
+        {
+          "migration": "V11__add_order_number_to_order_v2.sql",
+          "operation": "UPDATE"
+        }
+      ]
+    },
+    "orderable_shop": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "orderable_shop_delivery_option": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "orderable_shop_image": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "orderable_shop_menu": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "orderable_shop_menu_group": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "orderable_shop_menu_group_map": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "orderable_shop_menu_images": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "orderable_shop_menu_option": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "orderable_shop_menu_option_group": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "orderable_shop_menu_option_group_map": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "orderable_shop_menu_price": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "organizations": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "owner_attachments": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "owners": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "password_resets": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "payment": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "payment_cancel": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "payment_cancel_v2": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "payment_idempotency_key": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        },
+        {
+          "migration": "V8__fix_user_withdrawal_order_references.sql",
+          "operation": "ALTER TABLE"
+        }
+      ]
+    },
+    "payment_v2": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "rider_message": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "search_articles": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "semester": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "shop_base_delivery_tip": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "shop_benefit_categories": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "shop_benefit_category_map": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "shop_categories": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "shop_category_map": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "shop_images": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "shop_menu_categories": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "shop_menu_category_map": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "shop_menu_details": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "shop_menu_images": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "shop_menu_origin": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "shop_menu_search_keywords": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "shop_menus": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "shop_notification_messages": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "shop_opens": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "shop_operation": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "shop_order_service_requests": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "shop_parent_categories": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "shop_review_images": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "shop_review_menus": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "shop_review_reports": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "shop_review_reports_categories": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "shop_reviews": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "shops": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "standard_graduation_requirements": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "student_course_calculation": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "students": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "team_recruitment": {
+      "createdBy": "V5__create_team_recruitment_schema.sql",
+      "changes": [
+        {
+          "migration": "V5__create_team_recruitment_schema.sql",
+          "operation": "CREATE TABLE"
+        },
+        {
+          "migration": "V7__relax_team_recruitment_deadline_date.sql",
+          "operation": "ALTER TABLE"
+        },
+        {
+          "migration": "V16__fix_team_recruitment_user_withdrawal.sql",
+          "operation": "ALTER TABLE"
+        }
+      ]
+    },
+    "team_recruitment_application": {
+      "createdBy": "V5__create_team_recruitment_schema.sql",
+      "changes": [
+        {
+          "migration": "V5__create_team_recruitment_schema.sql",
+          "operation": "CREATE TABLE"
+        },
+        {
+          "migration": "V16__fix_team_recruitment_user_withdrawal.sql",
+          "operation": "ALTER TABLE"
+        }
+      ]
+    },
+    "team_recruitment_chat_member": {
+      "createdBy": "V5__create_team_recruitment_schema.sql",
+      "changes": [
+        {
+          "migration": "V5__create_team_recruitment_schema.sql",
+          "operation": "CREATE TABLE"
+        },
+        {
+          "migration": "V5__create_team_recruitment_schema.sql",
+          "operation": "ALTER TABLE"
+        },
+        {
+          "migration": "V16__fix_team_recruitment_user_withdrawal.sql",
+          "operation": "ALTER TABLE"
+        }
+      ]
+    },
+    "team_recruitment_chat_message": {
+      "createdBy": "V5__create_team_recruitment_schema.sql",
+      "changes": [
+        {
+          "migration": "V5__create_team_recruitment_schema.sql",
+          "operation": "CREATE TABLE"
+        },
+        {
+          "migration": "V16__fix_team_recruitment_user_withdrawal.sql",
+          "operation": "ALTER TABLE"
+        }
+      ]
+    },
+    "team_recruitment_chat_room": {
+      "createdBy": "V5__create_team_recruitment_schema.sql",
+      "changes": [
+        {
+          "migration": "V5__create_team_recruitment_schema.sql",
+          "operation": "CREATE TABLE"
+        },
+        {
+          "migration": "V9__migrate_chat_room_status_read_only_to_active.sql",
+          "operation": "UPDATE"
+        }
+      ]
+    },
+    "team_recruitment_notification": {
+      "createdBy": "V5__create_team_recruitment_schema.sql",
+      "changes": [
+        {
+          "migration": "V5__create_team_recruitment_schema.sql",
+          "operation": "CREATE TABLE"
+        },
+        {
+          "migration": "V16__fix_team_recruitment_user_withdrawal.sql",
+          "operation": "ALTER TABLE"
+        }
+      ]
+    },
+    "team_recruitment_outbox_event": {
+      "createdBy": "V5__create_team_recruitment_schema.sql",
+      "changes": [
+        {
+          "migration": "V5__create_team_recruitment_schema.sql",
+          "operation": "CREATE TABLE"
+        },
+        {
+          "migration": "V6__add_team_recruitment_outbox_lease.sql",
+          "operation": "ALTER TABLE"
+        }
+      ]
+    },
+    "team_recruitment_profile": {
+      "createdBy": "V5__create_team_recruitment_schema.sql",
+      "changes": [
+        {
+          "migration": "V5__create_team_recruitment_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "team_recruitment_profile_activity": {
+      "createdBy": "V5__create_team_recruitment_schema.sql",
+      "changes": [
+        {
+          "migration": "V5__create_team_recruitment_schema.sql",
+          "operation": "CREATE TABLE"
+        },
+        {
+          "migration": "V10__widen_team_recruitment_profile_activity_description.sql",
+          "operation": "ALTER TABLE"
+        }
+      ]
+    },
+    "team_recruitment_profile_skill": {
+      "createdBy": "V5__create_team_recruitment_schema.sql",
+      "changes": [
+        {
+          "migration": "V5__create_team_recruitment_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "team_recruitment_role": {
+      "createdBy": "V5__create_team_recruitment_schema.sql",
+      "changes": [
+        {
+          "migration": "V5__create_team_recruitment_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "team_recruitment_user_lock": {
+      "createdBy": "V16__fix_team_recruitment_user_withdrawal.sql",
+      "changes": [
+        {
+          "migration": "V16__fix_team_recruitment_user_withdrawal.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "tech_stacks": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "timetable_frame": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "timetable_lecture": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "tracks": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "user_delivery_address": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "user_notification_status": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "users": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    },
+    "versions": {
+      "createdBy": "V1__baseline_schema.sql",
+      "changes": [
+        {
+          "migration": "V1__baseline_schema.sql",
+          "operation": "CREATE TABLE"
+        }
+      ]
+    }
+  }
+}

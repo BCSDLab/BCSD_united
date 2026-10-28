@@ -1,0 +1,1877 @@
+{
+  "sourceCommit": "a2c4b432af834bb9887475089b9c495ecd6d669b",
+  "purpose": "Fresh empty development database only; IDs derived by source migrations on an empty MySQL8 database, never merge into imported production data.",
+  "migrations": [
+    {
+      "file": "V1__baseline_schema.sql",
+      "sha256": "206c6a246ad456859504b49e2575494104a11de19a6d3d56dfdaf3c4ab878a86"
+    },
+    {
+      "file": "V2__create_department_contacts.sql",
+      "sha256": "d8eb2e68dd5fcd3b96acbd3f3047aa995d034d688033f4c7373988655d7c63c0"
+    },
+    {
+      "file": "V3__create_article_ai_summaries.sql",
+      "sha256": "046578a046ae6815e8d3be4e2c9759ac5e8bafb5d631e34871ff597c1dcb6ad1"
+    },
+    {
+      "file": "V4__create_article_ai_summary_logs.sql",
+      "sha256": "2ba0f2644c80bcfc20d071f2d68bba9a9eb735e58045963ed8b34112b3e3a986"
+    },
+    {
+      "file": "V5__create_team_recruitment_schema.sql",
+      "sha256": "471da6fc6dab637de51f7cccdb4023ae961ccde86cb016afef500a39c09bfaed"
+    },
+    {
+      "file": "V6__add_team_recruitment_outbox_lease.sql",
+      "sha256": "50aca00ba8bf4a24a54e4238cd15def9676cc4ea4490c2e37d89a943baad5448"
+    },
+    {
+      "file": "V7__relax_team_recruitment_deadline_date.sql",
+      "sha256": "e0802202bf43ad6ac2d2baf6b56e14533bfee4c138b0ccd8356878dd807ab22c"
+    },
+    {
+      "file": "V8__fix_user_withdrawal_order_references.sql",
+      "sha256": "bc5a904888477b33635beb42f097b57729a1a55f14120a3dd5e9e5978cd0dbf0"
+    },
+    {
+      "file": "V9__migrate_chat_room_status_read_only_to_active.sql",
+      "sha256": "fb31c6c6207410fb8cab2916c611be28ef7a8545d97993f556762750c748df01"
+    },
+    {
+      "file": "V10__widen_team_recruitment_profile_activity_description.sql",
+      "sha256": "f416cb42a1032ff1f337b044f6f8edc6af65c2c39e13c309f8a6be3eccc91e2a"
+    },
+    {
+      "file": "V11__add_order_number_to_order_v2.sql",
+      "sha256": "b2ee7965984c023efb69ca278f12ca23623b6f2f1dacb679c00d92816d9a21ef"
+    },
+    {
+      "file": "V12__create_dining_soldout_reports.sql",
+      "sha256": "eb6611811bcb04492eb20f814a01a4996fc7ba07cd9d33f01f662d546d4212da"
+    },
+    {
+      "file": "V13__create_dining_report_deliveries.sql",
+      "sha256": "d8f0fee1bc167fad6e9361dcfd64252fc264aad067bf5ba7a40db8d458a76293"
+    },
+    {
+      "file": "V14__decouple_dining_report_delivery.sql",
+      "sha256": "d7fe95dfa31ba8bc88df00201020497d9f3a5bfbb3541df5040a6d376b3a28e6"
+    },
+    {
+      "file": "V15__relax_dining_report_request_key.sql",
+      "sha256": "3db76ed5d2197da5a785564b8b9b01e2ec6287784655bef282775e2c330fef7d"
+    },
+    {
+      "file": "V16__fix_team_recruitment_user_withdrawal.sql",
+      "sha256": "ac347960b98f6e34b5a785e90eb13a5a98aeb1a5b8b1a5642333ce366d15e7c6"
+    },
+    {
+      "file": "V17__create_academic_program_year.sql",
+      "sha256": "e91014e98e64a4b6b1904027c793a9e2827fa17c38f5fb68c601a54a99007f5f"
+    },
+    {
+      "file": "V18__move_department_catalog_to_database.sql",
+      "sha256": "a90cea78333fe0b2d1c26bb2f31ff4a02007389da59db78a6b7d7d29eedf5e99"
+    },
+    {
+      "file": "V19__split_cafeteria_weekend_hours.sql",
+      "sha256": "e09a5923c052732f055c5c4c0b6fbec89b8f5cc4203f9b49462820f95d652dbd"
+    },
+    {
+      "file": "V20__correct_academic_program_catalog_2025_2026.sql",
+      "sha256": "3ee9dd6338f56355d28fdc7a19deca661a20d45a1e9d224a9185117644bb4200"
+    }
+  ],
+  "tables": {
+    "academic_program_year": [
+      {
+        "id": 1,
+        "major_id": null,
+        "student_year": "2025",
+        "department_id": 1
+      },
+      {
+        "id": 2,
+        "major_id": null,
+        "student_year": "2025",
+        "department_id": 2
+      },
+      {
+        "id": 3,
+        "major_id": null,
+        "student_year": "2025",
+        "department_id": 3
+      },
+      {
+        "id": 4,
+        "major_id": null,
+        "student_year": "2025",
+        "department_id": 4
+      },
+      {
+        "id": 5,
+        "major_id": null,
+        "student_year": "2025",
+        "department_id": 5
+      },
+      {
+        "id": 6,
+        "major_id": null,
+        "student_year": "2025",
+        "department_id": 6
+      },
+      {
+        "id": 7,
+        "major_id": null,
+        "student_year": "2025",
+        "department_id": 7
+      },
+      {
+        "id": 8,
+        "major_id": null,
+        "student_year": "2025",
+        "department_id": 8
+      },
+      {
+        "id": 9,
+        "major_id": null,
+        "student_year": "2026",
+        "department_id": 1
+      },
+      {
+        "id": 10,
+        "major_id": null,
+        "student_year": "2026",
+        "department_id": 2
+      },
+      {
+        "id": 11,
+        "major_id": null,
+        "student_year": "2026",
+        "department_id": 9
+      },
+      {
+        "id": 12,
+        "major_id": null,
+        "student_year": "2026",
+        "department_id": 10
+      },
+      {
+        "id": 13,
+        "major_id": null,
+        "student_year": "2026",
+        "department_id": 6
+      },
+      {
+        "id": 14,
+        "major_id": null,
+        "student_year": "2026",
+        "department_id": 11
+      },
+      {
+        "id": 15,
+        "major_id": null,
+        "student_year": "2026",
+        "department_id": 3
+      },
+      {
+        "id": 16,
+        "major_id": null,
+        "student_year": "2026",
+        "department_id": 4
+      },
+      {
+        "id": 17,
+        "major_id": null,
+        "student_year": "2026",
+        "department_id": 12
+      },
+      {
+        "id": 18,
+        "major_id": null,
+        "student_year": "2026",
+        "department_id": 13
+      },
+      {
+        "id": 19,
+        "major_id": null,
+        "student_year": "2026",
+        "department_id": 8
+      },
+      {
+        "id": 20,
+        "major_id": null,
+        "student_year": "2026",
+        "department_id": 14
+      },
+      {
+        "id": 21,
+        "major_id": null,
+        "student_year": "2026",
+        "department_id": 15
+      },
+      {
+        "id": 22,
+        "major_id": null,
+        "student_year": "2026",
+        "department_id": 16
+      },
+      {
+        "id": 23,
+        "major_id": null,
+        "student_year": "2026",
+        "department_id": 17
+      },
+      {
+        "id": 24,
+        "major_id": 4,
+        "student_year": "2025",
+        "department_id": 2
+      },
+      {
+        "id": 25,
+        "major_id": 3,
+        "student_year": "2025",
+        "department_id": 2
+      },
+      {
+        "id": 26,
+        "major_id": 2,
+        "student_year": "2025",
+        "department_id": 2
+      },
+      {
+        "id": 27,
+        "major_id": 7,
+        "student_year": "2025",
+        "department_id": 3
+      },
+      {
+        "id": 28,
+        "major_id": 6,
+        "student_year": "2025",
+        "department_id": 3
+      },
+      {
+        "id": 29,
+        "major_id": 8,
+        "student_year": "2025",
+        "department_id": 3
+      },
+      {
+        "id": 30,
+        "major_id": 13,
+        "student_year": "2025",
+        "department_id": 5
+      },
+      {
+        "id": 31,
+        "major_id": 12,
+        "student_year": "2025",
+        "department_id": 5
+      },
+      {
+        "id": 32,
+        "major_id": 15,
+        "student_year": "2025",
+        "department_id": 6
+      },
+      {
+        "id": 33,
+        "major_id": 14,
+        "student_year": "2025",
+        "department_id": 6
+      },
+      {
+        "id": 34,
+        "major_id": 17,
+        "student_year": "2025",
+        "department_id": 7
+      },
+      {
+        "id": 35,
+        "major_id": 16,
+        "student_year": "2025",
+        "department_id": 7
+      },
+      {
+        "id": 36,
+        "major_id": 4,
+        "student_year": "2026",
+        "department_id": 2
+      },
+      {
+        "id": 37,
+        "major_id": 3,
+        "student_year": "2026",
+        "department_id": 2
+      },
+      {
+        "id": 38,
+        "major_id": 2,
+        "student_year": "2026",
+        "department_id": 2
+      },
+      {
+        "id": 39,
+        "major_id": 15,
+        "student_year": "2026",
+        "department_id": 6
+      },
+      {
+        "id": 40,
+        "major_id": 14,
+        "student_year": "2026",
+        "department_id": 6
+      },
+      {
+        "id": 41,
+        "major_id": 7,
+        "student_year": "2026",
+        "department_id": 3
+      },
+      {
+        "id": 42,
+        "major_id": 6,
+        "student_year": "2026",
+        "department_id": 3
+      },
+      {
+        "id": 43,
+        "major_id": 5,
+        "student_year": "2026",
+        "department_id": 3
+      },
+      {
+        "id": 44,
+        "major_id": 11,
+        "student_year": "2026",
+        "department_id": 4
+      },
+      {
+        "id": 45,
+        "major_id": 10,
+        "student_year": "2026",
+        "department_id": 4
+      },
+      {
+        "id": 46,
+        "major_id": 22,
+        "student_year": "2026",
+        "department_id": 13
+      },
+      {
+        "id": 47,
+        "major_id": 21,
+        "student_year": "2026",
+        "department_id": 13
+      },
+      {
+        "id": 48,
+        "major_id": 24,
+        "student_year": "2026",
+        "department_id": 16
+      },
+      {
+        "id": 49,
+        "major_id": 23,
+        "student_year": "2026",
+        "department_id": 16
+      },
+      {
+        "id": 50,
+        "major_id": 9,
+        "student_year": "2025",
+        "department_id": 4
+      },
+      {
+        "id": 51,
+        "major_id": 1,
+        "student_year": "2025",
+        "department_id": 1
+      },
+      {
+        "id": 52,
+        "major_id": 18,
+        "student_year": "2025",
+        "department_id": 8
+      },
+      {
+        "id": 53,
+        "major_id": 1,
+        "student_year": "2026",
+        "department_id": 1
+      },
+      {
+        "id": 54,
+        "major_id": 18,
+        "student_year": "2026",
+        "department_id": 8
+      },
+      {
+        "id": 55,
+        "major_id": 19,
+        "student_year": "2026",
+        "department_id": 9
+      },
+      {
+        "id": 56,
+        "major_id": 20,
+        "student_year": "2026",
+        "department_id": 10
+      },
+      {
+        "id": 57,
+        "major_id": null,
+        "student_year": "2025",
+        "department_id": 18
+      },
+      {
+        "id": 58,
+        "major_id": null,
+        "student_year": "2025",
+        "department_id": 19
+      },
+      {
+        "id": 59,
+        "major_id": null,
+        "student_year": "2025",
+        "department_id": 20
+      },
+      {
+        "id": 60,
+        "major_id": null,
+        "student_year": "2026",
+        "department_id": 18
+      },
+      {
+        "id": 61,
+        "major_id": null,
+        "student_year": "2026",
+        "department_id": 19
+      },
+      {
+        "id": 62,
+        "major_id": null,
+        "student_year": "2026",
+        "department_id": 20
+      }
+    ],
+    "department": [
+      {
+        "id": 1,
+        "name": "기계공학부",
+        "dept_nums": [
+          "N/A"
+        ],
+        "display_order": 1000,
+        "is_selectable": 1,
+        "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"
+      },
+      {
+        "id": 2,
+        "name": "메카트로닉스공학부",
+        "dept_nums": [
+          "N/A"
+        ],
+        "display_order": 1000,
+        "is_selectable": 1,
+        "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"
+      },
+      {
+        "id": 3,
+        "name": "전기전자통신공학부",
+        "dept_nums": [
+          "N/A"
+        ],
+        "display_order": 1000,
+        "is_selectable": 1,
+        "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"
+      },
+      {
+        "id": 4,
+        "name": "컴퓨터공학부",
+        "dept_nums": [
+          "N/A"
+        ],
+        "display_order": 1000,
+        "is_selectable": 1,
+        "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"
+      },
+      {
+        "id": 5,
+        "name": "디자인·건축공학부",
+        "dept_nums": [
+          "N/A"
+        ],
+        "display_order": 1000,
+        "is_selectable": 1,
+        "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"
+      },
+      {
+        "id": 6,
+        "name": "에너지신소재화학공학부",
+        "dept_nums": [
+          "N/A"
+        ],
+        "display_order": 1000,
+        "is_selectable": 1,
+        "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"
+      },
+      {
+        "id": 7,
+        "name": "산업경영학부",
+        "dept_nums": [
+          "N/A"
+        ],
+        "display_order": 1000,
+        "is_selectable": 1,
+        "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"
+      },
+      {
+        "id": 8,
+        "name": "고용서비스정책학과",
+        "dept_nums": [
+          "N/A"
+        ],
+        "display_order": 1000,
+        "is_selectable": 1,
+        "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"
+      },
+      {
+        "id": 9,
+        "name": "디자인공학과",
+        "dept_nums": [
+          "N/A"
+        ],
+        "display_order": 1000,
+        "is_selectable": 1,
+        "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"
+      },
+      {
+        "id": 10,
+        "name": "건축공학과",
+        "dept_nums": [
+          "N/A"
+        ],
+        "display_order": 1000,
+        "is_selectable": 1,
+        "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"
+      },
+      {
+        "id": 11,
+        "name": "공학융합자율전공",
+        "dept_nums": [
+          "N/A"
+        ],
+        "display_order": 1000,
+        "is_selectable": 1,
+        "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"
+      },
+      {
+        "id": 12,
+        "name": "ICT융합자율전공",
+        "dept_nums": [
+          "N/A"
+        ],
+        "display_order": 1000,
+        "is_selectable": 1,
+        "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"
+      },
+      {
+        "id": 13,
+        "name": "경영학부",
+        "dept_nums": [
+          "N/A"
+        ],
+        "display_order": 1000,
+        "is_selectable": 1,
+        "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"
+      },
+      {
+        "id": 14,
+        "name": "사회융합자율전공",
+        "dept_nums": [
+          "N/A"
+        ],
+        "display_order": 1000,
+        "is_selectable": 1,
+        "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"
+      },
+      {
+        "id": 15,
+        "name": "미래융합학부",
+        "dept_nums": [
+          "N/A"
+        ],
+        "display_order": 1000,
+        "is_selectable": 1,
+        "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"
+      },
+      {
+        "id": 16,
+        "name": "글로벌인재학부",
+        "dept_nums": [
+          "N/A"
+        ],
+        "display_order": 1000,
+        "is_selectable": 1,
+        "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"
+      },
+      {
+        "id": 17,
+        "name": "반도체·디스플레이공학과",
+        "dept_nums": [
+          "N/A"
+        ],
+        "display_order": 1000,
+        "is_selectable": 1,
+        "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"
+      },
+      {
+        "id": 18,
+        "name": "기전융합공학과",
+        "dept_nums": [
+          "N/A"
+        ],
+        "display_order": 1000,
+        "is_selectable": 1,
+        "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"
+      },
+      {
+        "id": 19,
+        "name": "기계설계공학과",
+        "dept_nums": [
+          "N/A"
+        ],
+        "display_order": 1000,
+        "is_selectable": 1,
+        "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"
+      },
+      {
+        "id": 20,
+        "name": "강소기업경영학과",
+        "dept_nums": [
+          "N/A"
+        ],
+        "display_order": 1000,
+        "is_selectable": 1,
+        "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"
+      }
+    ],
+    "department_contact_departments": [
+      {
+        "id": 1,
+        "name": "전문대학원 교학팀",
+        "category": "ACADEMIC",
+        "display_order": 1
+      },
+      {
+        "id": 2,
+        "name": "대학원 교학팀",
+        "category": "ACADEMIC",
+        "display_order": 2
+      },
+      {
+        "id": 3,
+        "name": "미래교육지원팀",
+        "category": "ACADEMIC",
+        "display_order": 3
+      },
+      {
+        "id": 4,
+        "name": "Edutech 센터",
+        "category": "ACADEMIC",
+        "display_order": 4
+      },
+      {
+        "id": 5,
+        "name": "교무팀",
+        "category": "ACADEMIC",
+        "display_order": 5
+      },
+      {
+        "id": 6,
+        "name": "기계공학부 학부사무실",
+        "category": "ACADEMIC",
+        "display_order": 6
+      },
+      {
+        "id": 7,
+        "name": "메카트로닉스공학부 학부사무실",
+        "category": "ACADEMIC",
+        "display_order": 7
+      },
+      {
+        "id": 8,
+        "name": "전전통 학부사무실",
+        "category": "ACADEMIC",
+        "display_order": 8
+      },
+      {
+        "id": 9,
+        "name": "컴퓨터공학부 학부사무실",
+        "category": "ACADEMIC",
+        "display_order": 9
+      },
+      {
+        "id": 10,
+        "name": "디자인건축공학부 학부사무실",
+        "category": "ACADEMIC",
+        "display_order": 10
+      },
+      {
+        "id": 11,
+        "name": "에신화 학부사무실",
+        "category": "ACADEMIC",
+        "display_order": 11
+      },
+      {
+        "id": 12,
+        "name": "경영학부 학부사무실",
+        "category": "ACADEMIC",
+        "display_order": 12
+      },
+      {
+        "id": 13,
+        "name": "고용 학부사무실",
+        "category": "ACADEMIC",
+        "display_order": 13
+      },
+      {
+        "id": 14,
+        "name": "교양학부",
+        "category": "ACADEMIC",
+        "display_order": 14
+      },
+      {
+        "id": 15,
+        "name": "HRD학부",
+        "category": "ACADEMIC",
+        "display_order": 15
+      },
+      {
+        "id": 16,
+        "name": "미래융합학부",
+        "category": "ACADEMIC",
+        "display_order": 16
+      },
+      {
+        "id": 17,
+        "name": "학사팀",
+        "category": "ACADEMIC",
+        "display_order": 17
+      },
+      {
+        "id": 18,
+        "name": "총무팀",
+        "category": "STUDENT_SUPPORT",
+        "display_order": 1
+      },
+      {
+        "id": 19,
+        "name": "인권센터",
+        "category": "STUDENT_SUPPORT",
+        "display_order": 2
+      },
+      {
+        "id": 20,
+        "name": "상담지원개발센터",
+        "category": "STUDENT_SUPPORT",
+        "display_order": 3
+      },
+      {
+        "id": 21,
+        "name": "장애학생지원센터",
+        "category": "STUDENT_SUPPORT",
+        "display_order": 4
+      },
+      {
+        "id": 22,
+        "name": "학생지원팀",
+        "category": "STUDENT_SUPPORT",
+        "display_order": 5
+      },
+      {
+        "id": 23,
+        "name": "예비군연대",
+        "category": "STUDENT_SUPPORT",
+        "display_order": 6
+      },
+      {
+        "id": 24,
+        "name": "홍보팀",
+        "category": "STUDENT_SUPPORT",
+        "display_order": 7
+      },
+      {
+        "id": 25,
+        "name": "혁신지원사업운영팀",
+        "category": "STUDENT_SUPPORT",
+        "display_order": 8
+      },
+      {
+        "id": 26,
+        "name": "플랫폼운영팀",
+        "category": "STUDENT_SUPPORT",
+        "display_order": 9
+      },
+      {
+        "id": 27,
+        "name": "정보화혁신팀",
+        "category": "STUDENT_SUPPORT",
+        "display_order": 10
+      },
+      {
+        "id": 28,
+        "name": "연구지원팀",
+        "category": "STUDENT_SUPPORT",
+        "display_order": 11
+      },
+      {
+        "id": 29,
+        "name": "정보화운영팀",
+        "category": "STUDENT_SUPPORT",
+        "display_order": 12
+      },
+      {
+        "id": 30,
+        "name": "입학팀",
+        "category": "STUDENT_SUPPORT",
+        "display_order": 13
+      },
+      {
+        "id": 31,
+        "name": "홍보tf팀",
+        "category": "STUDENT_SUPPORT",
+        "display_order": 14
+      },
+      {
+        "id": 32,
+        "name": "IPP 센터",
+        "category": "EMPLOYMENT",
+        "display_order": 1
+      },
+      {
+        "id": 33,
+        "name": "취창업지원팀",
+        "category": "EMPLOYMENT",
+        "display_order": 2
+      },
+      {
+        "id": 34,
+        "name": "대외협력팀",
+        "category": "INTERNATIONAL",
+        "display_order": 1
+      },
+      {
+        "id": 35,
+        "name": "국제교육팀",
+        "category": "INTERNATIONAL",
+        "display_order": 2
+      },
+      {
+        "id": 36,
+        "name": "시설관리팀",
+        "category": "FACILITY",
+        "display_order": 1
+      },
+      {
+        "id": 37,
+        "name": "한기대생활협동조합",
+        "category": "FACILITY",
+        "display_order": 2
+      },
+      {
+        "id": 38,
+        "name": "다산정보관",
+        "category": "FACILITY",
+        "display_order": 3
+      },
+      {
+        "id": 39,
+        "name": "안전관리팀",
+        "category": "FACILITY",
+        "display_order": 4
+      },
+      {
+        "id": 40,
+        "name": "생활관",
+        "category": "FACILITY",
+        "display_order": 5
+      },
+      {
+        "id": 41,
+        "name": "산학협력단",
+        "category": "OTHER",
+        "display_order": 1
+      },
+      {
+        "id": 42,
+        "name": "대학혁신사업단",
+        "category": "OTHER",
+        "display_order": 2
+      },
+      {
+        "id": 43,
+        "name": "온라인평생교육원",
+        "category": "OTHER",
+        "display_order": 3
+      },
+      {
+        "id": 44,
+        "name": "다담창의센터",
+        "category": "OTHER",
+        "display_order": 4
+      },
+      {
+        "id": 45,
+        "name": "능력개발교육원",
+        "category": "OTHER",
+        "display_order": 5
+      },
+      {
+        "id": 46,
+        "name": "고용직업능력개발센터",
+        "category": "OTHER",
+        "display_order": 6
+      },
+      {
+        "id": 47,
+        "name": "데이터성과센터",
+        "category": "OTHER",
+        "display_order": 7
+      },
+      {
+        "id": 48,
+        "name": "반도체특성화대학사업단",
+        "category": "OTHER",
+        "display_order": 8
+      },
+      {
+        "id": 49,
+        "name": "기술창업혁신팀",
+        "category": "OTHER",
+        "display_order": 9
+      },
+      {
+        "id": 50,
+        "name": "esg 센터",
+        "category": "OTHER",
+        "display_order": 10
+      },
+      {
+        "id": 51,
+        "name": "앵커사업단",
+        "category": "OTHER",
+        "display_order": 11
+      },
+      {
+        "id": 52,
+        "name": "콘텐츠혁신센터",
+        "category": "OTHER",
+        "display_order": 12
+      },
+      {
+        "id": 53,
+        "name": "소프트웨어중심대학사업단",
+        "category": "OTHER",
+        "display_order": 13
+      },
+      {
+        "id": 54,
+        "name": "공학교육혁신센터",
+        "category": "OTHER",
+        "display_order": 14
+      }
+    ],
+    "department_contacts": [
+      {
+        "id": 1,
+        "task": "",
+        "phone_number": "041-521-8203",
+        "department_id": 1,
+        "display_order": 1
+      },
+      {
+        "id": 2,
+        "task": "",
+        "phone_number": "041-560-2577",
+        "department_id": 2,
+        "display_order": 1
+      },
+      {
+        "id": 3,
+        "task": "",
+        "phone_number": "041-580-4702",
+        "department_id": 3,
+        "display_order": 1
+      },
+      {
+        "id": 4,
+        "task": "",
+        "phone_number": "041-580-4707",
+        "department_id": 4,
+        "display_order": 1
+      },
+      {
+        "id": 5,
+        "task": "",
+        "phone_number": "041-560-2524",
+        "department_id": 5,
+        "display_order": 1
+      },
+      {
+        "id": 6,
+        "task": "",
+        "phone_number": "041-560-1290",
+        "department_id": 6,
+        "display_order": 1
+      },
+      {
+        "id": 7,
+        "task": "",
+        "phone_number": "041-560-1376",
+        "department_id": 7,
+        "display_order": 1
+      },
+      {
+        "id": 8,
+        "task": "",
+        "phone_number": "041-560-1292",
+        "department_id": 8,
+        "display_order": 1
+      },
+      {
+        "id": 9,
+        "task": "",
+        "phone_number": "041-560-1461",
+        "department_id": 9,
+        "display_order": 1
+      },
+      {
+        "id": 10,
+        "task": "",
+        "phone_number": "041-560-1221",
+        "department_id": 10,
+        "display_order": 1
+      },
+      {
+        "id": 11,
+        "task": "",
+        "phone_number": "041-560-1302",
+        "department_id": 11,
+        "display_order": 1
+      },
+      {
+        "id": 12,
+        "task": "",
+        "phone_number": "041-560-1437",
+        "department_id": 12,
+        "display_order": 1
+      },
+      {
+        "id": 13,
+        "task": "",
+        "phone_number": "041-560-1761",
+        "department_id": 13,
+        "display_order": 1
+      },
+      {
+        "id": 14,
+        "task": "",
+        "phone_number": "041-560-1294",
+        "department_id": 14,
+        "display_order": 1
+      },
+      {
+        "id": 15,
+        "task": "",
+        "phone_number": "041-560-1295",
+        "department_id": 15,
+        "display_order": 1
+      },
+      {
+        "id": 16,
+        "task": "",
+        "phone_number": "041-560-1489",
+        "department_id": 16,
+        "display_order": 1
+      },
+      {
+        "id": 17,
+        "task": "학사팀 업무총괄",
+        "phone_number": "041-560-2539",
+        "department_id": 17,
+        "display_order": 1
+      },
+      {
+        "id": 18,
+        "task": "교육과정",
+        "phone_number": "041-560-2527",
+        "department_id": 17,
+        "display_order": 2
+      },
+      {
+        "id": 19,
+        "task": "수업",
+        "phone_number": "041-560-2528",
+        "department_id": 17,
+        "display_order": 3
+      },
+      {
+        "id": 20,
+        "task": "학적",
+        "phone_number": "041-560-2537",
+        "department_id": 17,
+        "display_order": 4
+      },
+      {
+        "id": 21,
+        "task": "성적",
+        "phone_number": "041-560-2589",
+        "department_id": 17,
+        "display_order": 5
+      },
+      {
+        "id": 22,
+        "task": "졸업관리, 출석인정",
+        "phone_number": "041-560-2526",
+        "department_id": 17,
+        "display_order": 6
+      },
+      {
+        "id": 23,
+        "task": "",
+        "phone_number": "041-560-2545",
+        "department_id": 18,
+        "display_order": 1
+      },
+      {
+        "id": 24,
+        "task": "",
+        "phone_number": "041-560-2644",
+        "department_id": 19,
+        "display_order": 1
+      },
+      {
+        "id": 25,
+        "task": "개인상담, 진로상담 및 심리검사",
+        "phone_number": "041-560-2643",
+        "department_id": 20,
+        "display_order": 1
+      },
+      {
+        "id": 26,
+        "task": "",
+        "phone_number": "041-560-1400",
+        "department_id": 21,
+        "display_order": 1
+      },
+      {
+        "id": 27,
+        "task": "학생지원팀 총괄",
+        "phone_number": "041-560-2530",
+        "department_id": 22,
+        "display_order": 1
+      },
+      {
+        "id": 28,
+        "task": "학생지도",
+        "phone_number": "041-560-2531",
+        "department_id": 22,
+        "display_order": 2
+      },
+      {
+        "id": 29,
+        "task": "교외장학(국가장학 등), 학자금대출, (겸직)장애학생지원",
+        "phone_number": "041-560-1400",
+        "department_id": 22,
+        "display_order": 3
+      },
+      {
+        "id": 30,
+        "task": "교내장학",
+        "phone_number": "041-560-1300",
+        "department_id": 22,
+        "display_order": 4
+      },
+      {
+        "id": 31,
+        "task": "",
+        "phone_number": "041-560-1243",
+        "department_id": 23,
+        "display_order": 1
+      },
+      {
+        "id": 32,
+        "task": "",
+        "phone_number": "041-560-1682",
+        "department_id": 24,
+        "display_order": 1
+      },
+      {
+        "id": 33,
+        "task": "",
+        "phone_number": "041-640-8640",
+        "department_id": 25,
+        "display_order": 1
+      },
+      {
+        "id": 34,
+        "task": "",
+        "phone_number": "041-560-4465",
+        "department_id": 26,
+        "display_order": 1
+      },
+      {
+        "id": 35,
+        "task": "",
+        "phone_number": "041-560-1390",
+        "department_id": 27,
+        "display_order": 1
+      },
+      {
+        "id": 36,
+        "task": "",
+        "phone_number": "041-580-4831",
+        "department_id": 28,
+        "display_order": 1
+      },
+      {
+        "id": 37,
+        "task": "팀 업무총괄",
+        "phone_number": "041-560-1390",
+        "department_id": 29,
+        "display_order": 1
+      },
+      {
+        "id": 38,
+        "task": "클라우드인프라 및 시스템관리",
+        "phone_number": "041-580-4424",
+        "department_id": 29,
+        "display_order": 2
+      },
+      {
+        "id": 39,
+        "task": "홈페이지",
+        "phone_number": "041-560-1396",
+        "department_id": 29,
+        "display_order": 3
+      },
+      {
+        "id": 40,
+        "task": "복무, GWP, 통학버스",
+        "phone_number": "041-560-2545",
+        "department_id": 29,
+        "display_order": 4
+      },
+      {
+        "id": 41,
+        "task": "사업계획, 클라우드",
+        "phone_number": "041-560-1391",
+        "department_id": 29,
+        "display_order": 5
+      },
+      {
+        "id": 42,
+        "task": "시설, 자산",
+        "phone_number": "02-6943-4008",
+        "department_id": 29,
+        "display_order": 6
+      },
+      {
+        "id": 43,
+        "task": "개인정보보호",
+        "phone_number": "041-560-1395",
+        "department_id": 29,
+        "display_order": 7
+      },
+      {
+        "id": 44,
+        "task": "정보시스템(학점은행제, CMS) 운영개발",
+        "phone_number": "041-580-4470",
+        "department_id": 29,
+        "display_order": 8
+      },
+      {
+        "id": 45,
+        "task": "포탈관리 및 전산",
+        "phone_number": "041-521-8068",
+        "department_id": 29,
+        "display_order": 9
+      },
+      {
+        "id": 46,
+        "task": "학사, 파일함",
+        "phone_number": "041-560-1398",
+        "department_id": 29,
+        "display_order": 10
+      },
+      {
+        "id": 47,
+        "task": "행정",
+        "phone_number": "041-560-1392",
+        "department_id": 29,
+        "display_order": 11
+      },
+      {
+        "id": 48,
+        "task": "보안, 메일",
+        "phone_number": "041-560-1393",
+        "department_id": 29,
+        "display_order": 12
+      },
+      {
+        "id": 49,
+        "task": "대학원, 홈페이지",
+        "phone_number": "041-560-1399",
+        "department_id": 29,
+        "display_order": 13
+      },
+      {
+        "id": 50,
+        "task": "전산 업무 지원",
+        "phone_number": "041-560-1394",
+        "department_id": 29,
+        "display_order": 14
+      },
+      {
+        "id": 51,
+        "task": "",
+        "phone_number": "041-560-1011",
+        "department_id": 30,
+        "display_order": 1
+      },
+      {
+        "id": 52,
+        "task": "",
+        "phone_number": "041-560-1682",
+        "department_id": 31,
+        "display_order": 1
+      },
+      {
+        "id": 53,
+        "task": "장기현장실습(IPP)",
+        "phone_number": "041-560-2630",
+        "department_id": 32,
+        "display_order": 1
+      },
+      {
+        "id": 54,
+        "task": "취창업지원팀, IPP센터 총괄",
+        "phone_number": "041-560-2600",
+        "department_id": 33,
+        "display_order": 1
+      },
+      {
+        "id": 55,
+        "task": "취업전담교수",
+        "phone_number": "041-560-2601",
+        "department_id": 33,
+        "display_order": 2
+      },
+      {
+        "id": 56,
+        "task": "취업네트워크, 취업통계, 예산",
+        "phone_number": "041-560-2603",
+        "department_id": 33,
+        "display_order": 3
+      },
+      {
+        "id": 57,
+        "task": "창업",
+        "phone_number": "041-560-2606",
+        "department_id": 33,
+        "display_order": 4
+      },
+      {
+        "id": 58,
+        "task": "구직기술 프로그램, 창업교과",
+        "phone_number": "041-560-2605",
+        "department_id": 33,
+        "display_order": 5
+      },
+      {
+        "id": 59,
+        "task": "단기현장실습",
+        "phone_number": "041-560-2632",
+        "department_id": 33,
+        "display_order": 6
+      },
+      {
+        "id": 60,
+        "task": "총괄",
+        "phone_number": "041-560-1206",
+        "department_id": 34,
+        "display_order": 1
+      },
+      {
+        "id": 61,
+        "task": "출입국 관리 지원 등",
+        "phone_number": "041-560-2502",
+        "department_id": 34,
+        "display_order": 2
+      },
+      {
+        "id": 62,
+        "task": "국제협력사업,GTE 과정",
+        "phone_number": "041-560-1025",
+        "department_id": 34,
+        "display_order": 3
+      },
+      {
+        "id": 63,
+        "task": "공동석사과정,교류협정,서무",
+        "phone_number": "041-560-2505",
+        "department_id": 34,
+        "display_order": 4
+      },
+      {
+        "id": 64,
+        "task": "GTE 석사 과정",
+        "phone_number": "041-560-2507",
+        "department_id": 34,
+        "display_order": 5
+      },
+      {
+        "id": 65,
+        "task": "교환학생",
+        "phone_number": "041-560-1795",
+        "department_id": 34,
+        "display_order": 6
+      },
+      {
+        "id": 66,
+        "task": "",
+        "phone_number": "041-560-1023",
+        "department_id": 35,
+        "display_order": 1
+      },
+      {
+        "id": 67,
+        "task": "",
+        "phone_number": "041-560-1267",
+        "department_id": 36,
+        "display_order": 1
+      },
+      {
+        "id": 68,
+        "task": "",
+        "phone_number": "041-560-1472",
+        "department_id": 37,
+        "display_order": 1
+      },
+      {
+        "id": 69,
+        "task": "총괄",
+        "phone_number": "041-560-1381",
+        "department_id": 38,
+        "display_order": 1
+      },
+      {
+        "id": 70,
+        "task": "자료구입/자료조직",
+        "phone_number": "041-560-1383",
+        "department_id": 38,
+        "display_order": 2
+      },
+      {
+        "id": 71,
+        "task": "참고자료실 관리/학술DB관리/휴먼아카데미",
+        "phone_number": "041-560-1387",
+        "department_id": 38,
+        "display_order": 3
+      },
+      {
+        "id": 72,
+        "task": "기록물관리, 교내발간 자료실",
+        "phone_number": "041-560-1382",
+        "department_id": 38,
+        "display_order": 4
+      },
+      {
+        "id": 73,
+        "task": "일반자료실, 독서인증제",
+        "phone_number": "041-560-1385",
+        "department_id": 38,
+        "display_order": 5
+      },
+      {
+        "id": 74,
+        "task": "독서프로그램, 서무",
+        "phone_number": "041-560-1386",
+        "department_id": 38,
+        "display_order": 6
+      },
+      {
+        "id": 75,
+        "task": "연구실안전관리 총괄",
+        "phone_number": "041-560-1740",
+        "department_id": 39,
+        "display_order": 1
+      },
+      {
+        "id": 76,
+        "task": "안전관리팀",
+        "phone_number": "041-560-1775",
+        "department_id": 39,
+        "display_order": 2
+      },
+      {
+        "id": 77,
+        "task": "중대재해예방, 안전문화 확산",
+        "phone_number": "041-560-1741",
+        "department_id": 39,
+        "display_order": 3
+      },
+      {
+        "id": 78,
+        "task": "중대재해예방",
+        "phone_number": "041-560-1742",
+        "department_id": 39,
+        "display_order": 4
+      },
+      {
+        "id": 79,
+        "task": "보건관리자",
+        "phone_number": "041-560-1743",
+        "department_id": 39,
+        "display_order": 5
+      },
+      {
+        "id": 80,
+        "task": "소방",
+        "phone_number": "041-560-1744",
+        "department_id": 39,
+        "display_order": 6
+      },
+      {
+        "id": 81,
+        "task": "산업안전",
+        "phone_number": "041-560-1745",
+        "department_id": 39,
+        "display_order": 7
+      },
+      {
+        "id": 82,
+        "task": "생물안전관리",
+        "phone_number": "041-560-1776",
+        "department_id": 39,
+        "display_order": 8
+      },
+      {
+        "id": 83,
+        "task": "보건실 운영, 학생 및 교직원 건강관리",
+        "phone_number": "041-560-1119",
+        "department_id": 39,
+        "display_order": 9
+      },
+      {
+        "id": 84,
+        "task": "생활관 입사․선발 담당",
+        "phone_number": "041-560-1260",
+        "department_id": 40,
+        "display_order": 1
+      },
+      {
+        "id": 85,
+        "task": "생활관 시설 관리 담당",
+        "phone_number": "041-560-1275",
+        "department_id": 40,
+        "display_order": 2
+      },
+      {
+        "id": 86,
+        "task": "관생 생활 지원 담당",
+        "phone_number": "041-560-1264",
+        "department_id": 40,
+        "display_order": 3
+      },
+      {
+        "id": 87,
+        "task": "관생 상담 지원 담당",
+        "phone_number": "041-560-1274",
+        "department_id": 40,
+        "display_order": 4
+      },
+      {
+        "id": 88,
+        "task": "",
+        "phone_number": "041-521-8151",
+        "department_id": 41,
+        "display_order": 1
+      },
+      {
+        "id": 89,
+        "task": "",
+        "phone_number": "041-640-8597",
+        "department_id": 42,
+        "display_order": 1
+      },
+      {
+        "id": 90,
+        "task": "",
+        "phone_number": "041-580-4501",
+        "department_id": 43,
+        "display_order": 1
+      },
+      {
+        "id": 91,
+        "task": "",
+        "phone_number": "041-640-8510",
+        "department_id": 44,
+        "display_order": 1
+      },
+      {
+        "id": 92,
+        "task": "",
+        "phone_number": "041-521-8000",
+        "department_id": 45,
+        "display_order": 1
+      },
+      {
+        "id": 93,
+        "task": "",
+        "phone_number": "041-521-8210",
+        "department_id": 46,
+        "display_order": 1
+      },
+      {
+        "id": 94,
+        "task": "",
+        "phone_number": "041-580-4731",
+        "department_id": 47,
+        "display_order": 1
+      },
+      {
+        "id": 95,
+        "task": "",
+        "phone_number": "041-560-1669",
+        "department_id": 48,
+        "display_order": 1
+      },
+      {
+        "id": 96,
+        "task": "",
+        "phone_number": "041-580-4802",
+        "department_id": 49,
+        "display_order": 1
+      },
+      {
+        "id": 97,
+        "task": "",
+        "phone_number": "041-560-1711",
+        "department_id": 50,
+        "display_order": 1
+      },
+      {
+        "id": 98,
+        "task": "",
+        "phone_number": "041-580-4855",
+        "department_id": 51,
+        "display_order": 1
+      },
+      {
+        "id": 99,
+        "task": "",
+        "phone_number": "041-580-4532",
+        "department_id": 52,
+        "display_order": 1
+      },
+      {
+        "id": 100,
+        "task": "실습 수업 지원, 장비 구매 및 관리 등",
+        "phone_number": "010-6377-6187",
+        "department_id": 53,
+        "display_order": 1
+      },
+      {
+        "id": 101,
+        "task": "융합기술 교육/연구 및 GPU 클러스터 운영",
+        "phone_number": "041-560-1478",
+        "department_id": 53,
+        "display_order": 2
+      },
+      {
+        "id": 102,
+        "task": "혁신지원사업업무, 소프트웨어중심대학사업 업무",
+        "phone_number": "041-580-8530",
+        "department_id": 53,
+        "display_order": 3
+      },
+      {
+        "id": 103,
+        "task": "산학협력 및 시스템 기획",
+        "phone_number": "041-640-8535",
+        "department_id": 53,
+        "display_order": 4
+      },
+      {
+        "id": 104,
+        "task": "소프트웨어중심대학사업단",
+        "phone_number": "041-640-7512",
+        "department_id": 53,
+        "display_order": 5
+      },
+      {
+        "id": 105,
+        "task": "기술지원",
+        "phone_number": "041-640-8531",
+        "department_id": 53,
+        "display_order": 6
+      },
+      {
+        "id": 106,
+        "task": "사업운영 및 행정지원",
+        "phone_number": "041-640-8533",
+        "department_id": 53,
+        "display_order": 7
+      },
+      {
+        "id": 107,
+        "task": "사업운영 및 행정지원, 서무",
+        "phone_number": "041-640-8532",
+        "department_id": 53,
+        "display_order": 8
+      },
+      {
+        "id": 108,
+        "task": "",
+        "phone_number": "041-640-8624",
+        "department_id": 54,
+        "display_order": 1
+      }
+    ],
+    "dining_soldout_report_sequence": [
+      {
+        "id": 1,
+        "last_sequence": 0,
+        "delivery_cooldown_until": null
+      }
+    ],
+    "major": [
+      {
+        "id": 1,
+        "name": null,
+        "department_id": 1
+      },
+      {
+        "id": 2,
+        "name": "디지털시스템전공",
+        "department_id": 2
+      },
+      {
+        "id": 3,
+        "name": "제어시스템전공",
+        "department_id": 2
+      },
+      {
+        "id": 4,
+        "name": "생산시스템전공",
+        "department_id": 2
+      },
+      {
+        "id": 5,
+        "name": "AI정보통신공학전공",
+        "department_id": 3
+      },
+      {
+        "id": 6,
+        "name": "전자공학전공",
+        "department_id": 3
+      },
+      {
+        "id": 7,
+        "name": "전기공학전공",
+        "department_id": 3
+      },
+      {
+        "id": 8,
+        "name": "정보통신공학전공",
+        "department_id": 3
+      },
+      {
+        "id": 9,
+        "name": null,
+        "department_id": 4
+      },
+      {
+        "id": 10,
+        "name": "AI·소프트웨어전공",
+        "department_id": 4
+      },
+      {
+        "id": 11,
+        "name": "컴퓨터공학전공",
+        "department_id": 4
+      },
+      {
+        "id": 12,
+        "name": "건축공학전공",
+        "department_id": 5
+      },
+      {
+        "id": 13,
+        "name": "디자인공학전공",
+        "department_id": 5
+      },
+      {
+        "id": 14,
+        "name": "화학생명공학전공",
+        "department_id": 6
+      },
+      {
+        "id": 15,
+        "name": "에너지신소재공학전공",
+        "department_id": 6
+      },
+      {
+        "id": 16,
+        "name": "데이터경영전공",
+        "department_id": 7
+      },
+      {
+        "id": 17,
+        "name": "융합경영전공",
+        "department_id": 7
+      },
+      {
+        "id": 18,
+        "name": null,
+        "department_id": 8
+      },
+      {
+        "id": 19,
+        "name": null,
+        "department_id": 9
+      },
+      {
+        "id": 20,
+        "name": null,
+        "department_id": 10
+      },
+      {
+        "id": 21,
+        "name": "데이터경영전공",
+        "department_id": 13
+      },
+      {
+        "id": 22,
+        "name": "융합경영전공",
+        "department_id": 13
+      },
+      {
+        "id": 23,
+        "name": "컴퓨터공학전공",
+        "department_id": 16
+      },
+      {
+        "id": 24,
+        "name": "기계공학전공",
+        "department_id": 16
+      }
+    ]
+  }
+}

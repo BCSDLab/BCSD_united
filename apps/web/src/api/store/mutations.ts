@@ -1,0 +1,42 @@
+import { mutationOptions, type QueryClient } from '@tanstack/react-query';
+
+import type { ReviewReportRequest } from './entity';
+import { deleteReview, postReviewReport } from './index';
+import { storeQueryKeys } from './queries';
+
+interface StoreMutationCallbacks {
+  onSuccess?: () => void | Promise<void>;
+}
+
+const invalidateStoreReviewQueries = async (queryClient: QueryClient, shopId: string) => {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: storeQueryKeys.reviews(Number(shopId), 'guest') }),
+    queryClient.invalidateQueries({ queryKey: storeQueryKeys.reviews(Number(shopId), 'auth') }),
+    queryClient.invalidateQueries({ queryKey: storeQueryKeys.myReviews(shopId) }),
+    queryClient.invalidateQueries({ queryKey: storeQueryKeys.detail(shopId) }),
+    queryClient.invalidateQueries({ queryKey: storeQueryKeys.detailPage(shopId) }),
+  ]);
+};
+
+export const storeMutations = {
+  deleteReview: (queryClient: QueryClient, reviewId: number, shopId: string, callbacks: StoreMutationCallbacks = {}) =>
+    mutationOptions({
+      mutationFn: () => deleteReview(reviewId, shopId),
+      onSuccess: async () => {
+        await invalidateStoreReviewQueries(queryClient, shopId);
+        await callbacks.onSuccess?.();
+      },
+    }),
+
+  reportReview: (queryClient: QueryClient, shopId: string, reviewId: string, callbacks: StoreMutationCallbacks = {}) =>
+    mutationOptions({
+      mutationFn: (data: ReviewReportRequest) => postReviewReport(Number(shopId), Number(reviewId), data),
+      onSuccess: async () => {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: storeQueryKeys.reviews(Number(shopId), 'guest') }),
+          queryClient.invalidateQueries({ queryKey: storeQueryKeys.reviews(Number(shopId), 'auth') }),
+        ]);
+        await callbacks.onSuccess?.();
+      },
+    }),
+};

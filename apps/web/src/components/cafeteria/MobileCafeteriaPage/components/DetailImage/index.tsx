@@ -1,0 +1,34 @@
+import Image from 'components/ui/Image';
+
+import CloseIcon from 'assets/svg/modal-close-icon.svg';
+import { useBodyScrollLock } from 'utils/hooks/ui/useBodyScrollLock';
+import { useEscapeKeyDown } from 'utils/hooks/ui/useEscapeKeyDown';
+import { useOutsideClick } from 'utils/hooks/ui/useOutsideClick';
+
+import styles from './DetailImage.module.scss';
+
+interface DetailModalProps {
+  url: string | null;
+  close: () => void;
+}
+
+export default function DetailModal({ url, close }: DetailModalProps) {
+  const { backgroundRef } = useOutsideClick({ onOutsideClick: close });
+  useEscapeKeyDown({ onEscape: close });
+  useBodyScrollLock();
+
+  if (!url) return <div />;
+
+  return (
+    <div className={styles.photo} ref={backgroundRef}>
+      <div className={styles.photo__content}>
+        <button type="button" aria-label="닫기" className={styles.photo__close} onClick={close}>
+          <CloseIcon />
+        </button>
+        <div className={styles.photo__image}>
+          <Image src={url} alt="상세 이미지" fill priority sizes="calc(100vw - 48px)" />
+        </div>
+      </div>
+    </div>
+  );
+}

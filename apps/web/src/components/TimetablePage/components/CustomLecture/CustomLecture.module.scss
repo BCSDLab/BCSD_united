@@ -1,0 +1,374 @@
+@use "utils/scss/media.scss" as media;
+
+@mixin scrollbar($width) {
+  scrollbar-width: thin;
+  scrollbar-color: #d9d9d9 transparent;
+
+  &::-webkit-scrollbar {
+    width: $width;
+  }
+
+  &::-webkit-scrollbar-track {
+    background-color: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    height: 65px;
+    border-radius: 5px;
+    background: #d9d9d9;
+  }
+}
+
+.form-container {
+  display: flex;
+  width: 613px;
+  flex-direction: column;
+  gap: 10px;
+
+  &--non-login {
+    opacity: 0.5;
+    pointer-events: none;
+    cursor: not-allowed;
+  }
+}
+
+.require-mark {
+  position: absolute;
+  left: -8px;
+  top: -3px;
+  color: #f7941e;
+  font-family: Pretendard, sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 160%; /* 25.6px */
+}
+
+.inputbox {
+  display: flex;
+  position: relative;
+  flex-direction: column;
+  gap: 10px;
+  height: 650px;
+
+  &__instruction {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgb(0 0 0 / 70%);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 5px;
+    font-size: 18px;
+    text-align: center;
+    z-index: 10;
+  }
+
+  &__name {
+    display: flex;
+    align-items: center;
+    padding: 4px;
+    background: #fafafa;
+    position: relative;
+    border-radius: 5px;
+    box-shadow:
+      0 1px 1px 0 rgb(0 0 0 / 2%),
+      0 2px 4px 0 rgb(0 0 0 / 4%);
+
+    &--require {
+      border: 1px solid #f7941e;
+    }
+
+    & > label {
+      display: flex;
+      min-width: 42px;
+      padding: 12px 16px;
+      justify-content: center;
+      align-items: center;
+      color: #000;
+      font-family: Pretendard, sans-serif;
+      font-size: 16px;
+      font-weight: 400;
+      line-height: 160%;
+    }
+
+    &--title {
+      position: relative;
+      letter-spacing: -2px;
+    }
+
+    &--block {
+      height: 24px;
+      width: 2px;
+      background-color: #eee;
+      margin: 0 4px;
+    }
+
+    &--disabled {
+      background-color: #e1e1e1;
+    }
+
+    & > input {
+      padding: 12px 16px;
+      width: 100%;
+      border: none;
+      background-color: transparent;
+
+      &::placeholder {
+        color: #8e8e8e;
+        font-size: 16px;
+        font-weight: 400;
+        line-height: 160%; /* 25.6px */
+      }
+
+      &:focus {
+        outline: 1px solid #4590bb;
+      }
+
+      &:focus ~ .container__check-button {
+        background-color: #175c8e;
+        color: #fff;
+      }
+    }
+  }
+
+  &__warning {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: #f7941e;
+    font-family: Pretendard, sans-serif;
+    font-size: 14px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 160%; /* 22.4px */
+
+    & > svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    &--time {
+      margin-top: -6px;
+    }
+  }
+
+  &__add-button {
+    width: 100%;
+    padding: 16px 24px;
+    display: flex;
+    justify-content: space-between;
+    border-radius: 5px;
+    background: #fafafa;
+    box-shadow:
+      0 1px 1px 0 rgb(0 0 0 / 2%),
+      0 2px 4px 0 rgb(0 0 0 / 4%);
+
+    &:hover {
+      background: #eee;
+    }
+
+    & > span {
+      color: #175c8e;
+      font-family: Pretendard, sans-serif;
+      font-size: 16px;
+      font-weight: 400;
+      line-height: 160%;
+    }
+
+    &--disabled {
+      display: none;
+    }
+  }
+
+  &__description {
+    margin-top: 18px;
+    color: #ec2d30;
+    font-size: 14px;
+  }
+}
+
+.time-space-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 460px;
+  overflow: auto;
+  overflow-x: hidden;
+
+  &__overflow {
+    overflow: visible;
+  }
+
+  @include scrollbar(6px);
+
+  &__component {
+    background-color: #fff;
+    box-shadow: 0 1px 1px 0 #00000005;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    border-radius: 5px;
+  }
+
+  &__delete-button {
+    align-self: flex-end;
+    cursor: pointer;
+    width: 24px;
+    height: 24px;
+    border: none;
+    background-color: transparent;
+    border-radius: 4px;
+
+    &:hover {
+      background-color: #eee;
+    }
+
+    &:active {
+      background-color: #cacaca;
+    }
+
+    &--invisible {
+      z-index: -1;
+    }
+  }
+}
+
+.submit-button {
+  width: 100%;
+  padding: 8px 20px;
+  border-radius: 4px;
+  font-family: Pretendard, sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 25.6px;
+  background-color: #e1e1e1;
+  color: #4b4b4b;
+  cursor: not-allowed;
+
+  &__active {
+    background-color: #175c8e;
+    color: #fff;
+    cursor: pointer;
+  }
+}
+
+.form-group-time {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  height: 81px;
+  position: relative;
+
+  &__title {
+    display: flex;
+    min-width: 42px;
+    width: 75px;
+    height: 100%;
+    padding: 0 16px;
+    justify-content: center;
+    align-items: center;
+    border-radius: 5px;
+    background: #fafafa;
+    box-shadow:
+      0 1px 1px 0 rgb(0 0 0 / 2%),
+      0 2px 4px 0 rgb(0 0 0 / 4%);
+    color: #000;
+    font-family: Pretendard, sans-serif;
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 160%;
+
+    &--text {
+      position: relative;
+    }
+
+    &--require {
+      border: 1px solid #f7941e;
+    }
+
+    &--disabled {
+      background-color: #e1e1e1;
+    }
+  }
+
+  &__container {
+    display: flex;
+    width: 502px;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  &__weekdays {
+    display: flex;
+    gap: 13px;
+    width: 502px;
+    justify-content: space-between;
+  }
+
+  &__weekdays-button {
+    display: flex;
+    width: 90px;
+    height: 29px;
+    padding: 5px 8px;
+    justify-content: center;
+    align-items: center;
+    border-radius: 5px;
+    background: #fafafa;
+    color: #8e8e8e;
+    font-family: Pretendard, sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 160%;
+
+    &--disabled {
+      background-color: #e1e1e1;
+    }
+
+    &--checked {
+      background: #175c8e;
+      color: #fff;
+
+      &--disabled {
+        background-color: #727272;
+      }
+    }
+  }
+
+  &__time {
+    display: flex;
+    position: relative;
+    width: 502px;
+    height: 46px;
+    gap: 8px;
+    align-items: center;
+    justify-content: space-between;
+    font-family: Pretendard, sans-serif;
+    font-weight: 400;
+    font-size: 16px;
+
+    & > span {
+      color: #000;
+      text-shadow:
+        0 1px 1px rgb(0 0 0 / 2%),
+        0 2px 4px rgb(0 0 0 / 4%);
+      font-family: Pretendard, sans-serif;
+      font-size: 20px;
+      font-weight: 500;
+      margin: 0 20px;
+    }
+
+    button {
+      border: none;
+      background-color: #fafafa;
+    }
+
+    &--reverse {
+      ul {
+        top: inherit;
+        bottom: 50px;
+      }
+    }
+  }
+}

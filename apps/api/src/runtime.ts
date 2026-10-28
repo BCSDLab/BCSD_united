@@ -1,0 +1,102 @@
+import type { Database } from '@api/db/client';
+import type { Job } from '@api/jobs';
+
+export interface Principal {
+  id: number;
+  userType: 'GENERAL' | 'STUDENT' | 'COUNCIL' | 'OWNER' | 'ADMIN' | 'COOP';
+  sessionId?: string;
+}
+
+export interface Bindings {
+  DB: D1Database;
+  FILES: R2Bucket;
+  COORDINATOR: DurableObjectNamespace;
+  COMMUNITY_CHAT: DurableObjectNamespace;
+  JOBS: Queue<Job>;
+  ENVIRONMENT: 'development' | 'stage' | 'production';
+  SERIALIZED?: boolean;
+  JWT_SECRET?: string;
+  WEB_CSRF_SECRET?: string;
+  AUTH_ALLOWED_ORIGINS?: string;
+  WEB_COOKIE_SECURE?: string;
+  WEB_COOKIE_SAME_SITE?: string;
+  WEB_COOKIE_DOMAIN?: string;
+  WEB_COOKIE_PREFIX?: string;
+  WEB_ACCESS_TTL_SECONDS?: string;
+  WEB_REFRESH_TTL_SECONDS?: string;
+  NATIVE_ACCESS_TTL_SECONDS?: string;
+  NEXT_PUBLIC_SENTRY_DSN?: string;
+  NEXT_PUBLIC_SENTRY_ENVIRONMENT?: string;
+  NEXT_PUBLIC_SENTRY_RELEASE?: string;
+  R2_FILES_PUBLIC_URL?: string;
+  API_PUBLIC_URL?: string;
+  UPLOAD_SIGNING_SECRET?: string;
+  NAVER_ACCESS_KEY?: string;
+  NAVER_SECRET_KEY?: string;
+  NAVER_SMS_API_URL?: string;
+  NAVER_SMS_SERVICE_ID?: string;
+  NAVER_SMS_FROM?: string;
+  FCM_PROJECT_ID?: string;
+  FCM_CLIENT_EMAIL?: string;
+  FCM_PRIVATE_KEY?: string;
+  FCM_KOIN_URL?: string;
+  SLACK_KOIN_EVENT_NOTIFY_URL?: string;
+  SLACK_KOIN_OWNER_EVENT_NOTIFY_URL?: string;
+  SLACK_KOIN_SHOP_REVIEW_NOTIFY_URL?: string;
+  SLACK_KOIN_LOST_ITEM_NOTIFY_URL?: string;
+  SLACK_LOGGING_ERROR_URL?: string;
+  OPEN_API_KEY_PUBLIC?: string;
+  OPEN_API_KEY_TMONEY?: string;
+  ADDRESS_API_URL?: string;
+  ADDRESS_API_KEY?: string;
+  TOSS_SECRET_KEY?: string;
+  TOSS_API_TIMEOUT_MS?: string;
+  TOSS_PAYMENT_API_BASE_URL?: string;
+  UPSTAGE_API_KEY?: string;
+  DINING_REPORT_BOT_TOKEN?: string;
+  EMAIL_FROM?: string;
+  USER_MAX_VERIFICATION_COUNT?: string;
+  CLOUDFLARE_FILES_ZONE_ID?: string;
+  CLOUDFLARE_CACHE_PURGE_TOKEN?: string;
+  KOIN_ADMIN_REVIEW_URL?: string;
+  SLACK_LOST_ITEM_WEBHOOK?: string;
+  ADMIN_SHOP_URL?: string;
+  TEAM_RECRUITMENT_OUTBOX_ENABLED?: string;
+  TEAM_RECRUITMENT_OUTBOX_BATCH_SIZE?: string;
+  TEAM_RECRUITMENT_OUTBOX_MAX_ATTEMPTS?: string;
+  TEAM_RECRUITMENT_OUTBOX_LEASE_SECONDS?: string;
+  TEAM_RECRUITMENT_OUTBOX_RETRY_BACKOFF_SECONDS?: string;
+  TEAM_RECRUITMENT_OUTBOX_MAX_RETRY_BACKOFF_SECONDS?: string;
+  ARTICLE_AI_SUMMARY_ENABLED?: string;
+  ARTICLE_AI_SUMMARY_MODEL?: string;
+  ARTICLE_AI_SUMMARY_PROMPT_VERSION?: string;
+  ARTICLE_AI_SUMMARY_BATCH_SIZE?: string;
+  ARTICLE_AI_SUMMARY_MAX_RETRY_COUNT?: string;
+  ARTICLE_AI_SUMMARY_MAX_REFINEMENT_RETRY_COUNT?: string;
+  ARTICLE_AI_SUMMARY_LOCK_MINUTES?: string;
+  ARTICLE_AI_SUMMARY_RETRY_BACKOFF_MINUTES?: string;
+  ARTICLE_AI_SUMMARY_MAX_RETRY_BACKOFF_MINUTES?: string;
+  ARTICLE_AI_SUMMARY_MAX_DOCUMENTS_PER_ARTICLE?: string;
+  ARTICLE_AI_SUMMARY_MAX_DOCUMENT_BYTES?: string;
+  ARTICLE_AI_SUMMARY_FAILED_RETRY_WINDOW_START_HOUR?: string;
+  ARTICLE_AI_SUMMARY_FAILED_RETRY_WINDOW_END_HOUR?: string;
+  ARTICLE_AI_SUMMARY_SCHEDULER_FIXED_DELAY_MS?: string;
+  ARTICLE_AI_SUMMARY_CHAT_REQUEST_TIMEOUT_SECONDS?: string;
+  ARTICLE_AI_SUMMARY_DOCUMENT_DOWNLOAD_TIMEOUT_SECONDS?: string;
+  ARTICLE_AI_SUMMARY_DOCUMENT_PARSE_REQUEST_TIMEOUT_SECONDS?: string;
+  ARTICLE_AI_SUMMARY_DOCUMENT_PARSE_MIN_INTERVAL_MILLIS?: string;
+  ARTICLE_AI_SUMMARY_DOCUMENT_PARSE_OCR_MODE?: string;
+  ARTICLE_AI_SUMMARY_ALLOWED_CONTENT_URL_PREFIXES?: string;
+  ARTICLE_AI_SUMMARY_ALLOWED_DOCUMENT_URL_PREFIXES?: string;
+  EMAIL?: {
+    send(message: { to: string; from: string; subject: string; html: string }): Promise<{ messageId: string }>;
+  };
+}
+
+export type ApiEnv = {
+  Bindings: Bindings;
+  Variables: {
+    db: Database;
+    principal: Principal | null;
+  };
+};

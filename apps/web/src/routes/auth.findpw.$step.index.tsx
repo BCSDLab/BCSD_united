@@ -1,0 +1,196 @@
+import { createFileRoute, useNavigate, useRouter, useSearch, useParams } from '@tanstack/react-router';
+
+import { Suspense, useCallback, useEffect, useState } from 'react';
+
+
+import ChevronLeftIcon from 'assets/svg/Login/chevron-left.svg';
+import CompletePage from 'components/Auth/FindPasswordPage/Complete';
+import FindPWLayout from 'components/Auth/FindPasswordPage/Layout';
+import MobileResetPassword from 'components/Auth/FindPasswordPage/Mobile/MobileResetPassword';
+import MobileVerifyEmail from 'components/Auth/FindPasswordPage/Mobile/MobileVerifyEmail';
+import MobileVerifyPhone from 'components/Auth/FindPasswordPage/Mobile/MobileVerifyPhone';
+import PCResetPasswordPhone from 'components/Auth/FindPasswordPage/PC/PCResetPasswordPhone';
+import PCVerifyEmail from 'components/Auth/FindPasswordPage/PC/PCVerifyEmail';
+import PCVerifyPhone from 'components/Auth/FindPasswordPage/PC/PCVerifyPhone';
+import ProgressBar from 'components/Auth/SignupPage/components/ProgressBar';
+import LoadingSpinner from 'components/feedback/LoadingSpinner';
+import { FormProvider, useForm } from 'react-hook-form';
+import type { ContactType } from 'static/auth';
+import ROUTES from 'static/routes';
+import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
+import showToast from 'utils/ts/showToast';
+
+import styles from 'pages/auth/findpw/FindPasswordPage.module.scss';
+
+type StepTitle = '계정인증' | '이메일인증' | '비밀번호변경' | '완료';
+type ProgressStepTitle = '계정인증' | '비밀번호변경' | '완료';
+
+const stepToProgress: Record<StepTitle, ProgressStepTitle> = {
+  계정인증: '계정인증',
+  이메일인증: '계정인증', // 이메일인증도 진행상 '계정인증'
+  비밀번호변경: '비밀번호변경',
+  완료: '완료',
+};
+
+interface StepProps<T> {
+  step: T;
+  name: T;
+  children: React.ReactNode;
+}
+
+function Step<T extends string>({ step, name, children }: StepProps<T>) {
+  return step === name ? <div>{children}</div> : null;
+}
+
+function FindPasswordPage({ step }: { step: StepTitle }) {
+  const isMobile = useMediaQuery();
+  const router = useRouter();
+  const routeNavigate = useNavigate();
+  const [contactType, setContactType] = useState<ContactType>('PHONE');
+
+  const methods = useForm({
+    mode: 'onChange',
+    defaultValues: {
+      loginId: '',
+      phoneNumber: '',
+      email: '',
+      verificationCode: '',
+      password: '',
+      password_check: '',
+      newPassword: '',
+      newPasswordCheck: '',
+      isCorrect: false,
+      verificationMessage: null,
+      phoneMessage: null,
+      idMessage: null,
+      isDisabled: false,
+    },
+  });
+
+  const goToFirstStep = useCallback(() => {
+    routeNavigate({ href: ROUTES.AuthFindPW({ step: '계정인증' }) });
+  }, [routeNavigate]);
+
+  useEffect(() => {
+    if (step === '완료') {
+      if (methods.getValues('newPassword')) {
+        methods.reset();
+      }
+
+      return;
+    }
+
+    const loginId = methods.getValues('loginId');
+    const verificationCode = methods.getValues('verificationCode');
+
+    if (step === '비밀번호변경' && (!loginId || !verificationCode)) {
+      showToast('warning', '잘못된 접근입니다. 계정 인증을 먼저 진행해주세요.');
+      goToFirstStep();
+    }
+  }, [step, methods, goToFirstStep]);
+
+  if (!step) {
+    routeNavigate({ href: ROUTES.Auth() });
+
+    return null;
+  }
+
+  const nextStep = (next: StepTitle, options?: { replace: boolean }) => {
+    if (options?.replace) {
+      routeNavigate({ href: ROUTES.AuthFindPW({ step: next }), replace: true });
+
+      return;
+    }
+    routeNavigate({ href: ROUTES.AuthFindPW({ step: next }) });
+  };
+
+  const goBack = () => router.history.back();
+
+  const progressSteps: ProgressStepTitle[] = ['계정인증', '비밀번호변경'];
+  const progressStep = stepToProgress[step];
+  const currentIndex = progressSteps.indexOf(progressStep);
+
+  return (
+    <Suspense fallback={<LoadingSpinner size="50px" />}>
+      <div className={styles.container}>
+        {isMobile && step !== '완료' && (
+          <div className={styles.container__header}>
+            <button type="button" className={styles.container__button} onClick={goBack} aria-label="뒤로가기">
+              <ChevronLeftIcon />
+            </button>
+            <span className={styles.container__title}>비밀번호 찾기</span>
+          </div>
+        )}
+
+        {step !== '완료' && (
+          <ProgressBar steps={progressSteps.map((title) => ({ title }))} currentIndex={currentIndex} />
+        )}
+
+        <FormProvider {...methods}>
+          <Step step={step} name="계정인증">
+            {isMobile ? (
+              <MobileVerifyPhone
+                onNext={() => nextStep('비밀번호변경')}
+                goToEmailStep={() => nextStep('이메일인증')}
+                setContactType={setContactType}
+              />
+            ) : (
+              <PCVerifyPhone
+                onNext={() => nextStep('비밀번호변경')}
+                onBack={goBack}
+                goToEmailStep={() => nextStep('이메일인증')}
+                setContactType={setContactType}
+              />
+            )}
+          </Step>
+
+          <Step step={step} name="이메일인증">
+            {isMobile ? (
+              <MobileVerifyEmail onNext={() => nextStep('비밀번호변경')} setContactType={setContactType} />
+            ) : (
+              <PCVerifyEmail onNext={() => nextStep('비밀번호변경')} onBack={goBack} setContactType={setContactType} />
+            )}
+          </Step>
+
+          <Step step={step} name="비밀번호변경">
+            {isMobile ? (
+              <MobileResetPassword onNext={() => nextStep('완료')} onBack={goBack} contactType={contactType} />
+            ) : (
+              <PCResetPasswordPhone onNext={() => nextStep('완료')} onBack={goBack} contactType={contactType} />
+            )}
+          </Step>
+
+          <Step step={step} name="완료">
+            <CompletePage />
+          </Step>
+        </FormProvider>
+      </div>
+    </Suspense>
+  );
+}
+
+function FindPassword() {
+  
+  
+  const routeQuery: Record<string, string | string[] | undefined> = { ...useSearch({ strict: false }), ...useParams({ strict: false }) };
+  
+
+  const { step } = routeQuery as { step?: StepTitle };
+  if (!step) return null;
+
+  return <FindPasswordPage step={step} />;
+}
+
+
+
+export default FindPassword;
+
+export const Route = createFileRoute('/auth/findpw/$step/')({
+  validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
+  component: RouteComponent,
+});
+
+function RouteComponent() {
+  const page = <FindPassword />;
+  return <FindPWLayout>{page}</FindPWLayout>;
+}

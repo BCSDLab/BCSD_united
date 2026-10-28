@@ -1,0 +1,163 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "koin-api-local",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-26",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "observability": {
+    "enabled": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "koin-api-local",
+      "migrations_dir": "drizzle"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "FILES",
+      "bucket_name": "koin-api-files-local"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "COORDINATOR",
+        "class_name": "Coordinator"
+      },
+      {
+        "name": "COMMUNITY_CHAT",
+        "class_name": "CommunityChatDurableObject"
+      }
+    ]
+  },
+  "queues": {
+    "producers": [
+      {
+        "binding": "JOBS",
+        "queue": "koin-api-jobs-local"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "koin-api-jobs-local",
+        "max_batch_size": 20,
+        "max_retries": 5
+      }
+    ]
+  },
+  "vars": {
+    "ENVIRONMENT": "development"
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "Coordinator",
+        "CommunityChatDurableObject"
+      ]
+    }
+  ],
+  "triggers": {
+    "crons": [
+      "*/5 * * * *"
+    ]
+  },
+  "env": {
+    "stage": {
+      "name": "koin-api-stage",
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "koin-api-stage",
+          "migrations_dir": "drizzle"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "FILES",
+          "bucket_name": "koin-api-files-stage"
+        }
+      ],
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "COORDINATOR",
+            "class_name": "Coordinator"
+          },
+          {
+            "name": "COMMUNITY_CHAT",
+            "class_name": "CommunityChatDurableObject"
+          }
+        ]
+      },
+      "queues": {
+        "producers": [
+          {
+            "binding": "JOBS",
+            "queue": "koin-api-jobs-stage"
+          }
+        ],
+        "consumers": [
+          {
+            "queue": "koin-api-jobs-stage",
+            "max_batch_size": 20,
+            "max_retries": 5
+          }
+        ]
+      },
+      "vars": {
+        "ENVIRONMENT": "stage"
+      }
+    },
+    "production": {
+      "name": "koin-api",
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "koin-api-production",
+          "migrations_dir": "drizzle"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "FILES",
+          "bucket_name": "koin-api-files-production"
+        }
+      ],
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "COORDINATOR",
+            "class_name": "Coordinator"
+          },
+          {
+            "name": "COMMUNITY_CHAT",
+            "class_name": "CommunityChatDurableObject"
+          }
+        ]
+      },
+      "queues": {
+        "producers": [
+          {
+            "binding": "JOBS",
+            "queue": "koin-api-jobs-production"
+          }
+        ],
+        "consumers": [
+          {
+            "queue": "koin-api-jobs-production",
+            "max_batch_size": 20,
+            "max_retries": 5
+          }
+        ]
+      },
+      "vars": {
+        "ENVIRONMENT": "production"
+      }
+    }
+  }
+}

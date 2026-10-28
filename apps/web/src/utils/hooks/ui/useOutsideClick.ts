@@ -1,0 +1,38 @@
+import { useEffect, useRef } from 'react';
+
+interface UseOutsideClickOptions {
+  onOutsideClick: (e: MouseEvent) => void;
+}
+
+export const useOutsideClick = <TContainer extends HTMLElement = HTMLDivElement>({
+  onOutsideClick,
+}: UseOutsideClickOptions) => {
+  const containerRef = useRef<TContainer>(null);
+  const backgroundRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      const clickedElement = e.target as Node;
+      const container = containerRef.current;
+      const background = backgroundRef.current;
+
+      if (container && !container.contains(clickedElement)) {
+        onOutsideClick(e);
+
+        return;
+      }
+
+      if (!container && clickedElement === background) {
+        onOutsideClick(e);
+      }
+    };
+
+    document.addEventListener('mousedown', handleOutsideClick, true);
+
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick, true);
+    };
+  }, [onOutsideClick]);
+
+  return { containerRef, backgroundRef };
+};

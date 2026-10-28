@@ -1,0 +1,289 @@
+import { useState } from 'react';
+import { Link } from '@tanstack/react-router';
+import { useLocation } from '@tanstack/react-router';
+
+import { cn } from '@bcsdlab/utils';
+import { getStoreDetailInfo } from 'api/store';
+import LoginRequiredModal from 'components/modal/LoginRequiredModal';
+import type { Portal } from 'components/modal/Modal/PortalProvider';
+import { CATEGORY, type Category, type Submenu, type SubmenuTitle } from 'static/category';
+import ROUTES from 'static/routes';
+import { SHORTCUT_LOGGING_MAP } from 'utils/hooks/analytics/shortcutLoggingMap';
+import useLogger from 'utils/hooks/analytics/useLogger';
+import { useSessionLogger } from 'utils/hooks/analytics/useSessionLogger';
+import { useLogout } from 'utils/hooks/auth/useLogout';
+import useModalPortal from 'utils/hooks/layout/useModalPortal';
+import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
+import { isomorphicSessionStorage } from 'utils/ts/env';
+import getElapsedSeconds from 'utils/ts/getElapsedSeconds';
+
+import styles from './PCHeader.module.scss';
+
+const ID: Record<string, string> = {
+  PANEL: 'megamenu-panel',
+  LABEL1: 'megamenu-label-1',
+  LABEL2: 'megamenu-label-2',
+};
+
+const useMegaMenu = (category: Category[]) => {
+  const [panelMenuList, setPanelMenuList] = useState<Submenu[] | null>();
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const createOnChangeMenu = (title: string) => () => {
+    const selectedSubmenu = category.find((categoryInfo) => categoryInfo.title === title)?.submenu ?? null;
+    setPanelMenuList(selectedSubmenu);
+    setIsExpanded(true);
+  };
+  const onFocusPanel = () => {
+    setIsExpanded(true);
+  };
+  const hideMegaMenu = (event: React.MouseEvent<HTMLElement> | React.FocusEvent<HTMLElement>) => {
+    if (event.type === 'mouseout') {
+      const { currentTarget } = event;
+      currentTarget.blur();
+    }
+    setIsExpanded(false);
+  };
+
+  return {
+    panelMenuList,
+    isExpanded,
+    createOnChangeMenu,
+    onFocusPanel,
+    hideMegaMenu,
+  };
+};
+
+interface PCHeaderProps {
+  openModal: () => void;
+}
+
+export default function PCHeader({ openModal }: PCHeaderProps) {
+  const {
+    panelMenuList,
+    isExpanded: isMegaMenuExpanded,
+    createOnChangeMenu,
+    onFocusPanel,
+    hideMegaMenu: hideMegamenu,
+  } = useMegaMenu(CATEGORY);
+
+  const logout = useLogout();
+  const logger = useLogger();
+  const sessionLogger = useSessionLogger();
+  const portalManager = useModalPortal();
+  const routeLocation = useLocation();
+  const { href: asPath } = routeLocation;
+  const pathname = asPath.split('?')[0] || '/';
+  const search = asPath.includes('?') ? `?${asPath.split('?')[1]}` : '';
+  const isStage = process.env.NEXT_PUBLIC_API_PATH?.includes('stage');
+  const isLoggedin = useIsLoggedIn();
+
+  const logShortcut = (title: SubmenuTitle) => {
+    const info = SHORTCUT_LOGGING_MAP[title];
+
+    if (info) {
+      logger.actionEventClick({ ...info, event_label: 'header' });
+
+      if (pathname === ROUTES.GraduationCalculator()) {
+        logger.actionEventClick({
+          team: 'USER',
+          event_label: 'graduation_calculator_back',
+          value: `탈출_헤더_${title}`,
+        });
+      }
+    }
+  };
+
+  const escapeByLogo = async () => {
+    if (pathname === ROUTES.Timetable()) {
+      logger.actionEventClick({
+        team: 'USER',
+        event_label: 'timetable_back',
+        value: '로고',
+        previous_page: '시간표',
+        current_page: '메인',
+        duration_time: getElapsedSeconds('enterTimetablePage'),
+      });
+    }
+    if (pathname.includes(ROUTES.Store()) && search.includes('state')) {
+      const shopId = pathname.split('/')[2];
+      const shopName = await getStoreDetailInfo(shopId);
+      logger.actionEventClick({
+        team: 'BUSINESS',
+        event_label: 'shop_detail_view_back',
+        value: shopName.name,
+        event_category: 'logo',
+        current_page: isomorphicSessionStorage.getItem('cameFrom') || '전체보기',
+        duration_time: getElapsedSeconds('enter_storeDetail'),
+      });
+    }
+    if (pathname.includes(ROUTES.GraduationCalculator())) {
+      logger.actionEventClick({
+        team: 'USER',
+        event_label: 'graduation_calculator_back',
+        value: '탈출_로고',
+      });
+    }
+  };
+
+  const escapeByheader = (title: string) => {
+    if (pathname === ROUTES.GraduationCalculator()) {
+      logger.actionEventClick({
+        team: 'USER',
+        event_label: 'graduation_calculator_back',
+        value: `탈출_헤더_${title}`,
+      });
+    }
+  };
+
+  const openLoginModal = () => {
+    portalManager.open((portalOption: Portal) => (
+      <LoginRequiredModal title="쪽지를 사용하기" description="로그인 후 이용해주세요." onClose={portalOption.close} />
+    ));
+  };
+
+  const handleMenuClick = (e: React.MouseEvent<HTMLAnchorElement>, title: SubmenuTitle) => {
+    logShortcut(title);
+    if (!isLoggedin && title === '쪽지') {
+      e.preventDefault();
+      openLoginModal();
+    }
+
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+  };
+
+  return (
+    <>
+      <Link className={styles.header__logo} to={ROUTES.Main()} tabIndex={0} onClick={escapeByLogo}>
+        <img
+          src="https://static.koreatech.in/assets/img/logo_white.png"
+          alt="KOIN service logo"
+          width={80}
+          height={44}
+          decoding="async"
+          loading="eager"
+        />
+      </Link>
+      <div
+        className={cn({
+          [styles.header__megamenu]: true,
+          [styles.megamenu]: true,
+        })}
+        onBlur={hideMegamenu}
+        onMouseOut={hideMegamenu}
+      >
+        <ul className={styles['megamenu__trigger-list']}>
+          {CATEGORY.map((category, index) => (
+            <li key={category.title}>
+              <button
+                className={styles.megamenu__trigger}
+                tabIndex={0}
+                type="button"
+                onClick={createOnChangeMenu(category.title)}
+                onFocus={createOnChangeMenu(category.title)}
+                onBlur={hideMegamenu}
+                onMouseOver={createOnChangeMenu(category.title)}
+                onMouseOut={hideMegamenu}
+                aria-expanded={isMegaMenuExpanded}
+                aria-controls={ID[`LABEL${index + 1}`]}
+              >
+                <span>{category.title}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+        <div
+          id={ID.PANEL}
+          className={styles.megamenu__panel}
+          onFocus={onFocusPanel}
+          onMouseOver={onFocusPanel}
+          aria-hidden={!isMegaMenuExpanded}
+          aria-labelledby={Array.from({ length: 2 }, (_, index) => ID[`LABEL${index + 1}`]).join(' ')}
+        >
+          <ul className={styles.megamenu__content}>
+            {panelMenuList
+              ?.slice(0, -4)
+              .filter((menu) => !menu.mobileOnly)
+              .map((menu) => {
+                const preferred = isStage && menu.stageLink ? menu.stageLink : menu.link;
+                const href = preferred ?? ROUTES.Main();
+
+                return (
+                  <li className={styles.megamenu__menu} key={menu.title}>
+                    {/* TODO: 키보드 Focus 접근성 향상 */}
+                    <>{/^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(href) ? <a className={styles.megamenu__link} href={href} onClick={(e) => handleMenuClick(e, menu.title)}>
+                      {menu.title}
+                    </a> : <Link className={styles.megamenu__link} to={href} preload={false} onClick={(e) => handleMenuClick(e, menu.title)}>
+                      {menu.title}
+                    </Link>}</>
+                  </li>
+                );
+              })}
+          </ul>
+        </div>
+      </div>
+      <ul className={styles['header__auth-menu']}>
+        {!isLoggedin ? (
+          <>
+            <li className={styles['header__auth-link']}>
+              <Link to={ROUTES.AuthSignup({ currentStep: '약관동의' })} preload={false} onClick={() => {
+                sessionLogger.actionSessionEvent({
+                  session_name: 'sign_up',
+                  event_label: 'header',
+                  value: '회원가입 시작',
+                });
+              }}>
+                회원가입
+              </Link>
+            </li>
+            <li className={styles['header__auth-link']}>
+              <Link to={ROUTES.Auth()} preload={false} onClick={() => {
+                logger.actionEventClick({
+                  team: 'USER',
+                  event_label: 'header',
+                  value: '로그인 시도',
+                });
+              }}>
+                로그인
+              </Link>
+            </li>
+          </>
+        ) : (
+          <>
+            <li className={styles['header__auth-link']}>
+              <button
+                type="button"
+                className={styles['header__auth-button']}
+                onClick={() => {
+                  openModal();
+                  escapeByheader('정보수정');
+                }}
+              >
+                정보수정
+              </button>
+            </li>
+            <li className={styles['header__auth-link']}>
+              <button
+                onClick={() => {
+                  logout();
+                  escapeByheader('로그아웃');
+                  logger.actionEventClick({
+                    team: 'USER',
+                    event_label: 'header',
+                    value: '로그아웃',
+                  });
+                }}
+                type="button"
+                className={styles['header__auth-button']}
+              >
+                로그아웃
+              </button>
+            </li>
+          </>
+        )}
+      </ul>
+    </>
+  );
+}

@@ -1,0 +1,66 @@
+@use "src/utils/scss/media" as media;
+
+.template {
+  width: 795px;
+  margin: 23px auto 0;
+
+  @include media.media-breakpoint(mobile) {
+    width: 100%;
+    margin: 0;
+  }
+}
+
+.tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  height: 56px;
+  list-style: none;
+
+  @include media.media-breakpoint(mobile) {
+    width: 100%;
+    height: 50px;
+    box-shadow:
+      0 2px 4px rgb(0 0 0 / 4%),
+      0 1px 1px rgb(0 0 0 / 2%);
+  }
+
+  &__tab {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    letter-spacing: -0.8px;
+    font-weight: 500;
+    line-height: 1.5;
+    color: rgb(133 133 133);
+    background-color: #fff;
+    appearance: none;
+    border-radius: 12px 0 0;
+    font-family: Pretendard, sans-serif;
+    border-bottom: 2px solid #cacaca;
+    padding: 16px 16px 12px;
+
+    &--selected {
+      color: rgb(23 92 142);
+      border-bottom: 3px solid rgb(23 92 142);
+    }
+
+    @include media.media-breakpoint(mobile) {
+      height: 50px;
+      font-weight: 400;
+      line-height: 1.6;
+      letter-spacing: 0;
+      color: #727272;
+      border-radius: 0;
+      border-bottom: 1px solid #cacaca;
+      padding: 12px 16px;
+
+      &--selected {
+        color: #b611f5;
+        font-weight: 600;
+        border-bottom: 2px solid #b611f5;
+      }
+    }
+  }
+}

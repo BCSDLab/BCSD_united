@@ -1,0 +1,20 @@
+@use "src/utils/scss/order-palette" as palette;
+
+// KOIN_ORDER_WEBVIEW LoginRequiredModal 문구 계산값을 옮겼다
+.text {
+  gap: 8px;
+  text-align: center;
+}
+
+.title {
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 28px;
+  white-space: pre-wrap;
+}
+
+.subtitle {
+  color: palette.$neutral-500;
+  font-size: 14px;
+  line-height: 20px;
+}

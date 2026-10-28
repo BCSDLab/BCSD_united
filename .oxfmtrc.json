@@ -1,0 +1,22 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "printWidth": 120,
+  "tabWidth": 2,
+  "useTabs": false,
+  "semi": true,
+  "singleQuote": true,
+  "quoteProps": "as-needed",
+  "jsxSingleQuote": false,
+  "trailingComma": "all",
+  "bracketSpacing": true,
+  "bracketSameLine": false,
+  "arrowParens": "always",
+  "endOfLine": "lf",
+  "ignorePatterns": [
+    "**/node_modules/**", "**/dist/**", "**/.wrangler/**", "**/.tanstack/**", ".claude/**",
+    "pnpm-lock.yaml", "**/worker-configuration.d.ts", "**/routeTree.gen.ts", "**/src/generated/**",
+    "**/analytics.events.json", "apps/web/src/assets/lottie/**", "apps/api/src/db/schema.ts",
+    "apps/api/scripts/source-schema.json", "apps/api/drizzle/meta/**"
+  ],
+  "overrides": [{ "files": ["**/*.scss", "**/*.css"], "options": { "singleQuote": false } }]
+}

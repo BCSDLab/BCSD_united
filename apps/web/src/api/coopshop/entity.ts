@@ -1,0 +1,29 @@
+import type { APIResponse } from 'interfaces/APIResponse';
+
+export type Semester = '학기' | '하계방학' | '동계방학';
+
+export interface Opens {
+  day_of_week: '평일' | '주말' | '토요일' | '일요일';
+  type: '아침' | '점심' | '저녁' | null;
+  open_time: string; // HH:mm, 또는 미운영 안내 문구
+  close_time: string; // HH:mm, 또는 미운영 안내 문구
+}
+
+export interface CoopShopResponse extends APIResponse {
+  semester: string; // 00-0학기
+  from_date: string; // yyyy-MM-dd
+  to_date: string; // yyyy-MM-dd
+  coop_shops: CoopShopDetailResponse[];
+}
+
+export interface CoopShopDetailResponse extends APIResponse {
+  id: number;
+  name: string; // 학생식당, 세탁소, 복사실 등
+  semester?: Semester;
+  opens: Opens[];
+  phone: string | null;
+  location: string;
+  remarks: string | null;
+  icon_url: string | null;
+  updated_at: string; // yyyy-MM-dd
+}

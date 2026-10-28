@@ -1,0 +1,211 @@
+import { createFileRoute, Link, useNavigate, useLocation } from '@tanstack/react-router';
+
+import { Suspense } from 'react';
+
+
+
+import { useSuspenseQuery } from '@tanstack/react-query';
+import type { Course, PreCourse } from 'api/course/entity';
+import { courseQueries } from 'api/course/queries';
+import CourseSearchForm from 'components/Course/components/CourseSearchForm';
+import CourseTable, {
+  CreditDisplay,
+  createOpenCoursesColumns,
+  createPreCoursesColumns,
+  createSelectedCoursesColumns,
+} from 'components/Course/components/CourseTable';
+import useCourseSearchForm from 'components/Course/hooks/useCourseSearchForm';
+import useSelectedCourses, { getCourseKey } from 'components/Course/hooks/useSelectedCourses';
+import SSRSuspense from 'components/ssr/SSRSuspense';
+import useTimetableFrameList from 'components/TimetablePage/hooks/useTimetableFrameList';
+import ROUTES from 'static/routes';
+import useLogger from 'utils/hooks/analytics/useLogger';
+import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
+import { getRecentSemester } from 'utils/timetable/semester';
+import { setRedirectPath } from 'utils/ts/auth';
+import { useSemester } from 'utils/zustand/semester';
+
+import styles from 'pages/course/CoursePage.module.scss';
+
+interface OpenCoursesTableContentProps {
+  searchParams: { name?: string; department?: string; year?: number; semester?: string };
+  onAddCourse: (course: PreCourse) => void;
+}
+
+function OpenCoursesTableContent({ searchParams, onAddCourse }: OpenCoursesTableContentProps) {
+  const logger = useLogger();
+  const { data: courses } = useSuspenseQuery(courseQueries.search(searchParams));
+
+  const handleAddOpenCourse = (course: PreCourse) => {
+    logger.actionEventClick({ team: 'USER', event_label: 'application_training_apply', value: '' });
+    onAddCourse(course);
+  };
+
+  const columns = createOpenCoursesColumns(handleAddOpenCourse);
+
+  return (
+    <CourseTable<Course>
+      variant="open"
+      title="개설강좌 정보"
+      data={courses}
+      columns={columns}
+      getRowKey={(course) =>
+        `${course.lecture_info.lecture_code}-${course.class_number}-${course.professor}-${course.class_time_raw.join(',')}`
+      }
+    />
+  );
+}
+
+interface PreCoursesTableContentProps {
+  isLoggedIn: boolean;
+  timetableFrameId: number;
+  onAddCourse: (course: PreCourse) => void;
+}
+
+function PreCoursesTableContent({ isLoggedIn, timetableFrameId, onAddCourse }: PreCoursesTableContentProps) {
+  const logger = useLogger();
+  const { data: preCourses } = useSuspenseQuery(courseQueries.preCourseList(timetableFrameId, isLoggedIn));
+
+  const handleAddPreCourse = (course: PreCourse) => {
+    logger.actionEventClick({ team: 'USER', event_label: 'application_training_pre_apply', value: '' });
+    onAddCourse(course);
+  };
+
+  const columns = createPreCoursesColumns(handleAddPreCourse);
+
+  if (preCourses.length === 0) {
+    return (
+      <div className={styles.placeholder}>
+        시간표에 추가된 과목이 없습니다.
+        <span className={styles.placeholder__sub}>개설강좌에서 과목을 추가해주세요.</span>
+        <Link to={ROUTES.Timetable()} className={styles.placeholder__link}>
+          시간표 페이지로 이동
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <CourseTable<PreCourse>
+      variant="pre"
+      title="예비수강과목"
+      data={preCourses}
+      columns={columns}
+      getRowKey={(course) => getCourseKey(course)}
+    />
+  );
+}
+
+function CoursePage() {
+  
+  const routeNavigate = useNavigate();
+  
+  const routeLocation = useLocation();
+  const isLoggedIn = useIsLoggedIn();
+  const semester = useSemester();
+  const currentSemester = getRecentSemester();
+
+  const { formInputs, searchParams, handleSearch, handleDepartmentChange, handleNameChange } = useCourseSearchForm({
+    initialYear: semester.year,
+    initialSemester: semester.term,
+  });
+
+  const { data: timetableFrameList } = useTimetableFrameList(currentSemester);
+  const mainFrame = timetableFrameList?.find((frame) => frame.is_main);
+  const timetableFrameId = mainFrame?.id ?? 0;
+  const hasValidFrameId = !!mainFrame?.id;
+
+  const { selectedCourses, selectedCredits, handleAddCourse, handleRemoveCourse } = useSelectedCourses();
+
+  const selectedCoursesColumns = createSelectedCoursesColumns(handleRemoveCourse);
+
+  return (
+    <div className={styles.viewport}>
+      <div className={styles.page}>
+        <CourseSearchForm
+          formInputs={formInputs}
+          semester={semester}
+          onSearch={handleSearch}
+          onDepartmentChange={handleDepartmentChange}
+          onNameChange={handleNameChange}
+        />
+
+        <div className={styles.content}>
+          <div className={styles.content__left}>
+            <Suspense fallback={<div>개설강좌 로딩중...</div>}>
+              <OpenCoursesTableContent searchParams={searchParams} onAddCourse={handleAddCourse} />
+            </Suspense>
+          </div>
+
+          <div className={styles.content__right}>
+            {isLoggedIn && hasValidFrameId ? (
+              <Suspense fallback={<div>예비수강과목 로딩중...</div>}>
+                <PreCoursesTableContent
+                  isLoggedIn={isLoggedIn}
+                  timetableFrameId={timetableFrameId}
+                  onAddCourse={handleAddCourse}
+                />
+              </Suspense>
+            ) : (
+              <div className={styles.placeholder}>
+                {isLoggedIn ? (
+                  <>
+                    현재 학기 시간표가 없습니다.
+                    <Link to={ROUTES.Timetable()} className={styles.placeholder__link}>
+                      시간표 만들러 가기
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    로그인 후 예비수강과목을 확인할 수 있습니다.
+                    <button
+                      type="button"
+                      className={styles.placeholder__link}
+                      onClick={() => {
+                        setRedirectPath(routeLocation.href);
+                        routeNavigate({ href: ROUTES.Auth() });
+                      }}
+                    >
+                      로그인하러 가기
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+
+            <CourseTable<PreCourse>
+              variant="selected"
+              title="수강신청과목"
+              data={selectedCourses}
+              columns={selectedCoursesColumns}
+              getRowKey={getCourseKey}
+              headerExtra={<CreditDisplay credits={selectedCredits} />}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+
+export default function CoursePageWrapper() {
+  // 토큰(useTimetableFrameList)과 sessionStorage(useSelectedCourses)에 의존하므로
+  // SSRSuspense로 마운트 이후로 미룬다.
+  return (
+    <SSRSuspense fallback={<div className={styles.page}>로딩 중...</div>}>
+      <CoursePage />
+    </SSRSuspense>
+  );
+}
+
+export const Route = createFileRoute('/course/')({
+  validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
+  component: RouteComponent,
+});
+
+function RouteComponent() {
+  const page = <CoursePageWrapper />;
+  return page;
+}

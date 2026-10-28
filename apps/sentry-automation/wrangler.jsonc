@@ -1,0 +1,22 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "koin-sentry-automation",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-26",
+  "workers_dev": false,
+  "preview_urls": false,
+  "durable_objects": {
+    "bindings": [
+      { "name": "SENTRY_ISSUES", "class_name": "SentryIssueDispatch" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["SentryIssueDispatch"] }
+  ],
+  "vars": {
+    "SENTRY_ORGANIZATION": "",
+    "SENTRY_PROJECTS": "",
+    "GITHUB_OWNER": "",
+    "GITHUB_REPOSITORY": ""
+  }
+}

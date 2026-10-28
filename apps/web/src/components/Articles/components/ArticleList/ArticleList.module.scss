@@ -1,0 +1,123 @@
+@use "src/utils/scss/media" as media;
+
+.list {
+  width: 100%;
+
+  @include media.media-breakpoint(mobile) {
+    display: none;
+  }
+
+  &__link {
+    width: 834px;
+    height: 68px;
+    cursor: pointer;
+    border-bottom: 1px #d2dae2 solid;
+    display: flex;
+    text-decoration-line: none;
+
+    &:hover {
+      background: #f8fafb;
+    }
+  }
+
+  &__id {
+    width: 85px;
+    font-size: 15px;
+    height: 100%;
+    color: #252525;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  &__author {
+    width: 150px;
+    height: 100%;
+    color: #175c8e;
+    font-size: 15px;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    display: flex;
+
+    &__content {
+      display: block;
+      padding: 0 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.4;
+    }
+  }
+
+  &__registered-at {
+    width: 70px;
+    height: 100%;
+    color: #727272;
+    font-size: 15px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  &__views {
+    width: 108px;
+    height: 100%;
+    color: #252525;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+}
+
+.title {
+  height: 100%;
+  color: #252525;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  width: 412px;
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-right: 10px;
+
+  &__container {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    max-width: 412px;
+  }
+
+  &__header,
+  &__container-header {
+    font-weight: 600;
+  }
+
+  &__container-type {
+    padding: 4px 12px;
+    background-color: #175c8e;
+    color: #fff;
+    border-radius: 999px;
+    font-family: Pretendard, sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  &__content,
+  &__container-container {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.4;
+  }
+
+  &__new-tag {
+    margin-left: 10px;
+    width: 14.5px;
+    height: 15px;
+    position: relative;
+  }
+}

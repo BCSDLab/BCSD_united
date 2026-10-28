@@ -1,0 +1,58 @@
+@use "src/utils/scss/media" as media;
+
+.info-footer {
+  display: flex;
+  box-sizing: border-box;
+  width: 100%;
+  justify-content: space-between;
+  gap: 8px;
+  color: #727272;
+  font-family: Pretendard, sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 160%;
+
+  &__date {
+    font-size: 14px;
+
+    @include media.media-breakpoint(mobile) {
+      display: flex;
+      gap: 4px;
+    }
+  }
+
+  &__icon {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 4px;
+    font-family: Pretendard, sans-serif;
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 1.6;
+
+    @include media.media-breakpoint(mobile) {
+      width: 100%;
+      justify-content: start;
+    }
+  }
+
+  &__text {
+    color: #727272;
+    font-family: Pretendard, sans-serif;
+    font-size: 14px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 1.6;
+
+    @include media.media-breakpoint(mobile) {
+      font-size: 12px;
+    }
+  }
+
+  @include media.media-breakpoint(mobile) {
+    flex-direction: column;
+    padding: 8px 24px 24px;
+  }
+}

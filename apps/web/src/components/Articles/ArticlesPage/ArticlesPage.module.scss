@@ -1,0 +1,75 @@
+@use "src/utils/scss/media" as media;
+
+.template {
+  margin: 61px auto 0;
+  width: 1132px;
+
+  @include media.media-breakpoint(mobile) {
+    width: 100%;
+    margin-top: 0;
+  }
+}
+
+.content {
+  width: 834px;
+  float: left;
+  margin-right: 40px;
+  margin-bottom: 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  @include media.media-breakpoint(mobile) {
+    float: none;
+    align-items: stretch;
+    width: 100%;
+    min-height: calc(100vh - 115px);
+    margin: 0;
+  }
+}
+
+.header {
+  width: 100%;
+  margin-bottom: 24px;
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  @include media.media-breakpoint(mobile) {
+    margin: 4px 0;
+  }
+
+  &__title {
+    font-family: Pretendard, sans-serif;
+    font-size: 32px;
+    font-weight: 500;
+    color: #175c8e;
+    margin: 0;
+
+    @include media.media-breakpoint(mobile) {
+      display: none;
+    }
+  }
+}
+
+.list-scroll {
+  width: 100%;
+
+  @include media.media-breakpoint(mobile) {
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    overflow-y: auto;
+  }
+}
+
+.aside {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  @include media.media-breakpoint(mobile) {
+    display: none;
+  }
+}

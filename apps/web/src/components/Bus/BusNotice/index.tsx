@@ -1,0 +1,107 @@
+import { useEffect, useState } from 'react';
+import { useRouter } from '@tanstack/react-router';
+
+import { cn } from '@bcsdlab/utils';
+import { useSuspenseQuery } from '@tanstack/react-query';
+import { busQueries } from 'api/bus/queries';
+import InformationIcon from 'assets/svg/Bus/info.svg';
+import CloseIcon from 'assets/svg/common/close/close-icon-32x32.svg';
+import ROUTES from 'static/routes';
+import useLogger from 'utils/hooks/analytics/useLogger';
+import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
+import { useLocalStorage } from 'utils/hooks/state/useLocalStorage';
+
+import styles from './BusNotice.module.scss';
+
+export interface BusNoticeProps {
+  loggingLocation?: string;
+  variant?: 'timetable';
+}
+
+const LOCATION = [
+  {
+    location: 'bus_search',
+    value: '교통편 조회하기',
+  },
+  {
+    location: 'shuttle',
+    value: '셔틀버스 시간표',
+  },
+  {
+    location: 'express',
+    value: '대성버스 시간표',
+  },
+  {
+    location: 'city',
+    value: '시내버스 시간표',
+  },
+];
+
+export default function BusNotice({ loggingLocation, variant }: BusNoticeProps) {
+  const isMobile = useMediaQuery();
+  const router = useRouter();
+  const navigate = (path: string) => router.navigate({ href: path });
+  const { data } = useSuspenseQuery(busQueries.notice());
+  const { id, title } = data;
+  const [lastBusNotice, setLastBusNotice] = useLocalStorage('lastBusNotice', '');
+  const [busNoticeDismissed, setBusNoticeDismissed] = useLocalStorage('busNoticeDismissed', 'false');
+  const isDismissed = busNoticeDismissed === 'true';
+  const isUpdated = lastBusNotice !== title;
+  const logger = useLogger();
+  const matched = LOCATION.find((item) => item.location === loggingLocation);
+  const logValue = matched?.value || '';
+
+  const [showNotice, setShowNotice] = useState(() => !isDismissed || isUpdated);
+
+  const handleClickNavigateNotice = () => {
+    logger.actionEventClick({
+      team: 'CAMPUS',
+      event_label: 'bus_announcement',
+      value: logValue,
+    });
+    navigate(ROUTES.ArticlesDetail({ id: String(id) }));
+  };
+
+  const handleClickDismissNotice = () => {
+    logger.actionEventClick({
+      team: 'CAMPUS',
+      event_label: 'bus_announcement_close',
+      value: logValue,
+    });
+    setBusNoticeDismissed('true');
+    setShowNotice(false);
+  };
+
+  useEffect(() => {
+    if (isUpdated) {
+      setLastBusNotice(title);
+      setBusNoticeDismissed('false');
+    }
+  }, [isUpdated, title, setLastBusNotice, setBusNoticeDismissed]);
+
+  return (
+    <div
+      className={cn({
+        [styles.container]: true,
+        [styles['container--timetable']]: variant === 'timetable',
+      })}
+    >
+      {showNotice && (
+        <div className={styles.notice}>
+          {!isMobile && <InformationIcon />}
+          <button className={styles.notice__description} type="button" onClick={handleClickNavigateNotice}>
+            {title}
+          </button>
+          <button
+            className={styles.notice__close}
+            type="button"
+            onClick={handleClickDismissNotice}
+            aria-label="공지 닫기"
+          >
+            <CloseIcon aria-hidden="true" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

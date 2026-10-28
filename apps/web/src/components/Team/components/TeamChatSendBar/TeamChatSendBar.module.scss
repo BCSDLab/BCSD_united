@@ -1,0 +1,59 @@
+@use "src/utils/scss/media" as media;
+
+.send-bar {
+  @include media.media-breakpoint(mobile) {
+    align-items: flex-end;
+    gap: 16px;
+    min-height: 0;
+    padding: 8px 24px calc(8px + env(safe-area-inset-bottom));
+    border-top: 0;
+  }
+
+  &__imageButton {
+    @include media.media-breakpoint(mobile) {
+      width: 32px;
+      height: 32px;
+      background-color: #fff;
+
+      svg {
+        width: 16px;
+        height: 16px;
+
+        path {
+          fill: #980ac9;
+          stroke: #980ac9;
+        }
+      }
+    }
+  }
+
+  &__input {
+    @include media.media-breakpoint(mobile) {
+      min-height: 32px;
+      max-height: 100px;
+      padding: 6px 16px;
+      font-size: 12px;
+
+      &:focus-visible {
+        outline-color: #b611f5;
+      }
+    }
+  }
+
+  &__sendButton {
+    @include media.media-breakpoint(mobile) {
+      width: 32px;
+      height: 32px;
+      background: #fff;
+
+      svg {
+        width: 18px;
+        height: 16px;
+
+        path {
+          fill: #980ac9;
+        }
+      }
+    }
+  }
+}

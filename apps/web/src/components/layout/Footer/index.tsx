@@ -1,0 +1,156 @@
+import { Link } from '@tanstack/react-router';
+import { useLocation } from '@tanstack/react-router';
+
+import LoginRequiredModal from 'components/modal/LoginRequiredModal';
+import type { Portal } from 'components/modal/Modal/PortalProvider';
+import { CATEGORY } from 'static/category';
+import type { SubmenuTitle } from 'static/category';
+import ROUTES from 'static/routes';
+import { SHORTCUT_LOGGING_MAP } from 'utils/hooks/analytics/shortcutLoggingMap';
+import useLogger from 'utils/hooks/analytics/useLogger';
+import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
+import useModalPortal from 'utils/hooks/layout/useModalPortal';
+import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
+
+import styles from './Footer.module.scss';
+
+function Footer() {
+  const isMobile = useMediaQuery();
+  const logger = useLogger();
+  const isStage = process.env.NEXT_PUBLIC_API_PATH?.includes('stage');
+  const portalManager = useModalPortal();
+  const isLoggedIn = useIsLoggedIn();
+
+  const routeLocation = useLocation();
+  const { pathname } = routeLocation; // 현재 URL의 경로
+
+  if (isMobile) {
+    return null;
+  }
+
+  const logShortcut = (title: SubmenuTitle) => {
+    const info = SHORTCUT_LOGGING_MAP[title];
+
+    if (info) {
+      logger.actionEventClick({ ...info, event_label: 'footer' });
+
+      if (String(pathname) === ROUTES.GraduationCalculator()) {
+        logger.actionEventClick({
+          team: 'USER',
+          event_label: 'graduation_calculator_back',
+          value: `탈출_푸터_${title}`,
+        });
+      }
+    }
+  };
+
+  const handleClickMenu = (e: React.MouseEvent<HTMLAnchorElement>, title: SubmenuTitle) => {
+    logShortcut(title);
+    if (!isLoggedIn && title === '쪽지') {
+      e.preventDefault();
+      portalManager.open((portalOption: Portal) => (
+        <LoginRequiredModal
+          title="쪽지를 사용하기"
+          description="로그인 후 이용해주세요."
+          onClose={portalOption.close}
+        />
+      ));
+    }
+  };
+
+  return (
+    <footer className={styles.footer}>
+      <div className={styles.footer__content}>
+        <ul className={styles.footer__services}>
+          {CATEGORY.flatMap((categoryInfo) => categoryInfo.submenu)
+            .slice(0, -4)
+            .filter((menu) => !menu.mobileOnly)
+            .map((submenuInfo) => (
+              <li className={styles.footer__service} key={submenuInfo.title}>
+                <>{/^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(isStage && submenuInfo.stageLink ? submenuInfo.stageLink : submenuInfo.link) ? <a  href={isStage && submenuInfo.stageLink ? submenuInfo.stageLink : submenuInfo.link} onClick={(e) => handleClickMenu(e, submenuInfo.title)}>
+                  {submenuInfo.title}
+                </a> : <Link  to={isStage && submenuInfo.stageLink ? submenuInfo.stageLink : submenuInfo.link} preload={false} onClick={(e) => handleClickMenu(e, submenuInfo.title)}>
+                  {submenuInfo.title}
+                </Link>}</>
+              </li>
+            ))}
+        </ul>
+        <div className={styles.sitemap}>
+          <Link className={styles.sitemap__logo} to={ROUTES.Main()} >
+            <img
+              src="https://static.koreatech.in/assets/img/logo_white.png"
+              alt="KOIN service logo"
+              width={72}
+              height={41}
+              loading="lazy"
+              decoding="async"
+            />
+          </Link>
+
+          <ul className={styles.sitemap__content}>
+            <li className={styles.sitemap__link}>
+              <a href="https://forms.gle/qYw17r2kihThiJvj7" target="_blank" rel="noreferrer">
+                문의하기
+              </a>
+            </li>
+            <li className={styles.sitemap__link}>
+              <a href="https://bcsdlab.com" target="_blank" rel="noreferrer">
+                BCSD Lab 바로가기
+              </a>
+            </li>
+            <li className={styles.sitemap__link}>
+              <a href="https://koreatech.ac.kr" target="_blank" rel="noreferrer">
+                코리아텍 바로가기
+              </a>
+            </li>
+            <li className={styles.sitemap__link}>
+              <a href="https://portal.koreatech.ac.kr" target="_blank" rel="noreferrer">
+                아우누리 바로가기
+              </a>
+            </li>
+            <li className={styles.sitemap__link}>
+              <Link to={ROUTES.PrivatePolicy()} preload={false} >
+                개인정보 처리방침
+              </Link>
+            </li>
+          </ul>
+
+          <div className={styles['sitemap__icon-links']}>
+            <a
+              className={styles['sitemap__icon-link']}
+              href="https://www.facebook.com/bcsdlab"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <img
+                src="https://static.koreatech.in/upload/fead6221d535ff547d4801081ee8f2e3.png"
+                alt="facebook"
+                width={14}
+                height={30}
+                loading="lazy"
+                decoding="async"
+              />
+            </a>
+            <Link className={styles['sitemap__icon-link']} to={ROUTES.Main()} >
+              <img
+                src="https://static.koreatech.in/upload/1aae9a021f0338527c28e5c3d0518fa1.png"
+                alt="home"
+                width={25}
+                height={30}
+                loading="lazy"
+                decoding="async"
+              />
+            </Link>
+          </div>
+          <span className={styles.sitemap__copyright}>
+            COPYRIGHT ⓒ&nbsp;
+            {new Date().getFullYear()}
+            &nbsp;BY BCSDLab ALL RIGHTS RESERVED.
+          </span>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+export default Footer;
