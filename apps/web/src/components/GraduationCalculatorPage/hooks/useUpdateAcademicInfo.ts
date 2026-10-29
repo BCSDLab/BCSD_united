@@ -1,4 +1,5 @@
-import { isKoinError, sendClientError } from '@bcsdlab/koin';
+import { isKoinError } from '@bcsdlab/koin';
+import { captureError } from '@koin/telemetry/runtime';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { updateAcademicInfo } from 'api/auth';
@@ -28,7 +29,7 @@ export default function useUpdateAcademicInfo() {
       if (isKoinError(error)) {
         showToast('error', error.message || '학적 정보 수정에 실패했습니다.');
       } else {
-        sendClientError(error);
+        captureError(error);
         showToast('error', '학적 정보 수정에 실패했습니다.');
       }
     },

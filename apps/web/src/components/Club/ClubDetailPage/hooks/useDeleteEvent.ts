@@ -1,4 +1,5 @@
-import { isKoinError, sendClientError } from '@bcsdlab/koin';
+import { isKoinError } from '@bcsdlab/koin';
+import { captureError } from '@koin/telemetry/runtime';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams } from '@tanstack/react-router';
 
@@ -19,7 +20,7 @@ export default function useDeleteEvent() {
       if (isKoinError(error)) {
         showToast('error', error.message);
       } else {
-        sendClientError(error);
+        captureError(error);
       }
     },
   });

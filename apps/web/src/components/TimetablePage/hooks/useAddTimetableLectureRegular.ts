@@ -1,4 +1,5 @@
-import { isKoinError, sendClientError } from '@bcsdlab/koin';
+import { isKoinError } from '@bcsdlab/koin';
+import { captureError } from '@koin/telemetry/runtime';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { timetableMutations } from 'api/timetable/mutations';
@@ -16,7 +17,7 @@ export default function useAddTimetableLectureRegular(isLoggedIn: boolean) {
         if (error.status === 403) showToast('error', '시간표 추가에 실패했습니다.');
         if (error.status === 404) showToast('error', '강의 정보를 찾을 수 없습니다.');
       } else {
-        sendClientError(error);
+        captureError(error);
         showToast('error', '시간표 추가에 실패했습니다.');
       }
     },

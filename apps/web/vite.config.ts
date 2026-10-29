@@ -83,7 +83,6 @@ export default defineConfig(({ mode }) => {
         authToken: env.SENTRY_AUTH_TOKEN,
         release: {
           name: env.NEXT_PUBLIC_SENTRY_RELEASE,
-          setCommits: env.SENTRY_AUTH_TOKEN ? { auto: true, ignoreMissing: true } : undefined,
         },
         sourcemaps: {
           disable: !env.SENTRY_AUTH_TOKEN,

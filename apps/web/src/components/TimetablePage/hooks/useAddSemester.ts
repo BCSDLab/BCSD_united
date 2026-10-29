@@ -1,4 +1,5 @@
-import { isKoinError, sendClientError } from '@bcsdlab/koin';
+import { isKoinError } from '@bcsdlab/koin';
+import { captureError } from '@koin/telemetry/runtime';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { timetableMutations } from 'api/timetable/mutations';
@@ -16,7 +17,7 @@ export default function useAddSemester(isLoggedIn: boolean) {
       if (isKoinError(error)) {
         showToast('error', error.message || '학기 추가에 실패했습니다.');
       } else {
-        sendClientError(error);
+        captureError(error);
         showToast('error', '학기 추가에 실패했습니다.');
       }
     },

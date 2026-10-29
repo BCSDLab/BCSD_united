@@ -1,4 +1,5 @@
-import { isKoinError, sendClientError } from '@bcsdlab/koin';
+import { isKoinError } from '@bcsdlab/koin';
+import { captureError } from '@koin/telemetry/runtime';
 import { useMutation, useSuspenseQuery } from '@tanstack/react-query';
 import { useFormContext } from 'react-hook-form';
 
@@ -48,7 +49,7 @@ export default function useAcademicInfoStep(loggingTitle: AcademicInfoLoggingTit
         return;
       }
       showToast('error', '회원정보를 불러오지 못했습니다.');
-      sendClientError(error);
+      captureError(error);
     },
   });
 
@@ -81,7 +82,7 @@ export default function useAcademicInfoStep(loggingTitle: AcademicInfoLoggingTit
         return;
       }
       showToast('error', '학적 정보 수정에 실패했습니다.');
-      sendClientError(error);
+      captureError(error);
     },
   });
 

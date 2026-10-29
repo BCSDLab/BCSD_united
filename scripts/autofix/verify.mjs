@@ -250,6 +250,9 @@ for (const [label, command] of checks) {
     const webProof = 'Real local API/D1 smoke passed: SSR /, browser /, gateway /api/shops/categories';
     if (!result.stdout?.includes(webProof)) throw new Error('Runtime SSR/browser/gateway proof is unavailable');
     process.stdout.write(`${webProof}\n`);
+    const mobileProof = 'Mobile local API/D1 smoke passed: / at 390px, gateway /api/shops/categories';
+    if (!result.stdout?.includes(mobileProof)) throw new Error('Runtime mobile homepage proof is unavailable');
+    process.stdout.write(`${mobileProof}\n`);
   }
 }
 if (offlineSmoke) {

@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { useSuspenseQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 
 import type { CoopShopDetailResponse } from 'api/coopshop/entity';
@@ -57,13 +57,15 @@ function IndexMobileCafeteria() {
   const [selectedPlace, setSelectedPlace] = useState<DiningPlace>('A코너');
 
   const { dinings } = useDinings(diningDate);
-  const { data: cafeteriaInfo } = useSuspenseQuery(coopshopQueries.cafeteriaInfo());
+  const { data: cafeteriaInfo } = useQuery(coopshopQueries.cafeteriaInfo());
 
   const filteredDinings = filterDinings(dinings, currentDiningType);
   const availableDinings = mealTabs
     .map((place) => filteredDinings.find((dining) => dining.place === place && dining.menu.length > 0))
     .filter((dining): dining is Dining => Boolean(dining));
-  const diningLabel = getDiningTimeLabel(cafeteriaInfo, diningDate, currentDiningType);
+  const diningLabel = cafeteriaInfo
+    ? getDiningTimeLabel(cafeteriaInfo, diningDate, currentDiningType)
+    : '운영시간 정보 제공 불가';
   const cafeteriaLink = ROUTES.Cafeteria({ date: getYyyyMmDd(diningDate), type: currentDiningType });
   const activePlace = availableDinings.some((dining) => dining.place === selectedPlace)
     ? selectedPlace

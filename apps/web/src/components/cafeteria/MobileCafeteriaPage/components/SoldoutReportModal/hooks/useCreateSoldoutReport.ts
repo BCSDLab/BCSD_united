@@ -1,4 +1,5 @@
-import { isKoinError, sendClientError } from '@bcsdlab/koin';
+import { isKoinError } from '@bcsdlab/koin';
+import { captureError } from '@koin/telemetry/runtime';
 import { useMutation } from '@tanstack/react-query';
 
 import { cafeteriaMutations } from 'api/cafeteria/mutations';
@@ -13,7 +14,7 @@ const useCreateSoldoutReport = () => {
       if (isKoinError(error)) {
         showMobileToast('error', error.message || '품절 제보에 실패했습니다.');
       } else {
-        sendClientError(error);
+        captureError(error);
         showMobileToast('error', '품절 제보에 실패했습니다.');
       }
     },

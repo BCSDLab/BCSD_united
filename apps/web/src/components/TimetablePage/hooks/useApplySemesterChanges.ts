@@ -1,4 +1,5 @@
-import { isKoinError, sendClientError } from '@bcsdlab/koin';
+import { isKoinError } from '@bcsdlab/koin';
+import { captureError } from '@koin/telemetry/runtime';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { timetableMutations } from 'api/timetable/mutations';
@@ -14,7 +15,7 @@ export default function useApplySemesterChanges(isLoggedIn: boolean) {
       if (isKoinError(error)) {
         showMobileToast('error', error.message || '학기 변경에 실패했습니다.');
       } else {
-        sendClientError(error);
+        captureError(error);
         showMobileToast('error', '학기 변경에 실패했습니다.');
       }
     },

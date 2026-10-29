@@ -1,4 +1,5 @@
-import { isKoinError, sendClientError } from '@bcsdlab/koin';
+import { isKoinError } from '@bcsdlab/koin';
+import { captureError } from '@koin/telemetry/runtime';
 import { useMutation } from '@tanstack/react-query';
 
 import { nicknameDuplicateCheck } from 'api/auth';
@@ -28,7 +29,7 @@ function useNicknameCheckServer({ showToastOnResult = true }: UseNicknameCheckSe
 
           return;
         }
-        sendClientError(error);
+        captureError(error);
         if (showToastOnResult) showToast('error', '네트워크 연결을 확인해주세요.');
       }
     },

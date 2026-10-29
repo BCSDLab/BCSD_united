@@ -1,4 +1,5 @@
-import { isKoinError, sendClientError } from '@bcsdlab/koin';
+import { isKoinError } from '@bcsdlab/koin';
+import { captureError } from '@koin/telemetry/runtime';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { clubMutations } from 'api/club/mutations';
@@ -10,7 +11,7 @@ export default function useClubNotification(clubId: number) {
     if (isKoinError(error)) {
       showToast('error', error.message);
     } else {
-      sendClientError(error);
+      captureError(error);
     }
   };
 

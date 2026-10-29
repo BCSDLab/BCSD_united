@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { isKoinError, sendClientError } from '@bcsdlab/koin';
+import { isKoinError } from '@bcsdlab/koin';
+import { captureError } from '@koin/telemetry/runtime';
 import { useMutation } from '@tanstack/react-query';
 
 import { checkPassword } from 'api/auth';
@@ -27,7 +28,7 @@ const useCheckPassword = () => {
         }
         const message = err.message || '에러가 발생했습니다.';
         setErrorMessage(message);
-        sendClientError(err);
+        captureError(err);
       }
     },
   });

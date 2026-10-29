@@ -1,5 +1,6 @@
-import { isKoinError, sendClientError } from '@bcsdlab/koin';
+import { isKoinError } from '@bcsdlab/koin';
 import { sha256 } from '@bcsdlab/utils';
+import { captureError } from '@koin/telemetry/runtime';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { webLogin } from 'api/auth';
@@ -49,7 +50,7 @@ export const useLogin = (state: IsAutoLogin) => {
           value: '로그인 실패',
         });
       } else {
-        sendClientError(error);
+        captureError(error);
         showToast('error', '로그인에 실패했습니다.');
       }
     },

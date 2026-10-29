@@ -1,5 +1,4 @@
 import React from 'react';
-import { sendClientError } from '@bcsdlab/koin';
 import { captureError } from '@koin/telemetry/runtime';
 import type { AxiosError } from 'axios';
 
@@ -45,7 +44,6 @@ export default class ErrorBoundary extends React.Component<Props, State> {
       ? (error.response?.data?.error?.message ?? '알 수 없는 오류가 발생했습니다.')
       : error.message;
     showToast('error', errorMessage);
-    sendClientError(error);
     const eventId = captureError(error);
     this.setState({ eventId });
   }

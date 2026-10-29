@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type ChangeEvent } from 'react';
-import { isKoinError, sendClientError } from '@bcsdlab/koin';
+import { isKoinError } from '@bcsdlab/koin';
+import { captureError } from '@koin/telemetry/runtime';
 import { keepPreviousData, useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { useRouter, useLocation, useSearch } from '@tanstack/react-router';
 
@@ -80,7 +81,7 @@ export default function StoreReviewsPage({ id }: StoreReviewsPageProps) {
       setDeleteTargetId(null);
     },
     onError: (error) => {
-      if (!isKoinError(error)) sendClientError(error);
+      if (!isKoinError(error)) captureError(error);
       showToast('error', '리뷰 삭제에 실패했어요');
     },
   });

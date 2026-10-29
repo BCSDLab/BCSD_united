@@ -1,4 +1,5 @@
-import { isKoinError, sendClientError } from '@bcsdlab/koin';
+import { isKoinError } from '@bcsdlab/koin';
+import { captureError } from '@koin/telemetry/runtime';
 import { mutationOptions, type QueryClient } from '@tanstack/react-query';
 
 import showToast from 'utils/ts/showToast';
@@ -93,7 +94,7 @@ export const teamMutations = {
 
           return;
         }
-        sendClientError(error);
+        captureError(error);
       },
     }),
 
@@ -110,7 +111,7 @@ export const teamMutations = {
 
           return;
         }
-        sendClientError(error);
+        captureError(error);
       },
     }),
 
@@ -129,7 +130,7 @@ export const teamMutations = {
           return;
         }
         showToast('error', '지원서 제출에 실패했습니다.');
-        sendClientError(error);
+        captureError(error);
       },
     }),
 
@@ -146,7 +147,7 @@ export const teamMutations = {
 
           return;
         }
-        sendClientError(error);
+        captureError(error);
       },
     }),
 };

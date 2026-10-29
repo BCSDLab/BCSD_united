@@ -1,4 +1,5 @@
-import { isKoinError, sendClientError } from '@bcsdlab/koin';
+import { isKoinError } from '@bcsdlab/koin';
+import { captureError } from '@koin/telemetry/runtime';
 import { useMutation } from '@tanstack/react-query';
 
 import type {
@@ -137,7 +138,7 @@ export default function useTimetableMutation(timetableFrameId: number, semesterO
         // 추후에 코드별 에러 분기처리 진행
         showToast('error', error.message || '강의 삭제에 실패했습니다.');
       } else {
-        sendClientError(error);
+        captureError(error);
         showToast('error', '강의 삭제에 실패했습니다.');
       }
     },

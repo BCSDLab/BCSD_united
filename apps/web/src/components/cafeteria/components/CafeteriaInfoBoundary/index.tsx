@@ -1,5 +1,4 @@
 import React from 'react';
-import { sendClientError } from '@bcsdlab/koin';
 import { captureError } from '@koin/telemetry/runtime';
 
 interface Props {
@@ -26,7 +25,6 @@ export default class CafeteriaInfoBoundary extends React.Component<Props, State>
   }
 
   componentDidCatch(error: Error) {
-    sendClientError(error);
     captureError(error);
   }
 

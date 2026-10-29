@@ -1,4 +1,5 @@
-import { isKoinError, sendClientError } from '@bcsdlab/koin';
+import { isKoinError } from '@bcsdlab/koin';
+import { captureError } from '@koin/telemetry/runtime';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { timetableMutations } from 'api/timetable/mutations';
@@ -14,7 +15,7 @@ export default function useRollbackLecture(isLoggedIn: boolean, timetableFrameId
       if (isKoinError(error)) {
         showToast('error', error.message || '강의 복구에 실패했습니다.');
       } else {
-        sendClientError(error);
+        captureError(error);
         showToast('error', '강의 복구에 실패했습니다.');
       }
     },

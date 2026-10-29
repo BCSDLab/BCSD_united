@@ -1,4 +1,5 @@
-import { isKoinError, sendClientError } from '@bcsdlab/koin';
+import { isKoinError } from '@bcsdlab/koin';
+import { captureError } from '@koin/telemetry/runtime';
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { getTeamRecruitmentProfile, upsertTeamRecruitmentProfile } from 'api/teamRecruitmentProfile';
@@ -55,7 +56,7 @@ export const useUpsertTeamRecruitmentProfileMutation = ({
         return;
       }
       showToast('error', '프로필 저장에 실패했습니다.');
-      sendClientError(error);
+      captureError(error);
     },
   });
 };

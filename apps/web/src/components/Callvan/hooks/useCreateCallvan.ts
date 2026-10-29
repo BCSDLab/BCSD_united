@@ -1,4 +1,5 @@
-import { isKoinError, sendClientError } from '@bcsdlab/koin';
+import { isKoinError } from '@bcsdlab/koin';
+import { captureError } from '@koin/telemetry/runtime';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { callvanMutations } from 'api/callvan/mutations';
@@ -16,13 +17,13 @@ const useCreateCallvan = () => {
       try {
         if (await openFromError(e)) return;
       } catch (restrictionError) {
-        sendClientError(restrictionError);
+        captureError(restrictionError);
       }
 
       if (isKoinError(e)) {
         showToast('error', e.message || '게시글 작성에 실패했습니다.');
       } else {
-        sendClientError(e);
+        captureError(e);
         showToast('error', '게시글 작성에 실패했습니다.');
       }
     },

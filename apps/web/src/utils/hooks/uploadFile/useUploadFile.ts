@@ -1,4 +1,5 @@
-import { isKoinError, sendClientError } from '@bcsdlab/koin';
+import { isKoinError } from '@bcsdlab/koin';
+import { captureError } from '@koin/telemetry/runtime';
 import { useMutation } from '@tanstack/react-query';
 
 import { getPresignedUrl, uploadToS3 } from 'api/uploadFile';
@@ -36,7 +37,7 @@ const useUploadFile = () => {
       if (isKoinError(err)) {
         showToast('error', err.message);
       } else {
-        sendClientError(err);
+        captureError(err);
         showToast('error', '파일 업로드에 실패했습니다.');
       }
     },

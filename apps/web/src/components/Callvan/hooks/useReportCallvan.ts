@@ -1,4 +1,5 @@
-import { isKoinError, sendClientError } from '@bcsdlab/koin';
+import { isKoinError } from '@bcsdlab/koin';
+import { captureError } from '@koin/telemetry/runtime';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { callvanMutations } from 'api/callvan/mutations';
@@ -14,7 +15,7 @@ const useReportCallvan = (postId: number) => {
       if (isKoinError(e)) {
         showToast('error', e.message || '신고 접수에 실패했습니다.');
       } else {
-        sendClientError(e);
+        captureError(e);
         showToast('error', '신고 접수에 실패했습니다.');
       }
     },

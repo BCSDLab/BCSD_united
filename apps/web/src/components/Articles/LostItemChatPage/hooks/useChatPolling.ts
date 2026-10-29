@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { isKoinError, sendClientError } from '@bcsdlab/koin';
+import { isKoinError } from '@bcsdlab/koin';
+import { captureError } from '@koin/telemetry/runtime';
 import {
   keepPreviousData,
   skipToken,
@@ -115,7 +116,7 @@ const useChatPolling = ({ articleId, chatroomId, isOnline = true, autoSelectFirs
         showToast('error', error.message || '메시지 전송을 실패하였습니다');
       } else {
         showToast('error', '메시지 전송을 실패하였습니다');
-        sendClientError(error);
+        captureError(error);
       }
     },
   });
@@ -141,7 +142,7 @@ const useChatPolling = ({ articleId, chatroomId, isOnline = true, autoSelectFirs
         showToast('error', error.message || '채팅방 퇴장을 실패하였습니다');
       } else {
         showToast('error', '채팅방 퇴장을 실패하였습니다');
-        sendClientError(error);
+        captureError(error);
       }
     },
   });
@@ -152,7 +153,7 @@ const useChatPolling = ({ articleId, chatroomId, isOnline = true, autoSelectFirs
         showToast('error', error.message || '채팅방 퇴장을 실패하였습니다');
       } else {
         showToast('error', '채팅방 퇴장을 실패하였습니다');
-        sendClientError(error);
+        captureError(error);
       }
     });
   }, []);

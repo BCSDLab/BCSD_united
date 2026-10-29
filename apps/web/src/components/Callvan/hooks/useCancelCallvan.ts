@@ -1,4 +1,5 @@
-import { isKoinError, sendClientError } from '@bcsdlab/koin';
+import { isKoinError } from '@bcsdlab/koin';
+import { captureError } from '@koin/telemetry/runtime';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { callvanMutations } from 'api/callvan/mutations';
@@ -18,7 +19,7 @@ const useCancelCallvan = () => {
       if (isKoinError(e)) {
         showToast('error', e.message || '참여 취소에 실패했습니다.');
       } else {
-        sendClientError(e);
+        captureError(e);
         showToast('error', '참여 취소에 실패했습니다.');
       }
     },

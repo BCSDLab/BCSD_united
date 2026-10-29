@@ -1,4 +1,5 @@
-import { isKoinError, sendClientError } from '@bcsdlab/koin';
+import { isKoinError } from '@bcsdlab/koin';
+import { captureError } from '@koin/telemetry/runtime';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { agreeGraduationCredits } from 'api/graduationCalculator';
@@ -25,7 +26,7 @@ export default function useAgreeGraduationCreidts() {
         if (error.status === 409) return;
         showToast('error', error.message || '학점 계산에 실패했습니다.');
       } else {
-        sendClientError(error);
+        captureError(error);
         showToast('error', '학점 계산에 실패했습니다.');
       }
     },

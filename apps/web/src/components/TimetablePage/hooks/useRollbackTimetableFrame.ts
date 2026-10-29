@@ -1,4 +1,5 @@
-import { isKoinError, sendClientError } from '@bcsdlab/koin';
+import { isKoinError } from '@bcsdlab/koin';
+import { captureError } from '@koin/telemetry/runtime';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import type { Semester } from 'api/timetable/entity';
@@ -17,7 +18,7 @@ export default function useRollbackTimetableFrame(isLoggedIn: boolean, targetSem
       if (isKoinError(error)) {
         showToast('error', error.message || '시간표 프레임 복구에 실패했습니다.');
       } else {
-        sendClientError(error);
+        captureError(error);
         showToast('error', '시간표 프레임 복구에 실패했습니다.');
       }
     },

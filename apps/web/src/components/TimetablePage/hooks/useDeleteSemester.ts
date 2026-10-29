@@ -1,4 +1,5 @@
-import { isKoinError, sendClientError } from '@bcsdlab/koin';
+import { isKoinError } from '@bcsdlab/koin';
+import { captureError } from '@koin/telemetry/runtime';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import type { Semester } from 'api/timetable/entity';
@@ -24,7 +25,7 @@ export default function useDeleteSemester(isLoggedIn: boolean, semester: Semeste
       if (isKoinError(error)) {
         showToast('error', error.message || '학기 삭제에 실패했습니다.');
       } else {
-        sendClientError(error);
+        captureError(error);
         showToast('error', '학기 삭제에 실패했습니다.');
       }
     },

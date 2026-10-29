@@ -1,4 +1,5 @@
-import { isKoinError, sendClientError } from '@bcsdlab/koin';
+import { isKoinError } from '@bcsdlab/koin';
+import { captureError } from '@koin/telemetry/runtime';
 import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 
 import { putClubInroduction } from 'api/club';
@@ -23,7 +24,7 @@ export default function useClubDetail(clubId: number) {
     onError: (e) => {
       if (isKoinError(e)) {
         showToast('error', e.message);
-      } else sendClientError(e);
+      } else captureError(e);
     },
   });
 

@@ -1,4 +1,5 @@
-import { isKoinError, sendClientError } from '@bcsdlab/koin';
+import { isKoinError } from '@bcsdlab/koin';
+import { captureError } from '@koin/telemetry/runtime';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { callvanMutations } from 'api/callvan/mutations';
@@ -13,7 +14,7 @@ const useMarkAllNotificationsRead = () => {
     onError: (e) => {
       if (isKoinError(e)) {
         showToast('error', e.message);
-      } else sendClientError(e);
+      } else captureError(e);
     },
   });
 

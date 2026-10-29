@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { sendClientError } from '@bcsdlab/koin';
+import { captureError } from '@koin/telemetry/runtime';
 import { useQueryClient } from '@tanstack/react-query';
 
 import type { RestrictedCallvanResponse } from 'api/callvan/entity';
@@ -40,7 +40,7 @@ export default function useCallvanRestrictionModal() {
 
         return false;
       } catch (restrictionError) {
-        sendClientError(restrictionError);
+        captureError(restrictionError);
 
         return false;
       }

@@ -73,10 +73,19 @@ function requestCount(log) {
     (match) => match[1] !== '/health',
   ).length;
 }
-
-function assertApiHealthy(log) {
+function assertApiHealthy(log, { weatherUnavailable = false, coopshopUnavailable = false } = {}) {
   if (!log.includes('AUTOFIX_API_REQUEST')) throw new Error('Local auxiliary API request evidence is unavailable');
-  if (/AUTOFIX_API_REQUEST \S+ \S+ [45]\d{2}\b/i.test(log))
+  const errors = [...log.matchAll(/AUTOFIX_API_REQUEST (\S+) (\/\S*) ([45]\d{2})\b/g)];
+  if (
+    errors.some(
+      ([, method, path, status]) =>
+        !(
+          method === 'GET' &&
+          ((weatherUnavailable && path === '/weather' && status === '503') ||
+            (coopshopUnavailable && path === '/coopshop/1' && status === '404'))
+        ),
+    )
+  )
     throw new Error('Local auxiliary API returned an HTTP error');
 }
 
@@ -167,6 +176,9 @@ try {
   const failures = [];
   const inFlightRequests = new Set();
   let loaded = false;
+  let mobilePhase = false;
+  let unavailableWeatherResponse = false;
+  let unavailableCoopshopResponse = false;
   socket.addEventListener('message', ({ data }) => {
     const message = JSON.parse(data);
     if (message.id) {
@@ -202,8 +214,15 @@ try {
       message.method === 'Network.responseReceived' &&
       ['Document', 'Script', 'Fetch', 'XHR'].includes(message.params.type) &&
       message.params.response.status >= 400
-    )
-      failures.push(`Browser ${message.params.type} HTTP ${message.params.response.status}`);
+    ) {
+      const response = message.params.response;
+      const path = new URL(response.url).pathname;
+      if (mobilePhase && route === '/' && ['Fetch', 'XHR'].includes(message.params.type)) {
+        if (response.status === 503 && path === '/api/weather') unavailableWeatherResponse = true;
+        else if (response.status === 404 && path === '/api/coopshop/1') unavailableCoopshopResponse = true;
+        else failures.push(`Browser ${message.params.type} HTTP ${response.status}`);
+      } else failures.push(`Browser ${message.params.type} HTTP ${response.status}`);
+    }
   });
   const send = (method, params = {}) =>
     new Promise((resolveCommand, reject) => {
@@ -258,7 +277,7 @@ try {
     value.path.replace(/\/$/, '') !== route.replace(/\/$/, '') ||
     value.elements < 3 ||
     !value.text?.trim() ||
-    /something went wrong|internal server error/i.test(value.text)
+    /something went wrong|internal server error|페이지를 불러오지 못했습니다/i.test(value.text)
   )
     failures.push('Route rendered no usable application or redirected');
   server.assertRunning();
@@ -269,6 +288,111 @@ try {
   process.stdout.write(
     `Real local API/D1 smoke passed: SSR ${route}, browser ${route}, gateway /api/shops/categories\n`,
   );
+  const beforeMobile = requestCount(server.log);
+  mobilePhase = true;
+  await send('Emulation.setDeviceMetricsOverride', {
+    width: 390,
+    height: 844,
+    deviceScaleFactor: 1,
+    mobile: true,
+  });
+  await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
+  await send('Emulation.setUserAgentOverride', {
+    userAgent:
+      'Mozilla/5.0 (Linux; Android 14; Pixel 7a) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36',
+    platform: 'Android',
+  });
+  loaded = false;
+  await send('Page.reload', { ignoreCache: true });
+  for (let attempt = 0; attempt < 60 && !loaded; attempt += 1) await delay(250);
+  if (!loaded) failures.push('Mobile route did not finish loading');
+  await delay(3000);
+  for (let attempt = 0; attempt < 60 && inFlightRequests.size; attempt += 1) await delay(250);
+  if (inFlightRequests.size) failures.push('Mobile route still has unfinished application requests');
+  for (let attempt = 0; attempt < 40 && requestCount(server.log) === beforeMobile; attempt += 1) await delay(250);
+  if (requestCount(server.log) === beforeMobile) failures.push('Mobile route did not exercise the real local API');
+
+  let mobile;
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    const dom = await send('Runtime.evaluate', {
+      expression:
+        '(() => { const heading = document.getElementById("home-greeting-title"); const mealHeading = document.getElementById("today-menu-title"); const mealSection = mealHeading?.closest("section"); const mealList = Array.from(mealSection?.querySelectorAll("[aria-label]") ?? []).find((node) => node.getAttribute("aria-label") === "오늘의 식단 목록"); return { path: location.pathname, width: innerWidth, mobile: matchMedia("(max-width: 600px)").matches, text: document.body.innerText, elements: document.body.querySelectorAll("*").length, greeting: heading?.getClientRects().length ? heading.innerText : null, meal: mealList ? { count: mealList.querySelectorAll("h3").length, text: mealSection.innerText } : null }; })()',
+      returnByValue: true,
+    });
+    mobile = dom.result?.value;
+    if (route !== '/' || !mobile?.text?.includes('날씨 확인 중')) break;
+    await delay(250);
+  }
+  if (
+    !mobile ||
+    mobile.path.replace(/\/$/, '') !== route.replace(/\/$/, '') ||
+    mobile.width !== 390 ||
+    !mobile.mobile ||
+    mobile.elements < 3 ||
+    !mobile.text?.trim() ||
+    /something went wrong|internal server error|페이지를 불러오지 못했습니다/i.test(mobile.text) ||
+    (route === '/' && (!mobile.greeting?.trim() || !mobile.meal?.text?.includes('오늘의 식단')))
+  )
+    failures.push('Mobile route did not render a usable 390px application');
+
+  const mobileGateway = await send('Runtime.evaluate', {
+    expression:
+      'fetch("/api/shops/categories", {redirect:"error"}).then(async response => ({status:response.status, type:response.headers.get("content-type"), body:await response.json()}))',
+    awaitPromise: true,
+    returnByValue: true,
+  });
+  const mobileGatewayValue = mobileGateway.result?.value;
+  if (
+    mobileGateway.exceptionDetails ||
+    mobileGatewayValue?.status !== 200 ||
+    !mobileGatewayValue?.type?.includes('application/json') ||
+    !isDeepStrictEqual(mobileGatewayValue.body, categories)
+  )
+    failures.push('Mobile gateway did not return the real local D1 categories response');
+
+  const weatherUnavailable =
+    route === '/' && (unavailableWeatherResponse || /AUTOFIX_API_REQUEST GET \/weather 503\b/.test(server.log));
+  if (weatherUnavailable) {
+    const weather = await send('Runtime.evaluate', {
+      expression:
+        'fetch("/api/weather", {redirect:"error"}).then(async response => ({status:response.status, code:(await response.json()).code}))',
+      awaitPromise: true,
+      returnByValue: true,
+    });
+    if (
+      weather.exceptionDetails ||
+      weather.result?.value?.status !== 503 ||
+      weather.result.value.code !== 'CONFIGURATION_ERROR' ||
+      !mobile?.text?.includes('날씨 정보 제공 불가')
+    )
+      failures.push('Missing local weather provider did not render an explicit unavailable state');
+  }
+  const coopshopUnavailable =
+    route === '/' && (unavailableCoopshopResponse || /AUTOFIX_API_REQUEST GET \/coopshop\/1 404\b/.test(server.log));
+  if (coopshopUnavailable) {
+    const coopshop = await send('Runtime.evaluate', {
+      expression:
+        'fetch("/api/coopshop/1", {redirect:"error"}).then(async response => ({status:response.status, code:(await response.json()).code}))',
+      awaitPromise: true,
+      returnByValue: true,
+    });
+    if (
+      coopshop.exceptionDetails ||
+      coopshop.result?.value?.status !== 404 ||
+      coopshop.result.value.code !== 'NOT_FOUND_DATA' ||
+      !mobile?.meal ||
+      (mobile.meal.count
+        ? !mobile.meal.text.includes('운영시간 정보 제공 불가')
+        : !mobile.meal.text.includes('오늘은 식단이 없어요'))
+    )
+      failures.push('Missing local cafeteria metadata did not preserve the real meal widget');
+  }
+  server.assertRunning();
+  browser.assertRunning();
+  if (/\[ERROR\]|uncaught|unhandled rejection/i.test(server.log)) failures.push('Web Worker emitted runtime errors');
+  assertApiHealthy(server.log, { weatherUnavailable, coopshopUnavailable });
+  if (failures.length) throw new Error([...new Set(failures)].join('; '));
+  process.stdout.write(`Mobile local API/D1 smoke passed: ${route} at 390px, gateway /api/shops/categories\n`);
 } catch (error) {
   if (server) process.stderr.write(server.log.slice(-16000));
   throw error;

@@ -1,4 +1,5 @@
-import { isKoinError, sendClientError } from '@bcsdlab/koin';
+import { isKoinError } from '@bcsdlab/koin';
+import { captureError } from '@koin/telemetry/runtime';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { articleMutations } from 'api/articles/mutations';
@@ -12,7 +13,7 @@ const usePostLostItemChatroom = () => {
     onError: (e) => {
       if (isKoinError(e)) {
         showToast('error', e.message);
-      } else sendClientError(e);
+      } else captureError(e);
     },
   });
 
