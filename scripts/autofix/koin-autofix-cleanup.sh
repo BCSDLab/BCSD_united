@@ -9,3 +9,12 @@ for id in $ids; do
   esac
   /usr/bin/docker rm --force "$id" >/dev/null
 done
+#
+# Verifier children can leave directories owned by a non-root container UID.
+# Clear only this service's disposable workspaces before the controller starts;
+# durable claim receipts, the bare Git cache, and other host services stay intact.
+if [ -d /var/lib/koin-autofix/jobs ]; then
+  /usr/bin/find /var/lib/koin-autofix/jobs -mindepth 1 -maxdepth 1 -type d \
+    \( -name 'run-*' -o -name 'error-verification-*' \) \
+    -exec /usr/bin/rm -rf -- {} +
+fi
