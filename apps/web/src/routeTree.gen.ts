@@ -79,7 +79,6 @@ import { Route as ClubsRecruitmentIdIndexRouteImport } from './routes/clubs.recr
 import { Route as LostItemEditIdIndexRouteImport } from './routes/lost-item.edit.$id.index'
 import { Route as LostItemReportIdIndexRouteImport } from './routes/lost-item.report.$id.index'
 import { Route as OrderCancelPaymentIdIndexRouteImport } from './routes/order.cancel.$paymentId.index'
-import { Route as OrderCheckoutReturnIndexRouteImport } from './routes/order.checkout.return.index'
 import { Route as OrderDeliveryCampusIndexRouteImport } from './routes/order.delivery.campus.index'
 import { Route as OrderDeliveryOutsideIndexRouteImport } from './routes/order.delivery.outside.index'
 import { Route as OrderResultPaymentIdIndexRouteImport } from './routes/order.result.$paymentId.index'
@@ -459,12 +458,6 @@ const OrderCancelPaymentIdIndexRoute =
     path: '/order/cancel/$paymentId/',
     getParentRoute: () => rootRouteImport,
   } as any)
-const OrderCheckoutReturnIndexRoute =
-  OrderCheckoutReturnIndexRouteImport.update({
-    id: '/order/checkout/return/',
-    path: '/order/checkout/return/',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const OrderDeliveryCampusIndexRoute =
   OrderDeliveryCampusIndexRouteImport.update({
     id: '/order/delivery/campus/',
@@ -678,7 +671,6 @@ export interface FileRoutesByFullPath {
   '/lost-item/edit/$id/': typeof LostItemEditIdIndexRoute
   '/lost-item/report/$id/': typeof LostItemReportIdIndexRoute
   '/order/cancel/$paymentId/': typeof OrderCancelPaymentIdIndexRoute
-  '/order/checkout/return/': typeof OrderCheckoutReturnIndexRoute
   '/order/delivery/campus/': typeof OrderDeliveryCampusIndexRoute
   '/order/delivery/outside/': typeof OrderDeliveryOutsideIndexRoute
   '/order/result/$paymentId/': typeof OrderResultPaymentIdIndexRoute
@@ -776,7 +768,6 @@ export interface FileRoutesByTo {
   '/lost-item/edit/$id': typeof LostItemEditIdIndexRoute
   '/lost-item/report/$id': typeof LostItemReportIdIndexRoute
   '/order/cancel/$paymentId': typeof OrderCancelPaymentIdIndexRoute
-  '/order/checkout/return': typeof OrderCheckoutReturnIndexRoute
   '/order/delivery/campus': typeof OrderDeliveryCampusIndexRoute
   '/order/delivery/outside': typeof OrderDeliveryOutsideIndexRoute
   '/order/result/$paymentId': typeof OrderResultPaymentIdIndexRoute
@@ -875,7 +866,6 @@ export interface FileRoutesById {
   '/lost-item/edit/$id/': typeof LostItemEditIdIndexRoute
   '/lost-item/report/$id/': typeof LostItemReportIdIndexRoute
   '/order/cancel/$paymentId/': typeof OrderCancelPaymentIdIndexRoute
-  '/order/checkout/return/': typeof OrderCheckoutReturnIndexRoute
   '/order/delivery/campus/': typeof OrderDeliveryCampusIndexRoute
   '/order/delivery/outside/': typeof OrderDeliveryOutsideIndexRoute
   '/order/result/$paymentId/': typeof OrderResultPaymentIdIndexRoute
@@ -975,7 +965,6 @@ export interface FileRouteTypes {
     | '/lost-item/edit/$id/'
     | '/lost-item/report/$id/'
     | '/order/cancel/$paymentId/'
-    | '/order/checkout/return/'
     | '/order/delivery/campus/'
     | '/order/delivery/outside/'
     | '/order/result/$paymentId/'
@@ -1073,7 +1062,6 @@ export interface FileRouteTypes {
     | '/lost-item/edit/$id'
     | '/lost-item/report/$id'
     | '/order/cancel/$paymentId'
-    | '/order/checkout/return'
     | '/order/delivery/campus'
     | '/order/delivery/outside'
     | '/order/result/$paymentId'
@@ -1171,7 +1159,6 @@ export interface FileRouteTypes {
     | '/lost-item/edit/$id/'
     | '/lost-item/report/$id/'
     | '/order/cancel/$paymentId/'
-    | '/order/checkout/return/'
     | '/order/delivery/campus/'
     | '/order/delivery/outside/'
     | '/order/result/$paymentId/'
@@ -1270,7 +1257,6 @@ export interface RootRouteChildren {
   LostItemEditIdIndexRoute: typeof LostItemEditIdIndexRoute
   LostItemReportIdIndexRoute: typeof LostItemReportIdIndexRoute
   OrderCancelPaymentIdIndexRoute: typeof OrderCancelPaymentIdIndexRoute
-  OrderCheckoutReturnIndexRoute: typeof OrderCheckoutReturnIndexRoute
   OrderDeliveryCampusIndexRoute: typeof OrderDeliveryCampusIndexRoute
   OrderDeliveryOutsideIndexRoute: typeof OrderDeliveryOutsideIndexRoute
   OrderResultPaymentIdIndexRoute: typeof OrderResultPaymentIdIndexRoute
@@ -1790,13 +1776,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrderCancelPaymentIdIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/order/checkout/return/': {
-      id: '/order/checkout/return/'
-      path: '/order/checkout/return'
-      fullPath: '/order/checkout/return/'
-      preLoaderRoute: typeof OrderCheckoutReturnIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/order/delivery/campus/': {
       id: '/order/delivery/campus/'
       path: '/order/delivery/campus'
@@ -2046,7 +2025,6 @@ const rootRouteChildren: RootRouteChildren = {
   LostItemEditIdIndexRoute: LostItemEditIdIndexRoute,
   LostItemReportIdIndexRoute: LostItemReportIdIndexRoute,
   OrderCancelPaymentIdIndexRoute: OrderCancelPaymentIdIndexRoute,
-  OrderCheckoutReturnIndexRoute: OrderCheckoutReturnIndexRoute,
   OrderDeliveryCampusIndexRoute: OrderDeliveryCampusIndexRoute,
   OrderDeliveryOutsideIndexRoute: OrderDeliveryOutsideIndexRoute,
   OrderResultPaymentIdIndexRoute: OrderResultPaymentIdIndexRoute,
