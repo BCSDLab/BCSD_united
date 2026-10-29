@@ -1,30 +1,10 @@
-export interface Env {
-  ENVIRONMENT: 'production' | 'preview';
-  PREVIEW_GITHUB_OWNER?: string;
-  PREVIEW_GITHUB_REPOSITORY?: string;
-  PREVIEW_GITHUB_DISPATCH_TOKEN?: string;
-  SENTRY_CLIENT_SECRET: string;
-  SENTRY_ORGANIZATION: string;
-  SENTRY_PROJECT_APPS: string;
-  CLOUDFLARE_WEBHOOK_SECRET: string;
-  CLOUDFLARE_SOURCES: string;
-  DIAGNOSTICS_READ_TOKEN: string;
-  GITHUB_OWNER: string;
-  GITHUB_REPOSITORY: string;
-  GITHUB_DISPATCH_TOKEN: string;
-  ERROR_ISSUES: DurableObjectNamespace;
-}
+import { DurableObject } from 'cloudflare:workers';
+import { parseModelRequest } from './model';
+import type { App, Diagnostic, Env, Identity, PatchManifest } from './types';
+export type { Env } from './types';
+export { AutofixQueue } from './queue';
+import type { ExecutorResult } from './queue';
 
-type App = 'web' | 'api';
-type Identity =
-  | { source: 'sentry'; sourceId: string; project: string; app: 'web'; scope: { organization: string } }
-  | {
-      source: 'cloudflare';
-      sourceId: string;
-      project: string;
-      app: App;
-      scope: { accountId: string; policyId: string; workerName: string };
-    };
 
 interface CloudflareSource {
   accountId: string;
@@ -33,21 +13,12 @@ interface CloudflareSource {
   app: App;
 }
 
-interface Configuration {
+export interface Configuration {
   organization: string;
   projects: Set<string>;
   cloudflare: CloudflareSource[];
   owner: string;
   repository: string;
-  dispatchToken: string;
-}
-
-interface Diagnostic {
-  version: 1;
-  identity: Identity;
-  capturedAt: string;
-  summary: string;
-  details: Record<string, unknown>;
 }
 
 interface DispatchResult {
@@ -96,23 +67,16 @@ function uuid(value: unknown): string {
   return value.replaceAll('-', '');
 }
 
-function configuration(env: Env): Configuration {
+export function configuration(env: Env): Configuration {
   try {
-    if (env.ENVIRONMENT !== 'production' && env.ENVIRONMENT !== 'preview') {
-      throw new Error('Missing deployment environment');
-    }
-    const preview = env.ENVIRONMENT === 'preview';
-    const owner = preview ? env.PREVIEW_GITHUB_OWNER : env.GITHUB_OWNER;
-    const repository = preview ? env.PREVIEW_GITHUB_REPOSITORY : env.GITHUB_REPOSITORY;
-    const dispatchToken = preview ? env.PREVIEW_GITHUB_DISPATCH_TOKEN : env.GITHUB_DISPATCH_TOKEN;
-    if (
-      preview &&
-      (`${owner}/${repository}`.toLowerCase() === 'bcsdlab/bcsd_united' ||
-        `${owner}/${repository}`.toLowerCase() === `${env.GITHUB_OWNER}/${env.GITHUB_REPOSITORY}`.toLowerCase() ||
-        dispatchToken === env.GITHUB_DISPATCH_TOKEN)
-    ) {
-      throw new Error('Preview requires a separate repository and credential');
-    }
+    if (env.ENVIRONMENT !== 'production') throw new Error('Only the fixed production installation is enabled');
+    const owner = env.GITHUB_OWNER;
+    const repository = env.GITHUB_REPOSITORY;
+    const dispatchApp = {
+      id: env.GITHUB_DISPATCH_APP_ID,
+      privateKey: env.GITHUB_DISPATCH_APP_PRIVATE_KEY,
+      installationId: env.GITHUB_DISPATCH_INSTALLATION_ID,
+    };
     const projects = record(JSON.parse(env.SENTRY_PROJECT_APPS));
     const sources: unknown = JSON.parse(env.CLOUDFLARE_SOURCES);
     if (
@@ -123,13 +87,14 @@ function configuration(env: Env): Configuration {
       (sources.length > 0 && (env.CLOUDFLARE_WEBHOOK_SECRET?.length ?? 0) < 32) ||
       (Object.keys(projects).length === 0 && sources.length === 0) ||
       (env.DIAGNOSTICS_READ_TOKEN?.length ?? 0) < 32 ||
-      !dispatchToken ||
-      !owner ||
-      !repository ||
-      !/^[a-zA-Z0-9][a-zA-Z0-9-]{0,38}$/.test(owner) ||
-      !/^[a-zA-Z0-9_.-]{1,100}$/.test(repository) ||
-      repository === '.' ||
-      repository === '..'
+      (env.AUTOFIX_EXECUTOR_TOKEN?.length ?? 0) < 32 ||
+      env.AUTOFIX_EXECUTOR_ID !== 'koin-rocky-umpc' ||
+      !/^[1-9][0-9]*$/.test(dispatchApp.id ?? '') ||
+      !/^[1-9][0-9]*$/.test(dispatchApp.installationId ?? '') ||
+      dispatchApp.id !== '5522353' ||
+      dispatchApp.installationId !== '176455083' ||
+      !dispatchApp.privateKey?.includes('-----BEGIN ') ||
+      `${owner}/${repository}`.toLowerCase() !== 'bcsdlab/bcsd_united'
     ) {
       throw new Error('Invalid configuration');
     }
@@ -160,10 +125,9 @@ function configuration(env: Env): Configuration {
       cloudflare,
       owner,
       repository,
-      dispatchToken,
     };
   } catch {
-    throw new RequestError(503, 'Configure provider allowlists, diagnostic read token, and GitHub repository/secrets.');
+    throw new RequestError(503, 'Configure fixed GitHub App, provider allowlists and diagnostic credentials.');
   }
 }
 
@@ -177,10 +141,10 @@ function reply(status: number, body: Record<string, string | number>): Response 
   });
 }
 
-async function boundedBody(request: Request): Promise<Uint8Array<ArrayBuffer>> {
+async function boundedBody(request: Request, maxBytes = MAX_BODY_BYTES): Promise<Uint8Array<ArrayBuffer>> {
   const length = request.headers.get('Content-Length');
-  if (length !== null && (!/^[0-9]+$/.test(length) || Number(length) > MAX_BODY_BYTES)) {
-    throw new RequestError(413, 'Webhook exceeds the 1 MiB body limit.');
+  if (length !== null && (!/^[0-9]+$/.test(length) || Number(length) > maxBytes)) {
+    throw new RequestError(413, 'Request exceeds its body limit.');
   }
   if (!request.body) throw new RequestError(400, 'Webhook body is required.');
   const reader = request.body.getReader();
@@ -191,9 +155,9 @@ async function boundedBody(request: Request): Promise<Uint8Array<ArrayBuffer>> {
       const { done, value } = await reader.read();
       if (done) break;
       size += value.byteLength;
-      if (size > MAX_BODY_BYTES) {
+      if (size > maxBytes) {
         await reader.cancel();
-        throw new RequestError(413, 'Webhook exceeds the 1 MiB body limit.');
+        throw new RequestError(413, 'Request exceeds its body limit.');
       }
       chunks.push(value);
     }
@@ -265,7 +229,7 @@ function issueOrganization(issue: Record<string, unknown>, issueId: string): str
   throw new RequestError(400, 'Cannot identify the issue organization.');
 }
 
-function validateIdentity(value: unknown, config: Configuration): Identity {
+export function validateIdentity(value: unknown, config: Configuration): Identity {
   const data = record(value);
   const scope = record(data.scope);
   if (Object.keys(data).sort().join(',') !== 'app,project,scope,source,sourceId') {
@@ -325,9 +289,11 @@ function redact(value: unknown, env: Env): string {
   for (const secret of [
     env.SENTRY_CLIENT_SECRET,
     env.CLOUDFLARE_WEBHOOK_SECRET,
+    env.GITHUB_DISPATCH_APP_PRIVATE_KEY,
+    env.ANTHROPIC_API_KEY,
+    env.SENTRY_READ_TOKEN,
     env.DIAGNOSTICS_READ_TOKEN,
-    env.GITHUB_DISPATCH_TOKEN,
-    env.PREVIEW_GITHUB_DISPATCH_TOKEN,
+    env.AUTOFIX_EXECUTOR_TOKEN,
   ]) {
     if (secret) text = text.replaceAll(secret, '[REDACTED]');
   }
@@ -477,7 +443,7 @@ async function verifySecret(value: string | null, secret: string): Promise<void>
   }
 }
 
-function identityKey(identity: Identity): string {
+export function identityKey(identity: Identity): string {
   return identity.source === 'sentry'
     ? `sentry/${identity.scope.organization}/${identity.project}/${identity.sourceId}`
     : `cloudflare/${identity.scope.accountId}/${identity.scope.policyId}/${identity.project}/${identity.sourceId}`;
@@ -523,18 +489,107 @@ function retrievalIdentity(url: URL, config: Configuration): Identity {
   );
 }
 
+async function executorRequest(request: Request, env: Env, url: URL): Promise<Response> {
+  if (request.method !== 'POST') return new Response('Use POST.', {status:405,headers:{Allow:'POST'}});
+  if (url.search || url.hash) throw new RequestError(400,'Executor query parameters are not supported.');
+  if (env.AUTOFIX_EXECUTOR_ID !== 'koin-rocky-umpc' || (env.AUTOFIX_EXECUTOR_TOKEN?.length??0)<32)
+    throw new RequestError(503,'Executor identity or credential not configured.');
+  if (request.headers.get('X-Executor-Id') !== env.AUTOFIX_EXECUTOR_ID) throw new RequestError(401,'Unknown executor.');
+  const authorization=request.headers.get('Authorization');
+  await verifySecret(authorization?.startsWith('Bearer ') ? authorization.slice(7):null,env.AUTOFIX_EXECUTOR_TOKEN);
+  if (request.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase()!=='application/json')
+    throw new RequestError(415,'Content-Type must be application/json.');
+  const path=/^\/executor\/jobs\/(autofix-[a-f0-9]{64})\/(heartbeat|verification-start|model|result)$/.exec(url.pathname);
+  if (url.pathname!=='/executor/claim' && !path) throw new RequestError(404,'Not found.');
+  const maxBytes=path?.[2]==='result' ? 4_000_000 : path?.[2]==='model' ? 256_000 : 4096;
+  const bytes=await boundedBody(request,maxBytes);
+  let data:Record<string,unknown>;
+  try { data=record(JSON.parse(new TextDecoder('utf-8',{fatal:true,ignoreBOM:false}).decode(bytes))); }
+  catch { throw new RequestError(400,'Invalid executor JSON.'); }
+  const keys=Object.keys(data).sort().join(',');
+  if (data.version!==1 || data.executorId!==env.AUTOFIX_EXECUTOR_ID) throw new RequestError(400,'Invalid executor contract.');
+  const stub=env.AUTOFIX_QUEUE.getByName('bcsdlab/bcsd_united');
+  if (url.pathname==='/executor/claim') {
+    if (keys!=='claimNonce,executorId,version' || typeof data.claimNonce!=='string' || !/^[a-f0-9]{64}$/.test(data.claimNonce))
+      throw new RequestError(400,'Invalid claim fields.');
+    const claimed=await stub.claim(data.claimNonce);
+    return claimed ? Response.json(claimed,{headers:{'Cache-Control':'no-store'}}) : new Response(null,{status:204,headers:{'Cache-Control':'no-store'}});
+  }
+  if (typeof data.leaseToken!=='string' || !/^[a-f0-9]{64}$/.test(data.leaseToken)) throw new RequestError(400,'Invalid lease token.');
+  if (path?.[2]==='heartbeat') {
+    if (keys!=='executorId,leaseToken,version') throw new RequestError(400,'Invalid heartbeat fields.');
+    try { return Response.json(await stub.heartbeat(path[1],data.leaseToken),{headers:{'Cache-Control':'no-store'}}); }
+    catch { throw new RequestError(409,'Expired or invalid lease.'); }
+  }
+  if (path?.[2]==='verification-start') {
+    if (keys!=='executorId,leaseToken,version') throw new RequestError(400,'Invalid verification stage fields.');
+    try { return Response.json(await stub.verificationStart(path[1],data.leaseToken),{headers:{'Cache-Control':'no-store'}}); }
+    catch (error) {
+      if (error instanceof Error && error.message==='Expired or invalid executor lease') throw new RequestError(409,'Expired or invalid lease.');
+      throw error;
+    }
+  }
+  if (path?.[2]==='model') {
+    let modelRequest;
+    try { modelRequest=parseModelRequest(data); }
+    catch { throw new RequestError(400,'Invalid fixed model request.'); }
+    try { return Response.json(await stub.model(path[1],data.leaseToken,modelRequest),{headers:{'Cache-Control':'no-store'}}); }
+    catch (error) {
+      if (error instanceof Error && error.message==='Expired or invalid executor lease') throw new RequestError(409,'Expired or invalid lease.');
+      throw error;
+    }
+  }
+  if (data.outcome==='verified') {
+    if (keys!=='executorId,leaseToken,manifest,outcome,verification,version') throw new RequestError(400,'Invalid verified-result fields.');
+    const manifest=record(data.manifest),proof=record(data.verification);
+    if (Object.keys(manifest).sort().join(',')!=='files,version' || manifest.version!==1 ||
+      !Array.isArray(manifest.files) || manifest.files.length>24 ||
+      manifest.files.some(file=>{
+        if (!file || typeof file!=='object' || Array.isArray(file)) return true;
+        const entry=file as Record<string,unknown>;
+        return Object.keys(entry).sort().join(',')!=='before,content,path' ||
+          typeof entry.path!=='string' ||
+          (entry.before!==null && typeof entry.before!=='string') ||
+          (entry.content!==null && typeof entry.content!=='string');
+      })) throw new RequestError(400,'Invalid manifest structure.');
+    if (Object.keys(proof).sort().join(',')!=='baseSha,manifestSha256,passedChecks' ||
+      typeof proof.baseSha!=='string' || typeof proof.manifestSha256!=='string' ||
+      !Array.isArray(proof.passedChecks) || proof.passedChecks.some(check=>typeof check!=='string'))
+      throw new RequestError(400,'Invalid verification proof.');
+    const files=manifest.files as PatchManifest['files'];
+    const result:ExecutorResult={version:1,executorId:'koin-rocky-umpc',leaseToken:data.leaseToken,outcome:'verified',
+      manifest:{version:1,files},verification:{baseSha:proof.baseSha,manifestSha256:proof.manifestSha256,passedChecks:proof.passedChecks as string[]}};
+    try { return Response.json(await stub.result(path![1],result),{headers:{'Cache-Control':'no-store'}}); }
+    catch (error) {
+      if (error instanceof Error && error.message==='Expired or invalid executor lease') throw new RequestError(409,'Expired or invalid lease.');
+      throw error;
+    }
+  }
+  if (data.outcome!=='failed' && data.outcome!=='no-fix') throw new RequestError(400,'Invalid executor outcome.');
+  if (keys!=='executorId,leaseToken,outcome,reason,version' || typeof data.reason!=='string' || data.reason.length>500 || !data.reason)
+    throw new RequestError(400,'Invalid failure fields.');
+  const result:ExecutorResult={version:1,executorId:'koin-rocky-umpc',leaseToken:data.leaseToken,outcome:data.outcome,reason:data.reason};
+  try { return Response.json(await stub.result(path![1],result),{headers:{'Cache-Control':'no-store'}}); }
+  catch (error) {
+    if (error instanceof Error && error.message==='Expired or invalid executor lease') throw new RequestError(409,'Expired or invalid lease.');
+    throw error;
+  }
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     try {
       if (url.protocol !== 'https:') throw new RequestError(400, 'HTTPS is required.');
+      if (env.ENVIRONMENT !== 'production') throw new RequestError(503,'Only the fixed production installation is enabled.');
+      if (url.pathname.startsWith('/executor/')) return await executorRequest(request,env,url);
       const retrieval = url.pathname.startsWith('/diagnostics/');
       if (!retrieval && !['/webhooks/sentry', '/webhooks/cloudflare'].includes(url.pathname))
         return reply(404, { error: 'Not found.' });
       const method = retrieval ? 'GET' : 'POST';
       if (request.method !== method) return new Response(`Use ${method}.`, { status: 405, headers: { Allow: method } });
-      const config = configuration(env);
       if (retrieval) {
+        const config = configuration(env);
         const authorization = request.headers.get('Authorization');
         await verifySecret(
           authorization?.startsWith('Bearer ') ? authorization.slice(7) : null,
@@ -558,6 +613,21 @@ export default {
       } catch {
         throw new RequestError(400, 'Webhook must contain valid UTF-8 JSON.');
       }
+      if (
+        (env.CLOUDFLARE_WEBHOOK_SECRET?.length ?? 0) >= 32 &&
+        url.pathname === '/webhooks/cloudflare' &&
+        body.byteLength <= 512 &&
+        json !== null &&
+        typeof json === 'object' &&
+        !Array.isArray(json) &&
+        Object.keys(json).length === 1 &&
+        'text' in json &&
+        json.text ===
+          'Hello World! This is a test message sent from https://cloudflare.com. If you can see this, your webhook is configured properly.'
+      ) {
+        return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
+      }
+      const config = configuration(env);
       const capture =
         url.pathname === '/webhooks/sentry'
           ? sentryPayload(request.headers.get('Sentry-Hook-Resource'), json, config, env)
@@ -572,114 +642,71 @@ export default {
   },
 } satisfies ExportedHandler<Env>;
 
-export class ErrorIssueDispatch {
-  private state: DurableObjectState;
-  private env: Env;
+
+export class ErrorIssueDispatch extends DurableObject<Env> {
   private pending: Promise<DispatchResult> | undefined;
 
   constructor(state: DurableObjectState, env: Env) {
-    this.state = state;
-    this.env = env;
+    super(state, env);
     state.storage.sql.exec(`CREATE TABLE IF NOT EXISTS dispatch (
       singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
       identity_key TEXT NOT NULL,
       diagnostic TEXT,
       expires_at INTEGER NOT NULL,
-      accepted_at TEXT
+      accepted_at TEXT,
+      queue_admitted_at TEXT
     )`);
+    // v1 persisted GitHub Actions acceptance, not outbound executor queue admission.
+    // Preserve the historical timestamp while allowing one clean enqueue after cutover.
+    const columns=state.storage.sql.exec<{name:string}>('PRAGMA table_info(dispatch)').toArray();
+    if (!columns.some(column=>column.name==='queue_admitted_at'))
+      state.storage.sql.exec('ALTER TABLE dispatch ADD COLUMN queue_admitted_at TEXT');
   }
 
   async alarm(): Promise<void> {
-    this.state.storage.sql.exec('UPDATE dispatch SET diagnostic = NULL WHERE expires_at <= ?', Date.now());
-    await this.state.storage.sync();
+    this.ctx.storage.sql.exec('UPDATE dispatch SET diagnostic = NULL WHERE expires_at <= ?', Date.now());
+    await this.ctx.storage.sync();
   }
 
   async fetch(request: Request): Promise<Response> {
     try {
       if (request.method === 'GET' && new URL(request.url).pathname === '/diagnostics') {
-        const rows = this.state.storage.sql
-          .exec('SELECT diagnostic, expires_at FROM dispatch WHERE singleton = 1')
-          .toArray();
-        const row = rows[0];
-        if (!row || !row.diagnostic || Number(row.expires_at) <= Date.now())
-          return reply(404, { error: 'Diagnostic not found or expired.' });
-        return new Response(String(row.diagnostic), {
-          headers: {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-store',
-            'X-Content-Type-Options': 'nosniff',
-          },
-        });
+        const row = this.ctx.storage.sql.exec<{diagnostic:string|null;expires_at:number}>('SELECT diagnostic, expires_at FROM dispatch WHERE singleton = 1').toArray()[0];
+        if (!row?.diagnostic || row.expires_at <= Date.now()) return reply(404, { error: 'Diagnostic not found or expired.' });
+        return new Response(row.diagnostic, { headers: { 'Content-Type':'application/json', 'Cache-Control':'no-store', 'X-Content-Type-Options':'nosniff' } });
       }
-      if (request.method !== 'POST' || new URL(request.url).pathname !== '/')
-        return reply(404, { error: 'Not found.' });
+      if (request.method !== 'POST' || new URL(request.url).pathname !== '/') return reply(404, { error: 'Not found.' });
       const config = configuration(this.env);
       const data = record(await request.json());
       const identity = validateIdentity(data.identity, config);
       const capture = diagnostic(identity, data.summary, record(data.details), this.env);
-      if (encoder.encode(JSON.stringify(capture)).length > 16 * 1024)
-        throw new RequestError(413, 'Diagnostic is too large.');
-      // 진행 중 요청을 공유하여 GitHub 수락 전 중복 전달도 한 번만 전송한다.
-      if (!this.pending)
-        this.pending = this.dispatch(capture, config).finally(() => {
-          this.pending = undefined;
-        });
+      if (encoder.encode(JSON.stringify(capture)).length > 16 * 1024) throw new RequestError(413, 'Diagnostic is too large.');
+      if (!this.pending) this.pending = this.accept(capture).finally(() => { this.pending = undefined; });
       const result = await this.pending;
       return reply(result.status, result.body);
     } catch (error) {
       if (error instanceof RequestError) return reply(error.status, { error: error.message });
-      return reply(503, { error: 'Dispatch state unavailable; retry this delivery.' });
+      return reply(503, { error: 'Durable queue unavailable; retry this delivery.' });
     }
   }
 
-  private async dispatch(capture: Diagnostic, config: Configuration): Promise<DispatchResult> {
-    const rows = this.state.storage.sql
-      .exec('SELECT identity_key, accepted_at FROM dispatch WHERE singleton = 1')
-      .toArray();
+  private async accept(capture: Diagnostic): Promise<DispatchResult> {
+    const row = this.ctx.storage.sql.exec<{identity_key:string;queue_admitted_at:string|null}>('SELECT identity_key, queue_admitted_at FROM dispatch WHERE singleton = 1').toArray()[0];
     const key = identityKey(capture.identity);
-    if (rows[0] && rows[0].identity_key !== key) throw new RequestError(409, 'Identity conflicts with durable state.');
-    if (rows[0]?.accepted_at) return { status: 200, body: { status: 'duplicate' } };
+    if (row && row.identity_key !== key) throw new RequestError(409, 'Identity conflicts with durable state.');
+    if (row?.queue_admitted_at) return { status: 200, body: { status: 'duplicate' } };
     const expiresAt = Date.now() + RETENTION_MS;
-    this.state.storage.sql.exec(
+    this.ctx.storage.sql.exec(
       `INSERT INTO dispatch (singleton, identity_key, diagnostic, expires_at) VALUES (1, ?, ?, ?)
        ON CONFLICT(singleton) DO UPDATE SET diagnostic = excluded.diagnostic, expires_at = excluded.expires_at`,
-      key,
-      JSON.stringify(capture),
-      expiresAt,
+      key, JSON.stringify(capture), expiresAt,
     );
-    await this.state.storage.setAlarm(expiresAt);
-    // prepare 작업이 즉시 읽을 수 있도록 dispatch 전에 진단 기록을 영속한다.
-    await this.state.storage.sync();
-    let response: Response;
-    try {
-      response = await fetch(`https://api.github.com/repos/${config.owner}/${config.repository}/dispatches`, {
-        method: 'POST',
-        redirect: 'error',
-        signal: AbortSignal.timeout(8000),
-        headers: {
-          Authorization: `Bearer ${config.dispatchToken}`,
-          Accept: 'application/vnd.github+json',
-          'Content-Type': 'application/json',
-          'User-Agent': 'koin-error-automation',
-          'X-GitHub-Api-Version': '2022-11-28',
-        },
-        body: JSON.stringify({ event_type: 'error-autofix', client_payload: capture.identity }),
-      });
-    } catch {
-      return { status: 502, body: { error: 'GitHub dispatch could not be confirmed; retry this delivery.' } };
-    }
-    if (response.status !== 204) {
-      await response.body?.cancel();
-      return {
-        status: 502,
-        body: {
-          error: 'GitHub rejected dispatch; check dispatch-token permissions and retry.',
-          upstreamStatus: response.status,
-        },
-      };
-    }
-    this.state.storage.sql.exec('UPDATE dispatch SET accepted_at = ? WHERE singleton = 1', new Date().toISOString());
-    await this.state.storage.sync();
-    return { status: 200, body: { status: 'dispatched' } };
+    await this.ctx.storage.setAlarm(expiresAt);
+    await this.ctx.storage.sync();
+    // Admission is persisted in the fixed repository queue before webhook acknowledgement.
+    await this.env.AUTOFIX_QUEUE.getByName('bcsdlab/bcsd_united').enqueue(capture.identity,key);
+    this.ctx.storage.sql.exec('UPDATE dispatch SET queue_admitted_at = ? WHERE singleton = 1', new Date().toISOString());
+    await this.ctx.storage.sync();
+    return { status: 200, body: { status: 'queued' } };
   }
 }
