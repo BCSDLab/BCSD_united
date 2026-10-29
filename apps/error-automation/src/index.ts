@@ -694,6 +694,34 @@ export default {
           bodyBytes: body.byteLength,
           shape,
         });
+        if (
+          json !== null &&
+          typeof json === 'object' &&
+          !Array.isArray(json) &&
+          Object.keys(json).length === 1 &&
+          typeof json.text === 'string' &&
+          json.text.startsWith('Hello World!') &&
+          json.text.length <= 256
+        ) {
+          const expected =
+            'Hello World! This is a test message sent from https://cloudflare.com. If you can see this, your webhook is configured properly.';
+          let firstDifference = 0;
+          while (
+            firstDifference < json.text.length &&
+            firstDifference < expected.length &&
+            json.text[firstDifference] === expected[firstDifference]
+          )
+            firstDifference += 1;
+          const character = json.text[firstDifference];
+          console.info('Cloudflare known probe difference', {
+            textLength: json.text.length,
+            trimMatches: json.text.trim() === expected,
+            whitespaceMatches: json.text.replace(/\s+/g, ' ') === expected,
+            firstDifference,
+            firstDifferenceKind:
+              character === undefined ? 'end' : /^[\p{P}\s]$/u.test(character) ? character.codePointAt(0) : 'other',
+          });
+        }
       }
       if (
         (env.CLOUDFLARE_WEBHOOK_SECRET?.length ?? 0) >= 32 &&
