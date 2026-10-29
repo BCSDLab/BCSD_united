@@ -699,6 +699,7 @@ export default {
           typeof json === 'object' &&
           !Array.isArray(json) &&
           Object.keys(json).length === 1 &&
+          'text' in json &&
           typeof json.text === 'string' &&
           json.text.startsWith('Hello World!') &&
           json.text.length <= 256
