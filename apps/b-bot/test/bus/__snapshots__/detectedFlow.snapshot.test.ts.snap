@@ -1,0 +1,719 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`버스 공지 감지 흐름 > 게시글 조회 실패 1`] = `
+{
+  "events": [
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":white_check_mark: *버스 시간표 업데이트를 진행합니다.* · 스테이지
+<@U1>",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "replace_original": true,
+        "text": "버스 시간표 업데이트를 진행합니다.",
+        "url": "https://hooks.slack.test/response",
+      },
+      "kind": "replaceOriginal",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":hourglass_flowing_sand: 버스 게시글을 확인하고 있습니다…",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "버스 게시글 확인 중",
+      },
+      "kind": "postMessage",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":x: *게시글을 읽지 못했습니다.*
+게시글 9을 찾지 못했습니다 (HTTP 404).",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "버스 게시글 조회 실패",
+        "ts": "200.2",
+      },
+      "kind": "update",
+    },
+  ],
+  "jobs": [],
+  "locks": {
+    "acquire": [
+      [
+        "bus",
+        "C_TEST",
+        9,
+        "U1",
+      ],
+    ],
+    "release": [
+      [
+        "bus",
+        "C_TEST",
+        9,
+      ],
+    ],
+  },
+  "saved": [],
+}
+`;
+
+exports[`버스 공지 감지 흐름 > 고르기가 만료됐으면 알린다 1`] = `
+{
+  "events": [
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":x: 이미 처리했거나 만료된 알림입니다.",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "만료됨",
+        "ts": "100.1",
+      },
+      "kind": "update",
+    },
+  ],
+  "jobs": [],
+  "locks": {
+    "acquire": [],
+    "release": [],
+  },
+  "saved": [],
+}
+`;
+
+exports[`버스 공지 감지 흐름 > 고른 파일로 변환한다 1`] = `
+{
+  "events": [
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":hourglass_flowing_sand: *버스 시간표* 변환 중…
+스테이지 · 계절.xlsx",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "버스 시간표 변환 중",
+        "ts": "100.1",
+      },
+      "kind": "update",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": "결과 tttttttttttttttttttttttttttttttt 계절.xlsx <@U1>",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "버스 시간표 변환 완료 · 12개",
+        "ts": "100.1",
+      },
+      "kind": "update",
+    },
+  ],
+  "jobs": [
+    [
+      {
+        "channelId": "C_TEST",
+        "routeCount": 12,
+        "semesterTypes": [
+          "REGULAR",
+        ],
+        "sourceFile": "계절.xlsx",
+        "targetEnv": "stage",
+        "threadTs": "100.1",
+        "token": "tttttttttttttttttttttttttttttttt",
+      },
+    ],
+  ],
+  "locks": {
+    "acquire": [],
+    "release": [
+      [
+        "bus",
+        "C_TEST",
+        9,
+      ],
+    ],
+  },
+  "saved": [],
+}
+`;
+
+exports[`버스 공지 감지 흐름 > 넘어가기(고르던 중) 1`] = `
+{
+  "events": [
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":no_entry_sign: *이 버스 공지는 넘어갑니다.*
+<@U1>",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "replace_original": true,
+        "text": "버스 공지를 넘어갑니다.",
+        "url": "https://hooks.slack.test/response",
+      },
+      "kind": "replaceOriginal",
+    },
+  ],
+  "jobs": [],
+  "locks": {
+    "acquire": [],
+    "release": [
+      [
+        "bus",
+        "C_TEST",
+        9,
+      ],
+    ],
+  },
+  "saved": [],
+}
+`;
+
+exports[`버스 공지 감지 흐름 > 넘어가기(최초 알림) 1`] = `
+{
+  "events": [
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":no_entry_sign: *이 버스 공지는 넘어갑니다.*
+<@U1>",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "replace_original": true,
+        "text": "버스 공지를 넘어갑니다.",
+        "url": "https://hooks.slack.test/response",
+      },
+      "kind": "replaceOriginal",
+    },
+  ],
+  "jobs": [],
+  "locks": {
+    "acquire": [],
+    "release": [],
+  },
+  "saved": [],
+}
+`;
+
+exports[`버스 공지 감지 흐름 > 다른 사람이 진행 중이면 누른 사람에게만 알린다 1`] = `
+{
+  "events": [
+    {
+      "args": {
+        "channel": "C_TEST",
+        "text": "<@U2>님이 이미 이 공지를 진행 중입니다.",
+        "user": "U1",
+      },
+      "kind": "postEphemeral",
+    },
+  ],
+  "jobs": [],
+  "locks": {
+    "acquire": [
+      [
+        "bus",
+        "C_TEST",
+        9,
+        "U1",
+      ],
+    ],
+    "release": [],
+  },
+  "saved": [],
+}
+`;
+
+exports[`버스 공지 감지 흐름 > 반영 대상 채널이 아니면 원본에 알린다 1`] = `
+{
+  "events": [
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":x: 버스 반영 채널이 아닙니다.",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "replace_original": true,
+        "text": "버스 반영 대상 채널이 아닙니다.",
+        "url": "https://hooks.slack.test/response",
+      },
+      "kind": "replaceOriginal",
+    },
+  ],
+  "jobs": [],
+  "locks": {
+    "acquire": [],
+    "release": [],
+  },
+  "saved": [],
+}
+`;
+
+exports[`버스 공지 감지 흐름 > 변환 실패해도 락을 푼다 1`] = `
+{
+  "events": [
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":white_check_mark: *버스 시간표 업데이트를 진행합니다.* · 스테이지
+<@U1>",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "replace_original": true,
+        "text": "버스 시간표 업데이트를 진행합니다.",
+        "url": "https://hooks.slack.test/response",
+      },
+      "kind": "replaceOriginal",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":hourglass_flowing_sand: 버스 게시글을 확인하고 있습니다…",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "버스 게시글 확인 중",
+      },
+      "kind": "postMessage",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":hourglass_flowing_sand: *버스 시간표* 변환 중…
+스테이지 · 통학버스.xlsx",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "버스 시간표 변환 중",
+        "ts": "200.2",
+      },
+      "kind": "update",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":x: *변환 실패*
+시트를 찾지 못했습니다.
+통학버스.xlsx · 요청: <@U1>",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "버스 시간표 변환 실패",
+        "ts": "200.2",
+      },
+      "kind": "update",
+    },
+  ],
+  "jobs": [],
+  "locks": {
+    "acquire": [
+      [
+        "bus",
+        "C_TEST",
+        9,
+        "U1",
+      ],
+    ],
+    "release": [
+      [
+        "bus",
+        "C_TEST",
+        9,
+      ],
+    ],
+  },
+  "saved": [],
+}
+`;
+
+exports[`버스 공지 감지 흐름 > 시간표 첨부 없음 1`] = `
+{
+  "events": [
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":white_check_mark: *버스 시간표 업데이트를 진행합니다.* · 스테이지
+<@U1>",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "replace_original": true,
+        "text": "버스 시간표 업데이트를 진행합니다.",
+        "url": "https://hooks.slack.test/response",
+      },
+      "kind": "replaceOriginal",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":hourglass_flowing_sand: 버스 게시글을 확인하고 있습니다…",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "버스 게시글 확인 중",
+      },
+      "kind": "postMessage",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":grey_question: *지원하는 시간표 파일 첨부를 찾지 못했습니다.*
+<https://koreatech.in/articles/9|버스 안내>
+파일을 직접 올리고 \`!버스반영\`으로 실행해주세요.",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "버스 시간표 첨부 없음",
+        "ts": "200.2",
+      },
+      "kind": "update",
+    },
+  ],
+  "jobs": [],
+  "locks": {
+    "acquire": [
+      [
+        "bus",
+        "C_TEST",
+        9,
+        "U1",
+      ],
+    ],
+    "release": [
+      [
+        "bus",
+        "C_TEST",
+        9,
+      ],
+    ],
+  },
+  "saved": [],
+}
+`;
+
+exports[`버스 공지 감지 흐름 > 첨부 하나면 바로 변환한다 1`] = `
+{
+  "events": [
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":white_check_mark: *버스 시간표 업데이트를 진행합니다.* · 스테이지
+<@U1>",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "replace_original": true,
+        "text": "버스 시간표 업데이트를 진행합니다.",
+        "url": "https://hooks.slack.test/response",
+      },
+      "kind": "replaceOriginal",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":hourglass_flowing_sand: 버스 게시글을 확인하고 있습니다…",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "버스 게시글 확인 중",
+      },
+      "kind": "postMessage",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":hourglass_flowing_sand: *버스 시간표* 변환 중…
+스테이지 · 통학버스.xlsx",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "버스 시간표 변환 중",
+        "ts": "200.2",
+      },
+      "kind": "update",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": "결과 tttttttttttttttttttttttttttttttt 통학버스.xlsx <@U1>",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "버스 시간표 변환 완료 · 12개",
+        "ts": "200.2",
+      },
+      "kind": "update",
+    },
+  ],
+  "jobs": [
+    [
+      {
+        "channelId": "C_TEST",
+        "routeCount": 12,
+        "semesterTypes": [
+          "REGULAR",
+        ],
+        "sourceFile": "통학버스.xlsx",
+        "targetEnv": "stage",
+        "threadTs": "200.2",
+        "token": "tttttttttttttttttttttttttttttttt",
+      },
+    ],
+  ],
+  "locks": {
+    "acquire": [
+      [
+        "bus",
+        "C_TEST",
+        9,
+        "U1",
+      ],
+    ],
+    "release": [
+      [
+        "bus",
+        "C_TEST",
+        9,
+      ],
+    ],
+  },
+  "saved": [],
+}
+`;
+
+exports[`버스 공지 감지 흐름 > 첨부가 여럿이면 고르게 한다 1`] = `
+{
+  "events": [
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":white_check_mark: *버스 시간표 업데이트를 진행합니다.* · 스테이지
+<@U1>",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "replace_original": true,
+        "text": "버스 시간표 업데이트를 진행합니다.",
+        "url": "https://hooks.slack.test/response",
+      },
+      "kind": "replaceOriginal",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":hourglass_flowing_sand: 버스 게시글을 확인하고 있습니다…",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "버스 게시글 확인 중",
+      },
+      "kind": "postMessage",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":page_facing_up: *버스 시간표* · 스테이지
+시간표 첨부가 *2개* 입니다. 변환할 파일을 골라주세요.
+
+1. 정규.xlsx
+2. 계절.xls",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+          {
+            "elements": [
+              {
+                "action_id": "bus:detected_start",
+                "style": "primary",
+                "text": {
+                  "emoji": true,
+                  "text": "정규.xlsx",
+                  "type": "plain_text",
+                },
+                "type": "button",
+                "value": "{"token":"ssssssssssssssssssssssssssssssss","fileIndex":0}",
+              },
+              {
+                "action_id": "bus:detected_start_1",
+                "style": undefined,
+                "text": {
+                  "emoji": true,
+                  "text": "계절.xls",
+                  "type": "plain_text",
+                },
+                "type": "button",
+                "value": "{"token":"ssssssssssssssssssssssssssssssss","fileIndex":1}",
+              },
+              {
+                "action_id": "bus:detected_ignore",
+                "text": {
+                  "emoji": true,
+                  "text": "아니요",
+                  "type": "plain_text",
+                },
+                "type": "button",
+                "value": "{"token":"ssssssssssssssssssssssssssssssss"}",
+              },
+            ],
+            "type": "actions",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "변환할 파일을 골라주세요",
+        "ts": "200.2",
+      },
+      "kind": "update",
+    },
+  ],
+  "jobs": [],
+  "locks": {
+    "acquire": [
+      [
+        "bus",
+        "C_TEST",
+        9,
+        "U1",
+      ],
+    ],
+    "release": [],
+  },
+  "saved": [
+    [
+      {
+        "articleId": 9,
+        "articleTitle": "버스 시간표",
+        "articleUrl": "https://koreatech.in/articles/9",
+        "files": [
+          {
+            "name": "정규.xlsx",
+            "url": "https://portal.koreatech.ac.kr/f/1",
+          },
+          {
+            "name": "계절.xls",
+            "url": "https://portal.koreatech.ac.kr/f/2",
+          },
+        ],
+        "target": "stage",
+      },
+    ],
+  ],
+}
+`;

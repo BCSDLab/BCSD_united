@@ -1,0 +1,270 @@
+{
+  "title": "2026-1학기 생협 사업장 운영시간 안내",
+  "semesterLabel": "2026-1학기",
+  "fromDate": "2026.3.3.(화)",
+  "toDate": "2026.6.19.(금)",
+  "shops": [
+    {
+      "groupLabel": "학생",
+      "shopLabel": "식당",
+      "phone": "560-1278",
+      "remark": "천원의 아침밥 평일 운영, 일요일 미운영",
+      "operationHours": [
+        {
+          "dayLabel": "평일",
+          "type": "아침",
+          "openTime": "08:00",
+          "closeTime": "09:30",
+          "rawText": "조식 08:00 - 09:30"
+        },
+        {
+          "dayLabel": "평일",
+          "type": "점심",
+          "openTime": "11:30",
+          "closeTime": "13:30",
+          "rawText": "중식 11:30 - 13:30"
+        },
+        {
+          "dayLabel": "평일",
+          "type": "저녁",
+          "openTime": "17:30",
+          "closeTime": "18:30",
+          "rawText": "석식 17:30 - 18:30"
+        },
+        {
+          "dayLabel": "토요일",
+          "type": "아침",
+          "openTime": "조식 미운영",
+          "closeTime": "조식 미운영",
+          "rawText": "조식 미운영"
+        },
+        {
+          "dayLabel": "토요일",
+          "type": "점심",
+          "openTime": "11:30",
+          "closeTime": "13:30",
+          "rawText": "중식 11:30 - 13:30"
+        },
+        {
+          "dayLabel": "토요일",
+          "type": "저녁",
+          "openTime": "17:30",
+          "closeTime": "18:30",
+          "rawText": "석식 17:30 - 18:30"
+        }
+      ]
+    },
+    {
+      "groupLabel": "복지관",
+      "shopLabel": "식당",
+      "phone": "560-1778",
+      "remark": "능수관",
+      "operationHours": [
+        {
+          "dayLabel": "평일",
+          "type": "점심",
+          "openTime": "11:40",
+          "closeTime": "13:30",
+          "rawText": "중식 11:40 - 13:30"
+        },
+        { "dayLabel": "토요일", "type": "점심", "openTime": "미운영", "closeTime": "미운영", "rawText": "미운영" }
+      ]
+    },
+    {
+      "groupLabel": "2캠",
+      "shopLabel": "식당",
+      "phone": "521-8082",
+      "remark": "",
+      "operationHours": [
+        {
+          "dayLabel": "평일",
+          "type": "아침",
+          "openTime": "08:00",
+          "closeTime": "09:00",
+          "rawText": "조식 08:00 - 09:00"
+        },
+        {
+          "dayLabel": "평일",
+          "type": "점심",
+          "openTime": "11:40",
+          "closeTime": "13:30",
+          "rawText": "중식 11:40 - 13:30"
+        },
+        {
+          "dayLabel": "평일",
+          "type": "저녁",
+          "openTime": "17:30",
+          "closeTime": "18:30",
+          "rawText": "석식 17:30 - 18:30"
+        },
+        {
+          "dayLabel": "토요일",
+          "type": "아침",
+          "openTime": "08:00",
+          "closeTime": "09:00",
+          "rawText": "조식 08:00 - 09:00"
+        },
+        {
+          "dayLabel": "토요일",
+          "type": "점심",
+          "openTime": "11:40",
+          "closeTime": "13:30",
+          "rawText": "중식 11:40 - 13:30"
+        },
+        {
+          "dayLabel": "토요일",
+          "type": "저녁",
+          "openTime": "17:30",
+          "closeTime": "18:30",
+          "rawText": "석식 17:30 - 18:30"
+        }
+      ]
+    },
+    {
+      "groupLabel": "본교",
+      "shopLabel": "커피점",
+      "phone": "560-1779",
+      "remark": "배달 서비스 실시, 공·일요일 미운영",
+      "operationHours": [
+        { "dayLabel": "평일", "type": "", "openTime": "08:30", "closeTime": "21:00", "rawText": "08:30 - 21:00" },
+        { "dayLabel": "토요일", "type": "", "openTime": "11:00", "closeTime": "18:30", "rawText": "11:00 - 18:30" }
+      ]
+    },
+    {
+      "groupLabel": "본교",
+      "shopLabel": "편의점",
+      "phone": "560-1279",
+      "remark": "복지관·생활관",
+      "operationHours": [
+        {
+          "dayLabel": "평일",
+          "type": "",
+          "openTime": "24시간 운영",
+          "closeTime": "24시간 운영",
+          "rawText": "24시간 운영"
+        },
+        {
+          "dayLabel": "토요일",
+          "type": "",
+          "openTime": "24시간 운영",
+          "closeTime": "24시간 운영",
+          "rawText": "24시간 운영"
+        }
+      ]
+    },
+    {
+      "groupLabel": "2캠",
+      "shopLabel": "편의점",
+      "phone": "521-8088",
+      "remark": "",
+      "operationHours": [
+        {
+          "dayLabel": "평일",
+          "type": "",
+          "openTime": "24시간 운영",
+          "closeTime": "24시간 운영",
+          "rawText": "24시간 운영"
+        },
+        {
+          "dayLabel": "토요일",
+          "type": "",
+          "openTime": "24시간 운영",
+          "closeTime": "24시간 운영",
+          "rawText": "24시간 운영"
+        }
+      ]
+    },
+    {
+      "groupLabel": "2캠",
+      "shopLabel": "커피점",
+      "phone": "521-8088",
+      "remark": "어울림",
+      "operationHours": [
+        { "dayLabel": "평일", "type": "", "openTime": "08:30", "closeTime": "19:00", "rawText": "08:30 - 19:00" },
+        { "dayLabel": "토요일", "type": "", "openTime": "08:30", "closeTime": "16:00", "rawText": "08:30 - 16:00" }
+      ]
+    },
+    {
+      "groupLabel": "",
+      "shopLabel": "서점·문구점",
+      "phone": "560-1756",
+      "remark": "",
+      "operationHours": [
+        { "dayLabel": "평일", "type": "", "openTime": "09:00", "closeTime": "18:00", "rawText": "09:00 - 18:00" },
+        { "dayLabel": "토요일", "type": "", "openTime": "휴점", "closeTime": "휴점", "rawText": "휴점" }
+      ]
+    },
+    {
+      "groupLabel": "",
+      "shopLabel": "우편취급국",
+      "phone": "560-1758",
+      "remark": "점심시간 12:00 - 13:00",
+      "operationHours": [
+        { "dayLabel": "평일", "type": "", "openTime": "09:00", "closeTime": "18:00", "rawText": "09:00 - 18:00" },
+        { "dayLabel": "토요일", "type": "", "openTime": "휴점", "closeTime": "휴점", "rawText": "휴점" }
+      ]
+    },
+    {
+      "groupLabel": "",
+      "shopLabel": "세탁소",
+      "phone": "552-1489",
+      "remark": "점심시간 12:00 - 13:00",
+      "operationHours": [
+        { "dayLabel": "평일", "type": "", "openTime": "11:30", "closeTime": "18:30", "rawText": "11:30 - 18:30" },
+        { "dayLabel": "토요일", "type": "", "openTime": "휴점", "closeTime": "휴점", "rawText": "휴점" }
+      ]
+    },
+    {
+      "groupLabel": "",
+      "shopLabel": "미용실",
+      "phone": "560-1372",
+      "remark": "예약제운영",
+      "operationHours": [
+        { "dayLabel": "평일", "type": "", "openTime": "09:30", "closeTime": "17:00", "rawText": "09:30 - 17:00" },
+        { "dayLabel": "토요일", "type": "", "openTime": "휴점", "closeTime": "휴점", "rawText": "휴점" }
+      ]
+    },
+    {
+      "groupLabel": "",
+      "shopLabel": "안경원",
+      "phone": "560-1760",
+      "remark": "점심시간 14:00 - 15:00",
+      "operationHours": [
+        { "dayLabel": "평일", "type": "", "openTime": "10:00", "closeTime": "19:00", "rawText": "10:00 - 19:00" },
+        { "dayLabel": "토요일", "type": "", "openTime": "휴점", "closeTime": "휴점", "rawText": "휴점" }
+      ]
+    },
+    {
+      "groupLabel": "",
+      "shopLabel": "복사실",
+      "phone": "560-1093",
+      "remark": "점심시간 11:30 - 12:30",
+      "operationHours": [
+        { "dayLabel": "평일", "type": "", "openTime": "08:30", "closeTime": "18:00", "rawText": "08:30 - 18:00" },
+        { "dayLabel": "토요일", "type": "", "openTime": "휴점", "closeTime": "휴점", "rawText": "휴점" }
+      ]
+    },
+    {
+      "groupLabel": "",
+      "shopLabel": "오락실",
+      "phone": "560-1472",
+      "remark": "",
+      "operationHours": [
+        {
+          "dayLabel": "평일",
+          "type": "",
+          "openTime": "24시간 운영",
+          "closeTime": "24시간 운영",
+          "rawText": "24시간 운영"
+        },
+        {
+          "dayLabel": "토요일",
+          "type": "",
+          "openTime": "24시간 운영",
+          "closeTime": "24시간 운영",
+          "rawText": "24시간 운영"
+        }
+      ]
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { jsonFile } from './common.mjs';
-import { startLocalApi, stopProcess } from './local-api.mjs';
+import { API_ORIGIN, delay, readJsonResponse, startLocalApi } from './local-api.mjs';
 import { applicationGraph, matchesRoute, sourceFiles } from './source-graph.mjs';
 
 const context = await jsonFile('/input/context.json');
@@ -43,20 +43,12 @@ if (!changed.length || changed.some((file) => !dependencies.has(resolve('/work',
   throw new Error('Changed API source is not reachable from the observed endpoint');
 const api = await startLocalApi();
 try {
-  const response = await fetch(`http://127.0.0.1:4174${route}`, {
-    method: 'GET',
-    redirect: 'error',
-    signal: AbortSignal.timeout(15000),
-  });
-  if (!response.ok)
-    throw new Error(
-      `API route returned ${response.status}; authentication, missing fixtures or query parameters require manual reproduction`,
-    );
-  const body = await response.text();
-  if (!response.headers.get('content-type')?.includes('application/json') || !body.trim())
-    throw new Error('API smoke requires a nonempty JSON response, not a fallback page');
-  JSON.parse(body);
+  const beforeRequest = api.requestCount(route);
+  await readJsonResponse(`${API_ORIGIN}${route}`);
+  for (let attempt = 0; attempt < 20 && api.requestCount(route) === beforeRequest; attempt += 1) await delay(100);
+  if (api.requestCount(route) === beforeRequest) throw new Error('Local API request evidence is unavailable');
   api.assertHealthy();
+  process.stdout.write(`Real local API/D1 smoke passed: GET ${route}\n`);
 } finally {
-  stopProcess(api.child);
+  await api.cleanup();
 }

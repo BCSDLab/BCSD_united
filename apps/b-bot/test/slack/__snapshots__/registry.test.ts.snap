@@ -1,0 +1,86 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Slack 핸들러 등록표 > 메시지 핸들러 순서 1`] = `
+[
+  "/^!질문\\s+/",
+  "/^!회칙/",
+  "/^!가위바위보/",
+  "/^!주사위/",
+  "/^!점메추/",
+  "/(!축하|축하!)/",
+  "/(!룰렛|룰렛!)/",
+  "/!아이스브레이킹/",
+  "/!추첨/",
+  "/(!상태창|상태창!)/",
+  "/(!회의생성|회의생성!|!회의 생성|회의 생성!|생성!)/",
+  "/(!회의종료|회의종료!|!회의 종료|회의 종료!|종료!)/",
+  "/^!강의반영/",
+  "/^!학기구분/",
+  "/^!버스반영/",
+  "/^!수정/",
+  "/^!대시보드\\s+/",
+]
+`;
+
+exports[`Slack 핸들러 등록표 > 버튼 action_id 1`] = `
+[
+  "bus:detected",
+  "bus:detected_ignore",
+  "bus:detected_start",
+  "bus:detected_start_1",
+  "bus:detected_start_2",
+  "bus:detected_start_3",
+  "bus:apply",
+  "bus:cancel",
+  "bus:patch_apply",
+  "bus:patch_cancel",
+  "coop:detected",
+  "coop:detected_ignore",
+  "coop:detected_start",
+  "coop:detected_start_1",
+  "coop:detected_start_2",
+  "coop:detected_start_3",
+  "coop:apply",
+  "coop:cancel",
+  "coop:patch_apply",
+  "coop:patch_cancel",
+  "dining:approve",
+  "dining:reject",
+  "lecture:detected",
+  "lecture:detected_start",
+  "lecture:detected_start_1",
+  "lecture:detected_start_2",
+  "lecture:detected_start_3",
+  "lecture:detected_ignore",
+  "lecture:time_period",
+  "lecture:time_clock",
+  "lecture:patch_apply",
+  "lecture:patch_cancel",
+  "lecture:apply",
+  "lecture:cancel",
+  "superset:confirm",
+  "superset:cancel",
+]
+`;
+
+exports[`Slack 핸들러 등록표 > 슬래시 명령·숏컷·모달 1`] = `
+{
+  "commands": [
+    "/강의공지",
+    "/test",
+    "/멘션",
+    "/회의생성",
+    "/회의종료",
+  ],
+  "shortcuts": [
+    "b-bot_message",
+    "thread_check_mention",
+    "group_mention",
+  ],
+  "viewActions": [
+    "bbot_input_modal",
+    "bbot_group_modal",
+    "lecture_notice",
+  ],
+}
+`;

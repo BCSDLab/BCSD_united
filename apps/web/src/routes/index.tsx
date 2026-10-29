@@ -110,7 +110,10 @@ const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
 
       const prefetchBanners = async () => {
         const banners = await queryClient.fetchQuery(bannerQueries.categories());
-        const categoryId = Number(banners.banner_categories[0].id);
+        const category = banners.banner_categories[0];
+        if (!category) return null;
+
+        const categoryId = Number(category.id);
         const list = await queryClient.fetchQuery(bannerQueries.list(categoryId));
 
         return { categoryId, list };
@@ -142,8 +145,10 @@ const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
           queryClient.prefetchQuery(timetableQueries.semesterInfo()),
           queryClient.prefetchQuery(articleQueries.lostItemStat()),
         ]);
-        bannerCategoryId = banners.categoryId;
-        bannersList = banners.list;
+        if (banners) {
+          bannerCategoryId = banners.categoryId;
+          bannersList = banners.list;
+        }
         categories = categoriesResponse;
       };
 

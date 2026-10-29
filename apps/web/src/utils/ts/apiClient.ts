@@ -9,7 +9,7 @@ import type { APIResponse } from 'interfaces/APIResponse';
 import { WEB_AUTH_CSRF_COOKIE_KEY } from 'static/url';
 import { hasSessionCookie } from 'utils/auth/session';
 import { markSessionAuthenticated, markSessionExpired } from 'utils/auth/sessionControl';
-import { getApiBaseUrl } from 'utils/ssr/apiTarget';
+import { apiRequestAdapter, getApiBaseUrl } from 'utils/ssr/apiTarget';
 import { getServerRequestHeaders } from 'utils/ssr/cookieForwarding';
 import qsStringify from 'utils/ts/qsStringfy';
 import { useServerStateStore } from 'utils/zustand/serverState';
@@ -96,6 +96,7 @@ export default class APIClient {
     return new Promise<U>((resolve, reject) => {
       axios
         .request({
+          adapter: apiRequestAdapter,
           url: request.path,
           method: request.method,
           params: request.params,

@@ -1,0 +1,396 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`강의 반영 Slack 액션 > 강의 생성 중 실패하면 일부 반영 경고와 확인 창을 단다 1`] = `
+{
+  "ephemerals": [],
+  "finishes": [
+    [
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "FAILED",
+      "강의 생성 실패",
+    ],
+  ],
+  "updates": [
+    {
+      "blocks": [
+        {
+          "text": {
+            "text": ":hourglass_flowing_sand: *반영 중…* 812건
+작업자: <@U1>",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+      ],
+      "channel": "C1",
+      "text": "반영 중",
+      "ts": "100.1",
+    },
+    {
+      "blocks": [
+        {
+          "text": {
+            "text": ":x: *반영 실패*
+강의 생성 실패",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+        {
+          "text": {
+            "text": ":warning: 강의 생성 중에 멈췄습니다. *일부가 이미 들어갔을 수 있습니다.*
+지우는 API가 없으니, 다시 시도하기 전에 반영 상태를 확인해주세요.",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+        {
+          "elements": [
+            {
+              "action_id": "lecture:apply",
+              "confirm": {
+                "confirm": {
+                  "text": "그래도 반영",
+                  "type": "plain_text",
+                },
+                "deny": {
+                  "text": "취소",
+                  "type": "plain_text",
+                },
+                "text": {
+                  "text": "*812건*을 다시 보냅니다.
+앞선 시도에서 일부가 이미 들어갔다면 중복될 수 있고, 되돌릴 수 없습니다.",
+                  "type": "mrkdwn",
+                },
+                "title": {
+                  "text": "다시 반영할까요?",
+                  "type": "plain_text",
+                },
+              },
+              "text": {
+                "emoji": true,
+                "text": "다시 시도",
+                "type": "plain_text",
+              },
+              "type": "button",
+              "value": "{"token":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}",
+            },
+          ],
+          "type": "actions",
+        },
+        {
+          "elements": [
+            {
+              "text": "작업자: <@U1> · 원인을 해결한 뒤 눌러주세요.",
+              "type": "mrkdwn",
+            },
+          ],
+          "type": "context",
+        },
+      ],
+      "channel": "C1",
+      "text": "반영 실패",
+      "ts": "100.1",
+    },
+  ],
+}
+`;
+
+exports[`강의 반영 Slack 액션 > 강의 생성이 시한 초과로 끊겨도 일부 반영 경고와 확인 창을 단다 1`] = `
+{
+  "ephemerals": [],
+  "finishes": [
+    [
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "FAILED",
+      "코인 Admin API가 120초 안에 응답하지 않았습니다 — POST /admin/lectures",
+    ],
+  ],
+  "updates": [
+    {
+      "blocks": [
+        {
+          "text": {
+            "text": ":hourglass_flowing_sand: *반영 중…* 812건
+작업자: <@U1>",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+      ],
+      "channel": "C1",
+      "text": "반영 중",
+      "ts": "100.1",
+    },
+    {
+      "blocks": [
+        {
+          "text": {
+            "text": ":x: *반영 실패*
+코인 Admin API가 120초 안에 응답하지 않았습니다 — POST /admin/lectures",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+        {
+          "text": {
+            "text": ":warning: 강의 생성 중에 멈췄습니다. *일부가 이미 들어갔을 수 있습니다.*
+지우는 API가 없으니, 다시 시도하기 전에 반영 상태를 확인해주세요.",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+        {
+          "elements": [
+            {
+              "action_id": "lecture:apply",
+              "confirm": {
+                "confirm": {
+                  "text": "그래도 반영",
+                  "type": "plain_text",
+                },
+                "deny": {
+                  "text": "취소",
+                  "type": "plain_text",
+                },
+                "text": {
+                  "text": "*812건*을 다시 보냅니다.
+앞선 시도에서 일부가 이미 들어갔다면 중복될 수 있고, 되돌릴 수 없습니다.",
+                  "type": "mrkdwn",
+                },
+                "title": {
+                  "text": "다시 반영할까요?",
+                  "type": "plain_text",
+                },
+              },
+              "text": {
+                "emoji": true,
+                "text": "다시 시도",
+                "type": "plain_text",
+              },
+              "type": "button",
+              "value": "{"token":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}",
+            },
+          ],
+          "type": "actions",
+        },
+        {
+          "elements": [
+            {
+              "text": "작업자: <@U1> · 원인을 해결한 뒤 눌러주세요.",
+              "type": "mrkdwn",
+            },
+          ],
+          "type": "context",
+        },
+      ],
+      "channel": "C1",
+      "text": "반영 실패",
+      "ts": "100.1",
+    },
+  ],
+}
+`;
+
+exports[`강의 반영 Slack 액션 > 검토 링크가 만료됐으면 실패로 남긴다 1`] = `
+{
+  "ephemerals": [],
+  "finishes": [
+    [
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "FAILED",
+      "검토 링크 만료",
+    ],
+  ],
+  "updates": [
+    {
+      "blocks": [
+        {
+          "text": {
+            "text": ":x: 검토 링크가 만료됐습니다. 다시 변환해주세요.",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+      ],
+      "channel": "C1",
+      "text": "검토 링크 만료",
+      "ts": "100.1",
+    },
+  ],
+}
+`;
+
+exports[`강의 반영 Slack 액션 > 다른 사람이 반영 중이면 누른 사람에게만 알린다 1`] = `
+{
+  "ephemerals": [
+    {
+      "channel": "C1",
+      "text": "U2님이 반영 중입니다.",
+      "user": "U1",
+    },
+  ],
+  "finishes": [],
+  "updates": [],
+}
+`;
+
+exports[`강의 반영 Slack 액션 > 반영 성공 1`] = `
+{
+  "ephemerals": [],
+  "finishes": [
+    [
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "APPLIED",
+    ],
+  ],
+  "updates": [
+    {
+      "blocks": [
+        {
+          "text": {
+            "text": ":hourglass_flowing_sand: *반영 중…* 812건
+작업자: <@U1>",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+      ],
+      "channel": "C1",
+      "text": "반영 중",
+      "ts": "100.1",
+    },
+    {
+      "blocks": [
+        {
+          "text": {
+            "text": ":white_check_mark: *2026 2학기 반영 완료*
+스테이지 · 강의 *812건*",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+        {
+          "elements": [
+            {
+              "text": "작업자: <@U1> · 편람.xlsx",
+              "type": "mrkdwn",
+            },
+          ],
+          "type": "context",
+        },
+      ],
+      "channel": "C1",
+      "text": "반영 완료",
+      "ts": "100.1",
+    },
+  ],
+}
+`;
+
+exports[`강의 반영 Slack 액션 > 이미 진행된 작업은 취소하지 않는다 1`] = `
+{
+  "ephemerals": [
+    {
+      "channel": "C1",
+      "text": "이미 반영됐거나 진행 중이라 취소할 수 없습니다.",
+      "user": "U1",
+    },
+  ],
+  "finishes": [],
+  "updates": [],
+}
+`;
+
+exports[`강의 반영 Slack 액션 > 취소 1`] = `
+{
+  "ephemerals": [],
+  "finishes": [],
+  "updates": [
+    {
+      "blocks": [
+        {
+          "text": {
+            "text": ":no_entry_sign: *반영을 취소했습니다.*
+<@U1>",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+      ],
+      "channel": "C1",
+      "text": "취소됨",
+      "ts": "100.1",
+    },
+  ],
+}
+`;
+
+exports[`강의 반영 Slack 액션 > 학기 생성에서 실패하면 다시 시도 버튼만 준다 1`] = `
+{
+  "ephemerals": [],
+  "finishes": [
+    [
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "FAILED",
+      "학기 생성 실패",
+    ],
+  ],
+  "updates": [
+    {
+      "blocks": [
+        {
+          "text": {
+            "text": ":hourglass_flowing_sand: *반영 중…* 812건
+작업자: <@U1>",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+      ],
+      "channel": "C1",
+      "text": "반영 중",
+      "ts": "100.1",
+    },
+    {
+      "blocks": [
+        {
+          "text": {
+            "text": ":x: *반영 실패*
+학기 생성 실패",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+        {
+          "elements": [
+            {
+              "action_id": "lecture:apply",
+              "text": {
+                "emoji": true,
+                "text": "다시 시도",
+                "type": "plain_text",
+              },
+              "type": "button",
+              "value": "{"token":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}",
+            },
+          ],
+          "type": "actions",
+        },
+        {
+          "elements": [
+            {
+              "text": "작업자: <@U1> · 원인을 해결한 뒤 눌러주세요.",
+              "type": "mrkdwn",
+            },
+          ],
+          "type": "context",
+        },
+      ],
+      "channel": "C1",
+      "text": "반영 실패",
+      "ts": "100.1",
+    },
+  ],
+}
+`;

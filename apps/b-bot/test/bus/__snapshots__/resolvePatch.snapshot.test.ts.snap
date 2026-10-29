@@ -1,0 +1,542 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`버스 수정 요청 해석 결과 > 기간 — 거꾸로 1`] = `
+{
+  "patches": [],
+  "problems": [
+    "적용 기간 "2026-06-20~2026-03-03"의 시작이 끝보다 늦습니다.",
+  ],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 기간 — 없는 학기 지정, 학기 여럿 1`] = `
+{
+  "patches": [],
+  "problems": [
+    ""방학기간"의 변환 결과가 없습니다.",
+  ],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 기간 — 없는 학기 지정, 학기 하나 1`] = `
+{
+  "patches": [
+    {
+      "after": "2026-03-03~2026-06-20",
+      "before": "2026-03-02~2026-06-19",
+      "kind": "period",
+      "rawValue": "2026-03-03~2026-06-20",
+      "region": "",
+      "routeName": "",
+      "routeType": "",
+      "semester": "REGULAR",
+      "target": "commuting",
+      "value": "2026-03-03~2026-06-20",
+    },
+  ],
+  "problems": [],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 기간 — 학기 여럿, 미지정 1`] = `
+{
+  "patches": [],
+  "problems": [
+    "어느 학기의 적용 기간을 바꿀지 확정할 수 없습니다. (정규학기/계절학기/방학기간을 지정해주세요)",
+  ],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 기간 — 학기 여럿, 지정 1`] = `
+{
+  "patches": [
+    {
+      "after": "2026-06-23~2026-08-15",
+      "before": "2026-06-22~2026-08-14",
+      "kind": "period",
+      "rawValue": "2026-06-23~2026-08-15",
+      "region": "",
+      "routeName": "",
+      "routeType": "",
+      "semester": "SEASONAL",
+      "target": "commuting",
+      "value": "2026-06-23~2026-08-15",
+    },
+  ],
+  "problems": [],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 기간 — 학기 하나 1`] = `
+{
+  "patches": [
+    {
+      "after": "2026-03-03~2026-06-20",
+      "before": "2026-03-02~2026-06-19",
+      "kind": "period",
+      "rawValue": "2026-03-03~2026-06-20",
+      "region": "",
+      "routeName": "",
+      "routeType": "",
+      "semester": "REGULAR",
+      "target": "commuting",
+      "value": "2026-03-03~2026-06-20",
+    },
+  ],
+  "problems": [],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 기간 — 형식 오류 1`] = `
+{
+  "patches": [],
+  "problems": [
+    "적용 기간 "3월부터"은 YYYY-MM-DD~YYYY-MM-DD 형태여야 합니다.",
+  ],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 노선 삭제 1`] = `
+{
+  "patches": [
+    {
+      "after": "삭제",
+      "before": "천안 등교 "천안역"",
+      "kind": "remove_route",
+      "rawValue": "천안역",
+      "region": "천안",
+      "routeName": "천안역",
+      "routeType": "등교",
+      "semester": "REGULAR",
+      "target": "commuting",
+    },
+  ],
+  "problems": [],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 노선 없음 1`] = `
+{
+  "patches": [],
+  "problems": [
+    ""대전"에 해당하는 노선을 찾지 못했습니다.",
+  ],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 노선 없음 — 이름 없이 1`] = `
+{
+  "patches": [],
+  "problems": [
+    ""지정한"에 해당하는 노선을 찾지 못했습니다.",
+  ],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 노선 여럿 1`] = `
+{
+  "patches": [],
+  "problems": [
+    ""천안역"는 여러 노선입니다: 천안 등교 "천안역", 천안 하교 "천안역". 방향(등교/하교)까지 지정해주세요.",
+  ],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 노선명 변경 1`] = `
+{
+  "patches": [
+    {
+      "after": "천안역 경유",
+      "before": "천안역",
+      "kind": "route_name",
+      "rawValue": "천안역 경유",
+      "region": "천안",
+      "routeName": "천안역",
+      "routeType": "등교",
+      "semester": "REGULAR",
+      "target": "commuting",
+      "value": "천안역 경유",
+    },
+  ],
+  "problems": [],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 노선명 비움 1`] = `
+{
+  "patches": [],
+  "problems": [
+    "천안 등교 "천안역": 바꿀 노선명을 적어주세요.",
+  ],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 도착시각 1`] = `
+{
+  "patches": [
+    {
+      "after": "08:05",
+      "before": "08:10",
+      "kind": "arrival_time",
+      "rawValue": "08:05",
+      "region": "천안",
+      "routeName": "천안역",
+      "routeType": "등교",
+      "semester": "REGULAR",
+      "stopName": "터미널",
+      "target": "commuting",
+      "tripName": "1회",
+      "value": "08:05",
+    },
+  ],
+  "problems": [],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 도착시각 — 부분 일치 정류장 1`] = `
+{
+  "patches": [
+    {
+      "after": "08:05",
+      "before": "08:15",
+      "kind": "arrival_time",
+      "rawValue": "08:05",
+      "region": "천안",
+      "routeName": "천안역",
+      "routeType": "등교",
+      "semester": "REGULAR",
+      "stopName": "천안역 (학화호두과자 앞)",
+      "target": "commuting",
+      "tripName": "1회",
+      "value": "08:05",
+    },
+  ],
+  "problems": [],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 도착시각 — 시각 오류 1`] = `
+{
+  "patches": [],
+  "problems": [
+    "천안 등교 "천안역" 1회 터미널: "8시"은 시각(HH:MM)이나 마커가 아닙니다.",
+  ],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 도착시각 — 정류장 없음 1`] = `
+{
+  "patches": [],
+  "problems": [
+    "천안 등교 "천안역": 정류장 "아산"를 찾지 못했습니다.",
+  ],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 도착시각 — 정류장 여럿 1`] = `
+{
+  "patches": [],
+  "problems": [
+    "천안 등교 "천안역": 정류장 "천안역"가 여러 개 일치합니다: 천안역 (학화호두과자 앞), 천안역 2번 출구. 정확한 이름을 적어주세요.",
+  ],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 운행요일 1`] = `
+{
+  "patches": [
+    {
+      "after": "월,수,금",
+      "before": "월,수",
+      "days": [
+        "MON",
+        "WED",
+        "FRI",
+      ],
+      "kind": "running_days",
+      "rawValue": "월수금",
+      "region": "천안",
+      "routeName": "천안역",
+      "routeType": "등교",
+      "semester": "REGULAR",
+      "target": "commuting",
+      "tripName": "1회",
+    },
+  ],
+  "problems": [],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 운행요일 — 해석 불가 1`] = `
+{
+  "patches": [],
+  "problems": [
+    "천안 등교 "천안역" 1회: 요일 표기 "가끔"를 해석하지 못했습니다. (예: 월수금, 주중, 매일)",
+  ],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 정류장 삭제 1`] = `
+{
+  "patches": [
+    {
+      "after": "삭제",
+      "before": "천안 등교 "천안역" 터미널 삭제",
+      "kind": "remove_stop",
+      "rawValue": "터미널",
+      "region": "천안",
+      "routeName": "천안역",
+      "routeType": "등교",
+      "semester": "REGULAR",
+      "stopName": "터미널",
+      "target": "commuting",
+    },
+  ],
+  "problems": [],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 정류장 삭제 — 없음 1`] = `
+{
+  "patches": [],
+  "problems": [
+    "천안 등교 "천안역": 정류장 ""를 찾지 못했습니다.",
+  ],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 정류장 추가 1`] = `
+{
+  "patches": [
+    {
+      "addStop": {
+        "afterStop": "터미널",
+        "beforeStop": undefined,
+        "name": "두정역",
+      },
+      "after": "두정역 추가 (터미널 뒤)",
+      "before": "-",
+      "kind": "add_stop",
+      "rawValue": "두정역",
+      "region": "천안",
+      "routeName": "천안역",
+      "routeType": "등교",
+      "semester": "REGULAR",
+      "target": "commuting",
+    },
+  ],
+  "problems": [],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 정류장 추가 — 기준 없음 1`] = `
+{
+  "patches": [],
+  "problems": [
+    "천안 등교 "천안역": 정류장 "두정역"을 어디에 추가할지 지정해주세요. (기준 정류장과 앞/뒤)",
+  ],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 정류장 추가 — 기준 여럿 1`] = `
+{
+  "patches": [],
+  "problems": [
+    "천안 등교 "천안역": 기준 정류장 "천안역"가 여러 개 일치합니다: 천안역 (학화호두과자 앞), 천안역 2번 출구. 정확한 이름을 적어주세요.",
+  ],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 정류장 추가 — 앞뒤 없음 1`] = `
+{
+  "patches": [],
+  "problems": [
+    "천안 등교 "천안역": "터미널" 기준으로 앞(before)인지 뒤(after)인지 지정해주세요.",
+  ],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 정류장 추가 — 이름 없음 1`] = `
+{
+  "patches": [],
+  "problems": [
+    "천안 등교 "천안역": 추가할 정류장 이름을 적어주세요.",
+  ],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 정류장 추가 — 중복 1`] = `
+{
+  "patches": [],
+  "problems": [
+    "천안 등교 "천안역": 정류장 "대학(본교)"이 이미 있습니다.",
+  ],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 지원하지 않는 항목 1`] = `
+{
+  "patches": [],
+  "problems": [
+    "천안 등교 "천안역": "color"은 지원하지 않는 수정 항목입니다.",
+  ],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 학기 여럿 1`] = `
+{
+  "patches": [],
+  "problems": [
+    ""천안역"이 여러 학기에 걸쳐 있습니다: 정규학기, 계절학기. 학기를 지정해주세요. (예: "계절학기 천안역 ...")",
+  ],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 회차 미지정 1`] = `
+{
+  "patches": [],
+  "problems": [
+    "천안 등교 "천안역": 회차를 지정해주세요. (가능한 회차: 1회, 2회, 3회)",
+  ],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 회차 범위 1`] = `
+{
+  "patches": [
+    {
+      "after": "08:05",
+      "before": "08:10",
+      "kind": "arrival_time",
+      "rawValue": "08:05",
+      "region": "천안",
+      "routeName": "천안역",
+      "routeType": "등교",
+      "semester": "REGULAR",
+      "stopName": "터미널",
+      "target": "commuting",
+      "tripName": "1회",
+      "value": "08:05",
+    },
+    {
+      "after": "08:05",
+      "before": "09:10",
+      "kind": "arrival_time",
+      "rawValue": "08:05",
+      "region": "천안",
+      "routeName": "천안역",
+      "routeType": "등교",
+      "semester": "REGULAR",
+      "stopName": "터미널",
+      "target": "commuting",
+      "tripName": "2회",
+      "value": "08:05",
+    },
+  ],
+  "problems": [],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 회차 범위 — 노선 여럿 1`] = `
+{
+  "patches": [],
+  "problems": [
+    ""천안역"는 여러 노선입니다: 천안 등교 "천안역", 천안 하교 "천안역". 방향(등교/하교)까지 지정해주세요.",
+  ],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 회차 범위 — 학기 여럿 1`] = `
+{
+  "patches": [],
+  "problems": [
+    ""천안역"이 여러 학기에 걸쳐 있습니다: 정규학기, 계절학기. 학기를 지정해주세요. (예: "계절학기 천안역 ...")",
+  ],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 회차 범위 — 해당 없음 1`] = `
+{
+  "patches": [],
+  "problems": [
+    "천안 등교 "천안역": 7회~8회에 해당하는 회차를 찾지 못했습니다. (가능한 회차: 1회, 2회, 3회)",
+  ],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 회차 삭제 1`] = `
+{
+  "patches": [
+    {
+      "after": "삭제",
+      "before": "천안 등교 "천안역" 1회 삭제",
+      "kind": "remove_trip",
+      "rawValue": "1회",
+      "region": "천안",
+      "routeName": "천안역",
+      "routeType": "등교",
+      "semester": "REGULAR",
+      "target": "commuting",
+      "tripName": "1회",
+    },
+  ],
+  "problems": [],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 회차 없음 1`] = `
+{
+  "patches": [],
+  "problems": [
+    "천안 등교 "천안역": 회차 "9회"를 찾지 못했습니다.",
+  ],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 회차 추가 1`] = `
+{
+  "patches": [
+    {
+      "after": "4회 추가 (첫 정류장 11:10)",
+      "before": "-",
+      "kind": "add_trip",
+      "rawValue": "4회",
+      "region": "천안",
+      "routeName": "천안역",
+      "routeType": "등교",
+      "semester": "REGULAR",
+      "target": "commuting",
+      "tripName": "4회",
+      "value": "11:10",
+    },
+  ],
+  "problems": [],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 회차 추가 — 시각 오류 1`] = `
+{
+  "patches": [],
+  "problems": [
+    "천안 등교 "천안역": 추가 회차 시각 "열한시"은 시각(HH:MM)이나 마커가 아닙니다.",
+  ],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 회차 추가 — 이름 없음 1`] = `
+{
+  "patches": [],
+  "problems": [
+    "천안 등교 "천안역": 추가할 회차 이름을 적어주세요. (예: 7회)",
+  ],
+}
+`;
+
+exports[`버스 수정 요청 해석 결과 > 회차 추가 — 중복 1`] = `
+{
+  "patches": [],
+  "problems": [
+    "천안 등교 "천안역": 회차 "2회"이 이미 있습니다.",
+  ],
+}
+`;

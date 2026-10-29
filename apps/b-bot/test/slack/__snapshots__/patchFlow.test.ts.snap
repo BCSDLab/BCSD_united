@@ -1,0 +1,403 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`bus:patch_cancel > 수정 취소 1`] = `
+[
+  {
+    "args": {
+      "blocks": [
+        {
+          "text": {
+            "text": ":x: 수정 요청을 취소했습니다.",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+      ],
+      "channel": "C_TEST",
+      "text": "수정 취소됨",
+      "ts": "100.1",
+    },
+    "kind": "update",
+  },
+]
+`;
+
+exports[`coop:patch_cancel > 수정 취소 1`] = `
+[
+  {
+    "args": {
+      "blocks": [
+        {
+          "text": {
+            "text": ":no_entry_sign: *생협 수정을 취소했습니다.*
+<@U1>",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+      ],
+      "channel": "C_TEST",
+      "text": "생협 수정 취소됨",
+      "ts": "100.1",
+    },
+    "kind": "update",
+  },
+]
+`;
+
+exports[`lecture:patch_cancel > 수정 취소 1`] = `
+[
+  {
+    "args": {
+      "blocks": [
+        {
+          "text": {
+            "text": ":no_entry_sign: *수정을 취소했습니다.*
+<@U1>",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+      ],
+      "channel": "C_TEST",
+      "text": "수정 취소됨",
+      "ts": "100.1",
+    },
+    "kind": "update",
+  },
+]
+`;
+
+exports[`강의 수정 적용 > 검토가 만료됐으면 알린다 1`] = `
+[
+  {
+    "args": {
+      "blocks": [
+        {
+          "text": {
+            "text": ":x: 검토 링크가 만료됐습니다. 다시 변환해주세요.",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+      ],
+      "channel": "C_TEST",
+      "text": "검토 만료",
+      "ts": "100.1",
+    },
+    "kind": "update",
+  },
+]
+`;
+
+exports[`강의 수정 적용 > 수정 계획이 만료됐으면 알린다 1`] = `
+[
+  {
+    "args": {
+      "blocks": [
+        {
+          "text": {
+            "text": ":x: 이미 처리했거나 만료된 수정 요청입니다.",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+      ],
+      "channel": "C_TEST",
+      "text": "만료됨",
+      "ts": "100.1",
+    },
+    "kind": "update",
+  },
+]
+`;
+
+exports[`강의 수정 적용 > 적용 성공 1`] = `
+[
+  {
+    "args": {
+      "blocks": [
+        {
+          "text": {
+            "text": ":white_check_mark: *수정 3건 적용*
+검토 페이지를 새로고침하면 반영돼 있습니다.",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+        {
+          "elements": [
+            {
+              "text": "작업자: <@U1>",
+              "type": "mrkdwn",
+            },
+          ],
+          "type": "context",
+        },
+      ],
+      "channel": "C_TEST",
+      "text": "수정 3건 적용",
+      "ts": "100.1",
+    },
+    "kind": "update",
+  },
+]
+`;
+
+exports[`강의 수정 적용 > 적용 중 오류가 나면 알린다 1`] = `
+[
+  {
+    "args": {
+      "blocks": [
+        {
+          "text": {
+            "text": ":x: *수정 적용 실패*
+노선을 찾지 못했습니다",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+      ],
+      "channel": "C_TEST",
+      "text": "수정 실패",
+      "ts": "100.1",
+    },
+    "kind": "update",
+  },
+]
+`;
+
+exports[`버스 수정 적용 > 검토가 만료됐으면 알린다 1`] = `
+[
+  {
+    "args": {
+      "blocks": [
+        {
+          "text": {
+            "text": ":x: *수정 적용 실패*
+검토 링크가 만료됐습니다. 파일을 다시 올려주세요.
+\`!수정\`을 다시 요청해주세요.",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+      ],
+      "channel": "C_TEST",
+      "text": "수정 적용 실패",
+      "ts": "100.1",
+    },
+    "kind": "update",
+  },
+]
+`;
+
+exports[`버스 수정 적용 > 수정 계획이 만료됐으면 알린다 1`] = `
+[
+  {
+    "args": {
+      "blocks": [
+        {
+          "text": {
+            "text": ":x: 수정 계획이 만료됐습니다. \`!수정\`을 다시 요청해주세요.",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+      ],
+      "channel": "C_TEST",
+      "text": "수정 계획 만료",
+      "ts": "100.1",
+    },
+    "kind": "update",
+  },
+]
+`;
+
+exports[`버스 수정 적용 > 적용 성공 1`] = `
+[
+  {
+    "args": {
+      "blocks": [
+        {
+          "text": {
+            "text": ":white_check_mark: *수정 2건 적용*
+검토 페이지가 갱신됐습니다. 다시 확인해주세요.",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+        {
+          "elements": [
+            {
+              "text": "요청: <@U9>",
+              "type": "mrkdwn",
+            },
+          ],
+          "type": "context",
+        },
+      ],
+      "channel": "C_TEST",
+      "text": "버스 시간표 수정 적용",
+      "ts": "100.1",
+    },
+    "kind": "update",
+  },
+]
+`;
+
+exports[`버스 수정 적용 > 적용 중 오류가 나면 알린다 1`] = `
+[
+  {
+    "args": {
+      "blocks": [
+        {
+          "text": {
+            "text": ":x: *수정 적용 실패*
+노선을 찾지 못했습니다
+\`!수정\`을 다시 요청해주세요.",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+      ],
+      "channel": "C_TEST",
+      "text": "수정 적용 실패",
+      "ts": "100.1",
+    },
+    "kind": "update",
+  },
+]
+`;
+
+exports[`생협 수정 적용 > 검토가 만료됐으면 알린다 1`] = `
+[
+  {
+    "args": {
+      "blocks": [
+        {
+          "text": {
+            "text": ":x: 생협 검토 링크가 만료됐거나 수정 가능한 변환 데이터가 없습니다. 다시 변환해주세요.",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+      ],
+      "channel": "C_TEST",
+      "text": "검토 만료",
+      "ts": "100.1",
+    },
+    "kind": "update",
+  },
+]
+`;
+
+exports[`생협 수정 적용 > 수정 계획이 만료됐으면 알린다 1`] = `
+[
+  {
+    "args": {
+      "blocks": [
+        {
+          "text": {
+            "text": ":x: 이미 처리했거나 만료된 생협 수정 요청입니다.",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+      ],
+      "channel": "C_TEST",
+      "text": "만료됨",
+      "ts": "100.1",
+    },
+    "kind": "update",
+  },
+]
+`;
+
+exports[`생협 수정 적용 > 적용 성공 1`] = `
+[
+  {
+    "args": {
+      "blocks": [
+        {
+          "text": {
+            "text": ":white_check_mark: *생협 수정 1건 적용*
+검토 페이지를 새로고침하면 반영돼 있습니다.",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+        {
+          "text": {
+            "text": ":warning: 확인이 필요한 항목이 *1건* 남아 있습니다.",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+        {
+          "elements": [
+            {
+              "action_id": "coop:apply",
+              "style": "primary",
+              "text": {
+                "emoji": true,
+                "text": "반영하기",
+                "type": "plain_text",
+              },
+              "type": "button",
+              "value": "{"token":"rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr"}",
+            },
+            {
+              "action_id": "coop:cancel",
+              "style": "danger",
+              "text": {
+                "emoji": true,
+                "text": "취소",
+                "type": "plain_text",
+              },
+              "type": "button",
+              "value": "{"token":"rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr"}",
+            },
+          ],
+          "type": "actions",
+        },
+        {
+          "elements": [
+            {
+              "text": "작업자: <@U1>",
+              "type": "mrkdwn",
+            },
+          ],
+          "type": "context",
+        },
+      ],
+      "channel": "C_TEST",
+      "text": "생협 수정 1건 적용",
+      "ts": "100.1",
+    },
+    "kind": "update",
+  },
+]
+`;
+
+exports[`생협 수정 적용 > 적용 중 오류가 나면 알린다 1`] = `
+[
+  {
+    "args": {
+      "blocks": [
+        {
+          "text": {
+            "text": ":x: *생협 수정 적용 실패*
+노선을 찾지 못했습니다",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+      ],
+      "channel": "C_TEST",
+      "text": "생협 수정 실패",
+      "ts": "100.1",
+    },
+    "kind": "update",
+  },
+]
+`;

@@ -27,3 +27,5 @@ apps/b-bot/.nitro/
 apps/b-bot/.output/
 apps/b-bot/.data/
 apps/b-bot/.secret/
+apps/b-bot/webhook-secret.txt
+apps/b-bot/google-auth-secret.txt

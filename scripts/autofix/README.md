@@ -7,6 +7,7 @@
 - **Sentry:** 고정된 Sentry API에서 프로젝트/이슈/브라우저 SDK를 확인한다. 허용 호스트의 요청 경로와 애플리케이션 소스 프레임이 있어야 모델을 호출한다. 새 행동 회귀 테스트, 기존 native fixtures, 타입/lint/build/runtime 검증을 모두 통과한 후보만 PR로 발행한다.
 - **Cloudflare Issues:** 공식 Notifications 표준 envelope를 인증한 Worker가 보관한 진단을 읽고 계정·정책·Worker·앱을 재검증하여 이슈를 생성/재사용한다. **공식 문서는 `data` 내부의 Issues 예외/프레임/요청 경로 계약을 정의하지 않는다. 실제 인증된 Issues 알림의 삭제·마스킹된 샘플로 그 계약을 확인하기 전에는 자동 코드 수정/PR을 지원한다고 주장하지 않는다.** 현재 해당 단계는 `CLOUDFLARE_EVIDENCE_UNAVAILABLE`로 실패하며 이슈에 정직한 결과를 남긴다. 기존 Workers 지표 알림을 Issues 대신 쓰거나 비공개 Issues REST API를 만들어 호출하지 않는다.
 - 외부 API, 인증된 사용자 상태, dependency/config/generated code 수정, Node 회귀로 재현할 수 없는 오류는 안전 범위 밖이다. 실패를 우회하거나 빈 PR을 만들지 않는다.
+- 최신 오프라인 실행에서 API smoke는 통과했으나 웹 smoke는 로컬 `koin-api` service binding을 찾지 못해 503으로 실패했다. 이 연결을 해결하고 실제 SSR 호출 증거까지 확인하기 전 전체 독립 verifier가 검증됐다고 표시하지 않는다.
 
 ## 정확한 dispatch 계약
 
@@ -85,8 +86,8 @@ Sentry는 `https://sentry.io/api/0/organizations/<org>/issues/<id>/` 및 `events
 1. **prepare:** 정확한 식별자를 검증하고 source-namespaced 이슈를 생성/재사용한다. 제공자 진단에서 최소 데이터만 만들고 trusted context와 함께 1일짜리 artifact로 전달한다.
 2. **agent:** `anthropics/claude-code-action@d70510b174a1244958df0b03166a54912811f3e6` + `--model claude-fable-5-1`. read-only GitHub token, `persist-credentials:false`, Read/Edit/Write/Glob/Grep만 허용한다. 신뢰된 hook이 실제 경로·symlink를 검사한다. shell/network/MCP/subagent/secret 접근, automation/config/generated/schema/기존 테스트 수정은 금지한다. 저장소 설정 로딩과 MCP 서버도 비활성화한다.
 3. **verify:** 별도 깨끗한 runner에서 24개 파일/파일당 256KB/총 1MB/일반 파일/앱 경계/baseline SHA256을 검사한다. 기본 코드에 frozen install을 끝낸 다음 후보를 적용한다. 이후 모든 실행은 네트워크·자격증명·Docker socket 없이 non-root/capability 제거/resource 제한 컨테이너에서 수행한다. 소스/설정/테스트/의존성은 read-only이며 빌드·런타임 출력 디렉터리만 명시적으로 쓸 수 있다.
-4. 새 `tests/autofix/*.test.mjs`는 수정 전 실제 assertion 실패, 수정 후 통과해야 한다. loader/setup 실패는 재현이 아니다. 이어서 **`pnpm test`(기존 native fixture 전체), `pnpm typecheck`, `pnpm lint`, `pnpm build`**와 독립 route smoke를 수행한다. 기존 fixture/test 파일은 패치에서 수정할 수 없다.
-5. 웹은 정적 route/import graph에서 모든 변경 소스가 관측 경로에 도달하는지 확인한다. 실제 local D1 migration/API Worker, preview, Chromium으로 페이지/DOM/URL/console/runtime 오류를 검사한다. API는 실제 GET 경로와 정적 handler graph를 확인하고 local Worker의 2xx/JSON을 검사한다. mutating 요청/인증/필수 query/운영 데이터 의존은 자동 재생하지 않는다. 운영 데이터나 가짜 fallback은 사용하지 않는다.
+4. 새 `tests/autofix/*.test.mjs`는 수정 전 실제 assertion 실패, 수정 후 통과해야 한다. loader/setup 실패는 재현이 아니다. API 후보는 `@koin/api...`, 웹 후보는 추가로 `@koin/web...` 의존성 범위의 기존 native fixtures·타입·빌드를 검사하고 autofix 보안 테스트와 해당 범위 lint를 수행한다. B-BOT의 별도 PostgreSQL 런타임은 이 자동 수정 대상이 아니며 저장소 전체 검증에서 따로 검사한다. 기존 fixture/test 파일은 패치에서 수정할 수 없다.
+5. 웹은 정적 route/import graph에서 모든 변경 소스가 관측 경로에 도달하는지 확인한다. 매 실행마다 별도 D1 상태와 공용 Wrangler registry를 만들고 실제 local API Worker·웹·Chromium을 실행한다. SSR의 실제 API 호출과 브라우저 gateway 응답을 확인하며, API smoke는 관측된 GET endpoint 실행과 2xx/JSON을 확인한다. 임시 entrypoint·브라우저 프로필·프로세스를 정리하고 컨테이너 타임아웃 시 잔류 컨테이너도 제거한다. mutating 요청/인증/필수 query/운영 데이터 의존은 자동 재생하지 않는다. 운영 데이터나 가짜 fallback은 사용하지 않는다.
 6. **publish:** 같은 run/base/검증 목록/patch hash를 확인하고 검증된 bytes만 Git API로 발행한다. 기본 브랜치가 전진했으면 중단한다. 후보 코드를 실행하거나 배포하지 않는다. 성공한 검사만 체크한 linked PR을 생성한다.
 7. **실패 보고:** publish 작업의 마지막 단계가 실패/변경 없음의 단계 결과와 실행 링크를 이슈에 남긴다. GitHub write 권한은 prepare/publish에만 있다. 원문 진단·모델 주장·비밀값을 댓글에 복사하지 않는다.
 

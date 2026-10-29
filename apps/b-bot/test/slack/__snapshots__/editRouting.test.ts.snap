@@ -1,0 +1,140 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`!수정 스레드 주인 판별 > 강의 스레드에서 내용 없이 쓰면 강의가 예시를 보여준다 1`] = `
+[
+  {
+    "args": {
+      "blocks": [
+        {
+          "text": {
+            "text": ":pencil: *무엇을 바꿀지 함께 적어주세요.*
+예) \`!수정 유체역학 03 담당교수를 우창규로 바꿔줘\`",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+      ],
+      "channel": "C1",
+      "text": "무엇을 바꿀지 적어주세요.",
+      "thread_ts": "100.1",
+    },
+    "kind": "postMessage",
+  },
+]
+`;
+
+exports[`!수정 스레드 주인 판별 > 강의 스레드인데 검토가 만료됐으면 강의가 안내한다 1`] = `
+[
+  {
+    "args": {
+      "blocks": [
+        {
+          "text": {
+            "text": ":thread: *\`!수정\`은 변환 결과 스레드 안에서 써주세요.*
+이 스레드의 검토 링크가 만료됐거나 변환 기록을 찾지 못했습니다.",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+      ],
+      "channel": "C1",
+      "text": "변환 결과 스레드에서 사용해주세요.",
+      "thread_ts": "300.3",
+    },
+    "kind": "postMessage",
+  },
+]
+`;
+
+exports[`!수정 스레드 주인 판별 > 버스 스레드에서 내용 없이 쓰면 버스가 예시를 보여준다 1`] = `
+[
+  {
+    "args": {
+      "blocks": [
+        {
+          "text": {
+            "text": ":pencil: *무엇을 바꿀지 함께 적어주세요.*
+예) \`!수정 천안역 1회 터미널 시간을 08:05로 바꿔줘\`",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+      ],
+      "channel": "C1",
+      "text": "무엇을 바꿀지 적어주세요.",
+      "thread_ts": "100.1",
+    },
+    "kind": "postMessage",
+  },
+]
+`;
+
+exports[`!수정 스레드 주인 판별 > 버스 스레드인데 검토가 만료됐으면 아무도 답하지 않는다 1`] = `[]`;
+
+exports[`!수정 스레드 주인 판별 > 생협 스레드면 생협만 답한다 1`] = `
+[
+  {
+    "args": {
+      "blocks": [
+        {
+          "text": {
+            "text": ":x: 생협 검토 링크가 만료됐습니다. 이미지를 다시 변환해주세요.",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+      ],
+      "channel": "C1",
+      "text": "생협 검토 링크가 만료됐습니다.",
+      "thread_ts": "100.1",
+    },
+    "kind": "postMessage",
+  },
+]
+`;
+
+exports[`!수정 스레드 주인 판별 > 스레드 밖에서 쓰면 스레드에서 쓰라고 안내한다 1`] = `
+[
+  {
+    "args": {
+      "blocks": [
+        {
+          "text": {
+            "text": ":thread: *\`!수정\`은 변환 결과 스레드 안에서 써주세요.*
+\`!강의반영\`으로 만든 결과 메시지에 답글로 달아주세요.",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+      ],
+      "channel": "C1",
+      "text": "변환 결과 스레드에서 사용해주세요.",
+      "thread_ts": "300.3",
+    },
+    "kind": "postMessage",
+  },
+]
+`;
+
+exports[`!수정 스레드 주인 판별 > 어느 변환 스레드도 아니면 기록을 찾지 못했다고 안내한다 1`] = `
+[
+  {
+    "args": {
+      "blocks": [
+        {
+          "text": {
+            "text": ":thread: *\`!수정\`은 변환 결과 스레드 안에서 써주세요.*
+이 스레드의 검토 링크가 만료됐거나 변환 기록을 찾지 못했습니다.",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+      ],
+      "channel": "C1",
+      "text": "변환 결과 스레드에서 사용해주세요.",
+      "thread_ts": "300.3",
+    },
+    "kind": "postMessage",
+  },
+]
+`;

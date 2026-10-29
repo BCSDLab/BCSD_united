@@ -1,0 +1,809 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`강의 공지 감지 흐름 > 게시글 조회 실패 1`] = `
+{
+  "events": [
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":white_check_mark: *강의 업데이트를 진행합니다.* · 스테이지
+<@U1>",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "replace_original": true,
+        "text": "진행합니다",
+        "url": "https://hooks.slack.test/response",
+      },
+      "kind": "replaceOriginal",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":hourglass_flowing_sand: 게시글을 확인하고 있습니다…",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "게시글 확인 중",
+      },
+      "kind": "postMessage",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":x: *게시글을 읽지 못했습니다.*
+게시글 7을 찾지 못했습니다 (HTTP 404).",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "게시글 조회 실패",
+        "ts": "200.2",
+      },
+      "kind": "update",
+    },
+  ],
+  "jobs": [],
+  "locks": {
+    "acquire": [
+      [
+        "lecture",
+        "C_TEST",
+        7,
+        "U1",
+      ],
+    ],
+    "release": [
+      [
+        "lecture",
+        "C_TEST",
+        7,
+      ],
+    ],
+  },
+  "saved": [],
+}
+`;
+
+exports[`강의 공지 감지 흐름 > 고르기가 만료됐으면 알린다 1`] = `
+{
+  "events": [
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":x: 이미 처리했거나 만료된 알림입니다.",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "만료됨",
+        "ts": "100.1",
+      },
+      "kind": "update",
+    },
+  ],
+  "jobs": [],
+  "locks": {
+    "acquire": [],
+    "release": [],
+  },
+  "saved": [],
+}
+`;
+
+exports[`강의 공지 감지 흐름 > 고른 파일로 변환한다 1`] = `
+{
+  "events": [
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":hourglass_flowing_sand: *2026 2학기* 변환 중…
+스테이지 · 폐강.xlsx
+작업자: <@U1>",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "변환 중",
+        "ts": "100.1",
+      },
+      "kind": "update",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": "결과 tttttttttttttttttttttttttttttttt 2학기 <@U1>",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "2026 2학기 변환 완료 · 812건",
+        "ts": "100.1",
+      },
+      "kind": "update",
+    },
+  ],
+  "jobs": [
+    [
+      {
+        "channelId": "C_TEST",
+        "lectureCount": 812,
+        "sourceFile": "폐강.xlsx",
+        "targetEnv": "stage",
+        "term": "2학기",
+        "threadTs": "100.1",
+        "token": "tttttttttttttttttttttttttttttttt",
+        "year": 2026,
+      },
+    ],
+  ],
+  "locks": {
+    "acquire": [],
+    "release": [
+      [
+        "lecture",
+        "C_TEST",
+        7,
+      ],
+    ],
+  },
+  "saved": [],
+}
+`;
+
+exports[`강의 공지 감지 흐름 > 넘어가기(고르던 중) 1`] = `
+{
+  "events": [
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":no_entry_sign: *이 공지는 넘어갑니다.*
+<@U1>",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "replace_original": true,
+        "text": "무시함",
+        "url": "https://hooks.slack.test/response",
+      },
+      "kind": "replaceOriginal",
+    },
+  ],
+  "jobs": [],
+  "locks": {
+    "acquire": [],
+    "release": [
+      [
+        "lecture",
+        "C_TEST",
+        7,
+      ],
+    ],
+  },
+  "saved": [],
+}
+`;
+
+exports[`강의 공지 감지 흐름 > 넘어가기(최초 알림) 1`] = `
+{
+  "events": [
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":no_entry_sign: *이 공지는 넘어갑니다.*
+<@U1>",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "replace_original": true,
+        "text": "무시함",
+        "url": "https://hooks.slack.test/response",
+      },
+      "kind": "replaceOriginal",
+    },
+  ],
+  "jobs": [],
+  "locks": {
+    "acquire": [],
+    "release": [],
+  },
+  "saved": [],
+}
+`;
+
+exports[`강의 공지 감지 흐름 > 다른 사람이 진행 중이면 누른 사람에게만 알린다 1`] = `
+{
+  "events": [
+    {
+      "args": {
+        "channel": "C_TEST",
+        "text": "<@U2>님이 이미 이 공지를 진행 중입니다.",
+        "user": "U1",
+      },
+      "kind": "postEphemeral",
+    },
+  ],
+  "jobs": [],
+  "locks": {
+    "acquire": [
+      [
+        "lecture",
+        "C_TEST",
+        7,
+        "U1",
+      ],
+    ],
+    "release": [],
+  },
+  "saved": [],
+}
+`;
+
+exports[`강의 공지 감지 흐름 > 반영 대상 채널이 아니면 원본에 알린다 1`] = `
+{
+  "events": [
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":x: 강의 반영 채널이 아닙니다.",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "replace_original": true,
+        "text": "대상 아님",
+        "url": "https://hooks.slack.test/response",
+      },
+      "kind": "replaceOriginal",
+    },
+  ],
+  "jobs": [],
+  "locks": {
+    "acquire": [],
+    "release": [],
+  },
+  "saved": [],
+}
+`;
+
+exports[`강의 공지 감지 흐름 > 변환 실패해도 락을 푼다 1`] = `
+{
+  "events": [
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":white_check_mark: *강의 업데이트를 진행합니다.* · 스테이지
+<@U1>",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "replace_original": true,
+        "text": "진행합니다",
+        "url": "https://hooks.slack.test/response",
+      },
+      "kind": "replaceOriginal",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":hourglass_flowing_sand: 게시글을 확인하고 있습니다…",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "게시글 확인 중",
+      },
+      "kind": "postMessage",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":hourglass_flowing_sand: *2026 2학기* 변환 중…
+스테이지 · 개설교과목.xlsx
+작업자: <@U1>",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "변환 중",
+        "ts": "200.2",
+      },
+      "kind": "update",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":x: *변환 실패*
+시트를 찾지 못했습니다.",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+          {
+            "elements": [
+              {
+                "text": "개설교과목.xlsx · 작업자: <@U1>",
+                "type": "mrkdwn",
+              },
+            ],
+            "type": "context",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "변환 실패",
+        "ts": "200.2",
+      },
+      "kind": "update",
+    },
+  ],
+  "jobs": [],
+  "locks": {
+    "acquire": [
+      [
+        "lecture",
+        "C_TEST",
+        7,
+        "U1",
+      ],
+    ],
+    "release": [
+      [
+        "lecture",
+        "C_TEST",
+        7,
+      ],
+    ],
+  },
+  "saved": [],
+}
+`;
+
+exports[`강의 공지 감지 흐름 > 엑셀 첨부 없음 1`] = `
+{
+  "events": [
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":white_check_mark: *강의 업데이트를 진행합니다.* · 스테이지
+<@U1>",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "replace_original": true,
+        "text": "진행합니다",
+        "url": "https://hooks.slack.test/response",
+      },
+      "kind": "replaceOriginal",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":hourglass_flowing_sand: 게시글을 확인하고 있습니다…",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "게시글 확인 중",
+      },
+      "kind": "postMessage",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":grey_question: *엑셀 첨부를 찾지 못했습니다.*
+<https://koreatech.in/articles/7|2026학년도 2학기 안내>
+파일을 직접 올리고 \`!강의반영 2026 여름학기\`로 실행해주세요.",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "첨부 없음",
+        "ts": "200.2",
+      },
+      "kind": "update",
+    },
+  ],
+  "jobs": [],
+  "locks": {
+    "acquire": [
+      [
+        "lecture",
+        "C_TEST",
+        7,
+        "U1",
+      ],
+    ],
+    "release": [
+      [
+        "lecture",
+        "C_TEST",
+        7,
+      ],
+    ],
+  },
+  "saved": [],
+}
+`;
+
+exports[`강의 공지 감지 흐름 > 제목에서 학기를 못 읽으면 멈춘다 1`] = `
+{
+  "events": [
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":white_check_mark: *강의 업데이트를 진행합니다.* · 스테이지
+<@U1>",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "replace_original": true,
+        "text": "진행합니다",
+        "url": "https://hooks.slack.test/response",
+      },
+      "kind": "replaceOriginal",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":hourglass_flowing_sand: 게시글을 확인하고 있습니다…",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "게시글 확인 중",
+      },
+      "kind": "postMessage",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":grey_question: *제목에서 학기를 읽지 못했습니다.*
+엑셀을 내려받아 \`!강의반영 2026 여름학기\`처럼 직접 올려주세요.
+<https://portal.koreatech.ac.kr/f/1|개설교과목.xlsx>",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "학기를 지정해주세요",
+        "ts": "200.2",
+      },
+      "kind": "update",
+    },
+  ],
+  "jobs": [],
+  "locks": {
+    "acquire": [
+      [
+        "lecture",
+        "C_TEST",
+        7,
+        "U1",
+      ],
+    ],
+    "release": [
+      [
+        "lecture",
+        "C_TEST",
+        7,
+      ],
+    ],
+  },
+  "saved": [],
+}
+`;
+
+exports[`강의 공지 감지 흐름 > 첨부 하나면 바로 변환한다 1`] = `
+{
+  "events": [
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":white_check_mark: *강의 업데이트를 진행합니다.* · 스테이지
+<@U1>",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "replace_original": true,
+        "text": "진행합니다",
+        "url": "https://hooks.slack.test/response",
+      },
+      "kind": "replaceOriginal",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":hourglass_flowing_sand: 게시글을 확인하고 있습니다…",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "게시글 확인 중",
+      },
+      "kind": "postMessage",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":hourglass_flowing_sand: *2026 2학기* 변환 중…
+스테이지 · 개설교과목.xlsx
+작업자: <@U1>",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "변환 중",
+        "ts": "200.2",
+      },
+      "kind": "update",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": "결과 tttttttttttttttttttttttttttttttt 2학기 <@U1>",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "2026 2학기 변환 완료 · 812건",
+        "ts": "200.2",
+      },
+      "kind": "update",
+    },
+  ],
+  "jobs": [
+    [
+      {
+        "channelId": "C_TEST",
+        "lectureCount": 812,
+        "sourceFile": "개설교과목.xlsx",
+        "targetEnv": "stage",
+        "term": "2학기",
+        "threadTs": "200.2",
+        "token": "tttttttttttttttttttttttttttttttt",
+        "year": 2026,
+      },
+    ],
+  ],
+  "locks": {
+    "acquire": [
+      [
+        "lecture",
+        "C_TEST",
+        7,
+        "U1",
+      ],
+    ],
+    "release": [
+      [
+        "lecture",
+        "C_TEST",
+        7,
+      ],
+    ],
+  },
+  "saved": [],
+}
+`;
+
+exports[`강의 공지 감지 흐름 > 첨부가 여럿이면 고르게 한다 1`] = `
+{
+  "events": [
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":white_check_mark: *강의 업데이트를 진행합니다.* · 스테이지
+<@U1>",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "replace_original": true,
+        "text": "진행합니다",
+        "url": "https://hooks.slack.test/response",
+      },
+      "kind": "replaceOriginal",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":hourglass_flowing_sand: 게시글을 확인하고 있습니다…",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "게시글 확인 중",
+      },
+      "kind": "postMessage",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":page_facing_up: *2026 2학기* · 스테이지
+엑셀 첨부가 *2개* 입니다. 변환할 파일을 골라주세요.
+
+1. 개설교과목.xlsx
+2. 폐강강좌.xlsx",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+          {
+            "elements": [
+              {
+                "action_id": "lecture:detected_start",
+                "style": "primary",
+                "text": {
+                  "emoji": true,
+                  "text": "개설교과목.xlsx",
+                  "type": "plain_text",
+                },
+                "type": "button",
+                "value": "{"token":"ssssssssssssssssssssssssssssssss","fileIndex":0}",
+              },
+              {
+                "action_id": "lecture:detected_start_1",
+                "style": undefined,
+                "text": {
+                  "emoji": true,
+                  "text": "폐강강좌.xlsx",
+                  "type": "plain_text",
+                },
+                "type": "button",
+                "value": "{"token":"ssssssssssssssssssssssssssssssss","fileIndex":1}",
+              },
+              {
+                "action_id": "lecture:detected_ignore",
+                "text": {
+                  "emoji": true,
+                  "text": "아니요",
+                  "type": "plain_text",
+                },
+                "type": "button",
+                "value": "{"token":"ssssssssssssssssssssssssssssssss"}",
+              },
+            ],
+            "type": "actions",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "변환할 파일을 골라주세요",
+        "ts": "200.2",
+      },
+      "kind": "update",
+    },
+  ],
+  "jobs": [],
+  "locks": {
+    "acquire": [
+      [
+        "lecture",
+        "C_TEST",
+        7,
+        "U1",
+      ],
+    ],
+    "release": [],
+  },
+  "saved": [
+    [
+      {
+        "articleId": 7,
+        "articleTitle": "2026학년도 2학기 개설교과목 안내",
+        "articleUrl": "https://koreatech.in/articles/7",
+        "files": [
+          {
+            "name": "개설교과목.xlsx",
+            "url": "https://portal.koreatech.ac.kr/f/1",
+          },
+          {
+            "name": "폐강강좌.xlsx",
+            "url": "https://portal.koreatech.ac.kr/f/2",
+          },
+        ],
+        "target": "stage",
+        "term": "2학기",
+        "year": 2026,
+      },
+    ],
+  ],
+}
+`;

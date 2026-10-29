@@ -71,12 +71,11 @@ const robots =
       ].join('\n'),
     )
     .join('\n\n') + `\n\nSitemap: ${siteUrl}/sitemap.xml\n`;
-for (const target of ['public', 'dist/client']) {
-  await mkdir(target, { recursive: true });
-  await Promise.all([
-    writeFile(path.join(target, 'sitemap.xml'), index),
-    writeFile(path.join(target, 'sitemap-0.xml'), sitemap),
-    writeFile(path.join(target, 'robots.txt'), robots),
-  ]);
-}
+const target = 'dist/client';
+await mkdir(target, { recursive: true });
+await Promise.all([
+  writeFile(path.join(target, 'sitemap.xml'), index),
+  writeFile(path.join(target, 'sitemap-0.xml'), sitemap),
+  writeFile(path.join(target, 'robots.txt'), robots),
+]);
 process.stdout.write(`Generated sitemap for ${urls.length} public routes.\n`);

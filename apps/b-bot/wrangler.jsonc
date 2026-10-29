@@ -1,0 +1,32 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "b-bot-workers",
+  "account_id": "abe06b869950de952decf9df29c6f1a3",
+  "main": "worker.ts",
+  "compatibility_date": "2026-10-28",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "build": { "command": "pnpm build" },
+  "assets": {
+    "directory": ".output/public",
+    "binding": "ASSETS",
+  },
+  "kv_namespaces": [{ "binding": "BOT_KV", "id": "d3952ec4ddda4200a81daca33429f253" }],
+  "ai": { "binding": "AI", "remote": true },
+  "queues": {
+    "producers": [{ "binding": "SLACK_JOBS", "queue": "b-bot-workers-slack-jobs" }],
+    "consumers": [
+      {
+        "queue": "b-bot-workers-slack-jobs",
+        "max_batch_size": 1,
+        "max_batch_timeout": 1,
+        "max_retries": 3,
+        "dead_letter_queue": "b-bot-workers-slack-dead-letters",
+      },
+    ],
+  },
+  "triggers": {
+    "crons": [],
+  },
+  "observability": { "enabled": true },
+}

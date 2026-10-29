@@ -1,0 +1,830 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`생협 공지 감지 흐름 > 게시글 조회 실패 1`] = `
+{
+  "events": [
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":white_check_mark: *생협 업데이트를 진행합니다.* · 스테이지
+<@U1>",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "replace_original": true,
+        "text": "생협 업데이트를 진행합니다.",
+        "url": "https://hooks.slack.test/response",
+      },
+      "kind": "replaceOriginal",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":hourglass_flowing_sand: 생협 게시글을 확인하고 있습니다…",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "생협 게시글 확인 중",
+      },
+      "kind": "postMessage",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":x: *게시글을 읽지 못했습니다.*
+게시글 5을 찾지 못했습니다 (HTTP 404).",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "생협 게시글 조회 실패",
+        "ts": "200.2",
+      },
+      "kind": "update",
+    },
+  ],
+  "jobs": [],
+  "locks": {
+    "acquire": [
+      [
+        "coop",
+        "C_TEST",
+        5,
+        "U1",
+      ],
+    ],
+    "release": [
+      [
+        "coop",
+        "C_TEST",
+        5,
+      ],
+    ],
+  },
+  "saved": [],
+  "vacations": [],
+}
+`;
+
+exports[`생협 공지 감지 흐름 > 고르기가 만료됐으면 알린다 1`] = `
+{
+  "events": [
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":x: 이미 처리했거나 만료된 생협 알림입니다.",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "만료됨",
+        "ts": "100.1",
+      },
+      "kind": "update",
+    },
+  ],
+  "jobs": [],
+  "locks": {
+    "acquire": [],
+    "release": [],
+  },
+  "saved": [],
+  "vacations": [],
+}
+`;
+
+exports[`생협 공지 감지 흐름 > 고른 이미지로 변환한다 1`] = `
+{
+  "events": [
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":hourglass_flowing_sand: *생협 운영시간* 이미지 분석 중…
+스테이지 · 시설물.png
+작업자: <@U1>",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "생협 운영시간 변환 중",
+        "ts": "100.1",
+      },
+      "kind": "update",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": "결과 tttttttttttttttttttttttttttttttt 1학기 <@U1>",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "2026 1학기 생협 운영시간 변환 완료 · 11개",
+        "ts": "100.1",
+      },
+      "kind": "update",
+    },
+  ],
+  "jobs": [
+    [
+      {
+        "channelId": "C_TEST",
+        "shopCount": 11,
+        "sourceFile": "시설물.png",
+        "targetEnv": "stage",
+        "term": "1학기",
+        "threadTs": "100.1",
+        "token": "tttttttttttttttttttttttttttttttt",
+        "year": 2026,
+      },
+    ],
+  ],
+  "locks": {
+    "acquire": [],
+    "release": [
+      [
+        "coop",
+        "C_TEST",
+        5,
+      ],
+    ],
+  },
+  "saved": [],
+  "vacations": [],
+}
+`;
+
+exports[`생협 공지 감지 흐름 > 넘어가기(고르던 중) 1`] = `
+{
+  "events": [
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":no_entry_sign: *이 생협 공지는 넘어갑니다.*
+<@U1>",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "replace_original": true,
+        "text": "생협 공지를 넘어갑니다.",
+        "url": "https://hooks.slack.test/response",
+      },
+      "kind": "replaceOriginal",
+    },
+  ],
+  "jobs": [],
+  "locks": {
+    "acquire": [],
+    "release": [
+      [
+        "coop",
+        "C_TEST",
+        5,
+      ],
+    ],
+  },
+  "saved": [],
+  "vacations": [],
+}
+`;
+
+exports[`생협 공지 감지 흐름 > 다른 사람이 진행 중이면 누른 사람에게만 알린다 1`] = `
+{
+  "events": [
+    {
+      "args": {
+        "channel": "C_TEST",
+        "text": "이미 진행 중인 공지입니다.",
+        "user": "U1",
+      },
+      "kind": "postEphemeral",
+    },
+  ],
+  "jobs": [],
+  "locks": {
+    "acquire": [
+      [
+        "coop",
+        "C_TEST",
+        5,
+        "U1",
+      ],
+    ],
+    "release": [],
+  },
+  "saved": [],
+  "vacations": [],
+}
+`;
+
+exports[`생협 공지 감지 흐름 > 반영 대상 채널이 아니면 원본에 알린다 1`] = `
+{
+  "events": [
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":x: 생협 반영 채널이 아닙니다.",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "replace_original": true,
+        "text": "생협 반영 대상 채널이 아닙니다.",
+        "url": "https://hooks.slack.test/response",
+      },
+      "kind": "replaceOriginal",
+    },
+  ],
+  "jobs": [],
+  "locks": {
+    "acquire": [],
+    "release": [],
+  },
+  "saved": [],
+  "vacations": [],
+}
+`;
+
+exports[`생협 공지 감지 흐름 > 방학 이미지면 시작일 입력을 기다린다 1`] = `
+{
+  "events": [
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":white_check_mark: *생협 업데이트를 진행합니다.* · 스테이지
+<@U1>",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "replace_original": true,
+        "text": "생협 업데이트를 진행합니다.",
+        "url": "https://hooks.slack.test/response",
+      },
+      "kind": "replaceOriginal",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":hourglass_flowing_sand: 생협 게시글을 확인하고 있습니다…",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "생협 게시글 확인 중",
+      },
+      "kind": "postMessage",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":hourglass_flowing_sand: *생협 운영시간* 이미지 분석 중…
+스테이지 · 운영시간.png
+작업자: <@U1>",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "생협 운영시간 변환 중",
+        "ts": "200.2",
+      },
+      "kind": "update",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":calendar: *2026 하계 운영시간을 읽었습니다.*
+전체 기간: 2026-03-02 - 2026-06-19
+
+이 메시지의 스레드에 방학 시작일을 입력해주세요.
+예) \`!학기구분 2026-07-18\`",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "방학 시작일 입력 대기",
+        "ts": "200.2",
+      },
+      "kind": "update",
+    },
+  ],
+  "jobs": [],
+  "locks": {
+    "acquire": [
+      [
+        "coop",
+        "C_TEST",
+        5,
+        "U1",
+      ],
+    ],
+    "release": [
+      [
+        "coop",
+        "C_TEST",
+        5,
+      ],
+    ],
+  },
+  "saved": [],
+  "vacations": [
+    [
+      "C_TEST",
+      "200.2",
+      {
+        "env": "stage",
+        "fileName": "운영시간.png",
+        "raw": {
+          "fromDate": "2026-03-02",
+          "semesterLabel": "2026학년도 1학기",
+          "title": "운영시간",
+          "toDate": "2026-06-19",
+        },
+        "requesterId": "U1",
+        "season": "하계",
+        "year": 2026,
+      },
+    ],
+  ],
+}
+`;
+
+exports[`생협 공지 감지 흐름 > 이미지 첨부 없음 1`] = `
+{
+  "events": [
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":white_check_mark: *생협 업데이트를 진행합니다.* · 스테이지
+<@U1>",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "replace_original": true,
+        "text": "생협 업데이트를 진행합니다.",
+        "url": "https://hooks.slack.test/response",
+      },
+      "kind": "replaceOriginal",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":hourglass_flowing_sand: 생협 게시글을 확인하고 있습니다…",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "생협 게시글 확인 중",
+      },
+      "kind": "postMessage",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":grey_question: *지원하는 이미지 첨부를 찾지 못했습니다.*
+<https://koreatech.in/articles/5|생협 안내>
+공지에 PNG, JPEG, WebP 또는 GIF 이미지를 첨부한 뒤 다시 시도해주세요.",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "생협 이미지 첨부 없음",
+        "ts": "200.2",
+      },
+      "kind": "update",
+    },
+  ],
+  "jobs": [],
+  "locks": {
+    "acquire": [
+      [
+        "coop",
+        "C_TEST",
+        5,
+        "U1",
+      ],
+    ],
+    "release": [
+      [
+        "coop",
+        "C_TEST",
+        5,
+      ],
+    ],
+  },
+  "saved": [],
+  "vacations": [],
+}
+`;
+
+exports[`생협 공지 감지 흐름 > 제목과 이미지의 학기가 다르면 멈춘다 1`] = `
+{
+  "events": [
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":white_check_mark: *생협 업데이트를 진행합니다.* · 스테이지
+<@U1>",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "replace_original": true,
+        "text": "생협 업데이트를 진행합니다.",
+        "url": "https://hooks.slack.test/response",
+      },
+      "kind": "replaceOriginal",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":hourglass_flowing_sand: 생협 게시글을 확인하고 있습니다…",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "생협 게시글 확인 중",
+      },
+      "kind": "postMessage",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":hourglass_flowing_sand: *생협 운영시간* 이미지 분석 중…
+스테이지 · 운영시간.png
+작업자: <@U1>",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "생협 운영시간 변환 중",
+        "ts": "200.2",
+      },
+      "kind": "update",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":x: *변환 실패*
+공지 제목은 2026 1학기인데 이미지에서는 2026 2학기(으)로 읽었습니다.",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+          {
+            "elements": [
+              {
+                "text": "운영시간.png · 작업자: <@U1>",
+                "type": "mrkdwn",
+              },
+            ],
+            "type": "context",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "생협 운영시간 변환 실패",
+        "ts": "200.2",
+      },
+      "kind": "update",
+    },
+  ],
+  "jobs": [],
+  "locks": {
+    "acquire": [
+      [
+        "coop",
+        "C_TEST",
+        5,
+        "U1",
+      ],
+    ],
+    "release": [
+      [
+        "coop",
+        "C_TEST",
+        5,
+      ],
+    ],
+  },
+  "saved": [],
+  "vacations": [],
+}
+`;
+
+exports[`생협 공지 감지 흐름 > 첨부 하나면 바로 변환한다 1`] = `
+{
+  "events": [
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":white_check_mark: *생협 업데이트를 진행합니다.* · 스테이지
+<@U1>",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "replace_original": true,
+        "text": "생협 업데이트를 진행합니다.",
+        "url": "https://hooks.slack.test/response",
+      },
+      "kind": "replaceOriginal",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":hourglass_flowing_sand: 생협 게시글을 확인하고 있습니다…",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "생협 게시글 확인 중",
+      },
+      "kind": "postMessage",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":hourglass_flowing_sand: *생협 운영시간* 이미지 분석 중…
+스테이지 · 운영시간.png
+작업자: <@U1>",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "생협 운영시간 변환 중",
+        "ts": "200.2",
+      },
+      "kind": "update",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": "결과 tttttttttttttttttttttttttttttttt 1학기 <@U1>",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "2026 1학기 생협 운영시간 변환 완료 · 11개",
+        "ts": "200.2",
+      },
+      "kind": "update",
+    },
+  ],
+  "jobs": [
+    [
+      {
+        "channelId": "C_TEST",
+        "shopCount": 11,
+        "sourceFile": "운영시간.png",
+        "targetEnv": "stage",
+        "term": "1학기",
+        "threadTs": "200.2",
+        "token": "tttttttttttttttttttttttttttttttt",
+        "year": 2026,
+      },
+    ],
+  ],
+  "locks": {
+    "acquire": [
+      [
+        "coop",
+        "C_TEST",
+        5,
+        "U1",
+      ],
+    ],
+    "release": [
+      [
+        "coop",
+        "C_TEST",
+        5,
+      ],
+    ],
+  },
+  "saved": [],
+  "vacations": [],
+}
+`;
+
+exports[`생협 공지 감지 흐름 > 첨부가 여럿이면 고르게 한다 1`] = `
+{
+  "events": [
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":white_check_mark: *생협 업데이트를 진행합니다.* · 스테이지
+<@U1>",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "replace_original": true,
+        "text": "생협 업데이트를 진행합니다.",
+        "url": "https://hooks.slack.test/response",
+      },
+      "kind": "replaceOriginal",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":hourglass_flowing_sand: 생협 게시글을 확인하고 있습니다…",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "생협 게시글 확인 중",
+      },
+      "kind": "postMessage",
+    },
+    {
+      "args": {
+        "blocks": [
+          {
+            "text": {
+              "text": ":frame_with_picture: *2026 1학기 생협 운영시간*
+이미지 첨부가 *2개*입니다. 변환할 파일을 골라주세요.
+
+1. 운영시간.png
+2. 시설물.png",
+              "type": "mrkdwn",
+            },
+            "type": "section",
+          },
+          {
+            "elements": [
+              {
+                "action_id": "coop:detected_start",
+                "style": "primary",
+                "text": {
+                  "emoji": true,
+                  "text": "운영시간.png",
+                  "type": "plain_text",
+                },
+                "type": "button",
+                "value": "{"token":"ssssssssssssssssssssssssssssssss","fileIndex":0}",
+              },
+              {
+                "action_id": "coop:detected_start_1",
+                "style": undefined,
+                "text": {
+                  "emoji": true,
+                  "text": "시설물.png",
+                  "type": "plain_text",
+                },
+                "type": "button",
+                "value": "{"token":"ssssssssssssssssssssssssssssssss","fileIndex":1}",
+              },
+              {
+                "action_id": "coop:detected_ignore",
+                "text": {
+                  "emoji": true,
+                  "text": "아니요",
+                  "type": "plain_text",
+                },
+                "type": "button",
+                "value": "{"token":"ssssssssssssssssssssssssssssssss"}",
+              },
+            ],
+            "type": "actions",
+          },
+        ],
+        "channel": "C_TEST",
+        "text": "변환할 생협 이미지를 골라주세요",
+        "ts": "200.2",
+      },
+      "kind": "update",
+    },
+  ],
+  "jobs": [],
+  "locks": {
+    "acquire": [
+      [
+        "coop",
+        "C_TEST",
+        5,
+        "U1",
+      ],
+    ],
+    "release": [],
+  },
+  "saved": [
+    [
+      {
+        "articleId": 5,
+        "articleTitle": "2026학년도 1학기 생협 운영시간 안내",
+        "articleUrl": "https://koreatech.in/articles/5",
+        "env": "stage",
+        "images": [
+          {
+            "mimeType": "image/png",
+            "name": "운영시간.png",
+            "url": "https://portal.koreatech.ac.kr/f/1",
+          },
+          {
+            "mimeType": "image/png",
+            "name": "시설물.png",
+            "url": "https://portal.koreatech.ac.kr/f/2",
+          },
+        ],
+        "termName": "1학기",
+        "year": 2026,
+      },
+    ],
+  ],
+  "vacations": [],
+}
+`;

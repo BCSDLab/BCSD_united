@@ -1,0 +1,223 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`버스 반영 흐름 > 검토 링크 만료 1`] = `
+{
+  "ephemerals": [],
+  "finishes": [
+    [
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "FAILED",
+      "검토 링크 만료",
+    ],
+  ],
+  "schedules": [],
+  "updates": [
+    {
+      "blocks": [
+        {
+          "text": {
+            "text": ":x: 버스 검토 링크가 만료됐습니다. 파일을 다시 올려주세요.",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+      ],
+      "channel": "C1",
+      "text": "버스 검토 링크 만료",
+      "ts": "100.1",
+    },
+  ],
+}
+`;
+
+exports[`버스 반영 흐름 > 반영 성공 1`] = `
+{
+  "ephemerals": [],
+  "finishes": [
+    [
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "APPLIED",
+    ],
+  ],
+  "schedules": [
+    [
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      [
+        {
+          "runAt": "2026-03-01T15:05:00.000Z",
+        },
+      ],
+    ],
+  ],
+  "updates": [
+    {
+      "blocks": [
+        {
+          "text": {
+            "text": ":hourglass_flowing_sand: *버스 시간표 반영 중…* 12개
+스테이지 · 작업자: <@U1>",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+      ],
+      "channel": "C1",
+      "text": "버스 시간표 반영 중",
+      "ts": "100.1",
+    },
+    {
+      "blocks": [
+        {
+          "text": {
+            "text": ":white_check_mark: *버스 시간표 반영 완료*
+스테이지 · 노선 *12개*
+버전 문구 갱신 예약:
+• 3/2 00:05 정규학기",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+        {
+          "elements": [
+            {
+              "text": "작업자: <@U1> · 버스.xlsx",
+              "type": "mrkdwn",
+            },
+          ],
+          "type": "context",
+        },
+      ],
+      "channel": "C1",
+      "text": "버스 시간표 반영 완료",
+      "ts": "100.1",
+    },
+  ],
+}
+`;
+
+exports[`버스 반영 흐름 > 선점 실패 1`] = `
+{
+  "ephemerals": [
+    {
+      "channel": "C1",
+      "text": "지금은 반영할 수 없습니다.",
+      "user": "U1",
+    },
+  ],
+  "finishes": [],
+  "schedules": [],
+  "updates": [],
+}
+`;
+
+exports[`버스 반영 흐름 > 일부 반영 후 실패 1`] = `
+{
+  "ephemerals": [],
+  "finishes": [
+    [
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "FAILED",
+      "Admin API 500
+:warning: 먼저 반영된 항목: commuting/REGULAR · 재시도하면 같은 데이터로 다시 덮어씁니다.",
+    ],
+  ],
+  "schedules": [],
+  "updates": [
+    {
+      "blocks": [
+        {
+          "text": {
+            "text": ":hourglass_flowing_sand: *버스 시간표 반영 중…* 12개
+스테이지 · 작업자: <@U1>",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+      ],
+      "channel": "C1",
+      "text": "버스 시간표 반영 중",
+      "ts": "100.1",
+    },
+    {
+      "blocks": [
+        {
+          "text": {
+            "text": ":x: *버스 시간표 반영 실패*
+Admin API 500
+:warning: 먼저 반영된 항목: commuting/REGULAR · 재시도하면 같은 데이터로 다시 덮어씁니다.",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+        {
+          "elements": [
+            {
+              "action_id": "bus:apply",
+              "text": {
+                "emoji": true,
+                "text": "다시 시도",
+                "type": "plain_text",
+              },
+              "type": "button",
+              "value": "{"token":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}",
+            },
+          ],
+          "type": "actions",
+        },
+        {
+          "elements": [
+            {
+              "text": "작업자: <@U1> · 원인을 해결한 뒤 눌러주세요.",
+              "type": "mrkdwn",
+            },
+          ],
+          "type": "context",
+        },
+      ],
+      "channel": "C1",
+      "text": "버스 시간표 반영 실패",
+      "ts": "100.1",
+    },
+  ],
+}
+`;
+
+exports[`버스 반영 흐름 > 취소 1`] = `
+{
+  "ephemerals": [],
+  "finishes": [],
+  "schedules": [],
+  "updates": [
+    {
+      "blocks": [
+        {
+          "text": {
+            "text": ":no_entry_sign: *버스 시간표 반영을 취소했습니다.*
+<@U1>",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+      ],
+      "channel": "C1",
+      "text": "버스 시간표 반영 취소됨",
+      "ts": "100.1",
+    },
+  ],
+}
+`;
+
+exports[`버스 반영 흐름 > 취소 불가 1`] = `
+{
+  "ephemerals": [
+    {
+      "channel": "C1",
+      "text": "이미 반영됐거나 진행 중이라 취소할 수 없습니다.",
+      "user": "U1",
+    },
+  ],
+  "finishes": [],
+  "schedules": [],
+  "updates": [],
+}
+`;

@@ -1,0 +1,74 @@
+# 로컬 설정은 이 파일을 apps/b-bot/.dev.vars로 복사한다. 실제 값은 커밋하지 않는다.
+# 운영 설정: pnpm --filter @koin/b-bot exec wrangler secret put KEY
+
+# Required for Slack requests and queue consumers.
+SLACK_BOT_TOKEN=
+SLACK_BOT_SIGNING_SECRET=
+# 공개 CI 알림 웹훅(/api/*)의 Bearer 인증 키.
+WEBHOOK_SECRET=
+
+# AI is the native Wrangler AI binding (not a string secret).
+# Generation/vision/structured output: openai/gpt-6-luna. Embedding: @cf/baai/bge-m3.
+# Uses Cloudflare account credits/limits; errors stop without another provider or retry.
+# Luna is token-billed, not part of the hosted-model 10,000-neuron free allocation.
+# CLI tools only: Workers AI REST API credentials with AI Run permission.
+CLOUDFLARE_ACCOUNT_ID=
+CLOUDFLARE_API_TOKEN=
+# Explicit opt-in for paid live model tests. Keep disabled during normal development/CI.
+RUN_AI_LIVE_TESTS=0
+
+# PostgreSQL with pgvector. Prefer a HYPERDRIVE binding in production, or DATABASE_URL.
+# HYPERDRIVE is a Wrangler binding. Its connection string takes precedence.
+DATABASE_URL=
+# Legacy fields are used only when DATABASE_URL/HYPERDRIVE are absent.
+DB_HOST=
+DB_PORT=5432
+DB_USER=
+DB_PASSWORD=
+DB_NAME=
+
+# Public Worker origin, with trailing slash (review/PDF links).
+APP_BASE_URL=
+
+# Internal directory API (group mentions and PR/deploy member names).
+INTERNAL_API_BASE_URL=https://internal.bcsdlab.com
+INTERNAL_SERVICE_TOKEN=
+
+# Optional Google Meet / Drive. Callback must be /auth/google_callback.
+# HTTPS required in production. /auth/google asks for Basic auth: admin / GOOGLE_AUTH_SECRET.
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_REDIRECT_URI=
+GOOGLE_AUTH_SECRET=
+GDRIVE_FOLDER_IDS=
+
+# KOIN admin API. Channel determines stage/prod; production never falls back to stage.
+KOIN_ADMIN_EMAIL=
+KOIN_ADMIN_PASSWORD=
+KOIN_STAGE_API_BASE_URL=
+KOIN_PROD_API_BASE_URL=
+# Optional per-environment administrator overrides.
+KOIN_STAGE_ADMIN_EMAIL=
+KOIN_STAGE_ADMIN_PASSWORD=
+KOIN_PROD_ADMIN_EMAIL=
+KOIN_PROD_ADMIN_PASSWORD=
+KOIN_API_BASE_URL=
+
+# Dining report deliveries. Keep empty locally to avoid claiming live work.
+KOIN_STAGE_SERVICE_TOKEN=
+KOIN_PROD_SERVICE_TOKEN=
+DINING_WORKER_ENVS=
+
+# Optional knowledge connector.
+NOTION_TOKEN=
+
+# Superset 4.x. Uses the same Workers AI Luna binding; no Anthropic/OpenAI API key.
+# HTTPS required except localhost. Register only datasets approved for Slack/Cloudflare/OpenAI sharing.
+SUPERSET_BASE_URL=
+SUPERSET_USERNAME=
+SUPERSET_PASSWORD=
+SUPERSET_DATASET_IDS=
+
+# Optional Clarity task; no cron is enabled for it by default.
+CLARITY_TOKEN=
+ADMIN_NAME=

@@ -2,7 +2,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { tmpdir } from 'node:os';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { applyManifest, validateManifest } from './patch.mjs';
 import { isSourcePath, jsonFile } from './common.mjs';
 
@@ -36,15 +36,8 @@ const runtimeScratch = [
   'apps/web/node_modules/.vite-temp',
   'apps/web/node_modules/.vite',
   'apps/api/.wrangler',
-  'apps/error-automation/.wrangler',
 ];
-const scratch = [
-  ...runtimeScratch,
-  'apps/web/dist',
-  'apps/web/.tanstack',
-  'apps/api/dist',
-  'apps/error-automation/dist',
-];
+const scratch = [...runtimeScratch, 'apps/web/dist', 'apps/web/.tanstack', 'apps/api/dist'];
 const limits = ['--cap-drop=ALL', '--security-opt=no-new-privileges', '--pids-limit=512', '--memory=6g', '--cpus=2'];
 const user = `${process.getuid()}:${process.getgid()}`;
 const environment = [
@@ -55,7 +48,13 @@ const environment = [
   '-e',
   'HOME=/tmp',
   '-e',
-  'NEXT_PUBLIC_API_PATH=http://127.0.0.1:4174',
+  'NEXT_PUBLIC_API_PATH=/api',
+  '-e',
+  'WORKERS_CI_BRANCH=main',
+  '-e',
+  'KOIN_MAIN_BRANCH=main',
+  '-e',
+  'CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false',
   '-e',
   'NEXT_PUBLIC_SENTRY_ENVIRONMENT=automation',
   '-e',
@@ -66,6 +65,7 @@ const environment = [
   'WRANGLER_SEND_METRICS=false',
 ];
 function docker(command, { network = false, sourceReadonly = true, writable = [], timeout = 600_000 } = {}) {
+  const name = `koin-error-verifier-${randomUUID()}`;
   const mounts = [
     '-v',
     `${root}:/work${sourceReadonly ? ':ro' : ''}`,
@@ -77,11 +77,14 @@ function docker(command, { network = false, sourceReadonly = true, writable = []
     `${patchDirectory}:/patch:ro`,
   ];
   for (const directory of writable) mounts.push('-v', `${root}/${directory}:/work/${directory}`);
-  return spawnSync(
+  const result = spawnSync(
     'docker',
     [
       'run',
       '--rm',
+      '--init',
+      '--name',
+      name,
       '--user',
       user,
       ...limits,
@@ -94,6 +97,15 @@ function docker(command, { network = false, sourceReadonly = true, writable = []
     ],
     { encoding: 'utf8', timeout, maxBuffer: 8_000_000 },
   );
+  if (result.error) {
+    const cleanup = spawnSync('docker', ['rm', '--force', name], {
+      encoding: 'utf8',
+      timeout: 30000,
+      maxBuffer: 100000,
+    });
+    if (cleanup.error) throw new Error(`Unable to clean up verifier container ${name}`);
+  }
+  return result;
 }
 function requireSuccess(result, label) {
   if (result.error || result.status !== 0) {
@@ -112,12 +124,35 @@ const before = docker(testCommand);
 if (before.error || before.status !== 1 || !`${before.stdout}${before.stderr}`.includes('ERR_ASSERTION'))
   throw new Error('Regression must fail with an assertion against the untouched base, not a loader/setup failure');
 await applyManifest({ version: 1, files: manifest.files.filter((file) => isSourcePath(file.path)) }, root);
+const workspaceCommand = (script) => [
+  'pnpm',
+  '-r',
+  '--filter',
+  '@koin/api...',
+  ...(context.app === 'web' ? ['--filter', '@koin/web...'] : []),
+  '--if-present',
+  script,
+];
 for (const [label, command] of [
   ['Regression tests', testCommand],
-  ['Native fixture tests', ['pnpm', 'test']],
-  ['Typecheck', ['pnpm', 'typecheck']],
-  ['Lint', ['pnpm', 'lint']],
-  ['Production build', ['pnpm', 'build']],
+  ['Native fixture tests', workspaceCommand('test')],
+  ['Autofix security tests', ['node', '--test', '/automation/security.test.mjs']],
+  ['Typecheck', workspaceCommand('typecheck')],
+  [
+    'Lint',
+    [
+      'pnpm',
+      'exec',
+      'oxlint',
+      'apps/api',
+      'packages/telemetry',
+      'scripts/autofix',
+      ...(context.app === 'web' ? ['apps/web'] : []),
+      '--deny-warnings',
+    ],
+  ],
+  ...(context.app === 'web' ? [['Web ESLint/Stylelint', ['pnpm', '--filter', '@koin/web', 'lint']]] : []),
+  ['Production build', workspaceCommand('build')],
   ['Runtime route smoke', ['node', context.app === 'web' ? '/automation/smoke.mjs' : '/automation/api-smoke.mjs']],
 ])
   requireSuccess(
@@ -144,6 +179,7 @@ await writeFile(
         'regression-passes-on-fix',
         'native-fixture-tests',
         'typecheck',
+        'autofix-security-tests',
         'lint',
         'build',
         'runtime-route-smoke',

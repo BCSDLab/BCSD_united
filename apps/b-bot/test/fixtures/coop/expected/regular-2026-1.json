@@ -1,0 +1,250 @@
+{
+  "coop_shops": [
+    {
+      "coop_shop_info": {
+        "name": "학생식당",
+        "phone": "041-560-1278",
+        "location": "학생회관 2층",
+        "remark": "천원의 아침밥 평일 운영, 일요일 미운영"
+      },
+      "operation_hours": [
+        {
+          "type": "아침",
+          "day_of_week": "평일",
+          "open_time": "08:00",
+          "close_time": "09:30"
+        },
+        {
+          "type": "점심",
+          "day_of_week": "평일",
+          "open_time": "11:30",
+          "close_time": "13:30"
+        },
+        {
+          "type": "저녁",
+          "day_of_week": "평일",
+          "open_time": "17:30",
+          "close_time": "18:30"
+        },
+        {
+          "type": "아침",
+          "day_of_week": "주말",
+          "open_time": "조식 미운영",
+          "close_time": "조식 미운영"
+        },
+        {
+          "type": "점심",
+          "day_of_week": "주말",
+          "open_time": "11:30",
+          "close_time": "13:30"
+        },
+        {
+          "type": "저녁",
+          "day_of_week": "주말",
+          "open_time": "17:30",
+          "close_time": "18:30"
+        }
+      ]
+    },
+    {
+      "coop_shop_info": {
+        "name": "복지관식당",
+        "phone": "041-560-1778",
+        "location": "복지관 2층",
+        "remark": "능수관"
+      },
+      "operation_hours": [
+        {
+          "type": "점심",
+          "day_of_week": "평일",
+          "open_time": "11:40",
+          "close_time": "13:30"
+        },
+        {
+          "type": "점심",
+          "day_of_week": "주말",
+          "open_time": "미운영",
+          "close_time": "미운영"
+        }
+      ]
+    },
+    {
+      "coop_shop_info": {
+        "name": "대즐",
+        "phone": "041-560-1779",
+        "location": "복지관 1층",
+        "remark": "배달 서비스 실시, 공·일요일 미운영"
+      },
+      "operation_hours": [
+        {
+          "day_of_week": "평일",
+          "open_time": "08:30",
+          "close_time": "21:00"
+        },
+        {
+          "day_of_week": "주말",
+          "open_time": "11:00",
+          "close_time": "18:30"
+        }
+      ]
+    },
+    {
+      "coop_shop_info": {
+        "name": "복지관 참빛관 편의점",
+        "phone": "041-560-1279",
+        "location": "복지관 1층, 참빛관 1층",
+        "remark": "복지관·생활관"
+      },
+      "operation_hours": [
+        {
+          "day_of_week": "평일",
+          "open_time": "24시간",
+          "close_time": "24시간"
+        },
+        {
+          "day_of_week": "주말",
+          "open_time": "24시간",
+          "close_time": "24시간"
+        }
+      ]
+    },
+    {
+      "coop_shop_info": {
+        "name": "서점",
+        "phone": "041-560-1756",
+        "location": "복지관 1층"
+      },
+      "operation_hours": [
+        {
+          "day_of_week": "평일",
+          "open_time": "09:00",
+          "close_time": "18:00"
+        },
+        {
+          "day_of_week": "주말",
+          "open_time": "휴점",
+          "close_time": "휴점"
+        }
+      ]
+    },
+    {
+      "coop_shop_info": {
+        "name": "우편취급국",
+        "phone": "041-560-1758",
+        "location": "학생회관 1층",
+        "remark": "점심시간 12:00 - 13:00"
+      },
+      "operation_hours": [
+        {
+          "day_of_week": "평일",
+          "open_time": "09:00",
+          "close_time": "18:00"
+        },
+        {
+          "day_of_week": "주말",
+          "open_time": "휴점",
+          "close_time": "휴점"
+        }
+      ]
+    },
+    {
+      "coop_shop_info": {
+        "name": "세탁소",
+        "phone": "041-552-1489",
+        "location": "학생회관 2층",
+        "remark": "점심시간 12:00 - 13:00"
+      },
+      "operation_hours": [
+        {
+          "day_of_week": "평일",
+          "open_time": "11:30",
+          "close_time": "18:30"
+        },
+        {
+          "day_of_week": "주말",
+          "open_time": "휴점",
+          "close_time": "휴점"
+        }
+      ]
+    },
+    {
+      "coop_shop_info": {
+        "name": "미용실",
+        "phone": "041-560-1372",
+        "location": "학생회관 1층",
+        "remark": "예약제운영"
+      },
+      "operation_hours": [
+        {
+          "day_of_week": "평일",
+          "open_time": "09:30",
+          "close_time": "17:00"
+        },
+        {
+          "day_of_week": "주말",
+          "open_time": "휴점",
+          "close_time": "휴점"
+        }
+      ]
+    },
+    {
+      "coop_shop_info": {
+        "name": "안경원",
+        "phone": "041-560-1760",
+        "location": "학생회관 1층",
+        "remark": "점심시간 14:00 - 15:00"
+      },
+      "operation_hours": [
+        {
+          "day_of_week": "평일",
+          "open_time": "10:00",
+          "close_time": "19:00"
+        },
+        {
+          "day_of_week": "주말",
+          "open_time": "휴점",
+          "close_time": "휴점"
+        }
+      ]
+    },
+    {
+      "coop_shop_info": {
+        "name": "복사실",
+        "phone": "041-560-1093",
+        "location": "학생회관 2층",
+        "remark": "점심시간 11:30 - 12:30"
+      },
+      "operation_hours": [
+        {
+          "day_of_week": "평일",
+          "open_time": "08:30",
+          "close_time": "18:00"
+        },
+        {
+          "day_of_week": "주말",
+          "open_time": "휴점",
+          "close_time": "휴점"
+        }
+      ]
+    },
+    {
+      "coop_shop_info": {
+        "name": "오락실",
+        "phone": "041-560-1472",
+        "location": "학생회관 1층"
+      },
+      "operation_hours": [
+        {
+          "day_of_week": "평일",
+          "open_time": "24시간",
+          "close_time": "24시간"
+        },
+        {
+          "day_of_week": "주말",
+          "open_time": "24시간",
+          "close_time": "24시간"
+        }
+      ]
+    }
+  ]
+}

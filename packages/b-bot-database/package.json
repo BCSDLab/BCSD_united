@@ -1,0 +1,30 @@
+{
+  "name": "@koin/b-bot-database",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "migrate": "node db/migrations/migrate.mjs",
+    "import:mysql": "node db/migrations/import-mysql.mjs",
+    "rag:ingest": "node db/rag/ingest.mjs",
+    "rag:ask": "node db/rag/ask.mjs",
+    "rag:diag": "node db/rag/diag.mjs"
+  },
+  "dependencies": {
+    "@koin/b-bot-ai": "workspace:*",
+    "pg": "^8.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "@types/pg": "^8.20.0",
+    "mysql2": "^3.9.7",
+    "typescript": "^5.8.2"
+  }
+}

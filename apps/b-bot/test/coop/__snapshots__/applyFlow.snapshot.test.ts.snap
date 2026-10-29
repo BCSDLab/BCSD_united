@@ -1,0 +1,261 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`생협 반영 흐름 > 검토 링크 만료 1`] = `
+{
+  "ephemerals": [],
+  "finishes": [
+    [
+      "cccccccccccccccccccccccccccccccc",
+      "FAILED",
+      {
+        "error": "검토 링크 만료",
+      },
+    ],
+  ],
+  "updates": [
+    {
+      "blocks": [
+        {
+          "text": {
+            "text": ":x: 생협 검토 링크가 만료됐습니다. 이미지를 다시 변환해주세요.",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+      ],
+      "channel": "C1",
+      "text": "생협 검토 링크 만료",
+      "ts": "100.1",
+    },
+  ],
+}
+`;
+
+exports[`생협 반영 흐름 > 반영 성공 1`] = `
+{
+  "ephemerals": [],
+  "finishes": [
+    [
+      "cccccccccccccccccccccccccccccccc",
+      "APPLIED",
+      {
+        "semesterId": 17,
+      },
+    ],
+  ],
+  "updates": [
+    {
+      "blocks": [
+        {
+          "text": {
+            "text": ":hourglass_flowing_sand: *생협 운영시간 반영 중…* 11개
+스테이지 · 작업자: <@U1>",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+      ],
+      "channel": "C1",
+      "text": "생협 반영 중",
+      "ts": "100.1",
+    },
+    {
+      "blocks": [
+        {
+          "text": {
+            "text": ":white_check_mark: *2026 1학기 생협 반영 완료*
+스테이지 · 매장 *11개* · 학기 ID 17",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+        {
+          "elements": [
+            {
+              "text": "작업자: <@U1> · 생협.png",
+              "type": "mrkdwn",
+            },
+          ],
+          "type": "context",
+        },
+      ],
+      "channel": "C1",
+      "text": "생협 반영 완료",
+      "ts": "100.1",
+    },
+  ],
+}
+`;
+
+exports[`생협 반영 흐름 > 방학 두 학기 중 하나만 반영하고 실패 1`] = `
+{
+  "ephemerals": [],
+  "finishes": [
+    [
+      "cccccccccccccccccccccccccccccccc",
+      "FAILED",
+      {
+        "error": "Admin API 500
+:warning: 먼저 처리된 학기 ID: 21 · 재시도하면 같은 데이터로 다시 갱신합니다.",
+        "semesterId": 21,
+        "semesterIds": [
+          21,
+        ],
+      },
+    ],
+  ],
+  "updates": [
+    {
+      "blocks": [
+        {
+          "text": {
+            "text": ":hourglass_flowing_sand: *생협 운영시간 반영 중…* 11개
+스테이지 · 작업자: <@U1>",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+      ],
+      "channel": "C1",
+      "text": "생협 반영 중",
+      "ts": "100.1",
+    },
+    {
+      "blocks": [
+        {
+          "text": {
+            "text": ":x: *생협 반영 실패*
+Admin API 500
+:warning: 먼저 처리된 학기 ID: 21 · 재시도하면 같은 데이터로 다시 갱신합니다.",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+        {
+          "elements": [
+            {
+              "action_id": "coop:apply",
+              "text": {
+                "emoji": true,
+                "text": "다시 시도",
+                "type": "plain_text",
+              },
+              "type": "button",
+              "value": "{"token":"cccccccccccccccccccccccccccccccc"}",
+            },
+          ],
+          "type": "actions",
+        },
+        {
+          "elements": [
+            {
+              "text": "작업자: <@U1> · 원인을 해결한 뒤 눌러주세요.",
+              "type": "mrkdwn",
+            },
+          ],
+          "type": "context",
+        },
+      ],
+      "channel": "C1",
+      "text": "생협 반영 실패",
+      "ts": "100.1",
+    },
+  ],
+}
+`;
+
+exports[`생협 반영 흐름 > 선점 실패 1`] = `
+{
+  "ephemerals": [
+    {
+      "channel": "C1",
+      "text": "U2님이 반영 중입니다.",
+      "user": "U1",
+    },
+  ],
+  "finishes": [],
+  "updates": [],
+}
+`;
+
+exports[`생협 반영 흐름 > 취소 1`] = `
+{
+  "ephemerals": [],
+  "finishes": [],
+  "updates": [
+    {
+      "blocks": [
+        {
+          "text": {
+            "text": ":no_entry_sign: *생협 반영을 취소했습니다.*
+<@U1>",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+      ],
+      "channel": "C1",
+      "text": "생협 반영 취소됨",
+      "ts": "100.1",
+    },
+  ],
+}
+`;
+
+exports[`생협 반영 흐름 > 학기 정보가 비어 있으면 반영하지 않는다 1`] = `
+{
+  "ephemerals": [],
+  "finishes": [
+    [
+      "cccccccccccccccccccccccccccccccc",
+      "FAILED",
+      {
+        "error": "학기 이름 또는 운영 기간이 비어 있습니다. 검토 페이지에서 확인해주세요.",
+        "semesterId": undefined,
+        "semesterIds": [],
+      },
+    ],
+  ],
+  "updates": [
+    {
+      "blocks": [
+        {
+          "text": {
+            "text": ":x: *생협 반영 실패*
+학기 이름 또는 운영 기간이 비어 있습니다. 검토 페이지에서 확인해주세요.",
+            "type": "mrkdwn",
+          },
+          "type": "section",
+        },
+        {
+          "elements": [
+            {
+              "action_id": "coop:apply",
+              "text": {
+                "emoji": true,
+                "text": "다시 시도",
+                "type": "plain_text",
+              },
+              "type": "button",
+              "value": "{"token":"cccccccccccccccccccccccccccccccc"}",
+            },
+          ],
+          "type": "actions",
+        },
+        {
+          "elements": [
+            {
+              "text": "작업자: <@U1> · 원인을 해결한 뒤 눌러주세요.",
+              "type": "mrkdwn",
+            },
+          ],
+          "type": "context",
+        },
+      ],
+      "channel": "C1",
+      "text": "생협 반영 실패",
+      "ts": "100.1",
+    },
+  ],
+}
+`;

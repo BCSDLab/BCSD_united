@@ -1,0 +1,577 @@
+{
+  "삐봇메세지": {
+    "callback_id": "bbot_input_modal",
+    "view": {
+      "type": "modal",
+      "callback_id": "bbot_input_modal",
+      "title": {
+        "type": "plain_text",
+        "text": "삐봇 메시지 입력"
+      },
+      "submit": {
+        "type": "plain_text",
+        "text": "확인"
+      },
+      "blocks": [
+        {
+          "type": "input",
+          "block_id": "bbot_message_block",
+          "element": {
+            "type": "plain_text_input",
+            "action_id": "bbot_message_input",
+            "multiline": true,
+            "placeholder": {
+              "type": "plain_text",
+              "text": "삐봇이 전달할 메시지를 입력하세요"
+            }
+          },
+          "label": {
+            "type": "plain_text",
+            "text": "메시지"
+          }
+        },
+        {
+          "type": "input",
+          "block_id": "bbot_users_select_block",
+          "element": {
+            "type": "multi_users_select",
+            "action_id": "bbot_users_select_input",
+            "placeholder": {
+              "type": "plain_text",
+              "text": "멘션할 사용자를 선택하세요"
+            }
+          },
+          "label": {
+            "type": "plain_text",
+            "text": "멘션 대상 사용자"
+          },
+          "optional": true
+        }
+      ]
+    }
+  },
+  "그룹멘션": {
+    "callback_id": "bbot_group_modal",
+    "view": {
+      "type": "modal",
+      "callback_id": "bbot_group_modal",
+      "title": {
+        "type": "plain_text",
+        "text": "그룹 멘션"
+      },
+      "blocks": [
+        {
+          "type": "section",
+          "block_id": "track",
+          "text": {
+            "type": "mrkdwn",
+            "text": "어떤 트랙을 멘션할까요?"
+          },
+          "accessory": {
+            "action_id": "track_select",
+            "type": "static_select",
+            "initial_option": {
+              "text": {
+                "type": "plain_text",
+                "text": "전체"
+              },
+              "value": "all"
+            },
+            "options": [
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "전체"
+                },
+                "value": "all"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "클라이언트"
+                },
+                "value": "client"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "FrontEnd"
+                },
+                "value": "FrontEnd"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "BackEnd"
+                },
+                "value": "BackEnd"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "Android"
+                },
+                "value": "Android"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "Design"
+                },
+                "value": "Design"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "Game"
+                },
+                "value": "Game"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "iOS"
+                },
+                "value": "iOS"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "Product Manager"
+                },
+                "value": "PM"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "Data Analyst"
+                },
+                "value": "Data"
+              }
+            ]
+          }
+        },
+        {
+          "type": "section",
+          "block_id": "member_type",
+          "text": {
+            "type": "mrkdwn",
+            "text": "레귤러, 멘토, 트랙장 중 누굴 멘션할까요?"
+          },
+          "accessory": {
+            "action_id": "member_type_select",
+            "type": "static_select",
+            "initial_option": {
+              "text": {
+                "type": "plain_text",
+                "text": "Regular"
+              },
+              "value": "REGULAR"
+            },
+            "options": [
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "전체"
+                },
+                "value": "all"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "Mentor"
+                },
+                "value": "MENTOR"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "Regular"
+                },
+                "value": "REGULAR"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "트랙장"
+                },
+                "value": "TRACK_LEAD"
+              }
+            ]
+          }
+        },
+        {
+          "type": "section",
+          "block_id": "is_active",
+          "text": {
+            "type": "mrkdwn",
+            "text": "활동 상태를 선택해주세요"
+          },
+          "accessory": {
+            "action_id": "is_active_select",
+            "type": "static_select",
+            "initial_option": {
+              "text": {
+                "type": "plain_text",
+                "text": "활동중인 사람만"
+              },
+              "value": "active"
+            },
+            "options": [
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "활동중인 사람만"
+                },
+                "value": "active"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "비활동중인 사람만"
+                },
+                "value": "inactive"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "전체"
+                },
+                "value": "all"
+              }
+            ]
+          }
+        }
+      ],
+      "submit": {
+        "type": "plain_text",
+        "text": "Submit"
+      }
+    }
+  },
+  "강의공지": {
+    "callback_id": "lecture_notice",
+    "view": {
+      "type": "modal",
+      "callback_id": "lecture_notice",
+      "title": {
+        "type": "plain_text",
+        "text": "강의 공지내용"
+      },
+      "blocks": [
+        {
+          "type": "input",
+          "block_id": "content",
+          "label": {
+            "type": "plain_text",
+            "text": "강의 공지 내용"
+          },
+          "element": {
+            "type": "plain_text_input",
+            "action_id": "content_input",
+            "placeholder": {
+              "type": "plain_text",
+              "text": "강의 공지에 대한 내용을 작성해주세요!"
+            },
+            "multiline": true
+          }
+        },
+        {
+          "type": "input",
+          "block_id": "location",
+          "label": {
+            "type": "plain_text",
+            "text": "강의 장소"
+          },
+          "element": {
+            "type": "plain_text_input",
+            "action_id": "location_input",
+            "placeholder": {
+              "type": "plain_text",
+              "text": "강의 장소는 어디인가요?"
+            }
+          }
+        },
+        {
+          "type": "input",
+          "block_id": "time",
+          "label": {
+            "type": "plain_text",
+            "text": "강의 시간"
+          },
+          "element": {
+            "type": "static_select",
+            "action_id": "time_dropdown",
+            "placeholder": {
+              "type": "plain_text",
+              "text": "강의 시간은 몇시인가요?"
+            },
+            "options": [
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "0시"
+                },
+                "value": "0시"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "1시"
+                },
+                "value": "1시"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "2시"
+                },
+                "value": "2시"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "3시"
+                },
+                "value": "3시"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "4시"
+                },
+                "value": "4시"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "5시"
+                },
+                "value": "5시"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "6시"
+                },
+                "value": "6시"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "7시"
+                },
+                "value": "7시"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "8시"
+                },
+                "value": "8시"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "9시"
+                },
+                "value": "9시"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "10시"
+                },
+                "value": "10시"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "11시"
+                },
+                "value": "11시"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "12시"
+                },
+                "value": "12시"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "13시"
+                },
+                "value": "13시"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "14시"
+                },
+                "value": "14시"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "15시"
+                },
+                "value": "15시"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "16시"
+                },
+                "value": "16시"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "17시"
+                },
+                "value": "17시"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "18시"
+                },
+                "value": "18시"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "19시"
+                },
+                "value": "19시"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "20시"
+                },
+                "value": "20시"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "21시"
+                },
+                "value": "21시"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "22시"
+                },
+                "value": "22시"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "23시"
+                },
+                "value": "23시"
+              }
+            ]
+          }
+        },
+        {
+          "type": "input",
+          "block_id": "day",
+          "label": {
+            "type": "plain_text",
+            "text": "강의 요일"
+          },
+          "element": {
+            "type": "static_select",
+            "action_id": "day_dropdown",
+            "placeholder": {
+              "type": "plain_text",
+              "text": "강의 요일은 언제인가요?"
+            },
+            "options": [
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "월요일"
+                },
+                "value": "월요일"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "화요일"
+                },
+                "value": "화요일"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "수요일"
+                },
+                "value": "수요일"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "목요일"
+                },
+                "value": "목요일"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "금요일"
+                },
+                "value": "금요일"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "토요일"
+                },
+                "value": "토요일"
+              },
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "일요일"
+                },
+                "value": "일요일"
+              }
+            ]
+          }
+        },
+        {
+          "type": "input",
+          "block_id": "checkbox_block",
+          "optional": true,
+          "label": {
+            "type": "plain_text",
+            "text": "온라인 진행 여부"
+          },
+          "element": {
+            "type": "checkboxes",
+            "action_id": "checkbox_input",
+            "options": [
+              {
+                "text": {
+                  "type": "plain_text",
+                  "text": "온라인"
+                },
+                "value": "option"
+              }
+            ]
+          }
+        }
+      ],
+      "submit": {
+        "type": "plain_text",
+        "text": "Submit"
+      }
+    }
+  }
+}
