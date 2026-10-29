@@ -174,33 +174,29 @@ export async function sendCommunityChatMessage(
   const nickname = typeof input.user_nickname === 'string' ? input.user_nickname : null;
   const image = typeof input.is_image === 'boolean' ? input.is_image : null;
   const notify = socket ? !broker.hasActiveSession(otherId) : !online;
-  const messageInsert = db
-    .insert(schema.native_chat_message)
-    .values({
-      id,
-      article_id: room.article_id,
-      chatroom_id: room.chatroom_id,
-      user_id: userId,
-      is_read: read,
-      is_deleted: false,
-      is_image: image,
-      nick_name: nickname,
-      contents: content,
-      created_at: now,
-    });
+  const messageInsert = db.insert(schema.native_chat_message).values({
+    id,
+    article_id: room.article_id,
+    chatroom_id: room.chatroom_id,
+    user_id: userId,
+    is_read: read,
+    is_deleted: false,
+    is_image: image,
+    nick_name: nickname,
+    contents: content,
+    created_at: now,
+  });
   if (notify) {
     await db.batch([
       messageInsert,
-      db
-        .insert(schema.native_chat_outbox)
-        .values({
-          id,
-          message_id: id,
-          receiver_id: otherId,
-          payload: JSON.stringify({ articleId: room.article_id, roomId: room.chatroom_id, senderId: userId, content }),
-          created_at: Date.now(),
-          delivered_at: null,
-        }),
+      db.insert(schema.native_chat_outbox).values({
+        id,
+        message_id: id,
+        receiver_id: otherId,
+        payload: JSON.stringify({ articleId: room.article_id, roomId: room.chatroom_id, senderId: userId, content }),
+        created_at: Date.now(),
+        delivered_at: null,
+      }),
     ]);
     broker.scheduleNotification(id);
   } else {

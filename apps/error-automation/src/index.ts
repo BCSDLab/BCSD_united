@@ -5,7 +5,6 @@ export type { Env } from './types';
 export { AutofixQueue } from './queue';
 import type { ExecutorResult } from './queue';
 
-
 interface CloudflareSource {
   accountId: string;
   policyId: string;
@@ -490,88 +489,156 @@ function retrievalIdentity(url: URL, config: Configuration): Identity {
 }
 
 async function executorRequest(request: Request, env: Env, url: URL): Promise<Response> {
-  if (request.method !== 'POST') return new Response('Use POST.', {status:405,headers:{Allow:'POST'}});
-  if (url.search || url.hash) throw new RequestError(400,'Executor query parameters are not supported.');
-  if (env.AUTOFIX_EXECUTOR_ID !== 'koin-rocky-umpc' || (env.AUTOFIX_EXECUTOR_TOKEN?.length??0)<32)
-    throw new RequestError(503,'Executor identity or credential not configured.');
-  if (request.headers.get('X-Executor-Id') !== env.AUTOFIX_EXECUTOR_ID) throw new RequestError(401,'Unknown executor.');
-  const authorization=request.headers.get('Authorization');
-  await verifySecret(authorization?.startsWith('Bearer ') ? authorization.slice(7):null,env.AUTOFIX_EXECUTOR_TOKEN);
-  if (request.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase()!=='application/json')
-    throw new RequestError(415,'Content-Type must be application/json.');
-  const path=/^\/executor\/jobs\/(autofix-[a-f0-9]{64})\/(heartbeat|verification-start|model|result)$/.exec(url.pathname);
-  if (url.pathname!=='/executor/claim' && !path) throw new RequestError(404,'Not found.');
-  const maxBytes=path?.[2]==='result' ? 4_000_000 : path?.[2]==='model' ? 256_000 : 4096;
-  const bytes=await boundedBody(request,maxBytes);
-  let data:Record<string,unknown>;
-  try { data=record(JSON.parse(new TextDecoder('utf-8',{fatal:true,ignoreBOM:false}).decode(bytes))); }
-  catch { throw new RequestError(400,'Invalid executor JSON.'); }
-  const keys=Object.keys(data).sort().join(',');
-  if (data.version!==1 || data.executorId!==env.AUTOFIX_EXECUTOR_ID) throw new RequestError(400,'Invalid executor contract.');
-  const stub=env.AUTOFIX_QUEUE.getByName('bcsdlab/bcsd_united');
-  if (url.pathname==='/executor/claim') {
-    if (keys!=='claimNonce,executorId,version' || typeof data.claimNonce!=='string' || !/^[a-f0-9]{64}$/.test(data.claimNonce))
-      throw new RequestError(400,'Invalid claim fields.');
-    const claimed=await stub.claim(data.claimNonce);
-    return claimed ? Response.json(claimed,{headers:{'Cache-Control':'no-store'}}) : new Response(null,{status:204,headers:{'Cache-Control':'no-store'}});
+  if (request.method !== 'POST') return new Response('Use POST.', { status: 405, headers: { Allow: 'POST' } });
+  if (url.search || url.hash) throw new RequestError(400, 'Executor query parameters are not supported.');
+  if (env.AUTOFIX_EXECUTOR_ID !== 'koin-rocky-umpc' || (env.AUTOFIX_EXECUTOR_TOKEN?.length ?? 0) < 32)
+    throw new RequestError(503, 'Executor identity or credential not configured.');
+  if (request.headers.get('X-Executor-Id') !== env.AUTOFIX_EXECUTOR_ID)
+    throw new RequestError(401, 'Unknown executor.');
+  const authorization = request.headers.get('Authorization');
+  await verifySecret(authorization?.startsWith('Bearer ') ? authorization.slice(7) : null, env.AUTOFIX_EXECUTOR_TOKEN);
+  if (request.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase() !== 'application/json')
+    throw new RequestError(415, 'Content-Type must be application/json.');
+  const path = /^\/executor\/jobs\/(autofix-[a-f0-9]{64})\/(heartbeat|verification-start|model|result)$/.exec(
+    url.pathname,
+  );
+  if (url.pathname !== '/executor/claim' && !path) throw new RequestError(404, 'Not found.');
+  const maxBytes = path?.[2] === 'result' ? 4_000_000 : path?.[2] === 'model' ? 256_000 : 4096;
+  const bytes = await boundedBody(request, maxBytes);
+  let data: Record<string, unknown>;
+  try {
+    data = record(JSON.parse(new TextDecoder('utf-8', { fatal: true, ignoreBOM: false }).decode(bytes)));
+  } catch {
+    throw new RequestError(400, 'Invalid executor JSON.');
   }
-  if (typeof data.leaseToken!=='string' || !/^[a-f0-9]{64}$/.test(data.leaseToken)) throw new RequestError(400,'Invalid lease token.');
-  if (path?.[2]==='heartbeat') {
-    if (keys!=='executorId,leaseToken,version') throw new RequestError(400,'Invalid heartbeat fields.');
-    try { return Response.json(await stub.heartbeat(path[1],data.leaseToken),{headers:{'Cache-Control':'no-store'}}); }
-    catch { throw new RequestError(409,'Expired or invalid lease.'); }
+  const keys = Object.keys(data).sort().join(',');
+  if (data.version !== 1 || data.executorId !== env.AUTOFIX_EXECUTOR_ID)
+    throw new RequestError(400, 'Invalid executor contract.');
+  const stub = env.AUTOFIX_QUEUE.getByName('bcsdlab/bcsd_united');
+  if (url.pathname === '/executor/claim') {
+    if (
+      keys !== 'claimNonce,executorId,version' ||
+      typeof data.claimNonce !== 'string' ||
+      !/^[a-f0-9]{64}$/.test(data.claimNonce)
+    )
+      throw new RequestError(400, 'Invalid claim fields.');
+    const claimed = await stub.claim(data.claimNonce);
+    return claimed
+      ? Response.json(claimed, { headers: { 'Cache-Control': 'no-store' } })
+      : new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
   }
-  if (path?.[2]==='verification-start') {
-    if (keys!=='executorId,leaseToken,version') throw new RequestError(400,'Invalid verification stage fields.');
-    try { return Response.json(await stub.verificationStart(path[1],data.leaseToken),{headers:{'Cache-Control':'no-store'}}); }
-    catch (error) {
-      if (error instanceof Error && error.message==='Expired or invalid executor lease') throw new RequestError(409,'Expired or invalid lease.');
+  if (typeof data.leaseToken !== 'string' || !/^[a-f0-9]{64}$/.test(data.leaseToken))
+    throw new RequestError(400, 'Invalid lease token.');
+  if (path?.[2] === 'heartbeat') {
+    if (keys !== 'executorId,leaseToken,version') throw new RequestError(400, 'Invalid heartbeat fields.');
+    try {
+      return Response.json(await stub.heartbeat(path[1], data.leaseToken), {
+        headers: { 'Cache-Control': 'no-store' },
+      });
+    } catch {
+      throw new RequestError(409, 'Expired or invalid lease.');
+    }
+  }
+  if (path?.[2] === 'verification-start') {
+    if (keys !== 'executorId,leaseToken,version') throw new RequestError(400, 'Invalid verification stage fields.');
+    try {
+      return Response.json(await stub.verificationStart(path[1], data.leaseToken), {
+        headers: { 'Cache-Control': 'no-store' },
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message === 'Expired or invalid executor lease')
+        throw new RequestError(409, 'Expired or invalid lease.');
       throw error;
     }
   }
-  if (path?.[2]==='model') {
+  if (path?.[2] === 'model') {
     let modelRequest;
-    try { modelRequest=parseModelRequest(data); }
-    catch { throw new RequestError(400,'Invalid fixed model request.'); }
-    try { return Response.json(await stub.model(path[1],data.leaseToken,modelRequest),{headers:{'Cache-Control':'no-store'}}); }
-    catch (error) {
-      if (error instanceof Error && error.message==='Expired or invalid executor lease') throw new RequestError(409,'Expired or invalid lease.');
+    try {
+      modelRequest = parseModelRequest(data);
+    } catch {
+      throw new RequestError(400, 'Invalid fixed model request.');
+    }
+    try {
+      return Response.json(await stub.model(path[1], data.leaseToken, modelRequest), {
+        headers: { 'Cache-Control': 'no-store' },
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message === 'Expired or invalid executor lease')
+        throw new RequestError(409, 'Expired or invalid lease.');
       throw error;
     }
   }
-  if (data.outcome==='verified') {
-    if (keys!=='executorId,leaseToken,manifest,outcome,verification,version') throw new RequestError(400,'Invalid verified-result fields.');
-    const manifest=record(data.manifest),proof=record(data.verification);
-    if (Object.keys(manifest).sort().join(',')!=='files,version' || manifest.version!==1 ||
-      !Array.isArray(manifest.files) || manifest.files.length>24 ||
-      manifest.files.some(file=>{
-        if (!file || typeof file!=='object' || Array.isArray(file)) return true;
-        const entry=file as Record<string,unknown>;
-        return Object.keys(entry).sort().join(',')!=='before,content,path' ||
-          typeof entry.path!=='string' ||
-          (entry.before!==null && typeof entry.before!=='string') ||
-          (entry.content!==null && typeof entry.content!=='string');
-      })) throw new RequestError(400,'Invalid manifest structure.');
-    if (Object.keys(proof).sort().join(',')!=='baseSha,manifestSha256,passedChecks' ||
-      typeof proof.baseSha!=='string' || typeof proof.manifestSha256!=='string' ||
-      !Array.isArray(proof.passedChecks) || proof.passedChecks.some(check=>typeof check!=='string'))
-      throw new RequestError(400,'Invalid verification proof.');
-    const files=manifest.files as PatchManifest['files'];
-    const result:ExecutorResult={version:1,executorId:'koin-rocky-umpc',leaseToken:data.leaseToken,outcome:'verified',
-      manifest:{version:1,files},verification:{baseSha:proof.baseSha,manifestSha256:proof.manifestSha256,passedChecks:proof.passedChecks as string[]}};
-    try { return Response.json(await stub.result(path![1],result),{headers:{'Cache-Control':'no-store'}}); }
-    catch (error) {
-      if (error instanceof Error && error.message==='Expired or invalid executor lease') throw new RequestError(409,'Expired or invalid lease.');
+  if (data.outcome === 'verified') {
+    if (keys !== 'executorId,leaseToken,manifest,outcome,verification,version')
+      throw new RequestError(400, 'Invalid verified-result fields.');
+    const manifest = record(data.manifest),
+      proof = record(data.verification);
+    if (
+      Object.keys(manifest).sort().join(',') !== 'files,version' ||
+      manifest.version !== 1 ||
+      !Array.isArray(manifest.files) ||
+      manifest.files.length > 24 ||
+      manifest.files.some((file) => {
+        if (!file || typeof file !== 'object' || Array.isArray(file)) return true;
+        const entry = file as Record<string, unknown>;
+        return (
+          Object.keys(entry).sort().join(',') !== 'before,content,path' ||
+          typeof entry.path !== 'string' ||
+          (entry.before !== null && typeof entry.before !== 'string') ||
+          (entry.content !== null && typeof entry.content !== 'string')
+        );
+      })
+    )
+      throw new RequestError(400, 'Invalid manifest structure.');
+    if (
+      Object.keys(proof).sort().join(',') !== 'baseSha,manifestSha256,passedChecks' ||
+      typeof proof.baseSha !== 'string' ||
+      typeof proof.manifestSha256 !== 'string' ||
+      !Array.isArray(proof.passedChecks) ||
+      proof.passedChecks.some((check) => typeof check !== 'string')
+    )
+      throw new RequestError(400, 'Invalid verification proof.');
+    const files = manifest.files as PatchManifest['files'];
+    const result: ExecutorResult = {
+      version: 1,
+      executorId: 'koin-rocky-umpc',
+      leaseToken: data.leaseToken,
+      outcome: 'verified',
+      manifest: { version: 1, files },
+      verification: {
+        baseSha: proof.baseSha,
+        manifestSha256: proof.manifestSha256,
+        passedChecks: proof.passedChecks as string[],
+      },
+    };
+    try {
+      return Response.json(await stub.result(path![1], result), { headers: { 'Cache-Control': 'no-store' } });
+    } catch (error) {
+      if (error instanceof Error && error.message === 'Expired or invalid executor lease')
+        throw new RequestError(409, 'Expired or invalid lease.');
       throw error;
     }
   }
-  if (data.outcome!=='failed' && data.outcome!=='no-fix') throw new RequestError(400,'Invalid executor outcome.');
-  if (keys!=='executorId,leaseToken,outcome,reason,version' || typeof data.reason!=='string' || data.reason.length>500 || !data.reason)
-    throw new RequestError(400,'Invalid failure fields.');
-  const result:ExecutorResult={version:1,executorId:'koin-rocky-umpc',leaseToken:data.leaseToken,outcome:data.outcome,reason:data.reason};
-  try { return Response.json(await stub.result(path![1],result),{headers:{'Cache-Control':'no-store'}}); }
-  catch (error) {
-    if (error instanceof Error && error.message==='Expired or invalid executor lease') throw new RequestError(409,'Expired or invalid lease.');
+  if (data.outcome !== 'failed' && data.outcome !== 'no-fix') throw new RequestError(400, 'Invalid executor outcome.');
+  if (
+    keys !== 'executorId,leaseToken,outcome,reason,version' ||
+    typeof data.reason !== 'string' ||
+    data.reason.length > 500 ||
+    !data.reason
+  )
+    throw new RequestError(400, 'Invalid failure fields.');
+  const result: ExecutorResult = {
+    version: 1,
+    executorId: 'koin-rocky-umpc',
+    leaseToken: data.leaseToken,
+    outcome: data.outcome,
+    reason: data.reason,
+  };
+  try {
+    return Response.json(await stub.result(path![1], result), { headers: { 'Cache-Control': 'no-store' } });
+  } catch (error) {
+    if (error instanceof Error && error.message === 'Expired or invalid executor lease')
+      throw new RequestError(409, 'Expired or invalid lease.');
     throw error;
   }
 }
@@ -581,8 +648,9 @@ export default {
     const url = new URL(request.url);
     try {
       if (url.protocol !== 'https:') throw new RequestError(400, 'HTTPS is required.');
-      if (env.ENVIRONMENT !== 'production') throw new RequestError(503,'Only the fixed production installation is enabled.');
-      if (url.pathname.startsWith('/executor/')) return await executorRequest(request,env,url);
+      if (env.ENVIRONMENT !== 'production')
+        throw new RequestError(503, 'Only the fixed production installation is enabled.');
+      if (url.pathname.startsWith('/executor/')) return await executorRequest(request, env, url);
       const retrieval = url.pathname.startsWith('/diagnostics/');
       if (!retrieval && !['/webhooks/sentry', '/webhooks/cloudflare'].includes(url.pathname))
         return reply(404, { error: 'Not found.' });
@@ -642,7 +710,6 @@ export default {
   },
 } satisfies ExportedHandler<Env>;
 
-
 export class ErrorIssueDispatch extends DurableObject<Env> {
   private pending: Promise<DispatchResult> | undefined;
 
@@ -658,8 +725,8 @@ export class ErrorIssueDispatch extends DurableObject<Env> {
     )`);
     // v1 persisted GitHub Actions acceptance, not outbound executor queue admission.
     // Preserve the historical timestamp while allowing one clean enqueue after cutover.
-    const columns=state.storage.sql.exec<{name:string}>('PRAGMA table_info(dispatch)').toArray();
-    if (!columns.some(column=>column.name==='queue_admitted_at'))
+    const columns = state.storage.sql.exec<{ name: string }>('PRAGMA table_info(dispatch)').toArray();
+    if (!columns.some((column) => column.name === 'queue_admitted_at'))
       state.storage.sql.exec('ALTER TABLE dispatch ADD COLUMN queue_admitted_at TEXT');
   }
 
@@ -671,17 +738,33 @@ export class ErrorIssueDispatch extends DurableObject<Env> {
   async fetch(request: Request): Promise<Response> {
     try {
       if (request.method === 'GET' && new URL(request.url).pathname === '/diagnostics') {
-        const row = this.ctx.storage.sql.exec<{diagnostic:string|null;expires_at:number}>('SELECT diagnostic, expires_at FROM dispatch WHERE singleton = 1').toArray()[0];
-        if (!row?.diagnostic || row.expires_at <= Date.now()) return reply(404, { error: 'Diagnostic not found or expired.' });
-        return new Response(row.diagnostic, { headers: { 'Content-Type':'application/json', 'Cache-Control':'no-store', 'X-Content-Type-Options':'nosniff' } });
+        const row = this.ctx.storage.sql
+          .exec<{ diagnostic: string | null; expires_at: number }>(
+            'SELECT diagnostic, expires_at FROM dispatch WHERE singleton = 1',
+          )
+          .toArray()[0];
+        if (!row?.diagnostic || row.expires_at <= Date.now())
+          return reply(404, { error: 'Diagnostic not found or expired.' });
+        return new Response(row.diagnostic, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-store',
+            'X-Content-Type-Options': 'nosniff',
+          },
+        });
       }
-      if (request.method !== 'POST' || new URL(request.url).pathname !== '/') return reply(404, { error: 'Not found.' });
+      if (request.method !== 'POST' || new URL(request.url).pathname !== '/')
+        return reply(404, { error: 'Not found.' });
       const config = configuration(this.env);
       const data = record(await request.json());
       const identity = validateIdentity(data.identity, config);
       const capture = diagnostic(identity, data.summary, record(data.details), this.env);
-      if (encoder.encode(JSON.stringify(capture)).length > 16 * 1024) throw new RequestError(413, 'Diagnostic is too large.');
-      if (!this.pending) this.pending = this.accept(capture).finally(() => { this.pending = undefined; });
+      if (encoder.encode(JSON.stringify(capture)).length > 16 * 1024)
+        throw new RequestError(413, 'Diagnostic is too large.');
+      if (!this.pending)
+        this.pending = this.accept(capture).finally(() => {
+          this.pending = undefined;
+        });
       const result = await this.pending;
       return reply(result.status, result.body);
     } catch (error) {
@@ -691,7 +774,11 @@ export class ErrorIssueDispatch extends DurableObject<Env> {
   }
 
   private async accept(capture: Diagnostic): Promise<DispatchResult> {
-    const row = this.ctx.storage.sql.exec<{identity_key:string;queue_admitted_at:string|null}>('SELECT identity_key, queue_admitted_at FROM dispatch WHERE singleton = 1').toArray()[0];
+    const row = this.ctx.storage.sql
+      .exec<{ identity_key: string; queue_admitted_at: string | null }>(
+        'SELECT identity_key, queue_admitted_at FROM dispatch WHERE singleton = 1',
+      )
+      .toArray()[0];
     const key = identityKey(capture.identity);
     if (row && row.identity_key !== key) throw new RequestError(409, 'Identity conflicts with durable state.');
     if (row?.queue_admitted_at) return { status: 200, body: { status: 'duplicate' } };
@@ -699,13 +786,18 @@ export class ErrorIssueDispatch extends DurableObject<Env> {
     this.ctx.storage.sql.exec(
       `INSERT INTO dispatch (singleton, identity_key, diagnostic, expires_at) VALUES (1, ?, ?, ?)
        ON CONFLICT(singleton) DO UPDATE SET diagnostic = excluded.diagnostic, expires_at = excluded.expires_at`,
-      key, JSON.stringify(capture), expiresAt,
+      key,
+      JSON.stringify(capture),
+      expiresAt,
     );
     await this.ctx.storage.setAlarm(expiresAt);
     await this.ctx.storage.sync();
     // Admission is persisted in the fixed repository queue before webhook acknowledgement.
-    await this.env.AUTOFIX_QUEUE.getByName('bcsdlab/bcsd_united').enqueue(capture.identity,key);
-    this.ctx.storage.sql.exec('UPDATE dispatch SET queue_admitted_at = ? WHERE singleton = 1', new Date().toISOString());
+    await this.env.AUTOFIX_QUEUE.getByName('bcsdlab/bcsd_united').enqueue(capture.identity, key);
+    this.ctx.storage.sql.exec(
+      'UPDATE dispatch SET queue_admitted_at = ? WHERE singleton = 1',
+      new Date().toISOString(),
+    );
     await this.ctx.storage.sync();
     return { status: 200, body: { status: 'queued' } };
   }

@@ -3,7 +3,13 @@ import type { AutofixQueue } from './queue';
 export type App = 'web' | 'api';
 export type Identity =
   | { source: 'sentry'; sourceId: string; project: string; app: 'web'; scope: { organization: string } }
-  | { source: 'cloudflare'; sourceId: string; project: string; app: App; scope: { accountId: string; policyId: string; workerName: string } };
+  | {
+      source: 'cloudflare';
+      sourceId: string;
+      project: string;
+      app: App;
+      scope: { accountId: string; policyId: string; workerName: string };
+    };
 
 export interface Diagnostic {
   version: 1;
