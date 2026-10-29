@@ -240,16 +240,21 @@ test('dedicated executor polling requires scoped token and fixed Rocky identity'
 
 test('authenticated Cloudflare exact provision probe returns 204 without queue admission', async (t) => {
   const h = harness(t);
-  const text =
-    'Hello World! This is a test message sent from https://cloudflare.com. If you can see this, your webhook is configured properly.';
-  const response = await h.send(
-    new Request('https://automation.example/webhooks/cloudflare', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'cf-webhook-auth': h.env.CLOUDFLARE_WEBHOOK_SECRET },
-      body: JSON.stringify({ text }),
-    }),
+  for (const ending of ['properly.', 'correctly.']) {
+    const text = `Hello World! This is a test message sent from https://cloudflare.com. If you can see this, your webhook is configured ${ending}`;
+    const response = await h.send(
+      new Request('https://automation.example/webhooks/cloudflare', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'cf-webhook-auth': h.env.CLOUDFLARE_WEBHOOK_SECRET },
+        body: JSON.stringify({ text }),
+      }),
+    );
+    assert.equal(response.status, 204);
+  }
+  assert.equal(
+    (await h.send(cloudflareRequest(h, { text: 'Hello World! This is not the Cloudflare setup probe.' }))).status,
+    400,
   );
-  assert.equal(response.status, 204);
   assert.equal(h.queue.size, 0);
 });
 

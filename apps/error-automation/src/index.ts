@@ -32,6 +32,10 @@ const SENTRY_SLUG = /^[a-z0-9][a-z0-9_-]{0,99}$/;
 const WORKER_NAME = /^[a-z0-9][a-z0-9_-]{0,62}$/;
 const ACCOUNT_ID = /^[a-f0-9]{32}$/;
 const encoder = new TextEncoder();
+const CLOUDFLARE_TEST_PROBES: Record<string, true> = {
+  'Hello World! This is a test message sent from https://cloudflare.com. If you can see this, your webhook is configured properly.': true,
+  'Hello World! This is a test message sent from https://cloudflare.com. If you can see this, your webhook is configured correctly.': true,
+};
 
 class RequestError extends Error {
   status: number;
@@ -681,49 +685,6 @@ export default {
       } catch {
         throw new RequestError(400, 'Webhook must contain valid UTF-8 JSON.');
       }
-      if (url.pathname === '/webhooks/cloudflare' && body.byteLength <= 512) {
-        const shape =
-          json !== null && typeof json === 'object' && !Array.isArray(json)
-            ? Object.entries(json).map(([key, value]) => [key, Array.isArray(value) ? 'array' : typeof value])
-            : typeof json;
-        console.info('Cloudflare signed webhook shape', {
-          method: request.method,
-          contentType: request.headers.get('Content-Type')?.split(';')[0],
-          path: url.pathname,
-          queryKeys: [...url.searchParams.keys()],
-          bodyBytes: body.byteLength,
-          shape,
-        });
-        if (
-          json !== null &&
-          typeof json === 'object' &&
-          !Array.isArray(json) &&
-          Object.keys(json).length === 1 &&
-          'text' in json &&
-          typeof json.text === 'string' &&
-          json.text.startsWith('Hello World!') &&
-          json.text.length <= 256
-        ) {
-          const expected =
-            'Hello World! This is a test message sent from https://cloudflare.com. If you can see this, your webhook is configured properly.';
-          let firstDifference = 0;
-          while (
-            firstDifference < json.text.length &&
-            firstDifference < expected.length &&
-            json.text[firstDifference] === expected[firstDifference]
-          )
-            firstDifference += 1;
-          const character = json.text[firstDifference];
-          console.info('Cloudflare known probe difference', {
-            textLength: json.text.length,
-            trimMatches: json.text.trim() === expected,
-            whitespaceMatches: json.text.replace(/\s+/g, ' ') === expected,
-            firstDifference,
-            firstDifferenceKind:
-              character === undefined ? 'end' : /^[\p{P}\s]$/u.test(character) ? character.codePointAt(0) : 'other',
-          });
-        }
-      }
       if (
         (env.CLOUDFLARE_WEBHOOK_SECRET?.length ?? 0) >= 32 &&
         url.pathname === '/webhooks/cloudflare' &&
@@ -733,8 +694,8 @@ export default {
         !Array.isArray(json) &&
         Object.keys(json).length === 1 &&
         'text' in json &&
-        json.text ===
-          'Hello World! This is a test message sent from https://cloudflare.com. If you can see this, your webhook is configured properly.'
+        typeof json.text === 'string' &&
+        CLOUDFLARE_TEST_PROBES[json.text] === true
       ) {
         return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
       }
