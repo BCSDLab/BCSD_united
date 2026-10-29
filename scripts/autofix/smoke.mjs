@@ -178,6 +178,7 @@ try {
   const inFlightRequests = new Map();
   let loaded = false;
   let mobilePhase = false;
+  let navigatingBlank = false;
   let unavailableWeatherResponse = false;
   let unavailableCoopshopResponse = false;
   socket.addEventListener('message', ({ data }) => {
@@ -208,7 +209,7 @@ try {
       failures.push('Browser console.error');
     if (message.method === 'Network.requestWillBeSent' && ['Document', 'Fetch', 'XHR'].includes(message.params.type)) {
       const url = new URL(message.params.request.url);
-      if (url.origin !== 'http://127.0.0.1:4173')
+      if (url.origin !== 'http://127.0.0.1:4173' && !(navigatingBlank && url.href === 'about:blank'))
         failures.push(`Route requires an external request: ${url.origin}${url.pathname}`);
     }
     if (
@@ -294,6 +295,14 @@ try {
   process.stdout.write(
     `Real local API/D1 smoke passed: SSR ${route}, browser ${route}, gateway /api/shops/categories\n`,
   );
+  // Leave the desktop document before resizing: its client media-query
+  // subscriptions must not spawn requests that survive a reload.
+  navigatingBlank = true;
+  loaded = false;
+  await send('Page.navigate', { url: 'about:blank' });
+  for (let attempt = 0; attempt < 60 && !loaded; attempt += 1) await delay(250);
+  if (!loaded || inFlightRequests.size) throw new Error('Desktop browser did not settle before mobile navigation');
+  navigatingBlank = false;
   const beforeMobile = requestCount(server.log);
   mobilePhase = true;
   await send('Emulation.setDeviceMetricsOverride', {
@@ -309,7 +318,7 @@ try {
     platform: 'Android',
   });
   loaded = false;
-  await send('Page.reload', { ignoreCache: true });
+  await send('Page.navigate', { url: `http://127.0.0.1:4173${route}` });
   for (let attempt = 0; attempt < 60 && !loaded; attempt += 1) await delay(250);
   if (!loaded) failures.push('Mobile route did not finish loading');
   await delay(3000);
