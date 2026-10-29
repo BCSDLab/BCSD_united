@@ -93,6 +93,7 @@ await migrateWebApi();
 let server;
 let browser;
 let socket;
+let mobileDiagnostics;
 let browserProfile;
 try {
   browserProfile = await mkdtemp(join(tmpdir(), 'autofix-browser-'));
@@ -401,27 +402,26 @@ try {
   if (/\[ERROR\]|uncaught|unhandled rejection/i.test(server.log)) failures.push('Web Worker emitted runtime errors');
   assertApiHealthy(server.log, { weatherUnavailable, coopshopUnavailable });
   if (failures.length) {
-    process.stderr.write(
-      `Mobile smoke diagnostics ${JSON.stringify({
-        path: mobile?.path,
-        viewport: mobile?.width,
-        mobileMedia: mobile?.mobile,
-        greetingVisible: Boolean(mobile?.greeting?.trim()),
-        mealVisible: Boolean(mobile?.meal),
-        mealCount: mobile?.meal?.count,
-        noMealsLabel: Boolean(mobile?.meal?.text?.includes('오늘은 식단이 없어요')),
-        hoursUnavailableLabel: Boolean(mobile?.meal?.text?.includes('운영시간 정보 제공 불가')),
-        weatherUnavailableLabel: Boolean(mobile?.text?.includes('날씨 정보 제공 불가')),
-        weatherPendingLabel: Boolean(mobile?.text?.includes('날씨 확인 중')),
-        routeErrorLabel: Boolean(mobile?.text?.includes('페이지를 불러오지 못했습니다')),
-        inFlight: [...inFlightRequests.values()].slice(0, 12),
-      })}\n`,
-    );
+    mobileDiagnostics = JSON.stringify({
+      path: mobile?.path,
+      viewport: mobile?.width,
+      mobileMedia: mobile?.mobile,
+      greetingVisible: Boolean(mobile?.greeting?.trim()),
+      mealVisible: Boolean(mobile?.meal),
+      mealCount: mobile?.meal?.count,
+      noMealsLabel: Boolean(mobile?.meal?.text?.includes('오늘은 식단이 없어요')),
+      hoursUnavailableLabel: Boolean(mobile?.meal?.text?.includes('운영시간 정보 제공 불가')),
+      weatherUnavailableLabel: Boolean(mobile?.text?.includes('날씨 정보 제공 불가')),
+      weatherPendingLabel: Boolean(mobile?.text?.includes('날씨 확인 중')),
+      routeErrorLabel: Boolean(mobile?.text?.includes('페이지를 불러오지 못했습니다')),
+      inFlight: [...inFlightRequests.values()].slice(0, 12),
+    });
     throw new Error([...new Set(failures)].join('; '));
   }
   process.stdout.write(`Mobile local API/D1 smoke passed: ${route} at 390px, gateway /api/shops/categories\n`);
 } catch (error) {
-  if (server) process.stderr.write(server.log.slice(-16000));
+  if (server) process.stderr.write(server.log.slice(-8000));
+  if (mobileDiagnostics) process.stderr.write(`Mobile smoke diagnostics ${mobileDiagnostics}\n`);
   throw error;
 } finally {
   socket?.close();
