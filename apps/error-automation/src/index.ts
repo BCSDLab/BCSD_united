@@ -681,6 +681,20 @@ export default {
       } catch {
         throw new RequestError(400, 'Webhook must contain valid UTF-8 JSON.');
       }
+      if (url.pathname === '/webhooks/cloudflare' && body.byteLength <= 512) {
+        const shape =
+          json !== null && typeof json === 'object' && !Array.isArray(json)
+            ? Object.entries(json).map(([key, value]) => [key, Array.isArray(value) ? 'array' : typeof value])
+            : typeof json;
+        console.info('Cloudflare signed webhook shape', {
+          method: request.method,
+          contentType: request.headers.get('Content-Type')?.split(';')[0],
+          path: url.pathname,
+          queryKeys: [...url.searchParams.keys()],
+          bodyBytes: body.byteLength,
+          shape,
+        });
+      }
       if (
         (env.CLOUDFLARE_WEBHOOK_SECRET?.length ?? 0) >= 32 &&
         url.pathname === '/webhooks/cloudflare' &&
