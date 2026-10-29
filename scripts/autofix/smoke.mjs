@@ -174,7 +174,7 @@ try {
   let sequence = 0;
   const pending = new Map();
   const failures = [];
-  const inFlightRequests = new Set();
+  const inFlightRequests = new Map();
   let loaded = false;
   let mobilePhase = false;
   let unavailableWeatherResponse = false;
@@ -192,8 +192,13 @@ try {
     if (
       message.method === 'Network.requestWillBeSent' &&
       ['Document', 'Script', 'Fetch', 'XHR'].includes(message.params.type)
-    )
-      inFlightRequests.add(message.params.requestId);
+    ) {
+      const url = new URL(message.params.request.url);
+      inFlightRequests.set(message.params.requestId, {
+        type: message.params.type,
+        path: url.origin === 'http://127.0.0.1:4173' ? url.pathname : '<external>',
+      });
+    }
     if (message.method === 'Network.loadingFinished' || message.method === 'Network.loadingFailed')
       inFlightRequests.delete(message.params.requestId);
     if (message.method === 'Page.loadEventFired') loaded = true;
@@ -319,8 +324,12 @@ try {
         '(() => { const heading = document.getElementById("home-greeting-title"); const mealHeading = document.getElementById("today-menu-title"); const mealSection = mealHeading?.closest("section"); const mealList = Array.from(mealSection?.querySelectorAll("[aria-label]") ?? []).find((node) => node.getAttribute("aria-label") === "오늘의 식단 목록"); return { path: location.pathname, width: innerWidth, mobile: matchMedia("(max-width: 600px)").matches, text: document.body.innerText, elements: document.body.querySelectorAll("*").length, greeting: heading?.getClientRects().length ? heading.innerText : null, meal: mealList ? { count: mealList.querySelectorAll("h3").length, text: mealSection.innerText } : null }; })()',
       returnByValue: true,
     });
+    if (dom.exceptionDetails) {
+      failures.push('Mobile DOM evaluation failed');
+      break;
+    }
     mobile = dom.result?.value;
-    if (route !== '/' || !mobile?.text?.includes('날씨 확인 중')) break;
+    if (route !== '/' || (mobile?.greeting?.trim() && mobile?.meal && !mobile.text?.includes('날씨 확인 중'))) break;
     await delay(250);
   }
   if (
@@ -391,7 +400,25 @@ try {
   browser.assertRunning();
   if (/\[ERROR\]|uncaught|unhandled rejection/i.test(server.log)) failures.push('Web Worker emitted runtime errors');
   assertApiHealthy(server.log, { weatherUnavailable, coopshopUnavailable });
-  if (failures.length) throw new Error([...new Set(failures)].join('; '));
+  if (failures.length) {
+    process.stderr.write(
+      `Mobile smoke diagnostics ${JSON.stringify({
+        path: mobile?.path,
+        viewport: mobile?.width,
+        mobileMedia: mobile?.mobile,
+        greetingVisible: Boolean(mobile?.greeting?.trim()),
+        mealVisible: Boolean(mobile?.meal),
+        mealCount: mobile?.meal?.count,
+        noMealsLabel: Boolean(mobile?.meal?.text?.includes('오늘은 식단이 없어요')),
+        hoursUnavailableLabel: Boolean(mobile?.meal?.text?.includes('운영시간 정보 제공 불가')),
+        weatherUnavailableLabel: Boolean(mobile?.text?.includes('날씨 정보 제공 불가')),
+        weatherPendingLabel: Boolean(mobile?.text?.includes('날씨 확인 중')),
+        routeErrorLabel: Boolean(mobile?.text?.includes('페이지를 불러오지 못했습니다')),
+        inFlight: [...inFlightRequests.values()].slice(0, 12),
+      })}\n`,
+    );
+    throw new Error([...new Set(failures)].join('; '));
+  }
   process.stdout.write(`Mobile local API/D1 smoke passed: ${route} at 390px, gateway /api/shops/categories\n`);
 } catch (error) {
   if (server) process.stderr.write(server.log.slice(-16000));
