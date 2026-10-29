@@ -3,7 +3,6 @@ import { HydrationBoundary, QueryClientProvider, type DehydratedState } from '@t
 import { useLocation, useMatches, useRouter } from '@tanstack/react-router';
 
 import Toast from 'components/feedback/Toast';
-import MaintenancePage from 'components/Maintenance';
 import PortalProvider from 'components/modal/Modal/PortalProvider';
 import Seo from 'components/seo/Seo';
 import ROUTES from 'static/routes';
@@ -13,7 +12,6 @@ import type { ServerRequestContext } from 'utils/ssr/requestContext';
 import { ServerRequestProvider } from 'utils/ssr/useServerRequest';
 import { isomorphicLocalStorage } from 'utils/ts/env';
 import { createQueryClient, queryClient } from 'utils/ts/queryClient';
-import { useServerStateStore } from 'utils/zustand/serverState';
 
 interface PageData {
   serverRequest?: ServerRequestContext;
@@ -49,7 +47,6 @@ export default function ApplicationProviders({
   const data = matches.map((match): unknown => match.loaderData).findLast(isPageData);
   const title = leaf?.staticData.title;
   const pageTitle = typeof title === 'function' ? title(pathname) : title;
-  const isMaintenance = useServerStateStore((state) => state.isMaintenance);
 
   useEffect(() => {
     clearLegacySessionStorage();
@@ -69,7 +66,7 @@ export default function ApplicationProviders({
           <PortalProvider>
             <AuthGuard required={leaf?.staticData.requireAuth ?? false} />
             {!leaf?.staticData.hasPageSeo && <Seo title={pageTitle} />}
-            {isMaintenance ? <MaintenancePage /> : children}
+            {children}
             <Toast />
           </PortalProvider>
         </ServerRequestProvider>

@@ -12,7 +12,6 @@ import { markSessionAuthenticated, markSessionExpired } from 'utils/auth/session
 import { apiRequestAdapter, getApiBaseUrl } from 'utils/ssr/apiTarget';
 import { getServerRequestHeaders } from 'utils/ssr/cookieForwarding';
 import qsStringify from 'utils/ts/qsStringfy';
-import { useServerStateStore } from 'utils/zustand/serverState';
 
 import { getCookie } from './cookie';
 
@@ -126,12 +125,6 @@ export default class APIClient {
           resolve(response);
         })
         .catch(async (err: unknown) => {
-          if (axios.isAxiosError(err) && err.response?.status === 503) {
-            useServerStateStore.getState().setMaintenance(true);
-            reject(err);
-
-            return;
-          }
           try {
             if (axios.isAxiosError(err)) {
               const handledResponse = await this.errorMiddleware(err, request);
