@@ -11,8 +11,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "koin-api",
-      "database_id": "303042db-06c1-4ddc-91c0-6bfbfd088fa4",
+      "database_name": "koin-api-import-20261029",
+      "database_id": "d84f0d7c-a82e-4d18-ad07-50b675fa2abf",
       "migrations_dir": "drizzle",
     },
   ],
@@ -34,7 +34,7 @@
   "vars": {
     "ENVIRONMENT": "production",
     "WEB_COOKIE_PREFIX": "koin-web",
-    "WEB_COOKIE_DOMAIN": "koreatech.in",
+    "WEB_COOKIE_DOMAIN": "",
     "WEB_COOKIE_SECURE": "true",
     "AUTH_ALLOWED_ORIGINS": "https://koreatech.in,https://koin-web.bcsdlab.workers.dev",
     "NATIVE_ACCESS_TTL_SECONDS": "6000",
@@ -44,7 +44,7 @@
     "vars": {
       "ENVIRONMENT": "preview",
       "WEB_COOKIE_PREFIX": "koin-web",
-      "WEB_COOKIE_DOMAIN": "koreatech.in",
+      "WEB_COOKIE_DOMAIN": "",
       "WEB_COOKIE_SECURE": "true",
       "AUTH_ALLOWED_ORIGINS": "https://preview-koin-web.bcsdlab.workers.dev,http://localhost:3000,http://127.0.0.1:3000",
       "NATIVE_ACCESS_TTL_SECONDS": "6000",
@@ -54,8 +54,8 @@
     "d1_databases": [
       {
         "binding": "DB",
-        "database_name": "koin-api-test",
-        "database_id": "6cb9f659-47cb-4a88-99d9-1f60ca992dc9",
+        "database_name": "koin-api-test-import-20261029",
+        "database_id": "50b18870-024f-45e9-86a6-18e89159ca70",
         "migrations_dir": "drizzle",
       },
     ],
