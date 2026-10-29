@@ -111,7 +111,7 @@ API 회귀 테스트는 SQLite의 실제 제약조건·원자 배치와 HTTP 계
 
 ### Workers Builds와 브랜치
 
-GitHub 저장소는 [BCSDLab/BCSD_united](https://github.com/BCSDLab/BCSD_united)입니다. **기본·운영 브랜치는 `main`**, 비운영 통합 브랜치는 `preview`를 사용합니다. 각 Worker(`koin-web`, `koin-api`, `bcsd-error-automation`)를 같은 저장소의 Cloudflare **Workers Builds**에 연결합니다. API를 `api-test`/`stage`/`prod`라는 별도 Worker로 나누지 않고, 각 Worker 안에서 production과 **native Preview**를 구분합니다.
+GitHub 저장소는 [BCSDLab/BCSD_united](https://github.com/BCSDLab/BCSD_united)입니다. 작업 커밋은 `develop`, 통합 검증은 `preview`, 운영 배포는 `main`을 사용합니다. 검증한 동일 커밋을 `develop → preview → main` 순서로 승격하며, 브랜치마다 같은 변경을 다시 커밋하거나 cherry-pick하지 않습니다. 각 Worker(`koin-web`, `koin-api`, `bcsd-error-automation`)를 같은 저장소의 Cloudflare **Workers Builds**에 연결합니다. API를 `api-test`/`stage`/`prod`라는 별도 Worker로 나누지 않고, 각 Worker 안에서 production과 **native Preview**를 구분합니다.
 
 Workers Builds의 Root directory는 각 앱 폴더로 설정합니다. pnpm은 상위 workspace의 lockfile과 공용 패키지를 사용하며, 아래 명령은 해당 앱 폴더에서 실행됩니다. 운영 배포는 `wrangler deploy`, 비운영 배포는 `wrangler preview`입니다. `wrangler versions upload`, `--env test`, `--env stage`, `env.preview`는 이 배포 모델이 아닙니다. 로컬 수동 배포를 평상시 작업 흐름으로 사용하거나 같은 앱을 배포하는 GitHub Actions를 추가하지 않습니다. 기존 B-BOT 배포는 별도 운영 범위입니다.
 
@@ -121,9 +121,11 @@ Workers Builds의 Root directory는 각 앱 폴더로 설정합니다. pnpm은 �
 | `koin-api`              | `apps/api`              | `pnpm typecheck && pnpm test`  | `pnpm deploy`  | `pnpm deploy:preview --name preview` |
 | `bcsd-error-automation` | `apps/error-automation` | `pnpm typecheck && pnpm test`  | `pnpm deploy`  | `pnpm deploy:preview --name preview` |
 
-비운영 브랜치 허용 목록은 `preview`로 제한해 고정 Preview URL을 사용합니다. 웹 빌드도 Workers Builds의 `WORKERS_CI_BRANCH`를 확인하여 `main`/`preview`만 허용합니다. 브랜치명을 바꾸면 `KOIN_MAIN_BRANCH`/`KOIN_PREVIEW_BRANCH`와 dashboard 허용 목록을 함께 바꿔야 합니다. 임의 기능 브랜치를 현재 고정 `preview` 이름으로 배포하면 안 됩니다. 브랜치별 Preview를 추가하려면 이름·빌드 분기 정책과 대응 API Preview 주소·허용 Origin을 먼저 정해야 합니다. GitHub 연결 자체는 검사를 실행하지 않으므로 위 검증·빌드 명령과 저장소 Quality workflow를 유지합니다.
+Workers Builds의 production branch는 `main`입니다. 비운영 브랜치에서는 검사를 실행하지만, 배포 명령은 `if [ "$WORKERS_CI_BRANCH" = "preview" ]; then <위 표의 preview 배포 명령>; else printf "Checks only: no deployment for %s\n" "$WORKERS_CI_BRANCH"; fi`로 제한합니다. 따라서 `develop`이나 기능 브랜치가 고정 `preview` 환경을 덮어쓰지 않습니다. 웹의 비운영 빌드 명령은 `pnpm typecheck && if [ "$WORKERS_CI_BRANCH" = "preview" ]; then pnpm build; fi`입니다. 웹 번들 생성 자체도 `main`/`preview`만 허용합니다.
 
-Cloudflare GitHub App의 저장소 접근 승인, Worker별 저장소 연결, production branch=`main`, 비운영 브랜치 배포 활성화와 명령 설정, Preview 전용 시크릿 및 API/웹 Origin 설정은 실제 계정에서 완료해야 하는 전제조건입니다. 파일 변경만으로 연결·배포가 완료되지는 않습니다.
+브랜치명을 바꾸면 `KOIN_MAIN_BRANCH`/`KOIN_PREVIEW_BRANCH`와 Workers Builds의 조건을 함께 바꿔야 합니다. 브랜치별 Preview를 추가하려면 이름·빌드 분기 정책과 대응 API Preview 주소·허용 Origin을 먼저 정해야 합니다. 저장소 Quality workflow와 앱별 검증 명령을 유지하며, GitHub 연결·푸시·빌드 시작을 배포 성공으로 취급하지 않습니다.
+
+Cloudflare GitHub App의 저장소 접근 승인, Worker별 저장소 연결, production branch와 비운영 배포 조건, Preview 전용 시크릿 및 API/웹 Origin 설정은 실제 계정에 적용해야 합니다. 배포된 URL의 HTTP 응답까지 확인한 후 운영 브랜치로 승격합니다.
 
 ### Preview 리소스와 검증 범위
 

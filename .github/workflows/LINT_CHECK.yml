@@ -2,10 +2,12 @@ name: Quality
 on:
   push:
     branches:
+      - develop
       - main
       - preview
   pull_request:
     branches:
+      - develop
       - main
       - preview
 

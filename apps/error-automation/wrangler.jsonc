@@ -4,7 +4,7 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-10-26",
   "workers_dev": true,
-  "preview_urls": false,
+  "preview_urls": true,
   "upload_source_maps": true,
   "durable_objects": {
     "bindings": [{ "name": "ERROR_ISSUES", "class_name": "ErrorIssueDispatch" }],

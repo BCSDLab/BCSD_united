@@ -2,6 +2,8 @@
   "$schema": "../../node_modules/wrangler/config-schema.json",
   "name": "koin-web",
   "main": "src/server.ts",
+  "workers_dev": true,
+  "preview_urls": true,
   "compatibility_date": "2026-10-26",
   "compatibility_flags": ["nodejs_compat"],
   "upload_source_maps": true,
