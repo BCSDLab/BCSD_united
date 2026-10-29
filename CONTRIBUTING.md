@@ -2,13 +2,13 @@
 
 ## 작업 환경
 
-- Node.js: `.nvmrc`의 버전.
-- 패키지 매니저: 루트 `package.json`에 고정된 pnpm. 다른 락파일은 만들지 않습니다.
+- Node.js: Cloudflare Workers Builds에서 지원하는 `24.22.1`(`.nvmrc`).
+- 패키지 매니저: 루트 `package.json`의 `pnpm@12.16.1`을 Corepack으로 실행합니다. 다른 락파일은 만들지 않습니다.
 - 앱은 `apps/web`, `apps/api`, `apps/error-automation`, `apps/b-bot`에 둡니다. 실제 공용 코드만 `packages/`로 분리합니다.
 - `.claude`, `.vscode`는 개인 작업 환경이며 커밋하지 않습니다.
 
 ```sh
-corepack pnpm install
+corepack pnpm install --frozen-lockfile
 pnpm --filter @koin/api db:migrate:local
 pnpm dev
 ```
@@ -41,7 +41,7 @@ pnpm build
 
 UI 변경은 실제 화면, API 변경은 실제 HTTP/D1 경로도 확인합니다. 실행하지 않은 검사를 통과했다고 표시하지 않습니다.
 
-의존성 변경 시 해당 `package.json`과 루트 `pnpm-lock.yaml`을 함께 반영합니다. 생성된 route tree와 schema는 생성 원본을 변경한 뒤 갱신합니다. 적용된 D1 마이그레이션을 다시 쓰지 않습니다.
+의존성 변경 시 해당 `package.json`, `pnpm-workspace.yaml`의 호환 버전·허용된 설치 스크립트, 루트 `pnpm-lock.yaml`을 함께 반영합니다. `@types/node`는 Node 24에, TypeScript·ESLint·h3는 각 도구/프레임워크의 지원 범위에 맞춥니다. `pnpm up --latest` 후에도 peer 호환성과 고정 버전의 근거를 확인하고, SheetJS 외부 tarball의 lockfile 무결성을 유지합니다. 생성된 route tree와 schema는 생성 원본을 변경한 뒤 갱신합니다. 적용된 D1 마이그레이션을 다시 쓰지 않습니다.
 
 커밋은 `feat:`, `fix:`, `refactor:`, `chore:` 등 Conventional Commit 접두사와 한국어 설명을 사용합니다. 관련 없는 변경이나 시크릿을 포함하지 않습니다. PR에 수행한 검증과 남은 운영 전제조건을 명시합니다.
 

@@ -12,7 +12,7 @@ import { useOrderStore } from 'utils/zustand/order';
 import styles from './OrderPaymentReturnPage.module.scss';
 
 // lottie-web은 import 시점에 document에 접근하므로 서버에서는 렌더하지 않는다. 자리는 감싸는 요소가 잡는다
-const Lottie = lazy(() => import('lottie-react'));
+const Lottie = lazy(() => import('lottie-react').then(({ Lottie }) => ({ default: Lottie })));
 
 export interface PaymentReturnParams {
   orderType: string;
@@ -77,7 +77,7 @@ function PaymentConfirm({ orderType, orderId, paymentKey, amount }: PaymentRetur
       <div className={styles.paying__lottie}>
         <ClientOnly>
           <Suspense fallback={null}>
-            <Lottie animationData={PayingLottie} style={{ width: 390, height: 400 }} />
+            <Lottie src={PayingLottie} style={{ width: 390, height: 400 }} />
           </Suspense>
         </ClientOnly>
       </div>

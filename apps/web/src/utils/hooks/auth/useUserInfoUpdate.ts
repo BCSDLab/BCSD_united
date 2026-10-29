@@ -20,9 +20,7 @@ const useUserInfoUpdate = <T = unknown>(userType: UserType | null, options: User
     UserUpdateRequest | GeneralUserUpdateRequest
   >({
     mutationFn: (data) =>
-      userType === 'STUDENT'
-        ? (updateUser(data as UserUpdateRequest) as Promise<T>)
-        : (updateGeneralUser(data as GeneralUserUpdateRequest) as Promise<T>),
+      userType === 'STUDENT' ? (updateUser(data) as Promise<T>) : (updateGeneralUser(data) as Promise<T>),
     onSuccess: () => {
       options.onSuccess?.();
       logger.actionEventClick({

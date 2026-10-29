@@ -1,4 +1,4 @@
-import { toast, type ToastOptions, type TypeOptions } from 'react-toastify';
+import { toast, type ToastOptions } from 'react-toastify';
 
 const TOAST_TYPE = {
   default: 'default',
@@ -11,6 +11,6 @@ const TOAST_TYPE = {
 type ToastType = keyof typeof TOAST_TYPE;
 
 const showToast = (type: ToastType, message: string, options?: ToastOptions) =>
-  toast(message, { ...options, type: TOAST_TYPE[type] as TypeOptions });
+  toast(message, { ...options, type: TOAST_TYPE[type] });
 
 export default showToast;

@@ -29,7 +29,7 @@ export interface UseTimeSelectReturn {
   formattedValues: FormattedTime;
 }
 
-export const useTimeSelect = () => {
+export const useTimeSelect = (): UseTimeSelectReturn => {
   const now = useServerNow();
   const nowDate = toKoreanCalendarDate(now);
   const [timeState, setTimeState] = useState({
@@ -73,5 +73,5 @@ export const useTimeSelect = () => {
     timeState,
     timeHandler,
     formattedValues,
-  } as UseTimeSelectReturn;
+  };
 };

@@ -7,7 +7,7 @@
 - **Sentry:** 고정된 Sentry API에서 프로젝트/이슈/브라우저 SDK를 확인한다. 허용 호스트의 요청 경로와 애플리케이션 소스 프레임이 있어야 모델을 호출한다. 새 행동 회귀 테스트, 기존 native fixtures, 타입/lint/build/runtime 검증을 모두 통과한 후보만 PR로 발행한다.
 - **Cloudflare Issues:** 공식 Notifications 표준 envelope를 인증한 Worker가 보관한 진단을 읽고 계정·정책·Worker·앱을 재검증하여 이슈를 생성/재사용한다. **공식 문서는 `data` 내부의 Issues 예외/프레임/요청 경로 계약을 정의하지 않는다. 실제 인증된 Issues 알림의 삭제·마스킹된 샘플로 그 계약을 확인하기 전에는 자동 코드 수정/PR을 지원한다고 주장하지 않는다.** 현재 해당 단계는 `CLOUDFLARE_EVIDENCE_UNAVAILABLE`로 실패하며 이슈에 정직한 결과를 남긴다. 기존 Workers 지표 알림을 Issues 대신 쓰거나 비공개 Issues REST API를 만들어 호출하지 않는다.
 - 외부 API, 인증된 사용자 상태, dependency/config/generated code 수정, Node 회귀로 재현할 수 없는 오류는 안전 범위 밖이다. 실패를 우회하거나 빈 PR을 만들지 않는다.
-- 최신 오프라인 실행에서 API smoke는 통과했으나 웹 smoke는 로컬 `koin-api` service binding을 찾지 못해 503으로 실패했다. 이 연결을 해결하고 실제 SSR 호출 증거까지 확인하기 전 전체 독립 verifier가 검증됐다고 표시하지 않는다.
+- 2026-10-29 독립 오프라인 실행에서 `/shops/categories` 실제 API/D1 GET, 홈 `/` SSR, Chromium 렌더, 브라우저 `/api/shops/categories` gateway 비교가 통과했다. 이는 빈 로컬 D1의 검증 결과이며 운영 데이터·모바일 화면·실제 Sentry/Cloudflare/GitHub 연동의 성공을 뜻하지 않는다.
 
 ## 정확한 dispatch 계약
 
@@ -17,9 +17,9 @@
 {
   "source": "sentry",
   "sourceId": "12345",
-  "project": "koin-browser",
+  "project": "koin-united-prod",
   "app": "web",
-  "scope": { "organization": "bcsdlab" }
+  "scope": { "organization": "bcsd" }
 }
 ```
 
@@ -67,19 +67,18 @@ Sentry는 `https://sentry.io/api/0/organizations/<org>/issues/<id>/` 및 `events
 
 ### Variables
 
-| 이름                             | 값                                                                                                                  |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `SENTRY_ORGANIZATION`            | Worker와 동일한 조직 slug                                                                                           |
-| `SENTRY_PROJECT_APPS`            | `{"koin-browser":"web"}`; 브라우저 프로젝트만                                                                       |
-| `SENTRY_PROJECT_HOSTS`           | `{"koin-browser":["koreatech.in","stage.koreatech.in"]}`; 프로젝트별 허용 호스트                                    |
-| `CLOUDFLARE_SOURCES`             | `[{"accountId":"...","policyId":"...","workerName":"koin-api","app":"api"}]`; Worker와 같은 정확한 Issues 정책 매핑 |
-| `ERROR_PROJECT_DOMAINS`          | `{"sentry:koin-browser":"공통","cloudflare:koin-api":"공통"}`; 캠퍼스/비즈니스/유저/공통 중 명시적으로 선택         |
-| `ERROR_AUTOMATION_ORIGIN`        | 배포된 진단 Worker의 정확한 HTTPS origin                                                                            |
-| `ERROR_DISPATCH_BOT`             | dispatch App의 정확한 bot login; `*` 금지                                                                           |
-| `ERROR_AUTOFIX_APP_ID`           | 이 저장소에만 설치한 발행 App ID                                                                                    |
-| `ERROR_AUTOFIX_USE_GITHUB_TOKEN` | 명시적으로 `true`인 경우만 발행 App 대신 내장 토큰 사용                                                             |
+| 이름                      | 값                                                                                                                  |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `SENTRY_ORGANIZATION`     | Worker와 동일한 조직 slug                                                                                           |
+| `SENTRY_PROJECT_APPS`     | `{"koin-united-prod":"web","koin-united-preview":"web"}`; 새 브라우저 프로젝트만                                    |
+| `SENTRY_PROJECT_HOSTS`    | `{"koin-united-prod":["koreatech.in"],"koin-united-preview":["stage.koreatech.in"]}`; 프로젝트별 허용 호스트        |
+| `CLOUDFLARE_SOURCES`      | `[{"accountId":"...","policyId":"...","workerName":"koin-api","app":"api"}]`; Worker와 같은 정확한 Issues 정책 매핑 |
+| `ERROR_PROJECT_DOMAINS`   | `{"sentry:koin-united-prod":"공통","sentry:koin-united-preview":"공통","cloudflare:koin-api":"공통"}`; 명시적 분류  |
+| `ERROR_AUTOMATION_ORIGIN` | 배포된 진단 Worker의 정확한 HTTPS origin                                                                            |
+| `ERROR_DISPATCH_BOT`      | dispatch App의 정확한 bot login; `*` 금지                                                                           |
+| `ERROR_AUTOFIX_APP_ID`    | 이 저장소에만 설치한 별도 발행 App ID                                                                               |
 
-발행 App 권한은 Contents/Issues/Pull requests write와 Metadata read만 필요하다. webhook dispatch 자격증명과 발행 App을 분리한다. 내장 토큰은 저장소의 Actions PR 생성 허용 설정이 필요하고 그 토큰이 생성한 PR은 일반적으로 후속 PR CI를 자동 실행하지 않으므로 App 발행을 권장한다. 진단 읽기/모델/발행 자격증명을 서로 재사용하지 않는다.
+발행 App은 `Contents`/`Issues`/`Pull requests: write`와 `Metadata: read`만 필요하며, dispatch App은 `Contents: write`와 `Metadata: read`만 필요하다. 둘 다 **BCSDLab/BCSD_united 저장소 하나**에만 설치한다. Worker는 dispatch App ID·설치 ID·private key로 매 전송 시 대상 저장소 하나에만 유효한 설치 토큰을 발급한다. 발행 job은 `actions/create-github-app-token@v2`가 매 실행마다 발행 App 토큰을 발급하며 내장 `GITHUB_TOKEN`으로 발행하는 우회 경로는 없다. `ERROR_DISPATCH_BOT`은 dispatch App의 bot login을 사용한다. 두 App의 private key를 서로 재사용하거나 모델에 제공하지 않는다. 설치/권한 승인 뒤에만 운영 dispatch를 활성화한다.
 
 ## 권한 분리와 독립 검증
 
@@ -87,7 +86,7 @@ Sentry는 `https://sentry.io/api/0/organizations/<org>/issues/<id>/` 및 `events
 2. **agent:** `anthropics/claude-code-action@d70510b174a1244958df0b03166a54912811f3e6` + `--model claude-fable-5-1`. read-only GitHub token, `persist-credentials:false`, Read/Edit/Write/Glob/Grep만 허용한다. 신뢰된 hook이 실제 경로·symlink를 검사한다. shell/network/MCP/subagent/secret 접근, automation/config/generated/schema/기존 테스트 수정은 금지한다. 저장소 설정 로딩과 MCP 서버도 비활성화한다.
 3. **verify:** 별도 깨끗한 runner에서 24개 파일/파일당 256KB/총 1MB/일반 파일/앱 경계/baseline SHA256을 검사한다. 기본 코드에 frozen install을 끝낸 다음 후보를 적용한다. 이후 모든 실행은 네트워크·자격증명·Docker socket 없이 non-root/capability 제거/resource 제한 컨테이너에서 수행한다. 소스/설정/테스트/의존성은 read-only이며 빌드·런타임 출력 디렉터리만 명시적으로 쓸 수 있다.
 4. 새 `tests/autofix/*.test.mjs`는 수정 전 실제 assertion 실패, 수정 후 통과해야 한다. loader/setup 실패는 재현이 아니다. API 후보는 `@koin/api...`, 웹 후보는 추가로 `@koin/web...` 의존성 범위의 기존 native fixtures·타입·빌드를 검사하고 autofix 보안 테스트와 해당 범위 lint를 수행한다. B-BOT의 별도 PostgreSQL 런타임은 이 자동 수정 대상이 아니며 저장소 전체 검증에서 따로 검사한다. 기존 fixture/test 파일은 패치에서 수정할 수 없다.
-5. 웹은 정적 route/import graph에서 모든 변경 소스가 관측 경로에 도달하는지 확인한다. 매 실행마다 별도 D1 상태와 공용 Wrangler registry를 만들고 실제 local API Worker·웹·Chromium을 실행한다. SSR의 실제 API 호출과 브라우저 gateway 응답을 확인하며, API smoke는 관측된 GET endpoint 실행과 2xx/JSON을 확인한다. 임시 entrypoint·브라우저 프로필·프로세스를 정리하고 컨테이너 타임아웃 시 잔류 컨테이너도 제거한다. mutating 요청/인증/필수 query/운영 데이터 의존은 자동 재생하지 않는다. 운영 데이터나 가짜 fallback은 사용하지 않는다.
+5. 웹은 정적 route/import graph에서 모든 변경 소스가 관측 경로에 도달하는지 확인한다. 웹 검증 전 로컬 D1 migration을 적용하고, Vite 빌드에 검증 전용 `koin-api` auxiliary Worker를 포함하여 SSR service binding과 브라우저 gateway가 동일한 실제 로컬 API/D1을 사용하게 한다. API smoke는 별도 실제 Wrangler Worker에서 관측된 GET endpoint 실행과 2xx/JSON을 확인한다. API 요청 로그와 SSR 전후 요청 수, 브라우저 응답 본문을 대조해 연결 실패를 숨기지 않는다. 임시 entrypoint·registry·브라우저 프로필·프로세스·컨테이너·source snapshot을 정리한다. mutating 요청/인증/필수 query/운영 데이터 의존은 자동 재생하지 않으며 운영 데이터나 가짜 fallback을 사용하지 않는다.
 6. **publish:** 같은 run/base/검증 목록/patch hash를 확인하고 검증된 bytes만 Git API로 발행한다. 기본 브랜치가 전진했으면 중단한다. 후보 코드를 실행하거나 배포하지 않는다. 성공한 검사만 체크한 linked PR을 생성한다.
 7. **실패 보고:** publish 작업의 마지막 단계가 실패/변경 없음의 단계 결과와 실행 링크를 이슈에 남긴다. GitHub write 권한은 prepare/publish에만 있다. 원문 진단·모델 주장·비밀값을 댓글에 복사하지 않는다.
 
@@ -111,5 +110,14 @@ Sentry는 `https://sentry.io/api/0/organizations/<org>/issues/<id>/` 및 `events
 docker build --tag koin-error-verifier --file scripts/autofix/Dockerfile scripts/autofix
 node scripts/autofix/verify.mjs
 ```
+
+현재 작업 트리의 git 추적 파일만 격리 복사하여 API/D1 + 홈 SSR + Chromium을 검사하려면 macOS의 Docker Desktop 또는 Linux Docker daemon을 시작한 뒤 다음을 실행한다. `.env`/PEM/사용자 데이터나 host `node_modules`는 복사·마운트하지 않는다. 설치 단계만 bridge network를 쓰고, 빌드·마이그레이션·HTTP/브라우저 검사는 `--network none`, non-root, 읽기 전용 source와 명시적인 scratch mount에서 실행한다. 실패해도 source snapshot과 임시 컨테이너는 정리하며 운영 URL로 fallback하지 않는다.
+
+```sh
+docker build --tag koin-error-verifier --file scripts/autofix/Dockerfile scripts/autofix
+node scripts/autofix/verify.mjs --offline-smoke
+```
+
+성공 시 `Real local API/D1 smoke passed: GET /shops/categories`, `Real local API/D1 smoke passed: SSR /, browser /, gateway /api/shops/categories`, `Offline local API/D1 + SSR + Chromium smoke passed`를 출력한다. 이 단독 명령은 후보 패치의 회귀·타입·lint 검증을 대신하지 않으며, 실제 `error-input/context.json`과 `error-patch/patch.json`을 사용하는 위의 전체 독립 verifier도 별도로 실행해야 한다.
 
 `prepare.mjs`, `publish.mjs`, `report.mjs`는 실제 GitHub에 쓰는 운영 스크립트이므로 로컬 검사 대신 실행하지 않는다. 실제 모델/이슈/PR/배포는 별도의 명시적 운영 승인으로만 점검한다.

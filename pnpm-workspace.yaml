@@ -2,8 +2,67 @@ packages:
   - apps/*
   - packages/*
 
-onlyBuiltDependencies:
-  - '@sentry/cli'
-  - esbuild
-  - workerd
-  - unrs-resolver
+overrides:
+  tar: 7.5.22
+  brace-expansion@^1.1.7: 1.1.21
+  brace-expansion@^2.0.1: 2.1.7
+  brace-expansion@^5.0.2: 5.0.12
+  js-yaml@^3.13.1: 3.15.2
+  js-yaml@^4.1.0: 4.3.2
+  immutable: 4.3.9
+  picomatch@^4.0.2: 4.0.7
+  picomatch@^4.0.3: 4.0.7
+  minimatch@^9.0.1: 9.0.9
+  minimatch@^9.0.4: 9.0.9
+  glob@^10.2.2: 10.5.0
+  glob@^10.3.7: 10.5.0
+  glob@^10.3.10: 10.5.0
+  postcss@^8.5.6: 8.5.32
+  postcss@^8.5.15: 8.5.32
+  form-data: 4.0.6
+  uuid: 11.1.1
+  svgo: 3.3.5
+  ip: 2.0.1
+  '@babel/core': 7.29.7
+
+minimumReleaseAgeExclude:
+  - '@hono/swagger-ui@0.6.2'
+  - '@aws-sdk/checksums@3.1001.7'
+  - '@aws-sdk/client-s3@3.1159.0'
+  - '@aws-sdk/core@3.978.7'
+  - '@aws-sdk/credential-provider-env@3.972.78'
+  - '@aws-sdk/credential-provider-http@3.972.80'
+  - '@aws-sdk/credential-provider-ini@3.973.23'
+  - '@aws-sdk/credential-provider-login@3.972.85'
+  - '@aws-sdk/credential-provider-node@3.972.90'
+  - '@aws-sdk/credential-provider-process@3.972.78'
+  - '@aws-sdk/credential-provider-sso@3.973.22'
+  - '@aws-sdk/credential-provider-web-identity@3.972.84'
+  - '@aws-sdk/middleware-sdk-s3@3.972.83'
+  - '@aws-sdk/nested-clients@3.997.52'
+  - '@aws-sdk/signature-v4-multi-region@3.996.50'
+  - '@aws-sdk/token-providers@3.1159.0'
+  - '@aws-sdk/xml-builder@3.972.42'
+  - '@cloudflare/vite-plugin@1.66.0'
+  - '@cloudflare/workers-types@5.20261029.1'
+  - '@hookform/resolvers@6.0.2'
+  - '@sentry/browser-utils@11.10.0'
+  - '@sentry/browser@11.10.0'
+  - '@sentry/bundler-plugins@11.10.0'
+  - '@sentry/core@11.10.0'
+  - '@sentry/feedback@11.10.0'
+  - '@sentry/react@11.10.0'
+  - '@sentry/replay-canvas@11.10.0'
+  - '@sentry/replay@11.10.0'
+  - '@sentry/vite-plugin@11.10.0'
+  - miniflare@5.20261023.2-beta
+  - react-toastify@11.2.0
+  - sass@1.107.0
+  - wrangler@4.155.0
+
+allowBuilds:
+  '@parcel/watcher': true
+  '@sentry/cli': true
+  esbuild: true
+  unrs-resolver: true
+  workerd: true

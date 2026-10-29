@@ -2,7 +2,6 @@ import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-q
 
 import { cafeteriaMutations } from 'api/cafeteria/mutations';
 import { cafeteriaQueries } from 'api/cafeteria/queries';
-import type { Dining, OriginalDining } from 'api/dinings/entity';
 import { convertDateToSimpleString } from 'components/cafeteria/utils/time';
 
 function useDinings(date: Date) {
@@ -16,10 +15,10 @@ function useDinings(date: Date) {
         return [];
       }
 
-      return (data as OriginalDining[]).map((dining) => ({
+      return data.map((dining) => ({
         ...dining,
         menu: dining.menu.map((menuName, index) => ({ id: index, name: menuName })),
-      })) as Dining[];
+      }));
     },
   });
   const likeMutation = cafeteriaMutations.likeDining(queryClient, convertedDate);

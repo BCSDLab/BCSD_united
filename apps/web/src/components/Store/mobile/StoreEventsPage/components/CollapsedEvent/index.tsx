@@ -10,7 +10,7 @@ import useLogger from 'utils/hooks/analytics/useLogger';
 import styles from './CollapsedEvent.module.scss';
 
 // lottie-web은 import 시점에 document에 접근하므로 서버에서는 렌더하지 않는다. 자리는 감싸는 요소가 잡는다
-const Lottie = lazy(() => import('lottie-react'));
+const Lottie = lazy(() => import('lottie-react').then(({ Lottie }) => ({ default: Lottie })));
 
 interface CollapsedEventProps {
   event: Events;
@@ -43,7 +43,7 @@ export default function CollapsedEvent({ event, onToggleOpen, contentId, isOpen 
           <div className={styles.event__lottie}>
             <ClientOnly>
               <Suspense fallback={null}>
-                <Lottie animationData={LoadingLottie} style={{ width: '100%', height: '100%' }} />
+                <Lottie src={LoadingLottie} style={{ width: '100%', height: '100%' }} />
               </Suspense>
             </ClientOnly>
           </div>

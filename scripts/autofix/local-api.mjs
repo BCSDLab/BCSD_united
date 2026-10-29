@@ -1,11 +1,74 @@
 import { spawn } from 'node:child_process';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { stripVTControlCharacters } from 'node:util';
 
 export const API_ORIGIN = 'http://127.0.0.1:4174';
 export const delay = (ms) => new Promise((done) => setTimeout(done, ms));
+
+const instrumentedApi = `
+import worker from '../../src/index.ts';
+export * from '../../src/index.ts';
+export default {
+  ...worker,
+  async fetch(request, env, ctx) {
+    let status = 500;
+    try {
+      const response = await worker.fetch(request, env, ctx);
+      status = response.status;
+      return response;
+    } finally {
+      console.warn('AUTOFIX_API_REQUEST', request.method, new URL(request.url).pathname, status);
+    }
+  },
+};
+`;
+
+// A build-only auxiliary Worker lives under the API scratch mount. The Vite
+// preview then loads both Workers in one Miniflare instance; Wrangler's
+// separate dev registry is not consulted by that preview runtime.
+export async function prepareWebApi() {
+  const directory = resolve('apps/api/.wrangler/autofix-api');
+  await mkdir(directory, { recursive: true });
+  const original = await readFile(resolve('apps/api/wrangler.jsonc'), 'utf8');
+  const main = '"main": "src/index.ts"';
+  const migrations = '"migrations_dir": "drizzle"';
+  if (original.split(main).length !== 2 || original.split(migrations).length !== 3)
+    throw new Error('API configuration changed; offline auxiliary Worker needs review');
+  await writeFile(join(directory, 'index.mjs'), instrumentedApi);
+  await writeFile(
+    join(directory, 'wrangler.jsonc'),
+    original.replace(main, '"main": "index.mjs"').replaceAll(migrations, '"migrations_dir": "../../drizzle"'),
+  );
+}
+
+export async function migrateWebApi() {
+  // Wrangler appends /v3 to --persist-to, whereas Cloudflare Vite's
+  // resourcePersistencePath already points at <web root>/.wrangler/state/v3.
+  const persistence = resolve('apps/web/.wrangler/state');
+  const migration = startProcess('pnpm', ['--filter', '@koin/api', 'db:migrate:local', '--persist-to', persistence], {
+    ...process.env,
+    CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV: 'false',
+    WRANGLER_SEND_METRICS: 'false',
+  });
+  let timer;
+  try {
+    const result = await Promise.race([
+      migration.finished,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error('Local database migration timed out')), 180000);
+      }),
+    ]);
+    if (result.error || result.code !== 0) throw new Error('Local-only API database migration failed');
+  } catch (error) {
+    process.stderr.write(migration.log.slice(-16000));
+    throw error;
+  } finally {
+    clearTimeout(timer);
+    await stopProcess(migration.child);
+  }
+}
 
 export async function stopProcess(child) {
   if (!child?.pid) return;
@@ -101,26 +164,7 @@ export async function startLocalApi() {
       await stopProcess(migration.child);
     }
     const entry = join(entryDirectory, 'index.mjs');
-    await writeFile(
-      entry,
-      `
-import worker from '../../src/index.ts';
-export * from '../../src/index.ts';
-export default {
-  ...worker,
-  async fetch(request, env, ctx) {
-    let status = 500;
-    try {
-      const response = await worker.fetch(request, env, ctx);
-      status = response.status;
-      return response;
-    } finally {
-      console.warn('AUTOFIX_API_REQUEST', request.method, new URL(request.url).pathname, status);
-    }
-  },
-};
-`,
-    );
+    await writeFile(entry, instrumentedApi);
     runtime = startProcess(
       'pnpm',
       [
@@ -180,4 +224,8 @@ export default {
     if (runtime) process.stderr.write(runtime.log.slice(-16000));
     throw error;
   }
+}
+
+if (process.argv[1]?.endsWith('/local-api.mjs') && process.argv[2] === '--prepare-web') {
+  await prepareWebApi();
 }

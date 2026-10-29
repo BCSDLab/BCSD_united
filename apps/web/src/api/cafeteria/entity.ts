@@ -1,7 +1,7 @@
-import type { Dining } from 'api/dinings/entity';
+import type { OriginalDining } from 'api/dinings/entity';
 import type { APIResponse } from 'interfaces/APIResponse';
 
-export interface DiningResponseType extends APIResponse, Record<number, Dining> {}
+export type DiningResponseType = OriginalDining[] | { status: unknown };
 
 export interface SoldoutReportRequest {
   image_url: string;

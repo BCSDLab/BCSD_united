@@ -99,15 +99,18 @@ Sentry.init({
     fetchOptions: { credentials: 'omit' },
   },
 
-  beforeSendTransaction(event) {
-    if (isBotUserAgent()) return null;
-
-    const transactionKey = getTransactionKey(event.transaction);
-    if (transactionKey) {
-      event.tags = { ...event.tags, 'koin.transaction_key': transactionKey };
+  tracesSampler: () => (isBotUserAgent() ? 0 : 1.0),
+  beforeSendSpan(span) {
+    if (span.is_segment) {
+      const transactionKey = getTransactionKey(
+        String(span.attributes['http.route'] ?? span.attributes['url.full'] ?? span.name),
+      );
+      if (transactionKey) {
+        span.attributes['koin.transaction_key'] = transactionKey;
+      }
     }
 
-    return event;
+    return maskSensitive(span);
   },
 
   beforeSend(event, hint) {
@@ -154,7 +157,7 @@ Sentry.init({
       });
     }
 
-    return event;
+    return maskSensitive(event);
   },
 
   beforeSendLog(log) {
@@ -182,11 +185,9 @@ Sentry.init({
 
   integrations: [
     Sentry.replayIntegration({
-      maskAllText: false,
-      maskAllInputs: false,
-      blockAllMedia: false,
-      // maskAllText/maskAllInputs를 꺼도 .sentry-mask 클래스(또는
-      // [data-sentry-mask] 속성)가 붙은 요소는 기본 셀렉터로 항상 마스킹된다.
+      maskAllText: true,
+      maskAllInputs: true,
+      blockAllMedia: true,
     }),
     // plain object로 throw된 에러의 추가 속성을 이벤트에 붙인다 (KoinError 대응)
     Sentry.extraErrorDataIntegration(),
@@ -202,23 +203,25 @@ Sentry.init({
     ...(process.env.NEXT_PUBLIC_API_PATH ? [process.env.NEXT_PUBLIC_API_PATH] : []),
   ],
 
-  enableLogs: true,
-  tracesSampleRate: 1.0,
-  // UI Profile Hours 는 월 150시간으로, Logs(5TB)와 달리 실제로 한정된 쿼터다.
-  // 실측(Sentry MCP로 확인, 2026-09): 기존 trace 0.7 / profile 0.1 기준 월 사용량이 약 32분(0.4%)이었다.
-  // trace·profile 둘 다 1.0으로 올려도 ×14 수준(약 7~8시간/월, 5%대)이라 여유가 충분하다.
-  profilesSampleRate: 1.0,
+  // tracesSampler above retains the 1.0 sample rate for real browser traffic.
+  // Sentry 11 profiles sessions, not transactions; trace lifecycle keeps profiles linked to spans.
+  profileSessionSampleRate: 1.0,
+  profileLifecycle: 'trace',
   replaysSessionSampleRate: isProduction ? 0.3 : 0.0,
   replaysOnErrorSampleRate: 1.0,
-  // 자격증명급 위험이 있는 항목만 최소로 차단한다. cookie 헤더는 httpHeaders가 아니라
-  // 별도의 cookies 옵션으로 처리되므로 여기 deny에 넣어도 효과가 없다.
-  // frameContextLines: 7은 sendDefaultPii: true 시절의 기본값을 그대로 유지한 것이다.
+  // Sentry 11 collects request bodies and user data by default; browser diagnostics
+  // do not need those fields, and key-name scrubbing cannot reliably detect secrets.
   dataCollection: {
+    userInfo: false,
     cookies: false,
-    httpHeaders: {
-      request: { deny: ['authorization', 'referer'] },
-      response: { deny: ['authorization', 'referer'] },
-    },
+    httpHeaders: false,
+    httpBodies: [],
+    urlQueryParams: false,
+    graphQL: { document: false, variables: false },
+    genAI: { inputs: false, outputs: false },
+    databaseQueryData: false,
+    queues: false,
+    stackFrameVariables: false,
     frameContextLines: 7,
   },
 });

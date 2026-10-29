@@ -1,10 +1,4 @@
-import axios, {
-  AxiosError,
-  CanceledError,
-  type AxiosAdapter,
-  type AxiosRequestConfig,
-  type AxiosResponse,
-} from 'axios';
+import axios, { AxiosError, AxiosHeaders, CanceledError, type AxiosAdapter, type AxiosResponse } from 'axios';
 import { env } from 'cloudflare:workers';
 
 interface ApiEnvironment {
@@ -45,14 +39,9 @@ export function fetchApiRequest(request: Request): Promise<Response> {
   return bindings.KOIN_ENVIRONMENT === 'preview' ? fetch(request) : bindings.KOIN_API!.fetch(request);
 }
 
-type SubscribableCancelToken = NonNullable<AxiosRequestConfig['cancelToken']> & {
-  subscribe(listener: (reason: unknown) => void): void;
-  unsubscribe(listener: (reason: unknown) => void): void;
-};
-
 export const apiRequestAdapter: AxiosAdapter = async (config) => {
   const controller = new AbortController();
-  const cancelToken = config.cancelToken as SubscribableCancelToken | undefined;
+  const cancelToken = config.cancelToken;
   let request: Request | undefined;
   let timeout: ReturnType<typeof setTimeout> | undefined;
   const { promise: cancellation, reject: rejectCancellation } = Promise.withResolvers<never>();
@@ -61,11 +50,11 @@ export const apiRequestAdapter: AxiosAdapter = async (config) => {
     controller.abort();
   };
   const onAbort = () => {
-    const error = new CanceledError();
-    error.config = config;
-    error.request = request;
+    const error = new CanceledError(undefined, config, request);
     try {
-      if (config.signal?.reason !== undefined) error.reason = config.signal.reason;
+      if (config.signal && 'reason' in config.signal && config.signal.reason !== undefined) {
+        Object.assign(error, { reason: config.signal.reason });
+      }
     } catch {
       // 사용자 정의 `signal.reason` getter가 실패해도 취소는 진행한다.
     }
@@ -87,7 +76,7 @@ export const apiRequestAdapter: AxiosAdapter = async (config) => {
       credentials: config.withCredentials === false ? 'omit' : 'include',
     });
     cancelToken?.subscribe(cancel);
-    config.signal?.addEventListener('abort', onAbort);
+    config.signal?.addEventListener?.('abort', onAbort);
     if (config.signal?.aborted) onAbort();
     if (config.timeout) {
       timeout = setTimeout(() => {
@@ -119,7 +108,7 @@ export const apiRequestAdapter: AxiosAdapter = async (config) => {
         default:
           data = await response.text();
       }
-      const responseHeaders: AxiosResponse['headers'] = Object.fromEntries(response.headers);
+      const responseHeaders = new AxiosHeaders(Object.fromEntries(response.headers));
       const cookies = response.headers.getSetCookie();
       if (cookies.length) responseHeaders['set-cookie'] = cookies;
       const result: AxiosResponse = {
@@ -157,6 +146,6 @@ export const apiRequestAdapter: AxiosAdapter = async (config) => {
   } finally {
     clearTimeout(timeout);
     cancelToken?.unsubscribe(cancel);
-    config.signal?.removeEventListener('abort', onAbort);
+    config.signal?.removeEventListener?.('abort', onAbort);
   }
 };

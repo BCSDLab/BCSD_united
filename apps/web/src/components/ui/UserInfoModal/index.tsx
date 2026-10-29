@@ -8,7 +8,7 @@ import ROUTES from 'static/routes';
 import useUserInfoModal from './hooks/useUserInfoModal';
 import styles from './UserInfoModal.module.scss';
 
-const Lottie = lazy(() => import('lottie-react'));
+const Lottie = lazy(() => import('lottie-react').then(({ Lottie }) => ({ default: Lottie })));
 
 function UserInfoModal() {
   const router = useRouter();
@@ -34,7 +34,7 @@ function UserInfoModal() {
 
         <div className={styles.content}>
           <div className={styles['lottie-container']}>
-            <Lottie animationData={waveHandAnimation} style={{ width: '100%', height: '100%' }} loop autoplay />
+            <Lottie src={waveHandAnimation} style={{ width: '100%', height: '100%' }} loop autoplay />
           </div>
 
           <div className={styles.notice}>

@@ -1,7 +1,7 @@
 import { and, eq, gt, sql, type SQL } from 'drizzle-orm';
 import type { Context, Hono } from 'hono';
 import { z } from 'zod';
-import { requirePrincipal, signJwt } from '@api/auth';
+import { requirePrincipal } from '@api/auth';
 import { executeAtomic, type Database } from '@api/db/client';
 import { schema } from '@api/db/schema';
 import { identityEvent, signalIdentityEvents } from '@api/domains/identity/events';
@@ -26,13 +26,14 @@ const phone = z.string().regex(/^\d{11}$/, '전화번호 형식이 올바르지 
 const companyNumber = z.string().regex(/^\d{3}-\d{2}-\d{5}$/, '사업자 등록 번호 형식이 올바르지 않습니다.');
 const phoneRequest = z.object({ phone_number: phone });
 const verificationRequest = phoneRequest.extend({
-  certification_code: z.string().regex(/^[+-]?\d{1,6}$/, '인증 코드는 6자리 정수여야 합니다.'),
+  certification_code: z.string().regex(/^\d{6}$/, '인증 코드는 6자리 숫자여야 합니다.'),
 });
 export const ownerRegistrationSchema = z.object({
   company_number: companyNumber,
   name: nonBlank.refine((value) => value.length <= 50, '이름은 50자 이내여야 합니다.'),
   password: nonBlank,
   phone_number: phone,
+  verification_token: z.string().uuid(),
   shop_id: z.number().int().nullable().optional(),
   shop_name: nonBlank,
   shop_number: z
@@ -44,10 +45,14 @@ export const ownerRegistrationSchema = z.object({
         file_url: z
           .string()
           .url()
-          .refine(
-            (value) => value.startsWith('https:') && /static\.koreatech\.in/.test(value),
-            '코인 파일 저장 형식이 아닙니다.',
-          ),
+          .refine((value) => {
+            try {
+              const url = new URL(value);
+              return url.protocol === 'https:' && url.hostname === 'static.koreatech.in' && !url.username && !url.password;
+            } catch {
+              return false;
+            }
+          }, '코인 파일 저장 형식이 아닙니다.'),
       }),
     )
     .min(1)
@@ -56,6 +61,7 @@ export const ownerRegistrationSchema = z.object({
 
 type OwnerRegistration = z.infer<typeof ownerRegistrationSchema>;
 const SMS_LIFETIME = 180_000;
+type OwnerProofPurpose = 'register' | 'reset';
 const DAILY_LIFETIME = 86_400_000;
 
 function duplicatePhone(): never {
@@ -128,7 +134,7 @@ function newCertificationCode(): string {
   return String(sample[0]! % 1_000_000).padStart(6, '0');
 }
 
-export function ownerSmsStateStatements(target: string, code: string, clock: number): SQL[] {
+export function ownerSmsStateStatements(target: string, code: string, clock: number, purpose: OwnerProofPurpose): SQL[] {
   const dailyId = `owner_sms_daily:${target}`;
   return [
     ...atomicGuard(
@@ -139,16 +145,68 @@ export function ownerSmsStateStatements(target: string, code: string, clock: num
       ON CONFLICT (id) DO UPDATE SET
         payload = CASE WHEN identity_tokens.expires_at <= ${clock} THEN '1' ELSE CAST(CAST(identity_tokens.payload AS INTEGER) + 1 AS TEXT) END,
         expires_at = CASE WHEN identity_tokens.expires_at <= ${clock} THEN ${clock + DAILY_LIFETIME} ELSE identity_tokens.expires_at END`,
+    sql`DELETE FROM identity_tokens WHERE id IN (${`owner_verified_register:${target}`}, ${`owner_verified_reset:${target}`})`,
     sql`INSERT INTO identity_tokens (id, kind, target, payload, expires_at)
-      VALUES (${`owner_sms:${target}`}, 'owner_sms', ${target}, ${JSON.stringify({ code })}, ${clock + SMS_LIFETIME})
+      VALUES (${`owner_sms:${target}`}, 'owner_sms', ${target}, ${JSON.stringify({ code, attempts: 0, purpose, challenge: crypto.randomUUID() })}, ${clock + SMS_LIFETIME})
       ON CONFLICT (id) DO UPDATE SET kind = excluded.kind, payload = excluded.payload, expires_at = excluded.expires_at`,
   ];
 }
 
-export function ownerVerifyCodeStatement(target: string, code: string, clock: number): SQL {
-  return sql`SELECT id FROM identity_tokens
-    WHERE id = ${`owner_sms:${target}`} AND kind = 'owner_sms' AND target = ${target} AND expires_at > ${clock}
-      AND json_extract(payload, '$.code') = ${code}`;
+export function ownerCodeAttemptStatement(target: string, clock: number, purpose: OwnerProofPurpose): SQL {
+  return sql`UPDATE identity_tokens SET payload=json_set(payload, '$.attempts',
+    coalesce(CAST(json_extract(payload, '$.attempts') AS INTEGER), 0) + 1)
+    WHERE id=${`owner_sms:${target}`} AND kind='owner_sms' AND target=${target} AND expires_at>${clock}
+    AND json_extract(payload, '$.purpose')=${purpose}
+    AND coalesce(CAST(json_extract(payload, '$.attempts') AS INTEGER), 0) < 5
+    RETURNING payload`;
+}
+
+
+function ownerProofId(target: string, purpose: OwnerProofPurpose): string {
+  return `owner_verified_${purpose}:${target}`;
+}
+
+export function ownerApproveCodeStatements(
+  target: string,
+  code: string,
+  clock: number,
+  purpose: OwnerProofPurpose,
+  proof: string,
+  expectedPayload: string,
+): SQL[] {
+  const smsId = `owner_sms:${target}`;
+  const proofId = ownerProofId(target, purpose);
+  return [
+    ...atomicGuard(sql`EXISTS (SELECT 1 FROM identity_tokens WHERE id=${smsId} AND kind='owner_sms'
+      AND target=${target} AND expires_at>${clock} AND payload=${expectedPayload}
+      AND json_extract(payload, '$.code')=${code} AND json_extract(payload, '$.purpose')=${purpose}
+      AND CAST(json_extract(payload, '$.attempts') AS INTEGER) BETWEEN 1 AND 5)`),
+    sql`INSERT INTO identity_tokens (id,kind,target,payload,expires_at)
+      VALUES (${proofId},${`owner_verified_${purpose}`},${target},${JSON.stringify({ token: proof })},${clock + SMS_LIFETIME})
+      ON CONFLICT(id) DO UPDATE SET payload=excluded.payload,expires_at=excluded.expires_at`,
+    sql`DELETE FROM identity_tokens WHERE id=${smsId}`,
+  ];
+}
+
+function ownerProofGuard(target: string, purpose: OwnerProofPurpose, clock: number, proof: string): SQL[] {
+  return atomicGuard(sql`EXISTS (SELECT 1 FROM identity_tokens WHERE id=${ownerProofId(target, purpose)}
+    AND kind=${`owner_verified_${purpose}`} AND target=${target} AND expires_at>${clock}
+    AND json_extract(payload, '$.token')=${proof})`);
+}
+
+export function ownerPasswordResetStatements(
+  db: Database,
+  target: string,
+  userId: number,
+  hash: string,
+  clock: number,
+  proof: string,
+): SQL[] {
+  return [
+    ...ownerProofGuard(target, 'reset', clock, proof),
+    ...passwordChangeStatements(db, userId, hash),
+    sql`DELETE FROM identity_tokens WHERE id=${ownerProofId(target, 'reset')}`,
+  ];
 }
 
 export function ownerRegistrationStatements(
@@ -159,6 +217,7 @@ export function ownerRegistrationStatements(
 ): SQL[] {
   const ownerId = sql`(SELECT user_id FROM owners WHERE account = ${request.phone_number})`;
   return [
+    ...ownerProofGuard(request.phone_number, 'register', clock, request.verification_token),
     ...(request.shop_id == null
       ? []
       : atomicGuard(sql`EXISTS (SELECT 1 FROM shops WHERE id = ${request.shop_id} AND is_deleted = 0)`)),
@@ -174,17 +233,17 @@ export function ownerRegistrationStatements(
       SELECT 'owner_shop:' || user_id, 'owner_shop', CAST(user_id AS TEXT), user_id,
         ${JSON.stringify({ shop_id: request.shop_id ?? null, shop_name: request.shop_name, shop_number: request.shop_number })}, ${clock + DAILY_LIFETIME}
       FROM owners WHERE account = ${request.phone_number}`,
-    sql`DELETE FROM identity_tokens WHERE id = ${`owner_sms:${request.phone_number}`}`,
+    sql`DELETE FROM identity_tokens WHERE id=${ownerProofId(request.phone_number, 'register')}`,
   ];
 }
 
-async function sendCertification(c: Context<ApiEnv>, target: string): Promise<void> {
+async function sendCertification(c: Context<ApiEnv>, target: string, purpose: OwnerProofPurpose): Promise<void> {
   const code = newCertificationCode();
   const sms = identityEvent('identity.owner.sms', { to: target, code });
   const slack = identityEvent('identity.owner.slack', { type: 'verification', phone: target });
   try {
     await executeAtomic(c.get('db'), [
-      ...ownerSmsStateStatements(target, code, Date.now()),
+      ...ownerSmsStateStatements(target, code, Date.now(), purpose),
       sms.statement,
       slack.statement,
     ]);
@@ -195,23 +254,26 @@ async function sendCertification(c: Context<ApiEnv>, target: string): Promise<vo
   await signalIdentityEvents(c.env, [sms.id, slack.id]);
 }
 
-async function verifyCode(db: Database, target: string, code: string): Promise<void> {
+async function verifyCode(db: Database, target: string, code: string, purpose: OwnerProofPurpose): Promise<string> {
   const clock = Date.now();
-  const [result] = await executeAtomic(db, [ownerVerifyCodeStatement(target, code, clock)]);
-  if (result?.results?.length) return;
-  const [token] = await db
-    .select({ id: schema.identity_tokens.id })
-    .from(schema.identity_tokens)
-    .where(
-      and(
-        eq(schema.identity_tokens.id, `owner_sms:${target}`),
-        eq(schema.identity_tokens.kind, 'owner_sms'),
-        gt(schema.identity_tokens.expires_at, clock),
-      ),
-    )
-    .limit(1);
-  if (!token) missingVerification();
-  throw new ApiError(400, 'ILLEGAL_ARGUMENT', '인증번호가 일치하지 않습니다.');
+  const [attempt] = await executeAtomic(db, [ownerCodeAttemptStatement(target, clock, purpose)]);
+  const row: unknown = attempt?.results?.[0];
+  if (!row || typeof row !== 'object' || !('payload' in row) || typeof row.payload !== 'string')
+    missingVerification();
+  const expectedPayload = row.payload;
+  const payload = z.object({ code: z.string(), attempts: z.number().int(), purpose: z.enum(['register', 'reset']), challenge: z.string().uuid() }).parse(
+    JSON.parse(expectedPayload),
+  );
+  if (payload.code !== code)
+    throw new ApiError(400, 'ILLEGAL_ARGUMENT', '인증번호가 일치하지 않습니다.');
+  const proof = crypto.randomUUID();
+  try {
+    await executeAtomic(db, ownerApproveCodeStatements(target, code, clock, purpose, proof, expectedPayload));
+  } catch (error) {
+    if (isGuardFailure(error)) missingVerification();
+    throw error;
+  }
+  return proof;
 }
 
 export async function handleOwnerIdentityJob(env: Bindings, job: Job): Promise<boolean> {
@@ -337,7 +399,7 @@ export function registerOwners(app: Hono<ApiEnv>): void {
         event.statement,
       ]);
     } catch (error) {
-      if (isGuardFailure(error)) fail('NOT_FOUND_SHOP');
+      if (isGuardFailure(error)) missingVerification();
       const message = errorChain(error);
       if (message.includes('owners.account')) duplicatePhone();
       if (message.includes('owners.company_registration_number')) duplicateCompany();
@@ -350,35 +412,40 @@ export function registerOwners(app: Hono<ApiEnv>): void {
   app.post('/owners/verification/sms', async (c) => {
     const request = await parseBody(c, phoneRequest);
     await requireAvailableAccount(c.get('db'), request.phone_number);
-    await sendCertification(c, request.phone_number);
+    await sendCertification(c, request.phone_number, 'register');
     return c.body(null, 200);
   });
 
   app.post('/owners/verification/code/sms', async (c) => {
     const request = await parseBody(c, verificationRequest);
-    await verifyCode(c.get('db'), request.phone_number, request.certification_code);
-    return c.json({ token: await signJwt(c.env, 0) });
+    const proof = await verifyCode(c.get('db'), request.phone_number, request.certification_code, 'register');
+    return c.json({ token: proof });
   });
 
   app.post('/owners/password/reset/verification/sms', async (c) => {
     const request = await parseBody(c, phoneRequest);
     await ownerByAccount(c.get('db'), request.phone_number);
-    await sendCertification(c, request.phone_number);
+    await sendCertification(c, request.phone_number, 'reset');
     return c.body(null, 200);
   });
 
   app.post('/owners/password/reset/send/sms', async (c) => {
     const request = await parseBody(c, verificationRequest);
-    await verifyCode(c.get('db'), request.phone_number, request.certification_code);
-    return c.body(null, 200);
+    const proof = await verifyCode(c.get('db'), request.phone_number, request.certification_code, 'reset');
+    return c.json({ token: proof });
   });
 
   app.put('/owners/password/reset/sms', async (c) => {
-    const request = await parseBody(c, phoneRequest.extend({ password: nonBlank }));
+    const request = await parseBody(c, phoneRequest.extend({ password: nonBlank, verification_token: z.string().uuid() }));
     const db = c.get('db');
     const { user } = await ownerByAccount(db, request.phone_number);
     const hash = await encodePassword(request.password, true);
-    await executeAtomic(db, passwordChangeStatements(db, user.id, hash));
+    try {
+      await executeAtomic(db, ownerPasswordResetStatements(db, request.phone_number, user.id, hash, Date.now(), request.verification_token));
+    } catch (error) {
+      if (isGuardFailure(error)) missingVerification();
+      throw error;
+    }
     return c.body(null, 200);
   });
 

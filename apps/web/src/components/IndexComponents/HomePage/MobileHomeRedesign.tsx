@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useSuspenseQuery } from '@tanstack/react-query';
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 
 import { callvanQueries } from 'api/callvan/queries';
@@ -76,7 +76,7 @@ function MobileHomeRedesign() {
   const logger = useLogger();
   const serverNow = useServerNow();
   const { data: userInfo } = useUser();
-  const { data: weatherData } = useSuspenseQuery(weatherQueries.info());
+  const weatherQuery = useQuery(weatherQueries.info());
   const { data: callvanData } = useSuspenseQuery({
     ...callvanQueries.list({
       statuses: ['RECRUITING'],
@@ -105,17 +105,25 @@ function MobileHomeRedesign() {
         <div className={styles.hero__meta}>
           <span className={styles.hero__date}>{todayLabel}</span>
           <span className={styles.weather}>
-            <Image
-              className={styles.weather__icon}
-              src={weatherData.weather_icon_url}
-              alt=""
-              width={16}
-              height={16}
-              aria-hidden
-            />
-            <span className={styles.weather__text}>
-              {weatherData.weather} {weatherData.temperature}°
-            </span>
+            {weatherQuery.data ? (
+              <>
+                <Image
+                  className={styles.weather__icon}
+                  src={weatherQuery.data.weather_icon_url}
+                  alt=""
+                  width={16}
+                  height={16}
+                  aria-hidden
+                />
+                <span className={styles.weather__text}>
+                  {weatherQuery.data.weather} {weatherQuery.data.temperature}°
+                </span>
+              </>
+            ) : (
+              <span className={styles.weather__text}>
+                {weatherQuery.isPending ? '날씨 확인 중' : '날씨 정보 제공 불가'}
+              </span>
+            )}
           </span>
         </div>
         <h1 id="home-greeting-title" className={styles.hero__title}>

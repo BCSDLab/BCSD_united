@@ -29,10 +29,10 @@ scripts/
 
 ## 개발 환경
 
-Node.js 버전은 `.nvmrc`, pnpm 버전은 루트 `package.json`의 `packageManager`로 고정합니다.
+Node.js는 Cloudflare Workers Builds가 지원하는 `24.22.1`(`.nvmrc`), pnpm은 `12.16.1`(루트 `package.json`의 `packageManager`)로 고정합니다. Node 버전을 먼저 선택하고 Corepack으로 pnpm을 실행합니다. Workers Builds의 `NODE_VERSION`·`PNPM_VERSION`도 같은 값으로 유지합니다.
 
 ```sh
-corepack pnpm install
+corepack pnpm install --frozen-lockfile
 pnpm --filter @koin/api db:migrate:local
 pnpm dev
 ```
@@ -155,6 +155,8 @@ Cloudflare 근거: [Preview 설정](https://developers.cloudflare.com/workers/pr
 - Worker/API/SSR 오류: Cloudflare Issues.
 - 브라우저 React/JavaScript 오류와 세션 리플레이: Sentry.
 - 플랫폼 요청·CPU·바인딩 상태: Cloudflare Observability.
+
+브라우저 Sentry 프로젝트는 운영 `koin-united-prod`, Preview `koin-united-preview`로 분리합니다. SDK 11은 기본 데이터 수집 범위가 넓으므로 요청 본문·쿠키·헤더·쿼리·사용자 정보 수집을 끄고, 오류·로그·트레이스의 JWT를 전송 전에 가립니다. Replay는 모든 텍스트·입력을 마스킹하고 미디어를 차단합니다. 실제 DSN과 소스맵 업로드 토큰은 환경별 시크릿으로만 설정하며, 이 정책은 Worker/API/SSR 오류를 Sentry로 보내지 않습니다.
 
 자동 수정은 인증된 오류 이벤트를 받아 중복 GitHub 이슈를 확인하고, 격리된 모델 실행으로 패치를 만든 뒤 독립 검증을 통과한 경우에만 PR을 생성하는 구조입니다. 서버와 브라우저 이벤트의 공통 연결 작업은 현재 통합 중입니다.
 

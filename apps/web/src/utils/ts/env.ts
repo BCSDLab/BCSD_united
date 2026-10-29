@@ -100,7 +100,7 @@ export const isomorphicDocument = {
     return isBrowser ? window.document.getElementById(id) : null;
   },
   querySelector<T extends Element = Element>(selector: string): T | null {
-    return isBrowser ? (window.document.querySelector(selector) as T) : null;
+    return isBrowser ? window.document.querySelector<T>(selector) : null;
   },
   createElement<K extends keyof HTMLElementTagNameMap>(tag: K): HTMLElementTagNameMap[K] | null {
     return isBrowser ? window.document.createElement(tag) : null;

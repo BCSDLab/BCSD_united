@@ -14,23 +14,23 @@
   "dependencies": {
     "@koin/b-bot-ai": "workspace:*",
     "@koin/b-bot-database": "workspace:*",
-    "@notionhq/client": "^5.22.0",
-    "@slack/web-api": "^7.8.0",
+    "@notionhq/client": "^5.28.0",
+    "@slack/web-api": "^8.2.0",
     "exceljs": "^4.4.0",
-    "h3": "^1.15.4",
+    "h3": "^1.15.11",
     "nitropack": "^2.13.5",
-    "unstorage": "^1.17.3",
+    "unstorage": "^1.17.6",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^5.20261028.1",
-    "@slack/bolt": "^4.2.1",
+    "@cloudflare/workers-types": "^5.20261029.1",
+    "@slack/bolt": "^5.1.0",
     "@total-typescript/ts-reset": "^0.6.1",
-    "@types/node": "^22.13.10",
-    "@types/pg": "^8.20.0",
-    "pg": "^8.21.0",
-    "typescript": "^5.8.2",
-    "vitest": "^4.1.10",
-    "wrangler": "^4.154.0"
+    "@types/node": "^24.19.2",
+    "@types/pg": "^8.23.1",
+    "pg": "^8.23.1",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.5",
+    "wrangler": "^4.155.0"
   }
 }

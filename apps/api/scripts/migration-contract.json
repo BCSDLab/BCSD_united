@@ -36,11 +36,16 @@
   },
   "exportPrerequisites": [
     "Node 24, mysql2, mongoexport, mongosh; Wrangler available to import through the workspace dependency",
-    "MYSQL_URL, MONGO_URI, MONGO_DATABASE, REDIS_URL supplied only at execution, never committed",
+    "MYSQL_URL and MONGO_DATABASE must select the observed koin schemas; exporter rejects other MySQL/Mongo database names. MONGO_URI and REDIS_URL must point only at the approved koin containers/tunnels.",
+    "MYSQL_URL, MONGO_URI, MONGO_DATABASE and REDIS_URL are supplied only at execution and never committed.",
     "All Java/API/background writers stopped across all three stores; SCAN is not an atomic Redis snapshot",
     "Redis ACL permits SCAN, TYPE, per-type reads, TIME, PTTL, and the included EVAL script containing only TIME/PTTL reads; expiry uses Redis server time, not workstation time",
     "Live Flyway V20 successful and all 165 table names, column types/nullability/defaults/collations/generated expressions, indexes, CHECK constraints and foreign keys match source metadata",
     "Actual JVM/JDBC DATETIME timezone offset established independently; +09:00 shown in command is an example, not an inferred production setting",
+    "Source MySQL server SYSTEM timezone observed UTC; this does not establish application JVM/JDBC DATETIME interpretation. Upstream Dockerfile declares Asia/Seoul localtime, but actual running JVM flags, TZ and JDBC connection timezone remain unverified.",
+    "Owner registration/reset clients must submit the one-time purpose-and-phone-bound verification_token returned by SMS code verification; old clients that omit it are rejected and must be updated before cutover.",
+    "Unicode collation cutover requires independent production workload audit of equality, LIKE, sort order and all writable unique keys against MySQL; current registry is only an approximation and must not be represented as full MySQL equivalence.",
+    "Actual S3 source bucket and read-only authorization, R2 private destination policy, consistent writer quiescence across three stores, and explicit data cutover approval remain required.",
     "No application traffic on the newly created D1 target until import manifest verification succeeds"
   ],
   "representations": {
@@ -69,7 +74,7 @@
       "unicode_ci ae-ligature=ae": false,
       "0900_ai_ci ae-ligature=ae": true
     },
-    "limits": "This is an explicit approximation, not MySQL UCA4/UCA9/general_ci weight tables. Context-sensitive contractions, all-script case/mark equivalences, compatibility characters and utf8mb3 supplementary-character restrictions are not fully reproduced. SQL LIKE/equality/sorts remain SQLite semantics unless a domain uses normalized lookup. Imported normalization collisions fail closed; operator must reconcile, never silently merge"
+    "limits": "This is an explicit approximation, not MySQL UCA4/UCA9/general_ci weight tables. Context-sensitive contractions, all-script case/mark equivalences, compatibility characters and utf8mb3 supplementary-character restrictions are not fully reproduced. SQL LIKE/equality/sorts remain SQLite semantics unless a domain uses normalized lookup. Imported normalization collisions fail closed; operator must reconcile, never silently merge. Production data cutover is blocked pending a workload-level equivalence audit or an explicitly approved behavior change, not just a collision-free import."
   },
   "importSafety": {
     "checkpoint": "SHA256/byte/count manifest per source file; complete=false on interruption. Export cannot resume an old consistent snapshot: start a new empty output directory. Converted D1 files commit a native_import_checkpoint row with data hash and count; importer resumes only identical checkpoints",
@@ -80,6 +85,11 @@
     "payment": "Temporary payment import rebuilds and freezes the current cart graph, requires exact original product/total money equality, retains real PTTL, and blocks if mutable source cart no longer matches",
     "mongoArchive": "Every original canonical Extended JSON document is also retained in native_legacy_mongo, including historical/unknown fields; no selected-column transform discards source data",
     "search": "new_articles title bigrams backfilled using the exact domain NFC/lowercase/codepoint/stopword algorithm; ongoing title writes replace their index atomically in the community domain"
+  },
+  "ownerSmsCutover": {
+    "flow": "Send SMS for registration or password reset; verify six-digit code (five attempts within three minutes) to receive a random one-use verification_token. Supply phone_number and verification_token in the subsequent registration or password-reset request within three minutes. A new SMS invalidates prior proof and wrong purpose/phone/replay/expiry is rejected transactionally.",
+    "externalClients": "The repository has no owner registration/reset HTTP consumers. External native clients using the historical OpenAPI contract must be updated for the verification_token request field and reset verification response token before switching traffic; the old JWT-shaped registration verify response is intentionally not an authentication credential.",
+    "safety": "No unauthenticated owner registration or password reset is permitted without current SMS proof. Account and proof consumption commit in one atomic D1 batch."
   },
   "fileMigration": {
     "commandFromAppDirectory": "node scripts/migrate-files.mjs",

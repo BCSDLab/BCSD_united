@@ -1,10 +1,4 @@
-type Primitive = string | number | boolean | null;
-type QueryParam = Primitive | Primitive[] | QueryParams;
-interface QueryParams {
-  [key: string]: QueryParam;
-}
-
-export default function qsStringify<T extends QueryParams>(params: T, prefix?: string): string {
+export default function qsStringify(params: Record<string, unknown>, prefix?: string): string {
   const queryString = Object.keys(params)
     .map((key) => {
       const value = params[key];
@@ -14,7 +8,7 @@ export default function qsStringify<T extends QueryParams>(params: T, prefix?: s
         return value.map((item) => `${encodedKey}=${encodeURIComponent(String(item))}`).join('&');
       }
       if (typeof value === 'object' && value !== null) {
-        return qsStringify(value, encodedKey);
+        return qsStringify(value as Record<string, unknown>, encodedKey);
       }
 
       return `${encodedKey}=${encodeURIComponent(String(value))}`;

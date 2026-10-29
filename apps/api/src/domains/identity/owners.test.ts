@@ -7,22 +7,26 @@ import type { SQL } from 'drizzle-orm';
 import { SQLiteSyncDialect } from 'drizzle-orm/sqlite-core';
 import type { Database } from '@api/db/client';
 import {
+  ownerApproveCodeStatements,
+  ownerCodeAttemptStatement,
+  ownerPasswordResetStatements,
   ownerRegistrationSchema,
   ownerRegistrationStatements,
   ownerSmsStateStatements,
-  ownerVerifyCodeStatement,
 } from '@api/domains/identity/owners';
-import { encodePassword, passwordChangeStatements, passwordMatches } from '@api/domains/identity/shared';
-
+import { encodePassword, passwordMatches } from '@api/domains/identity/shared';
 const migration = readFileSync(new URL('../../../drizzle/0000_source_and_native.sql', import.meta.url), 'utf8');
 const dialect = new SQLiteSyncDialect();
 const phone = '01012345678';
+const proof = 'f1142c6e-191a-4f9b-b253-2ef93e749aa1';
+const wrongProof = '26d7cfdd-c6fa-40e1-84be-a46bd9d5299b';
 const start = 1_800_000_000_000;
 const registration = {
   company_number: '123-45-67890',
   name: '홍길동',
   password: 'owner-password',
   phone_number: phone,
+  verification_token: proof,
   shop_name: '우리 가게',
   shop_number: '0411234567',
   attachment_urls: [{ file_url: 'https://static.koreatech.in/owner/license.png' }],
@@ -69,14 +73,20 @@ function token(db: DatabaseSync, id: string) {
   return db.prepare('SELECT payload, expires_at FROM identity_tokens WHERE id = ?').get(id);
 }
 
+function approve(db: DatabaseSync, target: string, purpose: 'register' | 'reset', clock: number): void {
+  atomic(db, ownerSmsStateStatements(target, '123456', clock, purpose));
+  assert.equal(statement(db, ownerCodeAttemptStatement(target, clock, purpose)).length, 1);
+  atomic(db, ownerApproveCodeStatements(target, '123456', clock, purpose, proof, String(token(db, `owner_sms:${target}`)!.payload)));
+}
+
 describe('owner SMS verification persistence', () => {
   it('allows five requests and rejects the sixth without replacing the last code', () => {
     const db = database();
     try {
       for (let index = 0; index < 5; index += 1)
-        atomic(db, ownerSmsStateStatements(phone, String(index).padStart(6, '0'), start + index));
+        atomic(db, ownerSmsStateStatements(phone, String(index).padStart(6, '0'), start + index, 'register'));
       const before = token(db, `owner_sms:${phone}`);
-      assert.throws(() => atomic(db, ownerSmsStateStatements(phone, '999999', start + 5)), /CHECK constraint failed/);
+      assert.throws(() => atomic(db, ownerSmsStateStatements(phone, '999999', start + 5, 'register')), /CHECK constraint failed/);
       assert.deepEqual(token(db, `owner_sms:${phone}`), before);
       assert.equal(token(db, `owner_sms_daily:${phone}`)!.payload, '5');
       assert.equal(token(db, `owner_sms_daily:${phone}`)!.expires_at, start + 86_400_000);
@@ -88,9 +98,9 @@ describe('owner SMS verification persistence', () => {
   it('resets the counter at the exact 24-hour boundary, not at midnight', () => {
     const db = database();
     try {
-      for (let index = 0; index < 5; index += 1) atomic(db, ownerSmsStateStatements(phone, '123456', start + index));
-      assert.throws(() => atomic(db, ownerSmsStateStatements(phone, '654321', start + 86_400_000 - 1)));
-      atomic(db, ownerSmsStateStatements(phone, '654321', start + 86_400_000));
+      for (let index = 0; index < 5; index += 1) atomic(db, ownerSmsStateStatements(phone, '123456', start + index, 'register'));
+      assert.throws(() => atomic(db, ownerSmsStateStatements(phone, '654321', start + 86_400_000 - 1, 'register')));
+      atomic(db, ownerSmsStateStatements(phone, '654321', start + 86_400_000, 'register'));
       assert.equal(token(db, `owner_sms_daily:${phone}`)!.payload, '1');
       assert.equal(token(db, `owner_sms_daily:${phone}`)!.expires_at, start + 172_800_000);
     } finally {
@@ -98,15 +108,18 @@ describe('owner SMS verification persistence', () => {
     }
   });
 
-  it('preserves leading zeroes, enforces three-minute expiry, and leaves a matched code reusable', () => {
+  it('preserves leading zeroes, enforces expiry, and caps wrong-code attempts', () => {
     const db = database();
     try {
-      atomic(db, ownerSmsStateStatements(phone, '000001', start));
-      assert.equal(statement(db, ownerVerifyCodeStatement(phone, '1', start)).length, 0);
-      assert.equal(statement(db, ownerVerifyCodeStatement('01000000000', '000001', start)).length, 0);
-      assert.equal(statement(db, ownerVerifyCodeStatement(phone, '000001', start + 179_999)).length, 1);
-      assert.equal(statement(db, ownerVerifyCodeStatement(phone, '000001', start + 179_999)).length, 1);
-      assert.equal(statement(db, ownerVerifyCodeStatement(phone, '000001', start + 180_000)).length, 0);
+      atomic(db, ownerSmsStateStatements(phone, '000001', start, 'register'));
+      assert.equal(statement(db, ownerCodeAttemptStatement('01000000000', start, 'register')).length, 0);
+      assert.equal(statement(db, ownerCodeAttemptStatement(phone, start + 180_000, 'register')).length, 0);
+      for (let attempt = 1; attempt <= 5; attempt += 1) {
+        assert.equal(statement(db, ownerCodeAttemptStatement(phone, start + attempt, 'register')).length, 1);
+        assert.throws(() => atomic(db, ownerApproveCodeStatements(phone, '000002', start + attempt, 'register', proof, String(token(db, `owner_sms:${phone}`)!.payload))));
+      }
+      assert.equal(statement(db, ownerCodeAttemptStatement(phone, start + 6, 'register')).length, 0);
+      assert.equal(token(db, `owner_verified_register:${phone}`), undefined);
     } finally {
       db.close();
     }
@@ -115,11 +128,31 @@ describe('owner SMS verification persistence', () => {
   it('invalidates the previous code on resend without resetting the daily quota', () => {
     const db = database();
     try {
-      atomic(db, ownerSmsStateStatements(phone, '111111', start));
-      atomic(db, ownerSmsStateStatements(phone, '222222', start + 100));
-      assert.equal(statement(db, ownerVerifyCodeStatement(phone, '111111', start + 101)).length, 0);
-      assert.equal(statement(db, ownerVerifyCodeStatement(phone, '222222', start + 101)).length, 1);
+      atomic(db, ownerSmsStateStatements(phone, '111111', start, 'register'));
+      atomic(db, ownerSmsStateStatements(phone, '222222', start + 100, 'register'));
+      assert.equal(statement(db, ownerCodeAttemptStatement(phone, start + 101, 'reset')).length, 0);
+      assert.equal(statement(db, ownerCodeAttemptStatement(phone, start + 101, 'register')).length, 1);
+      assert.equal(JSON.parse(String(token(db, `owner_sms:${phone}`)!.payload)).code, '222222');
       assert.equal(token(db, `owner_sms_daily:${phone}`)!.payload, '2');
+    } finally {
+      db.close();
+    }
+  });
+
+  it('binds one-use approval to phone and purpose and invalidates it on resend', () => {
+    const db = database();
+    try {
+      approve(db, phone, 'register', start);
+      assert.equal(token(db, `owner_sms:${phone}`), undefined);
+      assert.ok(token(db, `owner_verified_register:${phone}`));
+      assert.throws(() => atomic(db, ownerApproveCodeStatements(phone, '123456', start, 'reset', proof, JSON.stringify({ code: '123456', attempts: 1, purpose: 'reset', challenge: proof }))));
+      assert.equal(token(db, `owner_verified_reset:${phone}`), undefined);
+      assert.throws(() => atomic(db, ownerRegistrationStatements({ ...registration, verification_token: wrongProof }, 'hash', 'owner', start)));
+      assert.throws(() => atomic(db, ownerRegistrationStatements({ ...registration, phone_number: '01000000000' }, 'hash', 'owner', start)));
+      assert.equal(count(db, 'users'), 0);
+      atomic(db, ownerSmsStateStatements(phone, '654321', start + 1, 'register'));
+      assert.equal(token(db, `owner_verified_register:${phone}`), undefined);
+      assert.throws(() => atomic(db, ownerRegistrationStatements(registration, 'hash', 'owner', start + 2)));
     } finally {
       db.close();
     }
@@ -130,7 +163,7 @@ describe('owner registration atomicity', () => {
   it('creates pending owner, attachments, and expiring shop metadata without claiming or creating a shop', () => {
     const db = database();
     try {
-      atomic(db, ownerSmsStateStatements(phone, '123456', start));
+      approve(db, phone, 'register', start);
       atomic(db, ownerRegistrationStatements(registration, 'encoded-password', 'owner-nickname', start));
       const owner = db
         .prepare(
@@ -154,6 +187,7 @@ describe('owner registration atomicity', () => {
       });
       assert.equal(pending.expires_at, start + 86_400_000);
       assert.equal(token(db, `owner_sms:${phone}`), undefined);
+      assert.equal(token(db, `owner_verified_register:${phone}`), undefined);
       assert.equal(token(db, `owner_sms_daily:${phone}`)!.payload, '1');
     } finally {
       db.close();
@@ -163,7 +197,9 @@ describe('owner registration atomicity', () => {
   it('rolls back a newly inserted user when owner account or business number conflicts', () => {
     const db = database();
     try {
+      approve(db, phone, 'register', start);
       atomic(db, ownerRegistrationStatements(registration, 'hash', 'first-owner', start));
+      approve(db, phone, 'register', start + 1);
       assert.throws(
         () =>
           atomic(
@@ -172,11 +208,12 @@ describe('owner registration atomicity', () => {
               { ...registration, company_number: '111-22-33333' },
               'hash',
               'duplicate-account',
-              start,
+              start + 1,
             ),
           ),
         /UNIQUE constraint failed/,
       );
+      approve(db, '01000000000', 'register', start + 2);
       assert.throws(
         () =>
           atomic(
@@ -185,7 +222,7 @@ describe('owner registration atomicity', () => {
               { ...registration, phone_number: '01000000000' },
               'hash',
               'duplicate-company',
-              start,
+              start + 2,
             ),
           ),
         /UNIQUE constraint failed/,
@@ -201,7 +238,7 @@ describe('owner registration atomicity', () => {
   it('leaves all account state untouched when a requested shop does not exist', () => {
     const db = database();
     try {
-      atomic(db, ownerSmsStateStatements(phone, '123456', start));
+      approve(db, phone, 'register', start);
       assert.throws(
         () => atomic(db, ownerRegistrationStatements({ ...registration, shop_id: 42 }, 'hash', 'owner', start)),
         /CHECK constraint failed/,
@@ -209,7 +246,7 @@ describe('owner registration atomicity', () => {
       assert.equal(count(db, 'users'), 0);
       assert.equal(count(db, 'owners'), 0);
       assert.equal(count(db, 'owner_attachments'), 0);
-      assert.ok(token(db, `owner_sms:${phone}`));
+      assert.ok(token(db, `owner_verified_register:${phone}`));
     } finally {
       db.close();
     }
@@ -222,6 +259,7 @@ describe('owner registration atomicity', () => {
         ...registration,
         attachment_urls: [...registration.attachment_urls, { file_url: null as unknown as string }],
       };
+      approve(db, phone, 'register', start);
       assert.throws(
         () => atomic(db, ownerRegistrationStatements(invalid, 'hash', 'owner', start)),
         /NOT NULL constraint failed/,
@@ -229,7 +267,7 @@ describe('owner registration atomicity', () => {
       assert.equal(count(db, 'users'), 0);
       assert.equal(count(db, 'owners'), 0);
       assert.equal(count(db, 'owner_attachments'), 0);
-      assert.equal(count(db, 'identity_tokens'), 0);
+      assert.ok(token(db, `owner_verified_register:${phone}`));
     } finally {
       db.close();
     }
@@ -247,6 +285,10 @@ describe('owner registration atomicity', () => {
       { attachment_urls: Array.from({ length: 6 }, () => registration.attachment_urls[0]!) },
       { attachment_urls: [{ file_url: 'http://static.koreatech.in/license.png' }] },
       { attachment_urls: [{ file_url: 'https://example.org/license.png' }] },
+      { verification_token: wrongProof.slice(1) },
+      { attachment_urls: [{ file_url: 'https://attacker.example/static.koreatech.in/license.png' }] },
+      { attachment_urls: [{ file_url: 'not-a-url' }] },
+      { attachment_urls: [{ file_url: 'https://static.koreatech.in.attacker.example/license.png' }] },
     ])
       assert.equal(ownerRegistrationSchema.safeParse({ ...registration, ...update }).success, false);
   });
@@ -256,6 +298,7 @@ describe('owner password reset', () => {
   it('strips hyphens and invalidates native and web sessions atomically', async () => {
     const db = database();
     try {
+      approve(db, phone, 'register', start);
       atomic(db, ownerRegistrationStatements(registration, 'old-password', 'owner', start));
       const id = Number(db.prepare('SELECT user_id FROM owners WHERE account = ?').get(phone)!.user_id);
       db.prepare('INSERT INTO identity_native_sessions (id,user_id,platform,token,expires_at) VALUES (?,?,?,?,?)').run(
@@ -269,7 +312,12 @@ describe('owner password reset', () => {
         'INSERT INTO identity_web_sessions (id,user_id,refresh_token_hash,csrf_token,credential_hash,expires_at) VALUES (?,?,?,?,?,?)',
       ).run('web', id, 'refresh-hash', 'csrf', 'old-password', start + 1000);
       const hash = await encodePassword('new-password', true);
-      atomic(db, passwordChangeStatements(undefined as unknown as Database, id, hash));
+      approve(db, phone, 'reset', start + 1);
+      assert.throws(() => atomic(db, ownerPasswordResetStatements(undefined as unknown as Database, phone, id, hash, start + 1, wrongProof)));
+      assert.throws(() => atomic(db, ownerPasswordResetStatements(undefined as unknown as Database, phone, id, hash, start + 180_001, proof)));
+      assert.equal(String(db.prepare('SELECT password FROM users WHERE id=?').get(id)!.password), 'old-password');
+      atomic(db, ownerPasswordResetStatements(undefined as unknown as Database, phone, id, hash, start + 1, proof));
+      assert.throws(() => atomic(db, ownerPasswordResetStatements(undefined as unknown as Database, phone, id, hash, start + 1, proof)));
       assert.equal(
         await passwordMatches(
           'newpassword',

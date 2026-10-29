@@ -203,9 +203,6 @@ export default class APIClient {
   }
 
   private async retryRequest(error: AxiosError) {
-    // error 는 매개변수 타입상 이미 AxiosError(Error)이므로, 아래 방어적 재검증 분기에서는
-    // narrowing 결과가 never가 되어 instanceof로 되짚을 수 없다. 타입 단언으로 되돌린다.
-    if (!axios.isAxiosError(error)) return Promise.reject(error as Error);
     try {
       const originalRequest = error.config;
 

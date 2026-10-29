@@ -19,12 +19,12 @@
   },
   "dependencies": {
     "@koin/b-bot-ai": "workspace:*",
-    "pg": "^8.21.0"
+    "pg": "^8.23.1"
   },
   "devDependencies": {
-    "@types/node": "^22.13.10",
-    "@types/pg": "^8.20.0",
-    "mysql2": "^3.9.7",
-    "typescript": "^5.8.2"
+    "@types/node": "^24.19.2",
+    "@types/pg": "^8.23.1",
+    "mysql2": "^3.24.6",
+    "typescript": "^6.0.3"
   }
 }

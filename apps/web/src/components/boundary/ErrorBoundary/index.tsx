@@ -29,7 +29,7 @@ export default class ErrorBoundary extends React.Component<Props, State> {
   constructor(props: Props) {
     super(props);
     // 이후에 사용시 해제
-    this.state = { hasError: false } as State;
+    this.state = { hasError: false };
   }
 
   // 이후에 사용시 해제

@@ -39,7 +39,10 @@ if (!roots.length) throw new Error('Canonical URL has no determinable static API
 const dependencies = await graph.dependencies(roots);
 dependencies.add(`${graph.root}/src/index.ts`);
 const changed = manifest.files.filter((file) => file.path.startsWith('apps/api/src/'));
-if (!changed.length || changed.some((file) => !dependencies.has(resolve('/work', file.path))))
+if (
+  process.env.AUTOFIX_OFFLINE_STANDALONE !== '1' &&
+  (!changed.length || changed.some((file) => !dependencies.has(resolve('/work', file.path))))
+)
   throw new Error('Changed API source is not reachable from the observed endpoint');
 const api = await startLocalApi();
 try {

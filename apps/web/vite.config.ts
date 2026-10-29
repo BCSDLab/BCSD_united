@@ -58,7 +58,15 @@ export default defineConfig(({ mode }) => {
     css: { preprocessorOptions: { scss: { loadPaths: [root, fileURLToPath(new URL('./src', import.meta.url))] } } },
     build: { sourcemap: true },
     plugins: [
-      cloudflare({ viteEnvironment: { name: 'ssr' } }),
+      cloudflare({
+        viteEnvironment: { name: 'ssr' },
+        // Only the isolated verifier builds an auxiliary API into this preview.
+        // Normal Workers Builds must never bundle a second deployable Worker.
+        auxiliaryWorkers:
+          env.AUTOFIX_OFFLINE_SMOKE === '1' && env.WORKERS_CI !== '1'
+            ? [{ configPath: '../api/.wrangler/autofix-api/wrangler.jsonc' }]
+            : undefined,
+      }),
       browserRequestContext(),
       svgr({
         include: '**/*.svg',
@@ -71,7 +79,7 @@ export default defineConfig(({ mode }) => {
       react({ compiler: true }),
       sentryVitePlugin({
         org: env.SENTRY_ORG || 'bcsd',
-        project: env.SENTRY_PROJECT || 'koin-prod',
+        project: env.SENTRY_PROJECT || (branch === mainBranch ? 'koin-united-prod' : 'koin-united-preview'),
         authToken: env.SENTRY_AUTH_TOKEN,
         release: {
           name: env.NEXT_PUBLIC_SENTRY_RELEASE,

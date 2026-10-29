@@ -226,7 +226,7 @@ function withSeconds(time: string): string {
 }
 
 export function registerTransport(app: Hono<ApiEnv>): void {
-  app.get('/weather', async (c) => c.json(await getWeather(c.get('db'))));
+  app.get('/weather', async (c) => c.json(await getWeather(c.get('db'), c.env)));
   app.get('/bus', async (c) =>
     c.json(
       await getBusRemainTime(

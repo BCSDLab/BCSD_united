@@ -20,13 +20,13 @@ const useParamsHandler = () => {
 
     return values;
   }, [search]);
-  const params = useMemo(() => {
+  const params: Record<string, string> = useMemo(() => {
     const values: Record<string, string> = {};
     searchParams.forEach((value, key) => {
       if (!(key in values)) values[key] = value;
     });
 
-    return { ...values, ...routeParams } as Record<string, string>;
+    return { ...values, ...routeParams };
   }, [routeParams, searchParams]);
 
   const setParams = useCallback(

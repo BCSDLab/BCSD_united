@@ -29,9 +29,9 @@ const API_PATH = process.env.NEXT_PUBLIC_API_PATH;
 
 // https://developers.google.com/analytics/devguides/collection/gtagjs/pages
 export const pageView = (url: string, userId?: string) => {
-  if (typeof window === 'undefined' || typeof window.gtag === 'undefined') return;
+  if (typeof window === 'undefined' || typeof window.gtag === 'undefined' || !GA_TRACKING_ID) return;
 
-  window.gtag('config', GA_TRACKING_ID as string, {
+  window.gtag('config', GA_TRACKING_ID, {
     page_path: url,
     user_id: userId,
   });

@@ -20,6 +20,7 @@ if (!output || !args.includes('--sources-quiesced'))
   );
 for (const name of ['MYSQL_URL', 'MONGO_URI', 'MONGO_DATABASE', 'REDIS_URL'])
   if (!process.env[name]) throw new Error(`Missing ${name}`);
+if (process.env.MONGO_DATABASE !== 'koin') throw new Error('Refusing to export a Mongo database other than koin');
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const schema = JSON.parse(await readFile(resolve(root, 'scripts/source-schema.json'), 'utf8'));
 const out = resolve(output);
@@ -55,6 +56,8 @@ const mysql = await createConnection({
   rowsAsArray: false,
 });
 try {
+  const [[selectedDatabase]] = await mysql.query('SELECT DATABASE() AS name');
+  if (selectedDatabase.name !== 'koin') throw new Error('Refusing to export a MySQL schema other than koin');
   await mysql.query("SET SESSION time_zone = '+00:00'");
   await mysql.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ');
   await mysql.query('START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY');

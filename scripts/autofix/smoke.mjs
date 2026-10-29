@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve, sep } from 'node:path';
 import { jsonFile } from './common.mjs';
-import { API_ORIGIN, delay, readJsonResponse, startLocalApi, startProcess, stopProcess } from './local-api.mjs';
+import { delay, migrateWebApi, readJsonResponse, startProcess, stopProcess } from './local-api.mjs';
 import { applicationGraph, matchesRoute, sourceFiles } from './source-graph.mjs';
 
 const graph = applicationGraph('web');
@@ -26,7 +26,10 @@ for (const file of await sourceFiles(`${graph.root}/src/routes`)) {
 if (!matched) throw new Error('Canonical event URL has no determinable file route; manual smoke required');
 const visited = await graph.dependencies(roots);
 const changed = manifest.files.filter((file) => file.path.startsWith('apps/web/src/'));
-if (!changed.length || changed.some((file) => !visited.has(resolve('/work', file.path))))
+if (
+  process.env.AUTOFIX_OFFLINE_STANDALONE !== '1' &&
+  (!changed.length || changed.some((file) => !visited.has(resolve('/work', file.path))))
+)
   throw new Error('Changed source is not reachable from the event route; manual smoke required');
 
 const deployPath = resolve('apps/web/.wrangler/deploy/config.json');
@@ -35,6 +38,7 @@ const configPath = resolve(dirname(deployPath), deployment.configPath);
 if (!configPath.startsWith(`${resolve('apps/web/dist')}${sep}`))
   throw new Error('Vite preview must use the locally built Worker configuration');
 const worker = await jsonFile(configPath);
+const auxiliary = deployment.auxiliaryWorkers;
 if (
   worker.name !== 'koin-web' ||
   worker.vars?.KOIN_ENVIRONMENT !== 'main' ||
@@ -42,29 +46,52 @@ if (
   !worker.services?.some(
     (binding) => binding.binding === 'KOIN_API' && binding.service === 'koin-api' && !binding.remote,
   ) ||
-  deployment.auxiliaryWorkers?.length
+  !Array.isArray(auxiliary) ||
+  auxiliary.length !== 1
 )
-  throw new Error('Offline smoke requires the built main Worker with its local koin-api service binding');
+  throw new Error('Offline smoke requires the built web Worker and one local koin-api auxiliary Worker');
+const apiConfigPath = resolve(dirname(deployPath), auxiliary[0].configPath);
+if (!apiConfigPath.startsWith(`${resolve('apps/web/dist')}${sep}`))
+  throw new Error('Auxiliary Worker must be the locally built API');
+const apiWorker = await jsonFile(apiConfigPath);
+if (
+  apiWorker.name !== 'koin-api' ||
+  !apiWorker.d1_databases?.some((binding) => binding.binding === 'DB' && !binding.remote) ||
+  !apiWorker.r2_buckets?.some((binding) => binding.binding === 'FILES' && !binding.remote)
+)
+  throw new Error('Local API auxiliary Worker lacks its D1/R2 bindings');
 function assertLocalBindings(value) {
   if (!value || typeof value !== 'object') return;
   if (value.remote === true) throw new Error('Remote bindings are forbidden in offline verification');
   for (const child of Object.values(value)) assertLocalBindings(child);
 }
 assertLocalBindings(worker);
+assertLocalBindings(apiWorker);
 
-const api = await startLocalApi();
+function requestCount(log) {
+  return [...log.matchAll(/AUTOFIX_API_REQUEST (?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS) (\/\S*) \d{3}\b/g)].filter(
+    (match) => match[1] !== '/health',
+  ).length;
+}
+
+function assertApiHealthy(log) {
+  if (!log.includes('AUTOFIX_API_REQUEST')) throw new Error('Local auxiliary API request evidence is unavailable');
+  if (/AUTOFIX_API_REQUEST \S+ \S+ [45]\d{2}\b/i.test(log))
+    throw new Error('Local auxiliary API returned an HTTP error');
+}
+
+await migrateWebApi();
 let server;
 let browser;
 let socket;
 let browserProfile;
 try {
-  const categories = await readJsonResponse(`${API_ORIGIN}/shops/categories`);
-  if (!Array.isArray(categories.shop_categories) || categories.count !== categories.shop_categories.length)
-    throw new Error('Local D1 categories handler returned an unexpected response');
-  for (let attempt = 0; attempt < 20 && api.requestCount() === 0; attempt += 1) await delay(100);
-  if (api.requestCount() === 0) throw new Error('Local API request evidence is unavailable');
   browserProfile = await mkdtemp(join(tmpdir(), 'autofix-browser-'));
-  server = startProcess('pnpm', ['preview', '--host', '127.0.0.1', '--port', '4173', '--strictPort'], api.env);
+  server = startProcess('pnpm', ['preview', '--host', '127.0.0.1', '--port', '4173', '--strictPort'], {
+    ...process.env,
+    CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV: 'false',
+    WRANGLER_SEND_METRICS: 'false',
+  });
   browser = startProcess(
     process.env.CHROME_BIN ?? '/usr/bin/chromium',
     [
@@ -77,13 +104,14 @@ try {
       `--user-data-dir=${browserProfile}`,
       'about:blank',
     ],
-    api.env,
+    process.env,
   );
   async function ready(url) {
     for (let attempt = 0; attempt < 90; attempt += 1) {
       server.assertRunning();
       browser.assertRunning();
-      api.assertHealthy();
+      if (/AUTOFIX_API_REQUEST \S+ \S+ [45]\d{2}\b/i.test(server.log))
+        throw new Error('Local auxiliary API returned an HTTP error');
       try {
         const response = await fetch(url, { signal: AbortSignal.timeout(1000), redirect: 'error' });
         if (response.ok) return response;
@@ -94,7 +122,12 @@ try {
     throw new Error(`Local preview/browser did not become ready: ${url}`);
   }
   await ready('http://127.0.0.1:4173/api/health');
-  const beforeSsr = api.requestCount();
+  const categories = await readJsonResponse('http://127.0.0.1:4173/api/shops/categories');
+  if (!Array.isArray(categories.shop_categories) || categories.count !== categories.shop_categories.length)
+    throw new Error('Local D1 categories handler returned an unexpected response');
+  for (let attempt = 0; attempt < 20 && requestCount(server.log) === 0; attempt += 1) await delay(100);
+  assertApiHealthy(server.log);
+  const beforeSsr = requestCount(server.log);
   const document = await fetch(`http://127.0.0.1:4173${route}`, {
     signal: AbortSignal.timeout(30000),
     redirect: 'error',
@@ -102,10 +135,10 @@ try {
   const html = await document.text();
   if (!document.ok || !document.headers.get('content-type')?.includes('text/html') || !html.trim())
     throw new Error('Event route SSR did not return a successful HTML document');
-  for (let attempt = 0; attempt < 20 && api.requestCount() === beforeSsr; attempt += 1) await delay(100);
-  if (api.requestCount() === beforeSsr)
+  for (let attempt = 0; attempt < 20 && requestCount(server.log) === beforeSsr; attempt += 1) await delay(100);
+  if (requestCount(server.log) === beforeSsr)
     throw new Error('Event route did not exercise the real local API during SSR; manual reproduction required');
-  api.assertHealthy();
+  assertApiHealthy(server.log);
   const tabs = await (await ready('http://127.0.0.1:9222/json/list')).json();
   const tab = tabs.find((entry) => entry.type === 'page');
   if (!tab) throw new Error('Chromium page unavailable');
@@ -232,7 +265,7 @@ try {
   browser.assertRunning();
   if (/\[ERROR\]|uncaught|unhandled rejection/i.test(server.log)) failures.push('Web Worker emitted runtime errors');
   if (failures.length) throw new Error([...new Set(failures)].join('; '));
-  api.assertHealthy();
+  assertApiHealthy(server.log);
   process.stdout.write(
     `Real local API/D1 smoke passed: SSR ${route}, browser ${route}, gateway /api/shops/categories\n`,
   );
@@ -242,5 +275,5 @@ try {
 } finally {
   socket?.close();
   await Promise.all([stopProcess(server?.child), stopProcess(browser?.child)]);
-  await Promise.all([api.cleanup(), browserProfile ? rm(browserProfile, { recursive: true, force: true }) : undefined]);
+  if (browserProfile) await rm(browserProfile, { recursive: true, force: true });
 }

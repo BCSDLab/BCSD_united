@@ -124,11 +124,11 @@ async function fetchForecast(env: Bindings, base: Date, forecast: Date) {
 }
 /**
  * 기상청이 아직 해당 발표 시각 자료를 내지 않았으면(NO_DATA 등) 세 시간 전 발표분으로 한 번 물러난다.
- * 호출 제한에 걸리면 5초 간격으로 최대 여섯 번 시도한다.
+ * 정기 갱신은 호출 제한 시 5초 간격으로 최대 여섯 번, 요청 시 빈 캐시 갱신은 한 번만 시도한다.
  */
-export async function refreshWeather(db: Database, env: Bindings, now: number) {
+export async function refreshWeather(db: Database, env: Bindings, now: number, maxAttempts = 6) {
   const request = forecastRequest(now);
-  for (let attempt = 0; attempt < 6; attempt++) {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
       let map;
       try {
@@ -145,17 +145,23 @@ export async function refreshWeather(db: Database, env: Bindings, now: number) {
       await cacheWrite(db, 'Weather:byeongcheon', map, 86400000, now);
       return;
     } catch (error) {
-      if (!(error instanceof WeatherFailure) || !error.rateLimit || attempt === 5) throw error;
+      if (!(error instanceof WeatherFailure) || !error.rateLimit || attempt === maxAttempts - 1) throw error;
       const { promise, resolve } = Promise.withResolvers<void>();
       setTimeout(resolve, 5000);
       await promise;
     }
   }
 }
-export async function getWeather(db: Database, now = Date.now()) {
-  const hourly = await cacheRead<Record<string, Weather>>(db, 'Weather:byeongcheon', now);
+export async function getWeather(db: Database, env: Bindings, now = Date.now()) {
   const hour = kst(now);
   hour.setUTCMinutes(0, 0, 0);
+  let hourly = await cacheRead<Record<string, Weather>>(db, 'Weather:byeongcheon', now);
+  if (!hourly?.[forecastKey(hour)]) {
+    if (!env.OPEN_API_KEY_PUBLIC)
+      throw new ApiError(503, 'CONFIGURATION_ERROR', 'OPEN_API_KEY_PUBLIC is required.');
+    await refreshWeather(db, env, now, 1);
+    hourly = await cacheRead<Record<string, Weather>>(db, 'Weather:byeongcheon', now);
+  }
   const result = hourly?.[forecastKey(hour)];
   if (!result) throw new WeatherFailure('weather cache is empty');
   return result;
