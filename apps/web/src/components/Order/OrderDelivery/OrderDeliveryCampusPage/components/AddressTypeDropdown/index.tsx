@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
-
 import { cn } from '@bcsdlab/utils';
 import { useQuery } from '@tanstack/react-query';
+
 import type { CampusAddressCategory } from 'api/order/entity';
 import { orderQueries } from 'api/order/queries';
 import ChevronDown from 'assets/svg/Order/Delivery/chevron-down.svg';

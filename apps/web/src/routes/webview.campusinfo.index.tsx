@@ -6,8 +6,6 @@ export default function WebviewCampusInfo() {
   return <CampusInfo />;
 }
 
-
-
 export const Route = createFileRoute('/webview/campusinfo/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   component: RouteComponent,
@@ -15,5 +13,6 @@ export const Route = createFileRoute('/webview/campusinfo/')({
 
 function RouteComponent() {
   const page = <WebviewCampusInfo />;
+
   return page;
 }

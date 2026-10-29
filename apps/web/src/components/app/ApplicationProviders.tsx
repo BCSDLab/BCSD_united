@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
-
 import { HydrationBoundary, QueryClientProvider, type DehydratedState } from '@tanstack/react-query';
 import { useLocation, useMatches, useRouter } from '@tanstack/react-router';
+
 import Toast from 'components/feedback/Toast';
 import MaintenancePage from 'components/Maintenance';
 import PortalProvider from 'components/modal/Modal/PortalProvider';
@@ -35,11 +35,14 @@ function AuthGuard({ required }: { required: boolean }) {
   return null;
 }
 
-export default function ApplicationProviders({ children, serverRequest }: {
+export default function ApplicationProviders({
+  children,
+  serverRequest,
+}: {
   children: ReactNode;
   serverRequest: ServerRequestContext | null;
 }) {
-  const [client] = useState(() => typeof window === 'undefined' ? createQueryClient() : queryClient);
+  const [client] = useState(() => (typeof window === 'undefined' ? createQueryClient() : queryClient));
   const matches = useMatches();
   const pathname = useLocation({ select: (location) => location.pathname });
   const leaf = matches.at(-1);

@@ -1,5 +1,6 @@
-import type { Lecture } from 'api/timetable/entity';
 import { create } from 'zustand';
+
+import type { Lecture } from 'api/timetable/entity';
 
 interface State {
   tempLecture: Lecture | null;

@@ -1,4 +1,5 @@
 import { cn } from '@bcsdlab/utils';
+
 import type { ArticleAiSummary as ArticleAiSummaryData } from 'api/articles/entity';
 import AiSummaryIcon from 'assets/svg/Articles/ai-summary.svg';
 

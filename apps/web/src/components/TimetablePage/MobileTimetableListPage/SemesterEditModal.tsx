@@ -7,6 +7,7 @@ import useApplySemesterChanges from 'components/TimetablePage/hooks/useApplySeme
 import useSemesterCheck from 'components/TimetablePage/hooks/useMySemester';
 import useSemestersWithLectures from 'components/TimetablePage/hooks/useSemestersWithLectures';
 import { useOutsideClick } from 'utils/hooks/ui/useOutsideClick';
+import { useServerCalendarDate } from 'utils/ssr/useServerNow';
 import { getRecentSemester, getSemesterKey } from 'utils/timetable/semester';
 
 import styles from './TimetableModal.module.scss';
@@ -21,7 +22,7 @@ const TERMS: Term[] = ['1학기', '여름학기', '2학기', '겨울학기'];
 const START_YEAR = 2019;
 
 export default function SemesterEditModal({ onClose }: SemesterEditModalProps) {
-  const currentYear = new Date().getFullYear();
+  const currentYear = useServerCalendarDate().getFullYear();
   const years = Array.from({ length: currentYear - START_YEAR + 1 }, (_, index) => currentYear - index);
 
   const { backgroundRef } = useOutsideClick({ onOutsideClick: onClose });

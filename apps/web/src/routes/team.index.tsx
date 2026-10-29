@@ -1,14 +1,8 @@
-import Seo from 'components/seo/Seo';
+import { useState } from 'react';
+import { dehydrate, QueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate, useLocation } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
-import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
-import { useState } from 'react';
 
-
-
-
-
-import { dehydrate, QueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { teamQueries, type TeamRecruitmentInfiniteListRequest } from 'api/team/queries';
 import EmptyRecruitment from 'assets/svg/common/sleep-bbico.svg';
 import FilterIcon from 'assets/svg/Team/filter.svg';
@@ -16,6 +10,7 @@ import PencilIcon from 'assets/svg/Team/pencil.svg';
 import XIcon from 'assets/svg/Team/x.svg';
 import Layout from 'components/layout';
 import MobilePageHeader from 'components/layout/MobilePageHeader';
+import Seo from 'components/seo/Seo';
 import RecruitmentCard from 'components/Team/components/RecruitmentCard';
 import RecruitmentFilterPanel, {
   DEFAULT_TEAM_RECRUITMENT_FILTER,
@@ -32,7 +27,7 @@ import useLogger from 'utils/hooks/analytics/useLogger';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import useInfiniteScroll from 'utils/hooks/ui/useInfiniteScroll';
-
+import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { redirectToLogin, setRedirectPath } from 'utils/ts/auth';
 import showToast from 'utils/ts/showToast';
 
@@ -76,12 +71,9 @@ const createRequestParams = (filter: TeamRecruitmentFilter, keyword?: string): T
 
 const INITIAL_REQUEST_PARAMS = createRequestParams(INITIAL_FILTER);
 
-
-
 export default function TeamListPage() {
-  
   const routeNavigate = useNavigate();
-  
+
   const routeLocation = useLocation();
   const isLoggedIn = useIsLoggedIn();
   const isMobile = useMediaQuery();
@@ -298,22 +290,25 @@ export default function TeamListPage() {
   );
 }
 
+const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
+  .validator(validatePageInput)
+  .handler(({ data }) =>
+    loadPageData(data, async (_context, cacheControl, serverRequest) => {
+      const queryClient = new QueryClient();
 
+      await queryClient.prefetchInfiniteQuery(
+        teamQueries.infiniteList(INITIAL_REQUEST_PARAMS, serverRequest.isLoggedIn),
+      );
 
-const getPageData = createServerFn({ method: 'GET', strict: { output: false } }).validator(validatePageInput)
-  .handler(({ data }) => loadPageData(data, async (_context, cacheControl, serverRequest) => {
-    const queryClient = new QueryClient();
+      if (!serverRequest.isLoggedIn) {
+        cacheControl.enablePublicCache();
+      }
 
-    await queryClient.prefetchInfiniteQuery(teamQueries.infiniteList(INITIAL_REQUEST_PARAMS, serverRequest.isLoggedIn));
-
-    if (!serverRequest.isLoggedIn) {
-      cacheControl.enablePublicCache();
-    }
-
-    return {
+      return {
         dehydratedState: dehydrate(queryClient),
       };
-  }));
+    }),
+  );
 
 export const Route = createFileRoute('/team/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
@@ -325,5 +320,6 @@ export const Route = createFileRoute('/team/')({
 
 function RouteComponent() {
   const page = <TeamListPage />;
+
   return <Layout mobileHeader="page">{page}</Layout>;
 }

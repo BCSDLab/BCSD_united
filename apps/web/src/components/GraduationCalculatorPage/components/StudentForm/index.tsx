@@ -1,6 +1,6 @@
 import { useState } from 'react';
-
 import { useSuspenseQuery } from '@tanstack/react-query';
+
 import { authQueries } from 'api/auth/queries';
 import { deptQueries } from 'api/dept/queries';
 import useUpdateAcademicInfo from 'components/GraduationCalculatorPage/hooks/useUpdateAcademicInfo';

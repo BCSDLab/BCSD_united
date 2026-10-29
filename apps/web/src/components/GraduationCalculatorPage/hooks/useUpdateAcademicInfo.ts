@@ -1,5 +1,6 @@
 import { isKoinError, sendClientError } from '@bcsdlab/koin';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+
 import { updateAcademicInfo } from 'api/auth';
 import type { UpdateAcademicInfoRequest } from 'api/auth/entity';
 import { authQueryKeys } from 'api/auth/queries';

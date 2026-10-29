@@ -1,10 +1,7 @@
-import Seo from 'components/seo/Seo';
 import { createFileRoute } from '@tanstack/react-router';
 
-
-
-
 import Layout from 'components/layout';
+import Seo from 'components/seo/Seo';
 import TeamProfileForm from 'components/Team/ProfilePage';
 
 function TeamProfileCreatePage() {
@@ -17,8 +14,6 @@ function TeamProfileCreatePage() {
   );
 }
 
-
-
 export default TeamProfileCreatePage;
 
 export const Route = createFileRoute('/team/profile/create/')({
@@ -29,5 +24,6 @@ export const Route = createFileRoute('/team/profile/create/')({
 
 function RouteComponent() {
   const page = <TeamProfileCreatePage />;
+
   return <Layout mobileHeader="page">{page}</Layout>;
 }

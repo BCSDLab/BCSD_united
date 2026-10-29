@@ -1,7 +1,7 @@
 import React from 'react';
+import { cn } from '@bcsdlab/utils';
 import { Link } from '@tanstack/react-router';
 
-import { cn } from '@bcsdlab/utils';
 import BlindIcon from 'assets/svg/blind-icon.svg';
 import ShowIcon from 'assets/svg/show-icon.svg';
 import { useLogin } from 'components/Auth/LoginPage/hooks/useLogin';
@@ -82,13 +82,17 @@ export default function LoginForm() {
           로그인
         </button>
         {isMobile && (
-          <Link className={styles.loginform__button} to={ROUTES.AuthSignup({ currentStep: '약관동의' })} onClick={() => {
-            sessionLogger.actionSessionEvent({
-              session_name: 'sign_up',
-              event_label: 'start_sign_up',
-              value: '회원가입 시작',
-            });
-          }}>
+          <Link
+            className={styles.loginform__button}
+            to={ROUTES.AuthSignup({ currentStep: '약관동의' })}
+            onClick={() => {
+              sessionLogger.actionSessionEvent({
+                session_name: 'sign_up',
+                event_label: 'start_sign_up',
+                value: '회원가입 시작',
+              });
+            }}
+          >
             회원가입
           </Link>
         )}

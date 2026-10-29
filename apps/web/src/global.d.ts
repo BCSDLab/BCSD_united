@@ -6,7 +6,6 @@ declare module '@tanstack/react-query' {
   }
 }
 
-
 type NativeCallbackResult = boolean | void;
 
 declare global {

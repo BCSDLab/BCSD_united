@@ -18,9 +18,18 @@ async function deliverReviewPrompt(env: Bindings, db: Database, payload: JsonObj
   const shopId = integer(payload.shopId);
   const userId = integer(payload.userId);
   // 알림 문구는 상점의 첫 카테고리('전체보기' 제외)가 속한 상위 카테고리의 메시지를 쓴다.
-  const [message] = await db.all<{ name: string; title: string; content: string }>(sql`select s.name,n.title,n.content from ${schema.shops} s join ${schema.shop_category_map} cm on cm.shop_id=s.id join ${schema.shop_categories} c on c.id=cm.shop_category_id join ${schema.shop_parent_categories} p on p.id=c.parent_category_id join ${schema.shop_notification_messages} n on n.id=p.notification_message_id where s.id=${shopId} and s.is_deleted=0 and c.id=(select min(c2.id) from ${schema.shop_category_map} cm2 join ${schema.shop_categories} c2 on c2.id=cm2.shop_category_id where cm2.shop_id=s.id and c2.name<>'전체보기')`);
+  const [message] = await db.all<{ name: string; title: string; content: string }>(
+    sql`select s.name,n.title,n.content from ${schema.shops} s join ${schema.shop_category_map} cm on cm.shop_id=s.id join ${schema.shop_categories} c on c.id=cm.shop_category_id join ${schema.shop_parent_categories} p on p.id=c.parent_category_id join ${schema.shop_notification_messages} n on n.id=p.notification_message_id where s.id=${shopId} and s.is_deleted=0 and c.id=(select min(c2.id) from ${schema.shop_category_map} cm2 join ${schema.shop_categories} c2 on c2.id=cm2.shop_category_id where cm2.shop_id=s.id and c2.name<>'전체보기')`,
+  );
   if (!message) throw new ApiError(404, '', `알림 메시지가 존재하지 않습니다. shopId: ${shopId}`);
-  await deliverNotification(env, { userId, title: `${message.name}${message.title}`, message: message.content, mobileAppPath: 'SHOP', schemeUri: `shop?id=${shopId}`, type: 'MESSAGE' });
+  await deliverNotification(env, {
+    userId,
+    title: `${message.name}${message.title}`,
+    message: message.content,
+    mobileAppPath: 'SHOP',
+    schemeUri: `shop?id=${shopId}`,
+    type: 'MESSAGE',
+  });
 }
 
 async function deliverShopEvent(env: Bindings, payload: JsonObject): Promise<void> {
@@ -43,9 +52,10 @@ async function notifyReviewSlack(env: Bindings, kind: string, payload: JsonObjec
   }
   const shopName = text(payload.shop, 'shop');
   const link = `<${env.KOIN_ADMIN_REVIEW_URL}|Admin page 바로가기>`;
-  const message = kind === 'commerce.catalog.review-created'
-    ? `\`${shopName}에 새로운 리뷰가 등록되었습니다.\`\n내용: \`${text(payload.content, 'content', 0)}\`\n별점: \`${integer(payload.rating, 'rating')}\`\n${link}\n`
-    : `\`${shopName}의 리뷰가 신고되었습니다.\`\n\`신고를 처리해주세요!!\`\n${link}\n`;
+  const message =
+    kind === 'commerce.catalog.review-created'
+      ? `\`${shopName}에 새로운 리뷰가 등록되었습니다.\`\n내용: \`${text(payload.content, 'content', 0)}\`\n별점: \`${integer(payload.rating, 'rating')}\`\n${link}\n`
+      : `\`${shopName}의 리뷰가 신고되었습니다.\`\n\`신고를 처리해주세요!!\`\n${link}\n`;
   await sendSlack(env, { webhook: env.SLACK_KOIN_SHOP_REVIEW_NOTIFY_URL, message });
 }
 
@@ -74,14 +84,20 @@ export async function handleCommerceCatalogJob(env: Bindings, job: Job): Promise
   const db = createDatabase(env.DB);
   const now = Date.now();
   const lease = now + LEASE_MS;
-  const [claimed] = await executeAtomic(db, [sql`update ${schema.native_catalog_outbox} set due_at=${lease} where id=${job.key} and kind=${job.kind} and delivered_at is null and due_at<=${now} returning *`]);
+  const [claimed] = await executeAtomic(db, [
+    sql`update ${schema.native_catalog_outbox} set due_at=${lease} where id=${job.key} and kind=${job.kind} and delivered_at is null and due_at<=${now} returning *`,
+  ]);
   const record = claimed?.results[0] as unknown as CatalogJob | undefined;
   if (!record) return true;
   try {
     await deliverCatalogJob(env, db, record);
-    await db.run(sql`update ${schema.native_catalog_outbox} set delivered_at=${Date.now()} where id=${record.id} and due_at=${lease} and delivered_at is null`);
+    await db.run(
+      sql`update ${schema.native_catalog_outbox} set delivered_at=${Date.now()} where id=${record.id} and due_at=${lease} and delivered_at is null`,
+    );
   } catch (error) {
-    await db.run(sql`update ${schema.native_catalog_outbox} set due_at=${Date.now()} where id=${record.id} and due_at=${lease} and delivered_at is null`);
+    await db.run(
+      sql`update ${schema.native_catalog_outbox} set due_at=${Date.now()} where id=${record.id} and due_at=${lease} and delivered_at is null`,
+    );
     throw error;
   }
   return true;
@@ -91,6 +107,8 @@ export async function runCommerceCatalogCron(env: Bindings, scheduledTime: numbe
   if (Math.floor(scheduledTime / 60000) % CRON_INTERVAL_MINUTES !== 0) return;
   const db = createDatabase(env.DB);
   await db.run(sql`delete from ${schema.native_catalog_request_guard} where expires_at<=${scheduledTime}`);
-  const due = await db.all<{ id: string; kind: string }>(sql`select id,kind from ${schema.native_catalog_outbox} where delivered_at is null and due_at<=${scheduledTime} order by due_at limit ${CRON_BATCH}`);
+  const due = await db.all<{ id: string; kind: string }>(
+    sql`select id,kind from ${schema.native_catalog_outbox} where delivered_at is null and due_at<=${scheduledTime} order by due_at limit ${CRON_BATCH}`,
+  );
   if (due.length) await env.JOBS.sendBatch(due.map((row) => ({ body: { kind: row.kind, key: row.id, payload: {} } })));
 }

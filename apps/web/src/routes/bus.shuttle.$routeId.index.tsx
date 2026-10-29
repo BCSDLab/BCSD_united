@@ -1,10 +1,8 @@
-import { createFileRoute, useNavigate, useSearch, useParams } from '@tanstack/react-router';
-
 import React, { useState } from 'react';
-
-
 import { cn } from '@bcsdlab/utils';
 import { useQuery } from '@tanstack/react-query';
+import { createFileRoute, useNavigate, useSearch, useParams } from '@tanstack/react-router';
+
 import { busQueries } from 'api/bus/queries';
 import BusIcon from 'assets/svg/Bus/bus-icon-32x32.svg';
 import BusCoursePage from 'components/Bus/BusCoursePage';
@@ -24,10 +22,12 @@ function asString(value: string | string[]): string {
 }
 
 export default function ShuttleDetailPage() {
-  
   const routeNavigate = useNavigate();
-  const routeQuery: Record<string, string | string[] | undefined> = { ...useSearch({ strict: false }), ...useParams({ strict: false }) };
-  
+  const routeQuery: Record<string, string | string[] | undefined> = {
+    ...useSearch({ strict: false }),
+    ...useParams({ strict: false }),
+  };
+
   const { routeId } = routeQuery;
 
   const shuttleTimetableId = routeId ? asString(routeId) : null;
@@ -199,8 +199,6 @@ export default function ShuttleDetailPage() {
   );
 }
 
-
-
 export const Route = createFileRoute('/bus/shuttle/$routeId/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   component: RouteComponent,
@@ -208,5 +206,6 @@ export const Route = createFileRoute('/bus/shuttle/$routeId/')({
 
 function RouteComponent() {
   const page = <ShuttleDetailPage />;
+
   return <Layout mobileHeader="page">{page}</Layout>;
 }

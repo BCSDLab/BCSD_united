@@ -10,7 +10,7 @@ import styles from './SearchBar.module.scss';
 // KOIN_ORDER_WEBVIEW pages/Home/components/SearchBar 이전. 누르면 검색 화면으로 이동한다
 export default function SearchBar() {
   const router = useRouter();
-  const routeSearch = useSearch({ strict: false }) as Record<string, string | string[] | undefined>;
+  const routeSearch = useSearch({ strict: false });
   const logger = useLogger();
 
   const handleSearchBarClick = () => {

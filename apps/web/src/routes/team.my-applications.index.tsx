@@ -1,14 +1,9 @@
-import Seo from 'components/seo/Seo';
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
-
 import { Suspense, useState } from 'react';
 import type { MouseEventHandler } from 'react';
-
-
-
-
 import { cn } from '@bcsdlab/utils';
 import { useSuspenseInfiniteQuery } from '@tanstack/react-query';
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
+
 import type {
   MyTeamRecruitmentApplication,
   MyTeamRecruitmentApplicationListRequest,
@@ -22,6 +17,7 @@ import FilterIcon from 'assets/svg/Team/filter.svg';
 import ErrorBoundary from 'components/boundary/ErrorBoundary';
 import Layout from 'components/layout';
 import MobilePageHeader from 'components/layout/MobilePageHeader';
+import Seo from 'components/seo/Seo';
 import MyApplicationFilterPanel from 'components/Team/components/MyApplicationFilterPanel';
 import RecruitmentCard from 'components/Team/components/RecruitmentCard';
 import formatApplicationStatus from 'components/Team/utils/formatApplicationStatus';
@@ -129,10 +125,8 @@ function ApplicationsListSection({ requestParams, onFilterOpen, onChatClick }: A
 
 export default function MyApplicationsPage() {
   const logger = useLogger();
-  
+
   const routeNavigate = useNavigate();
-  
-  
 
   const [isFilterOpen, openFilter, closeFilter] = useBooleanState(false);
   const [filterAnchorRect, setFilterAnchorRect] = useState<DOMRect | null>(null);
@@ -159,15 +153,20 @@ export default function MyApplicationsPage() {
         value: application.recruitment.title,
       });
 
-      routeNavigate({ href: ROUTES.TeamChat({
+      routeNavigate({
+        href: ROUTES.TeamChat({
           recruitmentId: String(application.recruitment.id),
           chatRoomId: String(application.team_chat_room_id),
-        }) });
+        }),
+      });
     };
 
   return (
     <>
-      <Seo title="내가 지원한 모집글 | KOIN" description="내가 지원한 팀원 모집 게시글과 지원 상태를 확인할 수 있습니다." />
+      <Seo
+        title="내가 지원한 모집글 | KOIN"
+        description="내가 지원한 팀원 모집 게시글과 지원 상태를 확인할 수 있습니다."
+      />
 
       <MobilePageHeader
         title="내가 지원한 모집글"
@@ -211,8 +210,6 @@ export default function MyApplicationsPage() {
   );
 }
 
-
-
 export const Route = createFileRoute('/team/my-applications/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   staticData: { hasPageSeo: true },
@@ -221,5 +218,6 @@ export const Route = createFileRoute('/team/my-applications/')({
 
 function RouteComponent() {
   const page = <MyApplicationsPage />;
+
   return <Layout mobileHeader="page">{page}</Layout>;
 }

@@ -1,6 +1,6 @@
+import { cn } from '@bcsdlab/utils';
 import { useRouter, useLocation } from '@tanstack/react-router';
 
-import { cn } from '@bcsdlab/utils';
 import type { CallvanPost } from 'api/callvan/entity';
 import ChatIcon from 'assets/svg/Callvan/chat.svg';
 import ChevronRightIcon from 'assets/svg/Callvan/chevron-right.svg';
@@ -272,7 +272,9 @@ export default function CallvanCard({ post }: CallvanCardProps) {
         role={post.is_joined ? 'button' : undefined}
         tabIndex={post.is_joined ? 0 : undefined}
         onClick={
-          post.is_joined ? () => router.navigate({ href: ROUTES.CallvanParticipants({ postId: String(post.id) }) }) : undefined
+          post.is_joined
+            ? () => router.navigate({ href: ROUTES.CallvanParticipants({ postId: String(post.id) }) })
+            : undefined
         }
         onKeyDown={
           post.is_joined

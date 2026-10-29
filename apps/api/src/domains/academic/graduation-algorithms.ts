@@ -37,9 +37,15 @@ export function gradeCell(value: unknown): string {
 
 export function gradeRow(cells: readonly unknown[]): GradeRow {
   return {
-    year: gradeCell(cells[1]), semester: gradeCell(cells[2]), code: gradeCell(cells[4]),
-    classTitle: gradeCell(cells[5]), lectureClass: gradeCell(cells[6]), professor: gradeCell(cells[7]),
-    courseType: gradeCell(cells[8]), credit: gradeCell(cells[9]), grade: gradeCell(cells[10]),
+    year: gradeCell(cells[1]),
+    semester: gradeCell(cells[2]),
+    code: gradeCell(cells[4]),
+    classTitle: gradeCell(cells[5]),
+    lectureClass: gradeCell(cells[6]),
+    professor: gradeCell(cells[7]),
+    courseType: gradeCell(cells[8]),
+    credit: gradeCell(cells[9]),
+    grade: gradeCell(cells[10]),
     retakeStatus: gradeCell(cells[11]),
   };
 }
@@ -74,9 +80,10 @@ export function importedCourseType(
   catalogByCode: ReadonlyMap<string, GraduationCatalog>,
   defaultTypeId: number,
 ): { course_type_id: number; general_education_area_id: number | null } {
-  const catalog = hasLecture && row.courseType !== '자선'
-    ? catalogByName.get(`${row.classTitle}_${studentYear}`) ?? catalogByCode.get(`${row.code}_${row.year}`)
-    : undefined;
+  const catalog =
+    hasLecture && row.courseType !== '자선'
+      ? (catalogByName.get(`${row.classTitle}_${studentYear}`) ?? catalogByCode.get(`${row.code}_${row.year}`))
+      : undefined;
   return {
     course_type_id: catalog?.course_type_id ?? defaultTypeId,
     general_education_area_id: catalog?.general_education_area_id ?? null,
@@ -84,15 +91,21 @@ export function importedCourseType(
 }
 
 export function bestCatalog(
-  catalogs: readonly GraduationCatalog[], name: string, studentYear: string, majorId: number | null,
+  catalogs: readonly GraduationCatalog[],
+  name: string,
+  studentYear: string,
+  majorId: number | null,
   attendedYears: ReadonlySet<string>,
 ): GraduationCatalog | undefined {
   const candidates = catalogs.filter((catalog) => catalog.lecture_name === name);
-  return candidates.find((catalog) => catalog.year === studentYear && catalog.major_id === majorId)
-    ?? candidates.find((catalog) => attendedYears.has(catalog.year))
-    ?? candidates.reduce<GraduationCatalog | undefined>((latest, catalog) => (
-      !latest || catalog.year > latest.year ? catalog : latest
-    ), undefined);
+  return (
+    candidates.find((catalog) => catalog.year === studentYear && catalog.major_id === majorId) ??
+    candidates.find((catalog) => attendedYears.has(catalog.year)) ??
+    candidates.reduce<GraduationCatalog | undefined>(
+      (latest, catalog) => (!latest || catalog.year > latest.year ? catalog : latest),
+      undefined,
+    )
+  );
 }
 
 export function integerCredit(value: string): number {
@@ -105,8 +118,12 @@ export function integerCredit(value: string): number {
 }
 
 export function calculateCredits(
-  lectures: readonly GraduationLecture[], catalogs: readonly GraduationCatalog[], studentYear: string,
-  majorId: number | null, attendedYears: ReadonlySet<string>, defaultTypeId: number,
+  lectures: readonly GraduationLecture[],
+  catalogs: readonly GraduationCatalog[],
+  studentYear: string,
+  majorId: number | null,
+  attendedYears: ReadonlySet<string>,
+  defaultTypeId: number,
 ): Map<number, number> {
   const firstCatalogType = new Map<string, number>();
   for (const lecture of lectures) {
@@ -116,7 +133,10 @@ export function calculateCredits(
   }
   const credits = new Map<number, number>();
   for (const lecture of lectures) {
-    const type = lecture.course_type_id ?? (lecture.name === null ? undefined : firstCatalogType.get(lecture.name)) ?? defaultTypeId;
+    const type =
+      lecture.course_type_id ??
+      (lecture.name === null ? undefined : firstCatalogType.get(lecture.name)) ??
+      defaultTypeId;
     credits.set(type, (credits.get(type) ?? 0) + integerCredit(lecture.grades));
   }
   return credits;
@@ -126,8 +146,13 @@ export function educationRequirements(year: string): ReadonlyArray<readonly [str
   if (!['2019', '2020', '2021', '2022', '2023', '2024'].includes(year)) {
     throw new ApiError(400, '', `year 양식이 잘못됐습니다. year : ${year} null`);
   }
-  return [[Number(year) <= 2020 ? '글로벌' : '인성과소양', 2], ['예술과문학', 3],
-    ['사회와심리', 3], ['역사와철학', 3], ['자연과인간', 3]];
+  return [
+    [Number(year) <= 2020 ? '글로벌' : '인성과소양', 2],
+    ['예술과문학', 3],
+    ['사회와심리', 3],
+    ['역사와철학', 3],
+    ['자연과인간', 3],
+  ];
 }
 
 export function educationCalculation(name: string, required: number, lectures: readonly GraduationLecture[]) {

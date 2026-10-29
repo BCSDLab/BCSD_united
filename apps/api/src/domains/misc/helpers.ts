@@ -5,7 +5,13 @@ import type { ApiEnv } from '@api/runtime';
 
 export function parse<T>(validator: z.ZodType<T>, value: unknown): T {
   const result = validator.safeParse(value);
-  if (!result.success) throw new ApiError(400, 'INVALID_REQUEST_BODY', '잘못된 입력값이 포함되어 있습니다.', result.error.issues.map((issue) => ({ field: issue.path.join('.'), message: issue.message })));
+  if (!result.success)
+    throw new ApiError(
+      400,
+      'INVALID_REQUEST_BODY',
+      '잘못된 입력값이 포함되어 있습니다.',
+      result.error.issues.map((issue) => ({ field: issue.path.join('.'), message: issue.message })),
+    );
   return result.data;
 }
 export function identifier(c: Context<ApiEnv>, name = 'id'): number {
@@ -23,7 +29,17 @@ export const sqlNow = () => new Date().toISOString().slice(0, 19).replace('T', '
 export const kstDate = (time = Date.now()) => new Date(time + 9 * 3_600_000).toISOString().slice(0, 10);
 export function kstTimestamp(value: string | null) {
   if (!value) return null;
-  return new Date(Date.parse(value.replace(' ', 'T') + 'Z') + 9 * 3_600_000).toISOString().slice(0, 19).replace('T', ' ');
+  return new Date(Date.parse(value.replace(' ', 'T') + 'Z') + 9 * 3_600_000)
+    .toISOString()
+    .slice(0, 19)
+    .replace('T', ' ');
 }
-export const nullableText = (maximum: number) => z.string().max(maximum).nullish().transform((value) => value ?? null);
-export function notFound(message: string): never { throw new ApiError(404, '', message); }
+export const nullableText = (maximum: number) =>
+  z
+    .string()
+    .max(maximum)
+    .nullish()
+    .transform((value) => value ?? null);
+export function notFound(message: string): never {
+  throw new ApiError(404, '', message);
+}

@@ -1,7 +1,5 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
-
 import { useEffect } from 'react';
-
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 
 import ArticlesSearchPage from 'components/Articles/components/ArticlesSearchPage';
 import ROUTES from 'static/routes';
@@ -9,10 +7,8 @@ import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useMount from 'utils/hooks/state/useMount';
 
 export default function ArticlesSearchRoutePage() {
-  
   const routeNavigate = useNavigate();
-  
-  
+
   const isMobile = useMediaQuery();
   const mounted = useMount();
 
@@ -28,8 +24,6 @@ export default function ArticlesSearchRoutePage() {
 
   return <ArticlesSearchPage />;
 }
-
-
 
 export const Route = createFileRoute('/articles/search/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,

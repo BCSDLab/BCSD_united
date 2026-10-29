@@ -1,25 +1,26 @@
-import { captureException, startSpan } from '@sentry/core';
+import { captureError, traceOperation } from '@koin/telemetry/runtime';
 import { createCsrfMiddleware, createMiddleware, createStart } from '@tanstack/react-start';
 import { getCookie } from '@tanstack/react-start/server';
+
 import { isProtectedPath } from 'static/routeAccess';
 import ROUTES from 'static/routes';
 import { WEB_AUTH_CSRF_COOKIE_KEY } from 'static/url';
 
-const sentryRequestMiddleware = createMiddleware().server(async ({ next }) => {
+const errorReportingMiddleware = createMiddleware().server(async ({ next }) => {
   try {
     return await next();
   } catch (error) {
-    captureException(error);
+    captureError(error);
     throw error;
   }
 });
 
-const sentryFunctionMiddleware = createMiddleware({ type: 'function' }).server(
-  ({ next, serverFnMeta }) => startSpan({ name: serverFnMeta.name, op: 'function.tanstackstart' }, async () => {
+const functionTracingMiddleware = createMiddleware({ type: 'function' }).server(({ next, serverFnMeta }) =>
+  traceOperation({ name: serverFnMeta.name, op: 'function.tanstackstart' }, async () => {
     try {
       return await next();
     } catch (error) {
-      captureException(error);
+      captureError(error);
       throw error;
     }
   }),
@@ -40,6 +41,6 @@ const routeAccessMiddleware = createMiddleware().server(({ request, next }) => {
 const csrfMiddleware = createCsrfMiddleware({ filter: ({ handlerType }) => handlerType === 'serverFn' });
 
 export const startInstance = createStart(() => ({
-  requestMiddleware: [sentryRequestMiddleware, csrfMiddleware, routeAccessMiddleware],
-  functionMiddleware: [sentryFunctionMiddleware],
+  requestMiddleware: [errorReportingMiddleware, csrfMiddleware, routeAccessMiddleware],
+  functionMiddleware: [functionTracingMiddleware],
 }));

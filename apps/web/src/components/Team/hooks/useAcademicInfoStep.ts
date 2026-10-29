@@ -1,8 +1,9 @@
 import { isKoinError, sendClientError } from '@bcsdlab/koin';
 import { useMutation, useSuspenseQuery } from '@tanstack/react-query';
+import { useFormContext } from 'react-hook-form';
+
 import { getUserAcademicInfo, updateAcademicInfo } from 'api/auth';
 import { deptQueries } from 'api/dept/queries';
-import { useFormContext } from 'react-hook-form';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import showToast from 'utils/ts/showToast';

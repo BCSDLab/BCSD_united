@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { Link } from '@tanstack/react-router';
-import { useRouter } from '@tanstack/react-router';
-
 import { cn } from '@bcsdlab/utils';
 import { useQuery } from '@tanstack/react-query';
+import { Link, useRouter } from '@tanstack/react-router';
+
 import { orderQueries } from 'api/order/queries';
 import RightArrow from 'assets/svg/Order/Cart/arrow-go-icon.svg';
 import Home from 'assets/svg/Order/Checkout/home-icon.svg';
@@ -63,7 +62,10 @@ export default function DeliveryAddressSection({ orderableShopId }: DeliveryAddr
       <div className={cn({ [styles.header]: existingAddress })}>
         <p className={styles.header__title}>배달주소</p>
         {existingAddress && canSwitchAddress && (
-          <Link  to={isCampus ? ROUTES.OrderDeliveryOutside() : ROUTES.OrderDeliveryCampus()} className={styles.header__link}>
+          <Link
+            to={isCampus ? ROUTES.OrderDeliveryOutside() : ROUTES.OrderDeliveryCampus()}
+            className={styles.header__link}
+          >
             {isCampus ? '교외 주소를 원하시나요?' : '교내 주소를 원하시나요?'}
           </Link>
         )}
@@ -77,7 +79,9 @@ export default function DeliveryAddressSection({ orderableShopId }: DeliveryAddr
               color="gray"
               fullWidth
               className={styles.card__button}
-              onClick={() => router.navigate({ href: isCampus ? ROUTES.OrderDeliveryCampus() : ROUTES.OrderDeliveryOutside() })}
+              onClick={() =>
+                router.navigate({ href: isCampus ? ROUTES.OrderDeliveryCampus() : ROUTES.OrderDeliveryOutside() })
+              }
             >
               <div className={styles.address}>
                 {isCampus ? (

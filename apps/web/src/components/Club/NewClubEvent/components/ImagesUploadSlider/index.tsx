@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import Image from 'components/ui/Image';
-
 import { cn } from '@bcsdlab/utils';
+
 import UploadIcon from 'assets/svg/Club/add-image.svg';
 import ArrowIcon from 'assets/svg/previous-arrow-icon.svg';
+import Image from 'components/ui/Image';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useImageUpload, { UploadError } from 'utils/hooks/ui/useImageUpload';
 import imageResize from 'utils/ts/imageResize';

@@ -1,9 +1,9 @@
-import Image from 'components/ui/Image';
-
 import { useQuery } from '@tanstack/react-query';
+
 import type { StoreEvent } from 'api/store/entity';
 import { storeQueries } from 'api/store/queries';
 import EventCard from 'components/Store/StoreDetailPage/components/EventCard';
+import Image from 'components/ui/Image';
 
 import styles from './EventTable.module.scss';
 

@@ -31,7 +31,10 @@ function progressMessage(payload: OrderEvent): string {
   const date = kstDate(payload.estimatedAt, 'iso');
   const estimated = `${Number(date.slice(5, 7))}월 ${Number(date.slice(8, 10))}일 ${date.slice(11, 16)}`;
   const label = payload.status === 'DELIVERING' || payload.delivery ? '예상 도착' : '포장 완료 예정';
-  const prefix = payload.status === 'COOKING' ? `${payload.shopName}에서 조리를 시작했어요.` : `${payload.shopName}에서 주문하신 음식이 배달 중이에요.`;
+  const prefix =
+    payload.status === 'COOKING'
+      ? `${payload.shopName}에서 조리를 시작했어요.`
+      : `${payload.shopName}에서 주문하신 음식이 배달 중이에요.`;
   return `${prefix}\n${label}: ${estimated}`;
 }
 
@@ -51,7 +54,14 @@ export function orderNotification(payload: OrderEvent) {
     default:
       message = `${payload.shopName} 주문, 맛있게 드세요!`;
   }
-  return { userId: payload.userId, title: NOTIFICATION_TITLES[payload.status], message, mobileAppPath: 'ORDER', schemeUri: `order?id=${payload.orderId}`, type: 'MESSAGE' };
+  return {
+    userId: payload.userId,
+    title: NOTIFICATION_TITLES[payload.status],
+    message,
+    mobileAppPath: 'ORDER',
+    schemeUri: `order?id=${payload.orderId}`,
+    type: 'MESSAGE',
+  };
 }
 
 /**
@@ -62,7 +72,10 @@ export async function handleOrderJob(env: Bindings, job: Job): Promise<boolean> 
   if (job.kind !== 'commerce.order-status') return false;
   const db = createDatabase(env.DB);
   const notificationKey = `commerce:${job.key}`;
-  const row = await first<{ payload: string; delivered_at: string | null; available_at: number }>(db, sql`SELECT payload,delivered_at,available_at FROM native_commerce_outbox WHERE id=${job.key} AND kind='commerce.order-status'`);
+  const row = await first<{ payload: string; delivered_at: string | null; available_at: number }>(
+    db,
+    sql`SELECT payload,delivered_at,available_at FROM native_commerce_outbox WHERE id=${job.key} AND kind='commerce.order-status'`,
+  );
   if (!row || row.available_at > Date.now()) return true;
   if (row.delivered_at) {
     await env.JOBS.send({ kind: 'misc.notification', key: notificationKey, payload: {} });
@@ -72,15 +85,22 @@ export async function handleOrderJob(env: Bindings, job: Job): Promise<boolean> 
   const notification = orderNotification(payload);
   const now = new Date().toISOString();
   try {
-    await guardedBatch(db, sql`EXISTS(SELECT 1 FROM native_commerce_outbox WHERE id=${job.key} AND delivered_at IS NULL)`, [
-      sql`INSERT INTO native_notification_outbox(id,payload,status,attempts,available_at,created_at)
+    await guardedBatch(
+      db,
+      sql`EXISTS(SELECT 1 FROM native_commerce_outbox WHERE id=${job.key} AND delivered_at IS NULL)`,
+      [
+        sql`INSERT INTO native_notification_outbox(id,payload,status,attempts,available_at,created_at)
         SELECT ${notificationKey},${JSON.stringify(notification)},'PENDING',0,${now},${now}
         WHERE EXISTS(SELECT 1 FROM users WHERE id=${payload.userId} AND device_token IS NOT NULL AND length(trim(device_token))>0)
         ON CONFLICT(id) DO NOTHING`,
-      sql`UPDATE native_commerce_outbox SET delivered_at=${now},attempts=attempts+1 WHERE id=${job.key}`,
-    ]);
+        sql`UPDATE native_commerce_outbox SET delivered_at=${now},attempts=attempts+1 WHERE id=${job.key}`,
+      ],
+    );
   } catch (error) {
-    const delivered = await first<{ delivered_at: string | null }>(db, sql`SELECT delivered_at FROM native_commerce_outbox WHERE id=${job.key}`);
+    const delivered = await first<{ delivered_at: string | null }>(
+      db,
+      sql`SELECT delivered_at FROM native_commerce_outbox WHERE id=${job.key}`,
+    );
     if (!delivered?.delivered_at) throw error;
   }
   await env.JOBS.send({ kind: 'misc.notification', key: notificationKey, payload: {} });
@@ -90,7 +110,10 @@ export async function handleOrderJob(env: Bindings, job: Job): Promise<boolean> 
 export async function runOrderCron(env: Bindings, scheduledTime: number): Promise<void> {
   if (Math.floor(scheduledTime / 60_000) % 5 !== 0) return;
   const db = createDatabase(env.DB);
-  const rows = await db.all<{ id: string; kind: string }>(sql`SELECT id,kind FROM native_commerce_outbox WHERE delivered_at IS NULL AND available_at<=${scheduledTime} AND kind='commerce.order-status' ORDER BY available_at LIMIT 100`);
-  if (rows.length) await env.JOBS.sendBatch(rows.map((row) => ({ body: { kind: row.kind, key: row.id, payload: {} } })));
+  const rows = await db.all<{ id: string; kind: string }>(
+    sql`SELECT id,kind FROM native_commerce_outbox WHERE delivered_at IS NULL AND available_at<=${scheduledTime} AND kind='commerce.order-status' ORDER BY available_at LIMIT 100`,
+  );
+  if (rows.length)
+    await env.JOBS.sendBatch(rows.map((row) => ({ body: { kind: row.kind, key: row.id, payload: {} } })));
   await reconcilePayments(env, scheduledTime);
 }

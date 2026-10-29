@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+
 import { cafeteriaMutations } from 'api/cafeteria/mutations';
 import { cafeteriaQueries } from 'api/cafeteria/queries';
 import type { Dining, OriginalDining } from 'api/dinings/entity';

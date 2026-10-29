@@ -1,5 +1,4 @@
 import Image from 'components/ui/Image';
-
 import { useEscapeKeyDown } from 'utils/hooks/ui/useEscapeKeyDown';
 import { useOutsideClick } from 'utils/hooks/ui/useOutsideClick';
 

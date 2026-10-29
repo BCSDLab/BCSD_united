@@ -17,19 +17,15 @@ export const formatTimeWithSeconds = (date: Date) => {
   return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:${second.toString().padStart(2, '0')}`;
 };
 
-export const formatRelativeDate = (date: Date) => {
+export const formatRelativeDate = (date: Date, today: Date) => {
   // ex. 오늘 or 7월 9일
-  const now = new Date();
-
-  if (now.getDate() === date.getDate()) return '오늘';
+  if (isToday(date, today)) return '오늘';
 
   return `${date.getMonth() + 1}월 ${date.getDate()}일`;
 };
 
-export const format12Hour = (date: Date) => {
+export const format12Hour = (hour: number, minute: number) => {
   // ex. 오전 01:01
-  const hour = date.getHours();
-  const minute = date.getMinutes();
 
   const period = hour >= 12 ? '오후' : '오전';
   const displayHour = hour > 12 ? hour - 12 : hour;
@@ -37,15 +33,10 @@ export const format12Hour = (date: Date) => {
   return `${period} ${String(displayHour)}:${String(minute).padStart(2, '0')}`;
 };
 
-export const isToday = (date: Date) => {
-  const today = new Date();
-
-  return (
-    date.getDate() === today.getDate() &&
-    date.getMonth() === today.getMonth() &&
-    date.getFullYear() === today.getFullYear()
-  );
-};
+export const isToday = (date: Date, today: Date) =>
+  date.getDate() === today.getDate() &&
+  date.getMonth() === today.getMonth() &&
+  date.getFullYear() === today.getFullYear();
 
 export const getTimeDifference = (time1: string, time2: string) => {
   const [hours1, minutes1] = time1.split(':').map(Number);

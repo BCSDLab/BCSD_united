@@ -1,11 +1,7 @@
 import { useState } from 'react';
-
 import { isKoinError } from '@bcsdlab/koin';
 import { sha256 } from '@bcsdlab/utils';
 import { useMutation } from '@tanstack/react-query';
-import { checkId, nicknameDuplicateCheck, signupGeneral } from 'api/auth';
-import CustomInput from 'components/Auth/SignupPage/components/CustomInput';
-import type { InputMessage } from 'interfaces/InputMessage';
 import {
   Controller,
   type ControllerRenderProps,
@@ -14,6 +10,10 @@ import {
   useFormState,
   useWatch,
 } from 'react-hook-form';
+
+import { checkId, nicknameDuplicateCheck, signupGeneral } from 'api/auth';
+import CustomInput from 'components/Auth/SignupPage/components/CustomInput';
+import type { InputMessage } from 'interfaces/InputMessage';
 import { REGEX, MESSAGES } from 'static/auth';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
 import showToast from 'utils/ts/showToast';

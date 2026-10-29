@@ -1,4 +1,3 @@
-
 import { useLocation } from '@tanstack/react-router';
 
 import {
@@ -39,7 +38,7 @@ export default function Seo({
       <meta name="description" content={description} key="description" />
       <link rel="canonical" href={canonicalUrl} key="canonical" />
       {noindex && <meta name="robots" content="noindex, nofollow" key="robots" />}
-    
+
       <meta property="og:site_name" content={SITE_NAME} key="og:site_name" />
       <meta property="og:type" content={type} key="og:type" />
       <meta property="og:title" content={resolvedTitle} key="og:title" />
@@ -47,7 +46,7 @@ export default function Seo({
       <meta property="og:url" content={canonicalUrl} key="og:url" />
       <meta property="og:image" content={image} key="og:image" />
       {imageAlt && <meta property="og:image:alt" content={imageAlt} key="og:image:alt" />}
-    
+
       <meta name="twitter:card" content={TWITTER_CARD_TYPE} key="twitter:card" />
       <meta name="twitter:title" content={resolvedTitle} key="twitter:title" />
       <meta name="twitter:description" content={description} key="twitter:description" />

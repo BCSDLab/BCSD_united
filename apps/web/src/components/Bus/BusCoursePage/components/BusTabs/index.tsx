@@ -1,6 +1,6 @@
+import { cn } from '@bcsdlab/utils';
 import { useRouter, useLocation } from '@tanstack/react-router';
 
-import { cn } from '@bcsdlab/utils';
 import BusNotice from 'components/Bus/BusNotice';
 import { BUS_TYPES } from 'static/bus';
 import ROUTES from 'static/routes';

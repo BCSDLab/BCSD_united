@@ -1,9 +1,9 @@
-import Image from 'components/ui/Image';
-
 import { cn } from '@bcsdlab/utils';
+
 import type { Dining } from 'api/dinings/entity';
 import NoMeals from 'assets/svg/no-meals-pc.svg';
 import NoPhoto from 'assets/svg/no-photography-pc.svg';
+import Image from 'components/ui/Image';
 
 import styles from './PCMealImage.module.scss';
 

@@ -1,0 +1,12 @@
+{
+  "name": "@koin/error-automation",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --experimental-strip-types --test test/webhook.test.mjs",
+    "deploy": "wrangler deploy",
+    "deploy:preview": "wrangler preview"
+  }
+}

@@ -116,9 +116,9 @@ export class GetTeamRecruitmentList<R extends TeamRecruitmentListResponse> imple
   }
 }
 
-export class GetTeamRecruitmentNotifications<R extends TeamRecruitmentNotificationListResponse>
-  implements APIRequest<R>
-{
+export class GetTeamRecruitmentNotifications<
+  R extends TeamRecruitmentNotificationListResponse,
+> implements APIRequest<R> {
   method = HTTP_METHOD.GET;
 
   path = '/team-recruitments/notifications';
@@ -137,9 +137,9 @@ export class GetTeamRecruitmentNotifications<R extends TeamRecruitmentNotificati
   }
 }
 
-export class GetMyTeamRecruitmentApplications<R extends MyTeamRecruitmentApplicationListResponse>
-  implements APIRequest<R>
-{
+export class GetMyTeamRecruitmentApplications<
+  R extends MyTeamRecruitmentApplicationListResponse,
+> implements APIRequest<R> {
   method = HTTP_METHOD.GET;
 
   path = '/team-recruitments/me/applications';
@@ -327,9 +327,9 @@ export class PutCloseTeamRecruitment<R extends object> implements APIRequest<R> 
   }
 }
 
-export class GetTeamRecruitmentApplicantDetail<R extends TeamRecruitmentApplicantDetailResponse>
-  implements APIRequest<R>
-{
+export class GetTeamRecruitmentApplicantDetail<
+  R extends TeamRecruitmentApplicantDetailResponse,
+> implements APIRequest<R> {
   method = HTTP_METHOD.GET;
 
   path: string;

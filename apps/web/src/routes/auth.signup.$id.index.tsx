@@ -1,6 +1,6 @@
-import { createFileRoute } from '@tanstack/react-router';
-
 import { Suspense, useCallback, useEffect, useState } from 'react';
+import { createFileRoute } from '@tanstack/react-router';
+import { FormProvider, useForm } from 'react-hook-form';
 
 import ChevronLeftIcon from 'assets/svg/Login/chevron-left.svg';
 import SignupLayout from 'components/Auth/FindPasswordPage/Layout';
@@ -16,7 +16,6 @@ import StudentDetail from 'components/Auth/SignupPage/Steps/StudentDetailStep';
 import Terms from 'components/Auth/SignupPage/Steps/Terms';
 import Verification from 'components/Auth/SignupPage/Steps/VerificationStep';
 import LoadingSpinner from 'components/feedback/LoadingSpinner';
-import { FormProvider, useForm } from 'react-hook-form';
 import { useSessionLogger } from 'utils/hooks/analytics/useSessionLogger';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import showToast from 'utils/ts/showToast';
@@ -36,7 +35,7 @@ function SignupPage() {
 
   const { Step, nextStep, goBack, currentStep } = useStep<StepTitle>(activeSteps);
 
-  const currentIndex = activeSteps.indexOf(currentStep);
+  const currentIndex = activeSteps.findIndex((step) => step === currentStep);
   const [userType, setUserType] = useState<UserType | null>(null);
 
   const onClickStudent = (user: UserType) => {
@@ -163,8 +162,6 @@ function SignupPage() {
   );
 }
 
-
-
 export default SignupPage;
 
 export const Route = createFileRoute('/auth/signup/$id/')({
@@ -174,5 +171,6 @@ export const Route = createFileRoute('/auth/signup/$id/')({
 
 function RouteComponent() {
   const page = <SignupPage />;
+
   return <SignupLayout>{page}</SignupLayout>;
 }

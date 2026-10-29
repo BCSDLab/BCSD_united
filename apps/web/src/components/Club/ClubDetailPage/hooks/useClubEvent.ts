@@ -1,6 +1,6 @@
+import { useSuspenseQuery } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
 
-import { useSuspenseQuery } from '@tanstack/react-query';
 import { clubQueries } from 'api/club/queries';
 import ROUTES from 'static/routes';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';

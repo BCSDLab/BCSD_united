@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useSuspenseQuery } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
 
-import { useSuspenseQuery } from '@tanstack/react-query';
 import { getRelateSearch } from 'api/store';
 import type { RelatedSearchResponse } from 'api/store/entity';
 import { storeQueries } from 'api/store/queries';

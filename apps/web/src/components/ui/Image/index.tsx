@@ -19,7 +19,8 @@ function getImageUrl(src: string, width: number, quality: number) {
 function getWidths(width: ImageProps['width'], sizes: string | undefined) {
   if (sizes) {
     const viewportWidths = [...sizes.matchAll(/(^|\s)(1?\d?\d)vw/g)].map((match) => Number(match[2]));
-    const minimumWidth = viewportWidths.length ? DEVICE_WIDTHS[0] * Math.min(...viewportWidths) / 100 : 0;
+    const minimumWidth = viewportWidths.length ? (DEVICE_WIDTHS[0] * Math.min(...viewportWidths)) / 100 : 0;
+
     return { widths: IMAGE_WIDTHS.filter((candidate) => candidate >= minimumWidth), descriptor: 'w' } as const;
   }
 
@@ -28,9 +29,14 @@ function getWidths(width: ImageProps['width'], sizes: string | undefined) {
     return { widths: DEVICE_WIDTHS, descriptor: 'w' } as const;
   }
 
-  const widths = [...new Set([numericWidth, numericWidth * 2].map(
-    (target) => IMAGE_WIDTHS.find((candidate) => candidate >= target) ?? IMAGE_WIDTHS[IMAGE_WIDTHS.length - 1],
-  ))];
+  const widths = [
+    ...new Set(
+      [numericWidth, numericWidth * 2].map(
+        (target) => IMAGE_WIDTHS.find((candidate) => candidate >= target) ?? IMAGE_WIDTHS[IMAGE_WIDTHS.length - 1],
+      ),
+    ),
+  ];
+
   return { widths, descriptor: 'x' } as const;
 }
 
@@ -54,12 +60,13 @@ export default function Image({
   const useOriginal = unoptimized || /^(?:blob:|data:)/i.test(src) || /\.svg(?:[?#]|$)/i.test(src);
   const candidates = useOriginal ? null : getWidths(width, sizes);
   const resolvedSizes = sizes ?? (candidates?.descriptor === 'w' ? '100vw' : undefined);
-  const srcSet = candidates?.widths.map((candidate, index) => (
-    `${getImageUrl(src, candidate, quality)} ${candidates.descriptor === 'w' ? candidate : index + 1}${candidates.descriptor}`
-  )).join(', ');
-  const imageSrc = candidates
-    ? getImageUrl(src, candidates.widths[candidates.widths.length - 1], quality)
-    : src;
+  const srcSet = candidates?.widths
+    .map(
+      (candidate, index) =>
+        `${getImageUrl(src, candidate, quality)} ${candidates.descriptor === 'w' ? candidate : index + 1}${candidates.descriptor}`,
+    )
+    .join(', ');
+  const imageSrc = candidates ? getImageUrl(src, candidates.widths[candidates.widths.length - 1], quality) : src;
 
   return (
     <img
@@ -67,7 +74,7 @@ export default function Image({
       alt={alt}
       width={fill ? undefined : width}
       height={fill ? undefined : height}
-      loading={priority ? 'eager' : loading ?? 'lazy'}
+      loading={priority ? 'eager' : (loading ?? 'lazy')}
       fetchPriority={priority ? 'high' : fetchPriority}
       decoding={decoding}
       style={fill ? { position: 'absolute', inset: 0, width: '100%', height: '100%', ...style } : style}

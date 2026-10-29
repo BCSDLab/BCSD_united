@@ -1,8 +1,5 @@
+import React, { lazy, useEffect } from 'react';
 import { createFileRoute, ClientOnly } from '@tanstack/react-router';
-import { lazy } from 'react';
-import PageLayout from 'components/layout';
-import React, { useEffect } from 'react';
-
 
 import AcademicCapIcon from 'assets/svg/academic-cap-icon.svg';
 import BubbleTailBottom from 'assets/svg/bubble-tail-bottom.svg';
@@ -16,6 +13,7 @@ import GeneralCourse from 'components/GraduationCalculatorPage/components/Genera
 import GraduationCalculatorAuthModal from 'components/GraduationCalculatorPage/components/GraduationCalculatorAuthModal';
 import StudentForm from 'components/GraduationCalculatorPage/components/StudentForm';
 import useAgreeGraduationCreidts from 'components/GraduationCalculatorPage/hooks/useAgreeGraduationCreidts';
+import PageLayout from 'components/layout';
 import Suspense from 'components/ssr/SSRSuspense';
 import useTimetableFrameList from 'components/TimetablePage/hooks/useTimetableFrameList';
 import useTotalGrades from 'components/TimetablePage/hooks/useTotalGrades';
@@ -30,7 +28,14 @@ import { useSemester } from 'utils/zustand/semester';
 import styles from 'pages/graduation/GraduationCalculatorPage.module.scss';
 
 const CreditChartContent = lazy(() => import('components/GraduationCalculatorPage/components/CreditChart'));
-function CreditChart(props: React.ComponentProps<typeof CreditChartContent>) { return <ClientOnly fallback={null}><CreditChartContent {...props} /></ClientOnly>; }
+
+function CreditChart(props: React.ComponentProps<typeof CreditChartContent>) {
+  return (
+    <ClientOnly fallback={null}>
+      <CreditChartContent {...props} />
+    </ClientOnly>
+  );
+}
 
 function GraduationCalculatorComponent() {
   const isLoggedIn = useIsLoggedIn();
@@ -190,5 +195,6 @@ export const Route = createFileRoute('/graduation/')({
 
 function RouteComponent() {
   const page = <GraduationCalculatorPage />;
+
   return <PageLayout>{page}</PageLayout>;
 }

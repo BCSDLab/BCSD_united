@@ -11,9 +11,9 @@ function useTeamFormStep<T extends string>(
   onExitFirstStep: () => void,
 ) {
   const router = useRouter();
-  const { step } = useSearch({ strict: false }) as { step?: T };
+  const { step } = useSearch({ strict: false });
 
-  const currentStep = step && steps.includes(step) ? step : defaultStep;
+  const currentStep = steps.find((candidate) => candidate === step) ?? defaultStep;
 
   const nextStep = (next: T, options?: { replace: boolean }) => {
     const href = buildStepHref(next);

@@ -1,8 +1,8 @@
 import { useState } from 'react';
-
 import { isKoinError } from '@bcsdlab/koin';
-import CustomInput from 'components/Auth/SignupPage/components/CustomInput';
 import { Controller, useFormContext, useWatch } from 'react-hook-form';
+
+import CustomInput from 'components/Auth/SignupPage/components/CustomInput';
 import { type ContactType, MESSAGES } from 'static/auth';
 import usePhoneVerification from 'utils/hooks/auth/usePhoneVerification';
 

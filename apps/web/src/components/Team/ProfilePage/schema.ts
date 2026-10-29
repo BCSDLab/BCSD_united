@@ -1,7 +1,8 @@
+import { z } from 'zod';
+
 import isValidCalendarDate from 'components/Team/utils/isValidCalendarDate';
 import { validateActivityDateRange } from 'components/Team/utils/validateActivityDateRange';
 import { MESSAGES, REGEX } from 'static/auth';
-import { z } from 'zod';
 
 // ── 기본 정보 (1단계) ──────────────────────────────────────
 // 현재 BasicInfoStep의 register(...) 인라인 룰을 그대로 옮긴 것.

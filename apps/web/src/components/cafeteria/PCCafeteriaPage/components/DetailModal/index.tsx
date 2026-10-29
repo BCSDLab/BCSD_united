@@ -1,7 +1,6 @@
-import Image from 'components/ui/Image';
-
 import type { Dining } from 'api/dinings/entity';
 import CloseIcon from 'assets/svg/modal-close-icon.svg';
+import Image from 'components/ui/Image';
 import { useBodyScrollLock } from 'utils/hooks/ui/useBodyScrollLock';
 import { useEscapeKeyDown } from 'utils/hooks/ui/useEscapeKeyDown';
 import { useOutsideClick } from 'utils/hooks/ui/useOutsideClick';

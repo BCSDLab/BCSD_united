@@ -1,4 +1,5 @@
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
+
 import { getViewerScope, type ViewerScope } from 'utils/ts/getViewerScope';
 
 import type { StoreFilterType, StoreSorterType } from './entity';

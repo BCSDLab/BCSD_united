@@ -1,11 +1,29 @@
 import { ApiError } from '@api/errors';
 import type { Bindings } from '@api/runtime';
-import { base64, hmac, IntegrationError, jsonResponse, request, required, retryAfter, retryableStatus } from '@api/integrations/http';
+import {
+  base64,
+  hmac,
+  IntegrationError,
+  jsonResponse,
+  request,
+  required,
+  retryAfter,
+  retryableStatus,
+} from '@api/integrations/http';
 
-export interface EmailInput { to: string; subject: string; html: string }
+export interface EmailInput {
+  to: string;
+  subject: string;
+  html: string;
+}
 
 const EMAIL_PATTERN = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
-const RETRYABLE_EMAIL_CODES = ['E_RATE_LIMIT_EXCEEDED', 'E_DAILY_LIMIT_EXCEEDED', 'E_INTERNAL_SERVER_ERROR', 'DELIVERY_ERROR'];
+const RETRYABLE_EMAIL_CODES = [
+  'E_RATE_LIMIT_EXCEEDED',
+  'E_DAILY_LIMIT_EXCEEDED',
+  'E_INTERNAL_SERVER_ERROR',
+  'DELIVERY_ERROR',
+];
 
 function notConfigured(message: string): ApiError {
   return new ApiError(503, 'INTEGRATION_NOT_CONFIGURED', message);
@@ -26,7 +44,12 @@ export async function sendEmail(env: Bindings, input: EmailInput): Promise<void>
   }
 }
 
-export async function naverSignature(secret: string, path: string, timestamp: string, accessKey: string): Promise<string> {
+export async function naverSignature(
+  secret: string,
+  path: string,
+  timestamp: string,
+  accessKey: string,
+): Promise<string> {
   return base64(new Uint8Array(await hmac(secret, `POST ${path}\n${timestamp}\n${accessKey}`)));
 }
 
@@ -41,16 +64,27 @@ export async function sendSms(env: Bindings, input: { to: string; content: strin
   if (!/^[A-Za-z0-9_:-]+$/.test(serviceId)) throw notConfigured('NAVER_SMS_SERVICE_ID 설정이 올바르지 않습니다.');
   const path = `/sms/v2/services/${serviceId}/messages`;
   const timestamp = String(Date.now());
-  const response = await request('Naver SMS', `https://sens.apigw.ntruss.com${path}`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'x-ncp-apigw-timestamp': timestamp,
-      'x-ncp-iam-access-key': accessKey,
-      'x-ncp-apigw-signature-v2': await naverSignature(secretKey, path, timestamp, accessKey),
+  const response = await request(
+    'Naver SMS',
+    `https://sens.apigw.ntruss.com${path}`,
+    {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-ncp-apigw-timestamp': timestamp,
+        'x-ncp-iam-access-key': accessKey,
+        'x-ncp-apigw-signature-v2': await naverSignature(secretKey, path, timestamp, accessKey),
+      },
+      body: JSON.stringify({
+        type: 'SMS',
+        from,
+        contentType: 'COMM',
+        content: input.content,
+        messages: [{ to: input.to }],
+      }),
     },
-    body: JSON.stringify({ type: 'SMS', from, contentType: 'COMM', content: input.content, messages: [{ to: input.to }] }),
-  }, 5000);
+    5000,
+  );
   const result = await jsonResponse<{ statusCode?: string }>('Naver SMS', response);
   if (result.statusCode !== '202') throw new IntegrationError('Naver SMS', 'SMS_REJECTED', response.status, true);
 }
@@ -64,19 +98,31 @@ function slackWebhookUrl(webhook: string): URL {
     if (error instanceof ApiError) throw error;
     throw invalidWebhook;
   }
-  const trusted = url.protocol === 'https:' && url.hostname === 'hooks.slack.com' && url.pathname.startsWith('/services/');
+  const trusted =
+    url.protocol === 'https:' && url.hostname === 'hooks.slack.com' && url.pathname.startsWith('/services/');
   if (!trusted || url.username || url.password || url.search || url.hash) throw invalidWebhook;
   return url;
 }
 
 export async function sendSlack(_env: Bindings, input: { webhook: string; message: string }): Promise<void> {
   const url = slackWebhookUrl(input.webhook);
-  const response = await request('Slack', url.href, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ text: input.message, attachments: [{ color: 'good' }] }),
-  }, 5000);
+  const response = await request(
+    'Slack',
+    url.href,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text: input.message, attachments: [{ color: 'good' }] }),
+    },
+    5000,
+  );
   if (!response.ok || (await response.text()).trim() !== 'ok') {
-    throw new IntegrationError('Slack', `HTTP_${response.status}`, response.status, retryableStatus(response.status), retryAfter(response));
+    throw new IntegrationError(
+      'Slack',
+      `HTTP_${response.status}`,
+      response.status,
+      retryableStatus(response.status),
+      retryAfter(response),
+    );
   }
 }

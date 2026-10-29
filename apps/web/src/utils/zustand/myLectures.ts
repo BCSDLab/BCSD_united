@@ -1,7 +1,8 @@
-import type { Lecture } from 'api/timetable/entity';
-import { isomorphicLocalStorage } from 'utils/ts/env';
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
+
+import type { Lecture } from 'api/timetable/entity';
+import { isomorphicLocalStorage } from 'utils/ts/env';
 
 type TimetableInfoFromLocalStorage = Record<string, Lecture[]>;
 

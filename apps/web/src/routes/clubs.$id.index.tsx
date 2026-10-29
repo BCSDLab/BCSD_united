@@ -1,13 +1,9 @@
-import { createFileRoute, useNavigate, useSearch, useParams, useLocation, notFound } from '@tanstack/react-router';
-import { createServerFn } from '@tanstack/react-start';
-import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { useState } from 'react';
-
-
-
-
 import { cn } from '@bcsdlab/utils';
 import { dehydrate, QueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { createFileRoute, useNavigate, useSearch, useParams, useLocation, notFound } from '@tanstack/react-router';
+import { createServerFn } from '@tanstack/react-start';
+
 import { clubQueries } from 'api/club/queries';
 import BellIcon from 'assets/svg/Club/bell-icon.svg';
 import OffBellIcon from 'assets/svg/Club/bell-off-icon.svg';
@@ -34,14 +30,14 @@ import MobilePageHeader from 'components/layout/MobilePageHeader';
 import LoginRequiredModal from 'components/modal/LoginRequiredModal';
 import { NO_SELECTED_EVENT_ID } from 'static/club';
 import ROUTES from 'static/routes';
-import { stringifySearch } from 'utils/routing/search';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import { useDebounce } from 'utils/hooks/debounce/useDebounce';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useGoBack from 'utils/hooks/routing/useGoBack';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
-
+import { stringifySearch } from 'utils/routing/search';
+import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { copyToClipboard } from 'utils/ts/copyToClipboard';
 import { formatPhoneNumber } from 'utils/ts/formatPhoneNumber';
 import { backButtonTapped } from 'utils/ts/iosBridge';
@@ -66,8 +62,6 @@ const TAB: Record<string, TabType> = {
   'Q&A': 'qna',
 };
 
-
-
 interface ClubDetailPageProps {
   initialClubId: number;
   initialTab: TabType;
@@ -75,7 +69,6 @@ interface ClubDetailPageProps {
 }
 
 export default function ClubDetailPage({ initialClubId, initialTab, initialEventId }: ClubDetailPageProps) {
-  
   const routeNavigate = useNavigate();
   const routeSearch = useSearch({ strict: false });
   const routeQuery: Record<string, string | string[] | undefined> = { ...routeSearch, ...useParams({ strict: false }) };
@@ -415,7 +408,8 @@ export default function ClubDetailPage({ initialClubId, initialTab, initialEvent
                     src={clubDetail.image_url}
                     alt={`${clubDetail.name} 동아리 이미지`}
                     width={300}
-                    height={300} fetchPriority="high"
+                    height={300}
+                    fetchPriority="high"
                   />
                 ) : (
                   <div className={styles['club-detail__image-placeholder']}>
@@ -449,8 +443,7 @@ export default function ClubDetailPage({ initialClubId, initialTab, initialEvent
                       `🎉 ${clubDetail.hot_status.streak_count}주 연속 인기 동아리 🎉`
                     ) : (
                       <>
-                        🎉
-                        {clubDetail.hot_status.month}월 {clubDetail.hot_status.week_of_month}
+                        🎉{clubDetail.hot_status.month}월 {clubDetail.hot_status.week_of_month}
                         째주 인기 동아리 🎉
                       </>
                     )}
@@ -583,7 +576,8 @@ export default function ClubDetailPage({ initialClubId, initialTab, initialEvent
                     src={clubDetail.image_url}
                     alt={`${clubDetail.name} 동아리 이미지`}
                     width={200}
-                    height={200} fetchPriority="high"
+                    height={200}
+                    fetchPriority="high"
                   />
                 ) : (
                   <div className={styles['club-detail__image-placeholder']}>
@@ -778,49 +772,49 @@ export default function ClubDetailPage({ initialClubId, initialTab, initialEvent
   );
 }
 
-
-
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
-  .handler(({ data }) => loadPageData(data, async (context, cacheControl, serverRequest) => {
-    const { params, search: query } = context;
-    const { id } = params;
+  .handler(({ data }) =>
+    loadPageData(data, async (context, cacheControl, serverRequest) => {
+      const { params, search: query } = context;
+      const { id } = params;
 
-    if (!id) {
-      throw notFound();
-    }
+      if (!id) {
+        throw notFound();
+      }
 
-    const clubId = Number(id);
-    const tab = query.tab as TabType | undefined;
-    const eventId = query.eventId as string | undefined;
-    const numericEventId = eventId ? Number(eventId) : NO_SELECTED_EVENT_ID;
+      const clubId = Number(id);
+      const tab = query.tab as TabType | undefined;
+      const eventId = query.eventId as string | undefined;
+      const numericEventId = eventId ? Number(eventId) : NO_SELECTED_EVENT_ID;
 
-    let initialTab: TabType = tab ?? 'intro';
-    if (!tab && eventId) {
-      initialTab = 'event';
-    }
+      let initialTab: TabType = tab ?? 'intro';
+      if (!tab && eventId) {
+        initialTab = 'event';
+      }
 
-    const queryClient = new QueryClient();
+      const queryClient = new QueryClient();
 
-    const shouldPrefetchEventDetail = initialTab === 'event' && numericEventId !== NO_SELECTED_EVENT_ID;
+      const shouldPrefetchEventDetail = initialTab === 'event' && numericEventId !== NO_SELECTED_EVENT_ID;
 
-    await Promise.all([
-      queryClient.prefetchQuery(clubQueries.detail(clubId, serverRequest.isLoggedIn)),
-      queryClient.prefetchQuery(clubQueries.recruitment(clubId)),
-      shouldPrefetchEventDetail && queryClient.prefetchQuery(clubQueries.eventDetail(clubId, numericEventId)),
-    ]);
+      await Promise.all([
+        queryClient.prefetchQuery(clubQueries.detail(clubId, serverRequest.isLoggedIn)),
+        queryClient.prefetchQuery(clubQueries.recruitment(clubId)),
+        shouldPrefetchEventDetail && queryClient.prefetchQuery(clubQueries.eventDetail(clubId, numericEventId)),
+      ]);
 
-    if (!serverRequest.isLoggedIn) {
-      cacheControl.enablePublicCache();
-    }
+      if (!serverRequest.isLoggedIn) {
+        cacheControl.enablePublicCache();
+      }
 
-    return {
+      return {
         dehydratedState: dehydrate(queryClient),
         initialClubId: clubId,
         initialTab,
         initialEventId: numericEventId,
       };
-  }));
+    }),
+  );
 
 export const Route = createFileRoute('/clubs/$id/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
@@ -832,5 +826,6 @@ export const Route = createFileRoute('/clubs/$id/')({
 function RouteComponent() {
   const props = Route.useLoaderData();
   const page = <ClubDetailPage {...props} />;
+
   return <SSRLayout mobileHeader="page">{page}</SSRLayout>;
 }

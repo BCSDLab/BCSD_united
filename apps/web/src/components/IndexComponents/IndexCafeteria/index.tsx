@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
+import { cn } from '@bcsdlab/utils';
 import { useRouter } from '@tanstack/react-router';
 
-import { cn } from '@bcsdlab/utils';
 import type { DiningPlace } from 'api/dinings/entity';
 import BubbleTailBottom from 'assets/svg/bubble-tail-bottom.svg';
 import Close from 'assets/svg/close-icon-grey.svg';

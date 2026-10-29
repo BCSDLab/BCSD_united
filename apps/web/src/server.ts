@@ -1,15 +1,13 @@
-import { withSentry } from '@sentry/cloudflare';
 import { createStartHandler, defaultStreamHandler } from '@tanstack/react-start/server';
 import { createServerEntry } from '@tanstack/react-start/server-entry';
-import { getSentryOptions } from 'instrumentation-server';
-import { KOIN_BASE_URL } from 'static/url';
+
 import { runWithServerRequestHeaders } from 'utils/ssr/cookieForwarding';
 
 const handleRequest = createStartHandler(defaultStreamHandler);
 const entry = createServerEntry({
   async fetch(request) {
     const response = await runWithServerRequestHeaders(
-      { cookie: request.headers.get('cookie') ?? '', origin: KOIN_BASE_URL },
+      { cookie: request.headers.get('cookie') ?? '', origin: new URL(request.url).origin },
       () => handleRequest(request),
     );
     const headers = new Headers(response.headers);
@@ -20,6 +18,4 @@ const entry = createServerEntry({
   },
 });
 
-export default withSentry(getSentryOptions, {
-  fetch: (request) => entry.fetch(request),
-});
+export default entry;

@@ -1,6 +1,6 @@
 import { useId, useState, type ReactNode } from 'react';
-
 import { cn } from '@bcsdlab/utils';
+
 import type { Events } from 'api/storeMobile/entity';
 import CollapsedEvent from 'components/Store/mobile/StoreEventsPage/components/CollapsedEvent';
 import ExpandedEvent from 'components/Store/mobile/StoreEventsPage/components/ExpandedEvent';

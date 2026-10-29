@@ -29,58 +29,144 @@ export function fail(code: TeamError): never {
   throw new ApiError(status, code, message);
 }
 export const kstDay = (now = Date.now()) => new Date(now + 9 * 3_600_000).toISOString().slice(0, 10);
-export const dDay = (status: string, deadline: string | null, today: string) => status !== 'RECRUITING' || !deadline || deadline < today ? null : Math.round((Date.parse(deadline) - Date.parse(today)) / 86_400_000);
-export const categoryNames = { CONTEST: '공모전', EXTERNAL_ACTIVITY: '대외활동', STUDY: '스터디', PROJECT: '프로젝트', OTHER: '기타' };
+export const dDay = (status: string, deadline: string | null, today: string) =>
+  status !== 'RECRUITING' || !deadline || deadline < today
+    ? null
+    : Math.round((Date.parse(deadline) - Date.parse(today)) / 86_400_000);
+export const categoryNames = {
+  CONTEST: '공모전',
+  EXTERNAL_ACTIVITY: '대외활동',
+  STUDY: '스터디',
+  PROJECT: '프로젝트',
+  OTHER: '기타',
+};
 export const meetingNames = { ONLINE: '온라인', OFFLINE: '오프라인', MIXED: '온/오프라인' };
-const text = (max: number) => z.string().min(1).max(max).refine(value => value.trim().length > 0);
-const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(value => !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value);
+const text = (max: number) =>
+  z
+    .string()
+    .min(1)
+    .max(max)
+    .refine((value) => value.trim().length > 0);
+const date = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .refine((value) => !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value);
 export const recruitmentInput = z.object({
   category: z.enum(['CONTEST', 'EXTERNAL_ACTIVITY', 'STUDY', 'PROJECT', 'OTHER']),
-  title: text(50), meeting_type: z.enum(['ONLINE', 'OFFLINE', 'MIXED']),
-  activity_start_date: date, activity_end_date: date, deadline_date: date,
-  recruitment_type: z.enum(['GENERAL', 'ROLE_BASED']), max_participants: z.number().int().nullable().optional(),
-  roles: z.array(z.object({ id: z.number().int().positive().nullable().optional(), name: z.string().transform(value => value.trim()).pipe(text(10)), max_participants: z.number().int().min(1).max(10) })),
-  description: text(1000), related_url: z.string().max(2048).regex(/^https:\/\/.*/).nullable().optional(), qualification: z.string().min(1).max(500).nullable().optional(),
+  title: text(50),
+  meeting_type: z.enum(['ONLINE', 'OFFLINE', 'MIXED']),
+  activity_start_date: date,
+  activity_end_date: date,
+  deadline_date: date,
+  recruitment_type: z.enum(['GENERAL', 'ROLE_BASED']),
+  max_participants: z.number().int().nullable().optional(),
+  roles: z.array(
+    z.object({
+      id: z.number().int().positive().nullable().optional(),
+      name: z
+        .string()
+        .transform((value) => value.trim())
+        .pipe(text(10)),
+      max_participants: z.number().int().min(1).max(10),
+    }),
+  ),
+  description: text(1000),
+  related_url: z
+    .string()
+    .max(2048)
+    .regex(/^https:\/\/.*/)
+    .nullable()
+    .optional(),
+  qualification: z.string().min(1).max(500).nullable().optional(),
 });
 export type RecruitmentInput = z.infer<typeof recruitmentInput>;
 export function validateRecruitment(input: unknown): RecruitmentInput & { max_participants: number } {
   const value = parse(recruitmentInput, input);
   if (value.activity_end_date < value.activity_start_date) fail('INVALID_START_DATE_AFTER_END_DATE');
-  if (value.recruitment_type === 'GENERAL' ? value.roles.length !== 0 || !value.max_participants || value.max_participants < 1 || value.max_participants > 10 : value.roles.length < 1 || value.roles.length > 5) fail('TEAM_RECRUITMENT_INVALID_ROLE_COMPOSITION');
-  const names = value.roles.map(role => role.name.normalize('NFD').replace(/\p{M}+/gu, '').toLowerCase());
-  const ids = value.roles.flatMap(role => role.id == null ? [] : [role.id]);
+  if (
+    value.recruitment_type === 'GENERAL'
+      ? value.roles.length !== 0 || !value.max_participants || value.max_participants < 1 || value.max_participants > 10
+      : value.roles.length < 1 || value.roles.length > 5
+  )
+    fail('TEAM_RECRUITMENT_INVALID_ROLE_COMPOSITION');
+  const names = value.roles.map((role) =>
+    role.name
+      .normalize('NFD')
+      .replace(/\p{M}+/gu, '')
+      .toLowerCase(),
+  );
+  const ids = value.roles.flatMap((role) => (role.id == null ? [] : [role.id]));
   if (new Set(names).size !== names.length || new Set(ids).size !== ids.length) fail('INVALID_REQUEST_BODY');
-  const capacity = value.recruitment_type === 'GENERAL' ? value.max_participants! : value.roles.reduce((sum, role) => sum + role.max_participants, 0);
+  const capacity =
+    value.recruitment_type === 'GENERAL'
+      ? value.max_participants!
+      : value.roles.reduce((sum, role) => sum + role.max_participants, 0);
   if (capacity > 10) fail('INVALID_REQUEST_BODY');
   return { ...value, max_participants: capacity };
 }
 export const profileInput = z.object({
-  profile_nickname: text(20), preferred_role: text(20), self_introduction: text(1000), skills: z.array(text(20)),
-  activities: z.array(z.object({ title: text(50), started_at: date, ended_at: date.nullable(), is_ongoing: z.boolean(), description: text(1000) })),
+  profile_nickname: text(20),
+  preferred_role: text(20),
+  self_introduction: text(1000),
+  skills: z.array(text(20)),
+  activities: z.array(
+    z.object({
+      title: text(50),
+      started_at: date,
+      ended_at: date.nullable(),
+      is_ongoing: z.boolean(),
+      description: text(1000),
+    }),
+  ),
 });
 export function validateProfile(input: unknown) {
   const value = parse(profileInput, input);
   for (const activity of value.activities) {
     if (activity.is_ongoing && activity.ended_at !== null) fail('TEAM_RECRUITMENT_ACTIVITY_END_DATE_MUST_BE_NULL');
     if (!activity.is_ongoing && activity.ended_at === null) fail('TEAM_RECRUITMENT_ACTIVITY_END_DATE_REQUIRED');
-    if (activity.ended_at !== null && activity.ended_at < activity.started_at) fail('INVALID_START_DATE_AFTER_END_DATE');
+    if (activity.ended_at !== null && activity.ended_at < activity.started_at)
+      fail('INVALID_START_DATE_AFTER_END_DATE');
   }
   return value;
 }
-export const applicationInput = z.object({ role_id: z.number().int().nullable(), motivation: text(1000), availability: text(100) });
+export const applicationInput = z.object({
+  role_id: z.number().int().nullable(),
+  motivation: text(1000),
+  availability: text(100),
+});
 export function parse<T>(validator: z.ZodType<T>, input: unknown): T {
   const result = validator.safeParse(input);
   if (!result.success) fail('INVALID_REQUEST_BODY');
   return result.data;
 }
 export function criteria(page: string | undefined, limit: string | undefined, total: number) {
-  if ((page !== undefined && !/^-?\d+$/.test(page)) || (limit !== undefined && !/^-?\d+$/.test(limit))) fail('INVALID_REQUEST_BODY');
+  if ((page !== undefined && !/^-?\d+$/.test(page)) || (limit !== undefined && !/^-?\d+$/.test(limit)))
+    fail('INVALID_REQUEST_BODY');
   const size = Math.min(50, Math.max(1, Number(limit ?? 10)));
   const pages = Math.max(1, Math.ceil(total / size));
   const current = Math.min(pages, Math.max(1, Number(page ?? 1)));
-  return { limit: size, page: current, offset: (current - 1) * size, total_count: total, total_page: pages, current_page: current };
+  return {
+    limit: size,
+    page: current,
+    offset: (current - 1) * size,
+    total_count: total,
+    total_page: pages,
+    current_page: current,
+  };
 }
-export function applyBlockReason(input: { deleted: boolean; userId: number | null; isAuthor: boolean; applied: boolean; status: string; deadline: string; full: boolean; hasProfile: boolean }, today: string) {
+export function applyBlockReason(
+  input: {
+    deleted: boolean;
+    userId: number | null;
+    isAuthor: boolean;
+    applied: boolean;
+    status: string;
+    deadline: string;
+    full: boolean;
+    hasProfile: boolean;
+  },
+  today: string,
+) {
   if (input.deleted) return 'RECRUITMENT_DELETED';
   if (input.userId === null) return 'LOGIN_REQUIRED';
   if (input.isAuthor) return 'OWN_RECRUITMENT';

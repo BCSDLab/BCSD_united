@@ -1,6 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router';
-import PageLayout from 'components/layout';
+
 import CampusInfoPage from 'components/CampusInfo';
+import PageLayout from 'components/layout';
+
 export default CampusInfoPage;
 export const Route = createFileRoute('/campusinfo/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
@@ -9,5 +11,6 @@ export const Route = createFileRoute('/campusinfo/')({
 
 function RouteComponent() {
   const page = <CampusInfoPage />;
+
   return <PageLayout>{page}</PageLayout>;
 }

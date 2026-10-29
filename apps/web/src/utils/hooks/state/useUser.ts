@@ -1,4 +1,5 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
+
 import type { UserInfo } from 'api/auth/entity';
 import { authQueries } from 'api/auth/queries';
 import useSession from 'utils/hooks/auth/useSession';

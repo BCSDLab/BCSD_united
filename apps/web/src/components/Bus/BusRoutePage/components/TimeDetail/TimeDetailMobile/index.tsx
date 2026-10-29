@@ -1,12 +1,14 @@
 import { useState } from 'react';
-
 import { useSuspenseQuery } from '@tanstack/react-query';
+
 import { coopshopQueries } from 'api/coopshop/queries';
 import PickerColumn from 'components/Bus/BusRoutePage/components/PickerColumn';
 import type { useTimeSelect } from 'components/Bus/BusRoutePage/hooks/useTimeSelect';
 import { useBodyScrollLock } from 'utils/hooks/ui/useBodyScrollLock';
 import { useEscapeKeyDown } from 'utils/hooks/ui/useEscapeKeyDown';
 import { useOutsideClick } from 'utils/hooks/ui/useOutsideClick';
+import { useServerCalendarDate } from 'utils/ssr/useServerNow';
+import { formatISODateTime } from 'utils/ts/calendar';
 
 import styles from './TimeDetailMobile.module.scss';
 
@@ -27,12 +29,13 @@ export default function TimeDetailMobile({ timeSelect, close }: TimeDetailMobile
   const { setNow } = timeSelect.timeHandler;
 
   const [dayOfMonthDiff, setDayOfMonthDiff] = useState(0);
-  const [meridiem, setMeridiem] = useState(hour > 12 ? 1 : 0);
-  const [selectedHour, setSelectedHour] = useState(hour % 12);
+  const [meridiem, setMeridiem] = useState(hour >= 12 ? 1 : 0);
+  const [selectedHour, setSelectedHour] = useState(hour % 12 || 12);
   const [selectedMinute, setSelectedMinute] = useState(minute);
 
   const { data: semesterData } = useSuspenseQuery(coopshopQueries.allShopInfo());
   const { backgroundRef } = useOutsideClick({ onOutsideClick: close });
+  const today = useServerCalendarDate();
   useBodyScrollLock();
 
   const handleNowDepartClick = () => {
@@ -42,18 +45,17 @@ export default function TimeDetailMobile({ timeSelect, close }: TimeDetailMobile
   };
 
   const handleCompleteClick = () => {
-    const now = new Date();
-    now.setDate(now.getDate() + dayOfMonthDiff);
-    now.setHours(selectedHour + (meridiem === 1 ? 12 : 0));
-    now.setMinutes(selectedMinute);
-    setNow(now);
+    const date = new Date(today);
+    date.setDate(date.getDate() + dayOfMonthDiff);
+    const hour = (selectedHour % 12) + (meridiem === 1 ? 12 : 0);
+    setNow(new Date(`${formatISODateTime(date, hour, selectedMinute)}+09:00`));
     close();
   };
 
   const displaySemester = formatSemesterLabel(semesterData.semester);
 
   const dates = [...Array(90)].map((_, index) => {
-    const now = new Date();
+    const now = new Date(today);
     now.setDate(now.getDate() + index);
 
     const daysOfWeek = ['일', '월', '화', '수', '목', '금', '토'];

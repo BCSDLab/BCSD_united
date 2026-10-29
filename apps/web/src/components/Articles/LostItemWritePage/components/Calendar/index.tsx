@@ -1,8 +1,9 @@
 import { useState } from 'react';
-
 import { cn } from '@bcsdlab/utils';
+
 import ChevronLeftIcon from 'assets/svg/Articles/chevron-left.svg';
 import ChevronRightIcon from 'assets/svg/Articles/chevron-right.svg';
+import { useServerCalendarDate } from 'utils/ssr/useServerNow';
 
 import styles from './Calendar.module.scss';
 
@@ -26,7 +27,7 @@ interface CalendarProps {
 }
 
 export default function Calendar({ selectedDate, setSelectedDate }: CalendarProps) {
-  const today = new Date();
+  const today = useServerCalendarDate();
   const [currentMonthDate, setCurrentMonthDate] = useState(selectedDate);
   const days = Array.from({ length: 35 }, (_, i) => {
     const startDate = new Date(currentMonthDate.getFullYear(), currentMonthDate.getMonth(), 1);

@@ -1,11 +1,4 @@
-import { createFileRoute, useNavigate, useSearch, useParams } from '@tanstack/react-router';
-import { createServerFn } from '@tanstack/react-start';
-import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { useState, useEffect, useRef } from 'react';
-
-
-
-
 import { cn } from '@bcsdlab/utils';
 import {
   dehydrate,
@@ -15,6 +8,9 @@ import {
   useSuspenseQuery,
   type DehydratedState,
 } from '@tanstack/react-query';
+import { createFileRoute, useNavigate, useSearch, useParams } from '@tanstack/react-router';
+import { createServerFn } from '@tanstack/react-start';
+
 import type { StoreSorterType, StoreFilterType, StoreCategory } from 'api/store/entity';
 import { storeQueries } from 'api/store/queries';
 import { storeMobileQueries } from 'api/storeMobile/queries';
@@ -39,7 +35,7 @@ import useBooleanState from 'utils/hooks/state/useBooleanState';
 import { useLocalStorage } from 'utils/hooks/state/useLocalStorage';
 import useMount from 'utils/hooks/state/useMount';
 import useScrollToTop from 'utils/hooks/ui/useScrollToTop';
-import { STORE_PUBLIC_SSR_CACHE_CONTROL } from 'utils/ssr/pageData';
+import { loadPageData, validatePageInput, STORE_PUBLIC_SSR_CACHE_CONTROL } from 'utils/ssr/pageData';
 import { isomorphicLocalStorage, isomorphicSessionStorage } from 'utils/ts/env';
 
 import styles from 'pages/store/StorePage.module.scss';
@@ -116,8 +112,6 @@ const useStoreList = (sorter: StoreSorterType, filter: StoreFilterType[], params
   return storeList || [];
 };
 
-
-
 function Store() {
   const enterCategoryTimeRef = useRef<number | null>(null);
   const [storeSorter, setStoreSorter] = useState<StoreSorterType>('NONE');
@@ -125,10 +119,13 @@ function Store() {
     OPEN: false,
     DELIVERY: false,
   });
-  
+
   const routeNavigate = useNavigate();
-  const routeQuery: Record<string, string | string[] | undefined> = { ...useSearch({ strict: false }), ...useParams({ strict: false }) };
-  
+  const routeQuery: Record<string, string | string[] | undefined> = {
+    ...useSearch({ strict: false }),
+    ...useParams({ strict: false }),
+  };
+
   const logger = useLogger();
   const isMobile = useMediaQuery();
   const [localStorageValue] = useLocalStorage('store-review-tooltip', null);
@@ -385,51 +382,54 @@ function StorePage({ dehydratedState, isMobilePage }: StorePageProps) {
 
 export default StorePage;
 
-const getPageData = createServerFn({ method: 'GET', strict: { output: false } }).validator(validatePageInput)
-  .handler(({ data }) => loadPageData(data, async (context, cacheControl, serverRequest) => {
-    // 모바일은 KOIN_ORDER_WEBVIEW 주변상점 화면을 그린다. order가 부르는 API(카테고리·v3 목록)만 서버에서 받아 본문까지 렌더한다
-    if (serverRequest.device === 'mobile') {
-      const mobileQueryClient = new QueryClient();
-      const { sort, filter } = parseListQuery(context.search);
-      const { sorter, filter: listFilter } = getListRequestParams(sort, filter);
+const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
+  .validator(validatePageInput)
+  .handler(({ data }) =>
+    loadPageData(data, async (context, cacheControl, serverRequest) => {
+      // 모바일은 KOIN_ORDER_WEBVIEW 주변상점 화면을 그린다. order가 부르는 API(카테고리·v3 목록)만 서버에서 받아 본문까지 렌더한다
+      if (serverRequest.device === 'mobile') {
+        const mobileQueryClient = new QueryClient();
+        const { sort, filter } = parseListQuery(context.search);
+        const { sorter, filter: listFilter } = getListRequestParams(sort, filter);
+
+        await Promise.all([
+          mobileQueryClient.prefetchQuery(storeMobileQueries.categories()),
+          mobileQueryClient.prefetchQuery(storeMobileQueries.list(sorter, listFilter)),
+        ]);
+
+        cacheControl.enablePublicCache(STORE_PUBLIC_SSR_CACHE_CONTROL);
+
+        return {
+          isMobilePage: true,
+          dehydratedState: dehydrate(mobileQueryClient),
+        };
+      }
+
+      const queryClient = new QueryClient();
+
+      const { storeName } = context.search;
+      const selectedStoreName = storeName ? String(storeName) : undefined;
 
       await Promise.all([
-        mobileQueryClient.prefetchQuery(storeMobileQueries.categories()),
-        mobileQueryClient.prefetchQuery(storeMobileQueries.list(sorter, listFilter)),
+        queryClient.prefetchQuery(storeQueries.categories()),
+        queryClient.prefetchQuery(
+          storeQueries.listV2({
+            sorter: 'NONE',
+            filter: [],
+            query: selectedStoreName,
+          }),
+        ),
+        queryClient.prefetchQuery(storeQueries.allEvents()),
       ]);
 
       cacheControl.enablePublicCache(STORE_PUBLIC_SSR_CACHE_CONTROL);
 
       return {
-          isMobilePage: true,
-          dehydratedState: dehydrate(mobileQueryClient),
-        };
-    }
-
-    const queryClient = new QueryClient();
-
-    const { storeName } = context.search;
-    const selectedStoreName = storeName ? String(storeName) : undefined;
-
-    await Promise.all([
-      queryClient.prefetchQuery(storeQueries.categories()),
-      queryClient.prefetchQuery(
-        storeQueries.listV2({
-          sorter: 'NONE',
-          filter: [],
-          query: selectedStoreName,
-        }),
-      ),
-      queryClient.prefetchQuery(storeQueries.allEvents()),
-    ]);
-
-    cacheControl.enablePublicCache(STORE_PUBLIC_SSR_CACHE_CONTROL);
-
-    return {
         isMobilePage: false,
         dehydratedState: dehydrate(queryClient),
       };
-  }));
+    }),
+  );
 
 export const Route = createFileRoute('/store/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
@@ -440,7 +440,12 @@ export const Route = createFileRoute('/store/')({
 
 // 기기는 서버가 확정한다. 모바일만 페이지 헤더 레이아웃을 쓰고 데스크톱은 기본 레이아웃 그대로 둔다
 function RouteComponent() {
-  const props = Route.useLoaderData();
-  const page = <StorePage {...props} />;
-  return props.isMobilePage ? <SSRLayout mobileHeader="page">{page}</SSRLayout> : <Layout>{page}</Layout>;
+  const loaderData = Route.useLoaderData();
+  const page = <StorePage {...loaderData} />;
+
+  return loaderData.serverRequest.device === 'mobile' ? (
+    <SSRLayout mobileHeader="page">{page}</SSRLayout>
+  ) : (
+    <Layout>{page}</Layout>
+  );
 }

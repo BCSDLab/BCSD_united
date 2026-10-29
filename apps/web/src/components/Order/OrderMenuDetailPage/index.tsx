@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react';
-import { useSearch } from '@tanstack/react-router';
-
 import { isKoinError } from '@bcsdlab/koin';
 import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { useSearch } from '@tanstack/react-router';
+
 import type { ShopMenuDetailResponse } from 'api/order/entity';
 import { orderMutations } from 'api/order/mutations';
 import { orderQueries } from 'api/order/queries';
@@ -165,7 +165,7 @@ function MenuDetailBody({ shopId, info, isEdit, editCartItemId }: MenuDetailBody
 }
 
 export default function OrderMenuDetailPage({ shopId, menuId }: OrderMenuDetailPageProps) {
-  const routeSearch = useSearch({ strict: false }) as Record<string, string | string[] | undefined>;
+  const routeSearch = useSearch({ strict: false });
   const targetRef = useRef<HTMLDivElement | null>(null);
 
   const editCartItemId = typeof routeSearch.editCartItemId === 'string' ? routeSearch.editCartItemId : '';

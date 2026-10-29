@@ -1,4 +1,5 @@
 import { cn } from '@bcsdlab/utils';
+
 import GarbageCanIcon from 'assets/svg/Articles/garbage-can.svg';
 import type { LostItem, LostItemHandler } from 'components/Articles/hooks/useLostItemForm';
 import FormCategory from 'components/Articles/LostItemWritePage/components/FormCategory';

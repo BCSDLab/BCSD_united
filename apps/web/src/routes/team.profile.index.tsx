@@ -1,21 +1,16 @@
-import Seo from 'components/seo/Seo';
+import { dehydrate, QueryClient, useQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
-import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 
-
-
-
-
-import { dehydrate, QueryClient, useQuery } from '@tanstack/react-query';
 import { teamRecruitmentProfileQueries } from 'api/teamRecruitmentProfile/queries';
 import Layout from 'components/layout';
+import Seo from 'components/seo/Seo';
 import TeamProfileDesktop from 'components/Team/TeamProfilePage/TeamProfileDesktop';
 import TeamProfileMobile from 'components/Team/TeamProfilePage/TeamProfileMobile';
 import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
-
+import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 
 import styles from 'pages/team/profile/TeamProfilePage.module.scss';
 
@@ -94,22 +89,23 @@ function TeamProfilePage() {
   );
 }
 
-
-
 export default TeamProfilePage;
 
-const getPageData = createServerFn({ method: 'GET', strict: { output: false } }).validator(validatePageInput)
-  .handler(({ data }) => loadPageData(data, async (_context, _cacheControl, serverRequest) => {
-  const queryClient = new QueryClient();
+const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
+  .validator(validatePageInput)
+  .handler(({ data }) =>
+    loadPageData(data, async (_context, _cacheControl, serverRequest) => {
+      const queryClient = new QueryClient();
 
-  if (serverRequest.isLoggedIn) {
-    await queryClient.prefetchQuery(teamRecruitmentProfileQueries.me(serverRequest.isLoggedIn));
-  }
+      if (serverRequest.isLoggedIn) {
+        await queryClient.prefetchQuery(teamRecruitmentProfileQueries.me(serverRequest.isLoggedIn));
+      }
 
-  return {
-      dehydratedState: dehydrate(queryClient),
-    };
-}));
+      return {
+        dehydratedState: dehydrate(queryClient),
+      };
+    }),
+  );
 
 export const Route = createFileRoute('/team/profile/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
@@ -121,5 +117,6 @@ export const Route = createFileRoute('/team/profile/')({
 
 function RouteComponent() {
   const page = <TeamProfilePage />;
+
   return <Layout mobileHeader="page">{page}</Layout>;
 }

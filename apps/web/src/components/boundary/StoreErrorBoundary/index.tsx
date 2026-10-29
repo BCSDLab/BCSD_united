@@ -1,8 +1,8 @@
 import React from 'react';
-
 import { isKoinError } from '@bcsdlab/koin';
-import * as Sentry from '@sentry/core';
+import { captureError } from '@koin/telemetry/runtime';
 import axios, { type AxiosError } from 'axios';
+
 import showToast from 'utils/ts/showToast';
 
 import styles from './StoreErrorBoundary.module.scss';
@@ -43,7 +43,7 @@ export default class StoreErrorBoundary extends React.Component<Props, State> {
 
   componentDidCatch(error: Error) {
     showToast('error', error.message);
-    const eventId = Sentry.captureException(error);
+    const eventId = captureError(error);
     this.setState({ eventId });
   }
 

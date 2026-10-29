@@ -1,9 +1,9 @@
-import Image from 'components/ui/Image';
 import { Link } from '@tanstack/react-router';
 
 import type { ArticleWithNew } from 'api/articles/entity';
 import MobileArticleList from 'components/Articles/components/MobileArticleList';
 import { convertArticlesTag } from 'components/Articles/utils/convertArticlesTag';
+import Image from 'components/ui/Image';
 import ROUTES from 'static/routes';
 import showToast from 'utils/ts/showToast';
 

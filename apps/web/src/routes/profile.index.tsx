@@ -1,14 +1,11 @@
-import { createFileRoute, Link } from '@tanstack/react-router';
-import { createServerFn } from '@tanstack/react-start';
-import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
-import { getCookie } from '@tanstack/react-start/server';
 import type { ComponentType, SVGProps } from 'react';
 import { Suspense } from 'react';
-
-
-
 import { isKoinError } from '@bcsdlab/koin';
 import { dehydrate, QueryClient } from '@tanstack/react-query';
+import { createFileRoute, Link } from '@tanstack/react-router';
+import { createServerFn } from '@tanstack/react-start';
+import { getCookie } from '@tanstack/react-start/server';
+
 import { authQueries } from 'api/auth/queries';
 import type { Semester } from 'api/timetable/entity';
 import { createDefaultTimetableFrameList, timetableQueries, timetableQueryKeys } from 'api/timetable/queries';
@@ -26,7 +23,7 @@ import useLogger from 'utils/hooks/analytics/useLogger';
 import { useLogout } from 'utils/hooks/auth/useLogout';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
 import { useUser } from 'utils/hooks/state/useUser';
-
+import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { getRecentSemester, isSemesterInList } from 'utils/timetable/semester';
 import { parseSemesterCookie } from 'utils/timetable/semesterCookie';
 import { isUnauthorizedError } from 'utils/ts/httpError';
@@ -145,11 +142,7 @@ function ProfileMenu({ title, actions, onLogout, onOpenAuthModal, onActionClick,
           return (
             <li key={action.title}>
               {action.type === 'link' ? (
-                <Link
-                  to={action.href}
-                  className={styles['profile-menu__action']}
-                  onClick={() => onActionClick(action)}
-                >
+                <Link to={action.href} className={styles['profile-menu__action']} onClick={() => onActionClick(action)}>
                   <IconBox>
                     <Icon />
                   </IconBox>
@@ -237,94 +230,97 @@ function ProfilePage({ serverSemester, hasSemesterCookie }: Awaited<ReturnType<t
   );
 }
 
-
-
 export default ProfilePage;
 
 // 프로필은 로그인 여부·사용자 정보·시간표가 화면의 전부다. 서버가 모르면 클라이언트가
 // 비로그인 화면 → 로그인 화면 → 시간표 채움 순으로 다시 그리게 되므로 전부 서버에서 확정한다.
-const getPageData = createServerFn({ method: 'GET', strict: { output: false } }).validator(validatePageInput)
-  .handler(({ data }) => loadPageData(data, async (_context, cacheControl, serverRequest) => {
-  const queryClient = new QueryClient();
-  const { isLoggedIn, userType } = serverRequest;
+const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
+  .validator(validatePageInput)
+  .handler(({ data }) =>
+    loadPageData(data, async (_context, cacheControl, serverRequest) => {
+      const queryClient = new QueryClient();
+      const { isLoggedIn, userType } = serverRequest;
 
-  if (!isLoggedIn) {
-    // 공용 캐시에 저장되는 응답이므로 학기 쿠키 같은 방문자별 값은 읽지 않는다. 비로그인은 시간표를 그리지 않는다.
-    queryClient.setQueryData(authQueries.userInfo(false).queryKey, null);
-    cacheControl.enablePublicCache();
+      if (!isLoggedIn) {
+        // 공용 캐시에 저장되는 응답이므로 학기 쿠키 같은 방문자별 값은 읽지 않는다. 비로그인은 시간표를 그리지 않는다.
+        queryClient.setQueryData(authQueries.userInfo(false).queryKey, null);
+        cacheControl.enablePublicCache();
 
-    return {
-        serverSemester: getRecentSemester(),
-        hasSemesterCookie: false,
+        return {
+          serverSemester: getRecentSemester(),
+          hasSemesterCookie: false,
+          dehydratedState: dehydrate(queryClient),
+        };
+      }
+
+      // 사용자가 시간표에서 고른 학기. 스토어(localStorage)가 원본이고 쿠키는 서버용 사본이다.
+      const cookieSemester = parseSemesterCookie(getCookie(TIMETABLE_SEMESTER_COOKIE_KEY));
+      let serverSemester: Semester = cookieSemester ?? getRecentSemester();
+
+      const setDefaultTimetableFrameList = () => {
+        queryClient.setQueryData(
+          timetableQueryKeys.frameList(serverSemester, isLoggedIn),
+          createDefaultTimetableFrameList(),
+        );
+      };
+
+      const prefetchTimetable = async () => {
+        try {
+          // 학생이 아니면 클라이언트 훅도 내 학기 조회 없이 null을 쓴다.
+          if (userType !== 'STUDENT') queryClient.setQueryData(timetableQueryKeys.mySemester(isLoggedIn), null);
+          const [allSemesters, mySemester] = await Promise.all([
+            queryClient.fetchQuery(timetableQueries.semesterInfo()),
+            userType === 'STUDENT'
+              ? queryClient.fetchQuery(timetableQueries.mySemester(isLoggedIn, { userType }))
+              : null,
+          ]);
+
+          // useResetInvalidSemester와 같은 규칙: 고른 학기가 선택 가능한 목록에 없으면 목록의 첫 학기로 되돌린다.
+          const semesterList = mySemester?.semesters ?? allSemesters ?? [];
+          if (
+            semesterList.length > 0 &&
+            !isSemesterInList(
+              semesterList.map((value) => ({ value })),
+              serverSemester,
+            )
+          ) {
+            [serverSemester] = semesterList;
+          }
+
+          if (userType !== 'STUDENT' || !mySemester?.semesters.length) {
+            setDefaultTimetableFrameList();
+
+            return;
+          }
+
+          const frameList = await queryClient.fetchQuery(
+            timetableQueries.frameList(isLoggedIn, serverSemester, { userType }),
+          );
+          const mainFrameId = frameList.find((frame) => frame.is_main)?.id;
+          if (typeof mainFrameId === 'number') {
+            await queryClient.prefetchQuery(timetableQueries.lectureInfo(isLoggedIn, mainFrameId));
+          }
+        } catch (error) {
+          if (!isUnauthorizedError(error) && !(isKoinError(error) && (error.status === 403 || error.status === 404))) {
+            throw error;
+          }
+          // 시간표를 못 불러와도 프로필 자체는 보여준다. 빈 그리드로 확정한다.
+          if (queryClient.getQueryData(timetableQueryKeys.mySemester(isLoggedIn)) === undefined) {
+            queryClient.setQueryData(timetableQueryKeys.mySemester(isLoggedIn), null);
+          }
+          setDefaultTimetableFrameList();
+        }
+      };
+
+      await Promise.all([queryClient.prefetchQuery(authQueries.userInfo(true)), prefetchTimetable()]);
+
+      return {
+        serverSemester,
+        hasSemesterCookie: cookieSemester !== null,
         dehydratedState: dehydrate(queryClient),
       };
-  }
-
-  // 사용자가 시간표에서 고른 학기. 스토어(localStorage)가 원본이고 쿠키는 서버용 사본이다.
-  const cookieSemester = parseSemesterCookie(getCookie(TIMETABLE_SEMESTER_COOKIE_KEY));
-  let serverSemester: Semester = cookieSemester ?? getRecentSemester();
-
-  const setDefaultTimetableFrameList = () => {
-    queryClient.setQueryData(
-      timetableQueryKeys.frameList(serverSemester, isLoggedIn),
-      createDefaultTimetableFrameList(),
-    );
-  };
-
-  const prefetchTimetable = async () => {
-    try {
-      // 학생이 아니면 클라이언트 훅도 내 학기 조회 없이 null을 쓴다.
-      if (userType !== 'STUDENT') queryClient.setQueryData(timetableQueryKeys.mySemester(isLoggedIn), null);
-      const [allSemesters, mySemester] = await Promise.all([
-        queryClient.fetchQuery(timetableQueries.semesterInfo()),
-        userType === 'STUDENT' ? queryClient.fetchQuery(timetableQueries.mySemester(isLoggedIn, { userType })) : null,
-      ]);
-
-      // useResetInvalidSemester와 같은 규칙: 고른 학기가 선택 가능한 목록에 없으면 목록의 첫 학기로 되돌린다.
-      const semesterList = mySemester?.semesters ?? allSemesters ?? [];
-      if (
-        semesterList.length > 0 &&
-        !isSemesterInList(
-          semesterList.map((value) => ({ value })),
-          serverSemester,
-        )
-      ) {
-        [serverSemester] = semesterList;
-      }
-
-      if (userType !== 'STUDENT' || !mySemester?.semesters.length) {
-        setDefaultTimetableFrameList();
-
-        return;
-      }
-
-      const frameList = await queryClient.fetchQuery(
-        timetableQueries.frameList(isLoggedIn, serverSemester, { userType }),
-      );
-      const mainFrameId = frameList.find((frame) => frame.is_main)?.id;
-      if (typeof mainFrameId === 'number') {
-        await queryClient.prefetchQuery(timetableQueries.lectureInfo(isLoggedIn, mainFrameId));
-      }
-    } catch (error) {
-      if (!isUnauthorizedError(error) && !(isKoinError(error) && (error.status === 403 || error.status === 404))) {
-        throw error;
-      }
-      // 시간표를 못 불러와도 프로필 자체는 보여준다. 빈 그리드로 확정한다.
-      if (queryClient.getQueryData(timetableQueryKeys.mySemester(isLoggedIn)) === undefined) {
-        queryClient.setQueryData(timetableQueryKeys.mySemester(isLoggedIn), null);
-      }
-      setDefaultTimetableFrameList();
-    }
-  };
-
-  await Promise.all([queryClient.prefetchQuery(authQueries.userInfo(true)), prefetchTimetable()]);
-
-  return {
-      serverSemester,
-      hasSemesterCookie: cookieSemester !== null,
-      dehydratedState: dehydrate(queryClient),
-    };
-}));
+    }),
+  );
 
 export const Route = createFileRoute('/profile/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
@@ -336,5 +332,6 @@ export const Route = createFileRoute('/profile/')({
 function RouteComponent() {
   const props = Route.useLoaderData();
   const page = <ProfilePage {...props} />;
+
   return <HomeLayout>{page}</HomeLayout>;
 }

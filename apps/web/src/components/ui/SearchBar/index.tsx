@@ -1,4 +1,5 @@
 import { cn } from '@bcsdlab/utils';
+
 import SearchIcon from 'assets/svg/common/purple-search.svg';
 
 import styles from './SearchBar.module.scss';

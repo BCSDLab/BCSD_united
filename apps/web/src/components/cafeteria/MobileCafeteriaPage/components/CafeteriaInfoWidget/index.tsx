@@ -1,5 +1,6 @@
 import { cn } from '@bcsdlab/utils';
 import { useSuspenseQuery } from '@tanstack/react-query';
+
 import { coopshopQueries } from 'api/coopshop/queries';
 import CafeteriaInfo from 'components/cafeteria/components/CafeteriaInfo';
 import useCafeteriaInfoParam from 'components/cafeteria/hooks/useCafeteriaInfoParam';

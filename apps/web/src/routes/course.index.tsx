@@ -1,10 +1,7 @@
+import { Suspense } from 'react';
+import { useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, Link, useNavigate, useLocation } from '@tanstack/react-router';
 
-import { Suspense } from 'react';
-
-
-
-import { useSuspenseQuery } from '@tanstack/react-query';
 import type { Course, PreCourse } from 'api/course/entity';
 import { courseQueries } from 'api/course/queries';
 import CourseSearchForm from 'components/Course/components/CourseSearchForm';
@@ -97,9 +94,8 @@ function PreCoursesTableContent({ isLoggedIn, timetableFrameId, onAddCourse }: P
 }
 
 function CoursePage() {
-  
   const routeNavigate = useNavigate();
-  
+
   const routeLocation = useLocation();
   const isLoggedIn = useIsLoggedIn();
   const semester = useSemester();
@@ -188,8 +184,6 @@ function CoursePage() {
   );
 }
 
-
-
 export default function CoursePageWrapper() {
   // 토큰(useTimetableFrameList)과 sessionStorage(useSelectedCourses)에 의존하므로
   // SSRSuspense로 마운트 이후로 미룬다.
@@ -207,5 +201,6 @@ export const Route = createFileRoute('/course/')({
 
 function RouteComponent() {
   const page = <CoursePageWrapper />;
+
   return page;
 }

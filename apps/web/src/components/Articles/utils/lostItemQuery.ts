@@ -1,5 +1,4 @@
 import type { ParsedUrlQuery } from 'querystring';
-import type { SearchParams } from 'utils/routing/search';
 
 import type {
   LostItemAuthor,
@@ -9,6 +8,7 @@ import type {
   LostItemType,
 } from 'api/articles/entity';
 import type { Category, FilterState } from 'components/Articles/components/LostItemFilterContent';
+import type { SearchParams } from 'utils/routing/search';
 
 /*
 [제작 배경]
@@ -130,10 +130,7 @@ export function parseFilterStateFromQuery(query: ParsedUrlQuery): FilterState {
   return { type, category, foundStatus, author };
 }
 
-export function buildQueryFromFilter(
-  filter: FilterState,
-  base: { page: number; sort: LostItemSort },
-): SearchParams {
+export function buildQueryFromFilter(filter: FilterState, base: { page: number; sort: LostItemSort }): SearchParams {
   const q: SearchParams = {
     page: String(base.page),
     sort: base.sort,

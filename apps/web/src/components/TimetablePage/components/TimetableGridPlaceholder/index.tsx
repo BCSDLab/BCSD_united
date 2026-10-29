@@ -1,4 +1,5 @@
 import { cn } from '@bcsdlab/utils';
+
 import { DAYS_STRING } from 'static/timetable';
 
 import styles from 'components/TimetablePage/components/Timetable/Timetable.module.scss';

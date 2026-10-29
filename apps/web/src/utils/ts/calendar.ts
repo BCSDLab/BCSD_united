@@ -1,5 +1,15 @@
 import { DAYS } from 'static/day';
 
+/**
+ * 절대 시각의 KST 날짜를 달력용 로컬 자정으로 옮긴다.
+ * 반환값은 날짜 필드·달력끼리의 비교에만 쓰며, 경과 시간이나 실제 시각 비교에는 쓰지 않는다.
+ */
+export function toKoreanCalendarDate(instant: Date): Date {
+  const korean = new Date(instant.getTime() + 9 * 60 * 60 * 1000);
+
+  return new Date(korean.getUTCFullYear(), korean.getUTCMonth(), korean.getUTCDate());
+}
+
 export interface CalendarCell {
   date: Date;
   currentMonth: boolean;
@@ -43,16 +53,10 @@ export function formatKoreanDate(date: Date): string {
 }
 
 export function formatISODateTime(date: Date, hour: number, minute: number) {
-  const d = new Date(date);
-  d.setHours(hour, minute, 0, 0);
-  const y = d.getFullYear();
-  const m = (d.getMonth() + 1).toString().padStart(2, '0');
-  const day = d.getDate().toString().padStart(2, '0');
-  const h = d.getHours().toString().padStart(2, '0');
-  const min = d.getMinutes().toString().padStart(2, '0');
-  const s = d.getSeconds().toString().padStart(2, '0');
+  const h = hour.toString().padStart(2, '0');
+  const min = minute.toString().padStart(2, '0');
 
-  return `${y}-${m}-${day}T${h}:${min}:${s}`;
+  return `${getYyyyMmDd(date)}T${h}:${min}:00`;
 }
 
 export function isSameDate(date1: Date, date2: Date): boolean {
@@ -78,7 +82,8 @@ export function getDaysInMonth(year: number, month: number): number {
 interface DateRangeOptions {
   selectedDate: Date;
   minDate?: Date;
-  maxDate?: Date;
+  /** 선택 가능한 마지막 날. 호출부가 `useServerCalendarDate()`처럼 안정된 KST 달력 날짜를 넘긴다. */
+  maxDate: Date;
 }
 
 interface DateRangeResult {
@@ -91,7 +96,7 @@ interface DateRangeResult {
 }
 
 export function getDateRange({ selectedDate, minDate, maxDate }: DateRangeOptions): DateRangeResult {
-  const today = maxDate ?? new Date();
+  const today = maxDate;
   const startDate = minDate ?? new Date(today.getFullYear() - 1, 0, 1);
 
   const currentYear = selectedDate.getFullYear();

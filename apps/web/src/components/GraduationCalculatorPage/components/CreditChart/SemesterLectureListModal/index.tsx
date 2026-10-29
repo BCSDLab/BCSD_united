@@ -1,6 +1,6 @@
 import { startTransition, useState } from 'react';
-
 import { useSuspenseQuery } from '@tanstack/react-query';
+
 import { authQueries } from 'api/auth/queries';
 import type { LectureInfo } from 'api/graduationCalculator/entity';
 import { graduationCalculatorQueries } from 'api/graduationCalculator/queries';
@@ -83,8 +83,8 @@ export default function SemesterLectureListModal({
   function separateByMatchingCodes(lectureInfo: LectureInfo[], takenCode: string[]) {
     const codesSet2 = new Set(takenCode);
 
-    const matched = [...lectureInfo.filter((item) => codesSet2.has(item.code))];
-    const unmatched = [...lectureInfo.filter((item) => !codesSet2.has(item.code))];
+    const matched = lectureInfo.filter((item) => codesSet2.has(item.code));
+    const unmatched = lectureInfo.filter((item) => !codesSet2.has(item.code));
 
     return { matched, unmatched };
   }

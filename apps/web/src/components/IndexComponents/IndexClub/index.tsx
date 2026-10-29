@@ -1,18 +1,18 @@
-import Image from 'components/ui/Image';
 import { Link } from '@tanstack/react-router';
-import { parseSearch } from 'utils/routing/search';
 
 import type { HotClubResponse } from 'api/club/entity';
 import AddIcon from 'assets/svg/Club/add-icon.svg';
 import ListIcon from 'assets/svg/Club/list-icon.svg';
 import ChevronRight from 'assets/svg/IndexPage/Bus/chevron-right.svg';
 import LoginRequiredModal from 'components/modal/LoginRequiredModal';
+import Image from 'components/ui/Image';
 import ROUTES from 'static/routes';
 import { useABTestView } from 'utils/hooks/abTest/useABTestView';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
+import { parseSearch } from 'utils/routing/search';
 
 import ClubMobileViewB from './ClubMobileViewB';
 import styles from './IndexClub.module.scss';
@@ -79,7 +79,13 @@ function IndexClub({ hotClubInfo }: { hotClubInfo: HotClubResponse }) {
       return (
         <div className={styles.cards}>
           {clubLinkCardData.slice(0, 2).map(({ key, title, subtitle, link, icon, img }) => (
-            <Link  to={link.split('?')[0]} search={parseSearch(link.split('?')[1] ?? '')} key={key} className={styles.card} onClick={() => handleClickLog(key)}>
+            <Link
+              to={link.split('?')[0]}
+              search={parseSearch(link.split('?')[1] ?? '')}
+              key={key}
+              className={styles.card}
+              onClick={() => handleClickLog(key)}
+            >
               <div className={styles.card__segment}>
                 {icon ?? (
                   <Image
@@ -109,16 +115,20 @@ function IndexClub({ hotClubInfo }: { hotClubInfo: HotClubResponse }) {
     return (
       <div className={styles.cards}>
         {clubLinkCardData.map(({ key, title, subtitle, link, icon, img }) => (
-          <Link  to={link.split('?')[0]} search={parseSearch(link.split('?')[1] ?? '')} key={key}
-          className={styles.card}
-          onClick={(e) => {
-            if (!isLoggedIn && key === 'addClub') {
-              e.preventDefault();
-              openAuthModal();
-            } else {
-              handleClickLog(key);
-            }
-          }}>
+          <Link
+            to={link.split('?')[0]}
+            search={parseSearch(link.split('?')[1] ?? '')}
+            key={key}
+            className={styles.card}
+            onClick={(e) => {
+              if (!isLoggedIn && key === 'addClub') {
+                e.preventDefault();
+                openAuthModal();
+              } else {
+                handleClickLog(key);
+              }
+            }}
+          >
             <div className={styles.card__segment}>
               {icon ?? (
                 <Image
@@ -144,7 +154,7 @@ function IndexClub({ hotClubInfo }: { hotClubInfo: HotClubResponse }) {
 
   return (
     <section className={styles.template}>
-      <Link className={styles.template__title} to={ROUTES.Club()} >
+      <Link className={styles.template__title} to={ROUTES.Club()}>
         동아리
       </Link>
       {renderCards()}

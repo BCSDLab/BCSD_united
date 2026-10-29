@@ -4,8 +4,12 @@ import { executeAtomic, type Database } from '@api/db/client';
 import { schema } from '@api/db/schema';
 import { ApiError } from '@api/errors';
 import {
-  importedCourseType, importedGradeRows, koinSemester, matchingLecture,
-  type GraduationCatalog, type GradeRow,
+  importedCourseType,
+  importedGradeRows,
+  koinSemester,
+  matchingLecture,
+  type GraduationCatalog,
+  type GradeRow,
 } from '@api/domains/academic/graduation-algorithms';
 
 const s = schema;
@@ -48,7 +52,9 @@ export async function importGradeWorkbook(db: Database, userId: number, file: Fi
   try {
     rows = workbookGradeRows(bytes);
   } catch {
-    await db.update(s.detect_graduation_calculation).set({ is_changed: true })
+    await db
+      .update(s.detect_graduation_calculation)
+      .set({ is_changed: true })
       .where(eq(s.detect_graduation_calculation.user_id, userId));
     return false;
   }
@@ -56,20 +62,50 @@ export async function importGradeWorkbook(db: Database, userId: number, file: Fi
   const codes = [...new Set(rows.map((row) => row.code))];
   const names = [...new Set(rows.map((row) => row.classTitle))];
   const years = [...new Set(rows.map((row) => row.year))];
-  const lectures = codes.length ? await db.select().from(s.lectures)
-    .where(and(sql`${s.lectures.semester_date} IN (SELECT value FROM json_each(${JSON.stringify(semesters)}))`,
-      sql`${s.lectures.code} IN (SELECT value FROM json_each(${JSON.stringify(codes)}))`)) : [];
-  const nameCatalogs = names.length && year !== null ? await db.select().from(s.catalog)
-    .where(and(sql`${s.catalog.lecture_name} IN (SELECT value FROM json_each(${JSON.stringify(names)}))`, eq(s.catalog.year, year))) : [];
-  const codeCatalogs = codes.length ? await db.select().from(s.catalog)
-    .where(and(sql`${s.catalog.code} IN (SELECT value FROM json_each(${JSON.stringify(codes)}))`,
-      sql`${s.catalog.year} IN (SELECT value FROM json_each(${JSON.stringify(years)}))`)) : [];
+  const lectures = codes.length
+    ? await db
+        .select()
+        .from(s.lectures)
+        .where(
+          and(
+            sql`${s.lectures.semester_date} IN (SELECT value FROM json_each(${JSON.stringify(semesters)}))`,
+            sql`${s.lectures.code} IN (SELECT value FROM json_each(${JSON.stringify(codes)}))`,
+          ),
+        )
+    : [];
+  const nameCatalogs =
+    names.length && year !== null
+      ? await db
+          .select()
+          .from(s.catalog)
+          .where(
+            and(
+              sql`${s.catalog.lecture_name} IN (SELECT value FROM json_each(${JSON.stringify(names)}))`,
+              eq(s.catalog.year, year),
+            ),
+          )
+      : [];
+  const codeCatalogs = codes.length
+    ? await db
+        .select()
+        .from(s.catalog)
+        .where(
+          and(
+            sql`${s.catalog.code} IN (SELECT value FROM json_each(${JSON.stringify(codes)}))`,
+            sql`${s.catalog.year} IN (SELECT value FROM json_each(${JSON.stringify(years)}))`,
+          ),
+        )
+    : [];
   const byName = new Map<string, GraduationCatalog>();
   const byCode = new Map<string, GraduationCatalog>();
   for (const catalog of nameCatalogs) byName.set(`${catalog.lecture_name}_${catalog.year}`, catalog);
   for (const catalog of codeCatalogs) byCode.set(`${catalog.code}_${catalog.year}`, catalog);
-  const semesterRows = semesters.length ? await db.select().from(s.semester)
-    .where(sql`${s.semester.semester} IN (SELECT value FROM json_each(${JSON.stringify(semesters)}))`) : [];
+  const semesterRows = semesters.length
+    ? await db
+        .select()
+        .from(s.semester)
+        .where(sql`${s.semester.semester} IN (SELECT value FROM json_each(${JSON.stringify(semesters)}))`)
+    : [];
   const types = await db.select().from(s.course_type).where(eq(s.course_type.is_deleted, 0));
   const defaultType = types.find((type) => type.name === '이수구분선택');
   const statements: SQL[] = [];
@@ -78,13 +114,24 @@ export async function importGradeWorkbook(db: Database, userId: number, file: Fi
     const semesterName = koinSemester(row.semester, row.year);
     const semester = semesterRows.find((item) => item.semester === semesterName);
     if (!semester) throw new ApiError(404, '', `존재하지 않는 학기입니다. semester: ${semesterName}`);
-    const lecture = matchingLecture(lectures.filter((item) =>
-      item.semester_date === semesterName && item.code === row.code), row.lectureClass);
-    const catalog = lecture && row.courseType !== '자선'
-      ? byName.get(`${row.classTitle}_${year}`) ?? byCode.get(`${row.code}_${row.year}`)
-      : undefined;
-    if (!catalog && !defaultType) throw new ApiError(404, '', '존재하지 않는 이수 구분입니다. course_type_name: 이수구분선택');
-    const classification = importedCourseType(lecture !== null, row, year, byName, byCode, defaultType?.id ?? catalog!.course_type_id);
+    const lecture = matchingLecture(
+      lectures.filter((item) => item.semester_date === semesterName && item.code === row.code),
+      row.lectureClass,
+    );
+    const catalog =
+      lecture && row.courseType !== '자선'
+        ? (byName.get(`${row.classTitle}_${year}`) ?? byCode.get(`${row.code}_${row.year}`))
+        : undefined;
+    if (!catalog && !defaultType)
+      throw new ApiError(404, '', '존재하지 않는 이수 구분입니다. course_type_name: 이수구분선택');
+    const classification = importedCourseType(
+      lecture !== null,
+      row,
+      year,
+      byName,
+      byCode,
+      defaultType?.id ?? catalog!.course_type_id,
+    );
     if (currentSemester !== semesterName) {
       statements.push(sql`UPDATE ${s.timetable_frame} SET is_main = 0, updated_at = CURRENT_TIMESTAMP
         WHERE user_id = ${userId} AND semester_id = ${semester.id} AND is_main = 1 AND is_deleted = 0`);

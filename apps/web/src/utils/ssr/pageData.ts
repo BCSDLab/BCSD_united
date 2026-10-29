@@ -1,6 +1,5 @@
 import { getRequest, getResponseHeader, setResponseHeader } from '@tanstack/react-start/server';
 
-import { KOIN_BASE_URL } from 'static/url';
 import { runWithServerRequestHeaders } from 'utils/ssr/cookieForwarding';
 import { getServerRequestContext, type ServerRequestContext } from 'utils/ssr/requestContext';
 
@@ -25,8 +24,14 @@ export function validatePageInput(value: unknown): PageInput {
     throw new TypeError('Invalid route input');
   }
   const { params, search } = value;
-  if (!params || typeof params !== 'object' || Array.isArray(params)
-    || !search || typeof search !== 'object' || Array.isArray(search)) {
+  if (
+    !params ||
+    typeof params !== 'object' ||
+    Array.isArray(params) ||
+    !search ||
+    typeof search !== 'object' ||
+    Array.isArray(search)
+  ) {
     throw new TypeError('Invalid route input');
   }
   const validParams: Record<string, string> = {};
@@ -36,34 +41,46 @@ export function validatePageInput(value: unknown): PageInput {
     Object.defineProperty(validParams, key, { value: entry, enumerable: true });
   }
   for (const [key, entry] of Object.entries(search)) {
-    if (entry !== undefined && typeof entry !== 'string'
-      && !(Array.isArray(entry) && entry.every((item) => typeof item === 'string'))) {
+    if (
+      entry !== undefined &&
+      typeof entry !== 'string' &&
+      !(Array.isArray(entry) && entry.every((item) => typeof item === 'string'))
+    ) {
       throw new TypeError('Invalid route search');
     }
     Object.defineProperty(validSearch, key, { value: entry, enumerable: true });
   }
+
   return { params: validParams, search: validSearch };
 }
 
 /** 요청 쿠키와 서버 스냅샷은 클라이언트 입력이 아니라 현재 HTTP 요청에서만 얻는다. */
 export async function loadPageData<Props extends object>(
   input: PageInput,
-  load: (context: PageRequest, cacheControl: PageCacheControl, serverRequest: ServerRequestContext) => Props | Promise<Props>,
+  load: (
+    context: PageRequest,
+    cacheControl: PageCacheControl,
+    serverRequest: ServerRequestContext,
+  ) => Props | Promise<Props>,
 ) {
   const request = getRequest();
   const cookie = request.headers.get('cookie') ?? '';
   const serverRequest = await getServerRequestContext(request);
   let policy = PRIVATE_SSR_CACHE_CONTROL;
   setResponseHeader('Cache-Control', policy);
-  const props = await runWithServerRequestHeaders(
-    { cookie, origin: KOIN_BASE_URL },
-    () => load({ ...input, request }, {
-      enablePublicCache: (cacheControl = PUBLIC_SSR_CACHE_CONTROL) => {
-        // 세션 만료·갱신 중인 방문자도 쿠키가 있으면 공유 캐시에서 제외한다.
-        if (!cookie && !serverRequest.isLoggedIn) policy = cacheControl;
+  const props = await runWithServerRequestHeaders({ cookie, origin: new URL(request.url).origin }, () =>
+    load(
+      { ...input, request },
+      {
+        enablePublicCache: (cacheControl = PUBLIC_SSR_CACHE_CONTROL) => {
+          // 세션 만료·갱신 중인 방문자도 쿠키가 있으면 공유 캐시에서 제외한다.
+          if (!cookie && !serverRequest.isLoggedIn) policy = cacheControl;
+        },
       },
-    }, serverRequest),
+      serverRequest,
+    ),
   );
   setResponseHeader('Cache-Control', getResponseHeader('Set-Cookie') ? PRIVATE_SSR_CACHE_CONTROL : policy);
+
   return { ...props, serverRequest };
 }

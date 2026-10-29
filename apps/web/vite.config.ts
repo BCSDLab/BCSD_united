@@ -27,6 +27,9 @@ function browserRequestContext(): Plugin {
       if (!options.ssr && source === 'utils/ssr/cookieForwarding') {
         return fileURLToPath(new URL('./src/utils/ssr/cookieForwarding.client.ts', import.meta.url));
       }
+      if (!options.ssr && source === 'utils/ssr/apiTarget') {
+        return fileURLToPath(new URL('./src/utils/ssr/apiTarget.client.ts', import.meta.url));
+      }
 
       return null;
     },
@@ -35,9 +38,19 @@ function browserRequestContext(): Plugin {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, root, '');
+  const branch = env.WORKERS_CI_BRANCH;
+  const mainBranch = env.KOIN_MAIN_BRANCH || 'main';
+  const previewBranch = env.KOIN_PREVIEW_BRANCH || 'preview';
+  if (env.WORKERS_CI === '1' && branch !== mainBranch && branch !== previewBranch) {
+    throw new Error('The stable preview deployment only accepts KOIN_MAIN_BRANCH or KOIN_PREVIEW_BRANCH.');
+  }
+  env.NEXT_PUBLIC_API_PATH = '/api';
+  env.NEXT_PUBLIC_SENTRY_ENVIRONMENT = branch === mainBranch ? 'production' : 'preview';
+  env.NEXT_PUBLIC_SENTRY_RELEASE ||= env.WORKERS_CI_COMMIT_SHA;
 
   return {
     resolve: { tsconfigPaths: true },
+    ssr: { noExternal: ['@koin/telemetry'] },
     define: Object.fromEntries(
       publicEnvironmentKeys.map((key) => [`process.env.${key}`, JSON.stringify(env[key]) ?? 'undefined']),
     ),
@@ -66,7 +79,7 @@ export default defineConfig(({ mode }) => {
         },
         sourcemaps: {
           disable: !env.SENTRY_AUTH_TOKEN,
-          filesToDeleteAfterUpload: ['dist/**/*.map'],
+          filesToDeleteAfterUpload: ['dist/client/**/*.map'],
         },
         telemetry: false,
       }),

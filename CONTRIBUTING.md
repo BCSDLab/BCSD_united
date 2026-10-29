@@ -4,7 +4,7 @@
 
 - Node.js: `.nvmrc`의 버전.
 - 패키지 매니저: 루트 `package.json`에 고정된 pnpm. 다른 락파일은 만들지 않습니다.
-- 앱은 `apps/web`, `apps/api`, `apps/sentry-automation`에 둡니다. 실제 공용 코드만 `packages/`로 분리합니다.
+- 앱은 `apps/web`, `apps/api`, `apps/error-automation`, `apps/b-bot`에 둡니다. 실제 공용 코드만 `packages/`로 분리합니다.
 - `.claude`, `.vscode`는 개인 작업 환경이며 커밋하지 않습니다.
 
 ```sh
@@ -45,6 +45,14 @@ UI 변경은 실제 화면, API 변경은 실제 HTTP/D1 경로도 확인합니�
 
 커밋은 `feat:`, `fix:`, `refactor:`, `chore:` 등 Conventional Commit 접두사와 한국어 설명을 사용합니다. 관련 없는 변경이나 시크릿을 포함하지 않습니다. PR에 수행한 검증과 남은 운영 전제조건을 명시합니다.
 
+커밋 훅은 Corepack으로 고정된 pnpm을 사용합니다. Windows 명령 길이 제한을 넘지 않도록 파일 목록을 분할하고, 검사 묶음은 동시에 두 개까지 실행합니다.
+
 ## 운영 안전
+
+`main`이 기본·운영 브랜치이고 `preview`는 고정 native Preview를 위한 비운영 브랜치입니다. PR과 Workers Builds를 통해 배포하며, API·웹·오류 자동화에 별도 stage/test Worker나 중복 GitHub Actions 배포를 만들지 않습니다. 비운영 명령은 `wrangler preview`이고 `wrangler versions upload`나 `--env preview`가 아닙니다. 저장소의 `previews` 설정과 Cloudflare GitHub 연결·빌드 명령을 함께 유지합니다.
+
+API 테스트 명령에는 TypeScript 회귀와 `.mjs` 데이터·파일 이관 동작 테스트가 모두 포함됩니다. Preview 검증은 HTTP 경로만 대상으로 합니다. Queue consumer·Cron은 Preview에서 실행하지 않으므로 알림·예약의 enqueue를 실행 완료로 보고하지 않습니다. 전환 중 기존 테스트 Worker의 consumer가 제거됐는지도 운영 담당자가 별도로 확인해야 합니다.
+
+Preview D1/R2/Queue는 `-test` 리소스를 사용하지만 DO namespace는 Preview마다 자동 생성됩니다. 웹 Preview의 SSR·브라우저는 API Preview HTTP origin을 사용합니다. service binding은 production으로 연결되므로 Preview 연결 대안으로 사용하지 않습니다. 오류 자동화 Preview에 운영 GitHub 토큰이나 운영 저장소 쓰기 권한을 주지 않습니다.
 
 실제 계정·결제·파일·메시지·사용자 데이터에 영향을 주는 테스트를 임의로 실행하지 않습니다. 테스트 Worker·D1·R2를 사용하고, 운영 데이터 이관과 도메인 전환은 별도 승인과 복구 절차를 갖춥니다.

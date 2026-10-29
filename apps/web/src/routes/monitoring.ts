@@ -1,4 +1,4 @@
-import { dsnToString, getClient, handleTunnelRequest } from '@sentry/core';
+import { handleTunnelRequest } from '@sentry/core';
 import { createFileRoute } from '@tanstack/react-router';
 
 const MAX_ENVELOPE_BYTES = 20 * 1024 * 1024;
@@ -41,7 +41,7 @@ export const Route = createFileRoute('/monitoring')({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const dsn = getClient()?.getDsn();
+        const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
         const body = await readEnvelope(request);
         if (body === null || body.byteLength === 0) {
           return new Response(null, {
@@ -58,7 +58,7 @@ export const Route = createFileRoute('/monitoring')({
         });
         const response = await handleTunnelRequest({
           request: envelopeRequest,
-          allowedDsns: dsn ? [dsnToString(dsn)] : [],
+          allowedDsns: dsn ? [dsn] : [],
         });
         const headers = new Headers({ 'Cache-Control': 'no-store' });
 

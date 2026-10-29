@@ -5,7 +5,10 @@ import { schema } from '@api/db/schema';
 import { ApiError, errorResponse } from '@api/errors';
 import type { Bindings, Principal } from '@api/runtime';
 import {
-  dispatchCommunityChat, getCommunityChatRoom, nextChatTsid, sendCommunityChatMessage,
+  dispatchCommunityChat,
+  getCommunityChatRoom,
+  nextChatTsid,
+  sendCommunityChatMessage,
   type ChatBroker,
 } from '@api/domains/community/chat';
 
@@ -15,7 +18,7 @@ export interface StompFrame {
   body: string;
 }
 const encoder = new TextEncoder();
-const decoder = new TextDecoder('utf-8', { fatal: true });
+const decoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: false });
 const MAX_FRAME_BYTES = 128 * 1024;
 
 function decodeHeader(value: string): string {
@@ -35,7 +38,9 @@ function encodeHeader(value: string): string {
 export function encodeStomp(frame: StompFrame, version = '1.2'): string {
   const escape = version !== '1.0' && frame.command !== 'CONNECTED' && frame.command !== 'CONNECT';
   const headers = { ...frame.headers, 'content-length': String(encoder.encode(frame.body).byteLength) };
-  return `${frame.command}\n${Object.entries(headers).map(([key, value]) => `${escape ? encodeHeader(key) : key}:${escape ? encodeHeader(value) : value}`).join('\n')}\n\n${frame.body}\0`;
+  return `${frame.command}\n${Object.entries(headers)
+    .map(([key, value]) => `${escape ? encodeHeader(key) : key}:${escape ? encodeHeader(value) : value}`)
+    .join('\n')}\n\n${frame.body}\0`;
 }
 
 export function parseStomp(bytes: Uint8Array, version = '1.2'): { frames: StompFrame[]; remainder: Uint8Array } {
@@ -50,7 +55,10 @@ export function parseStomp(bytes: Uint8Array, version = '1.2'): { frames: StompF
     for (let index = start; index < bytes.length; index++) {
       if (bytes[index] !== 10) continue;
       const end = bytes[index - 1] === 13 ? index - 1 : index;
-      if (end === lineStart) { bodyStart = index + 1; break; }
+      if (end === lineStart) {
+        bodyStart = index + 1;
+        break;
+      }
       lines.push(decoder.decode(bytes.subarray(lineStart, end)));
       lineStart = index + 1;
     }
@@ -69,7 +77,8 @@ export function parseStomp(bytes: Uint8Array, version = '1.2'): { frames: StompF
     let end: number;
     if (headers['content-length'] !== undefined) {
       const length = headers['content-length'];
-      if (!/^\d+$/.test(length) || Number(length) > MAX_FRAME_BYTES) throw new ApiError(400, 'INVALID_REQUEST', 'Invalid STOMP content-length');
+      if (!/^\d+$/.test(length) || Number(length) > MAX_FRAME_BYTES)
+        throw new ApiError(400, 'INVALID_REQUEST', 'Invalid STOMP content-length');
       end = bodyStart + Number(length);
       if (end >= bytes.length) break;
       if (bytes[end] !== 0) throw new ApiError(400, 'INVALID_REQUEST', 'STOMP frame must end with NUL');
@@ -98,7 +107,8 @@ export function parseChatDestination(destination: string, publish = false): { ar
 }
 
 export function assertChatListDestination(destination: string, userId: number): void {
-  if (destination !== `/topic/chatroom/list/${userId}`) throw new ApiError(403, 'FORBIDDEN_AUTHOR', '게시글 접근 권한이 없습니다.');
+  if (destination !== `/topic/chatroom/list/${userId}`)
+    throw new ApiError(403, 'FORBIDDEN_AUTHOR', '게시글 접근 권한이 없습니다.');
 }
 
 interface Session {
@@ -113,11 +123,17 @@ interface Session {
 export class CommunityChatDurableObject implements ChatBroker {
   private operations: Promise<unknown> = Promise.resolve();
 
-  constructor(private readonly state: DurableObjectState, private readonly env: Bindings) {}
+  constructor(
+    private readonly state: DurableObjectState,
+    private readonly env: Bindings,
+  ) {}
 
   private serial<T>(operation: () => Promise<T>): Promise<T> {
     const result = this.operations.then(operation);
-    this.operations = result.then(() => undefined, () => undefined);
+    this.operations = result.then(
+      () => undefined,
+      () => undefined,
+    );
     return result;
   }
 
@@ -150,8 +166,11 @@ export class CommunityChatDurableObject implements ChatBroker {
   hasActiveSession(userId: number): boolean {
     return this.state.getWebSockets().some((socket) => {
       const session = socket.deserializeAttachment() as Session;
-      return session.principal?.id === userId && session.expiresAt > Date.now()
-        && (session.status === 'ACTIVE_CHAT_ROOM' || session.status === 'ACTIVE_CHAT_ROOM_LIST');
+      return (
+        session.principal?.id === userId &&
+        session.expiresAt > Date.now() &&
+        (session.status === 'ACTIVE_CHAT_ROOM' || session.status === 'ACTIVE_CHAT_ROOM_LIST')
+      );
     });
   }
 
@@ -163,8 +182,21 @@ export class CommunityChatDurableObject implements ChatBroker {
       for (const [id, target] of Object.entries(session.subscriptions)) {
         if (target !== destination) continue;
         try {
-          socket.send(encodeStomp({ command: 'MESSAGE', headers: { destination, subscription: id,
-            'message-id': crypto.randomUUID(), 'content-type': 'application/json' }, body: content }, session.version));
+          socket.send(
+            encodeStomp(
+              {
+                command: 'MESSAGE',
+                headers: {
+                  destination,
+                  subscription: id,
+                  'message-id': crypto.randomUUID(),
+                  'content-type': 'application/json',
+                },
+                body: content,
+              },
+              session.version,
+            ),
+          );
         } catch {
           socket.close(1011, 'Message delivery failed');
         }
@@ -174,15 +206,30 @@ export class CommunityChatDurableObject implements ChatBroker {
 
   async fetch(request: Request): Promise<Response> {
     if (new URL(request.url).pathname === '/ws-stomp') {
-      if (request.headers.get('Upgrade')?.toLowerCase() !== 'websocket') return new Response('WebSocket upgrade required', { status: 426 });
+      if (request.headers.get('Upgrade')?.toLowerCase() !== 'websocket')
+        return new Response('WebSocket upgrade required', { status: 426 });
       const pair = new WebSocketPair();
-      const session: Session = { id: crypto.randomUUID(), principal: null, version: '1.2', subscriptions: {},
-        status: 'INACTIVE', expiresAt: 0 };
+      const session: Session = {
+        id: crypto.randomUUID(),
+        principal: null,
+        version: '1.2',
+        subscriptions: {},
+        status: 'INACTIVE',
+        expiresAt: 0,
+      };
       pair[1].serializeAttachment(session);
       this.state.acceptWebSocket(pair[1]);
-      const offered = request.headers.get('Sec-WebSocket-Protocol')?.split(',').map((value) => value.trim()) ?? [];
+      const offered =
+        request.headers
+          .get('Sec-WebSocket-Protocol')
+          ?.split(',')
+          .map((value) => value.trim()) ?? [];
       const protocol = ['v12.stomp', 'v11.stomp', 'v10.stomp'].find((value) => offered.includes(value));
-      return new Response(null, { status: 101, webSocket: pair[0], headers: protocol ? { 'Sec-WebSocket-Protocol': protocol } : {} });
+      return new Response(null, {
+        status: 101,
+        webSocket: pair[0],
+        headers: protocol ? { 'Sec-WebSocket-Protocol': protocol } : {},
+      });
     }
     return this.serial(async () => {
       try {
@@ -199,7 +246,7 @@ export class CommunityChatDurableObject implements ChatBroker {
       const session = socket.deserializeAttachment() as Session;
       try {
         const incoming = typeof message === 'string' ? encoder.encode(message) : new Uint8Array(message);
-        const pending = await this.state.storage.get<Uint8Array>(`pending:${session.id}`) ?? new Uint8Array();
+        const pending = (await this.state.storage.get<Uint8Array>(`pending:${session.id}`)) ?? new Uint8Array();
         const bytes = new Uint8Array(pending.length + incoming.length);
         bytes.set(pending);
         bytes.set(incoming, pending.length);
@@ -212,9 +259,18 @@ export class CommunityChatDurableObject implements ChatBroker {
         }
         socket.serializeAttachment(session);
       } catch (error) {
-        const failure = error instanceof ApiError ? error : new ApiError(500, 'INTERNAL_SERVER_ERROR', '메시지 처리 실패');
-        socket.send(encodeStomp({ command: 'ERROR', headers: { message: failure.message, 'content-type': 'application/json' },
-          body: JSON.stringify({ code: failure.code, message: failure.message, errorTraceId: crypto.randomUUID() }) }, session.version));
+        const failure =
+          error instanceof ApiError ? error : new ApiError(500, 'INTERNAL_SERVER_ERROR', '메시지 처리 실패');
+        socket.send(
+          encodeStomp(
+            {
+              command: 'ERROR',
+              headers: { message: failure.message, 'content-type': 'application/json' },
+              body: JSON.stringify({ code: failure.code, message: failure.message, errorTraceId: crypto.randomUUID() }),
+            },
+            session.version,
+          ),
+        );
         session.status = 'INACTIVE';
         session.subscriptions = {};
         socket.serializeAttachment(session);
@@ -236,21 +292,33 @@ export class CommunityChatDurableObject implements ChatBroker {
       const [user] = await createDatabase(this.env.DB).all<{ device_token: string | null }>(sql`
         SELECT device_token FROM ${schema.users} WHERE id=${session.principal.id} AND is_deleted=0`);
       if (!user) throw new ApiError(404, 'NOT_FOUND_USER', '사용자가 존재하지 않습니다.');
-      if (user.device_token === null) throw new ApiError(400, 'INVALID_WEBSOCKET_USER_SESSION', '웹소켓 사용자 세션 에러 : deviceToken은 null일 수 없습니다.');
+      if (user.device_token === null)
+        throw new ApiError(
+          400,
+          'INVALID_WEBSOCKET_USER_SESSION',
+          '웹소켓 사용자 세션 에러 : deviceToken은 null일 수 없습니다.',
+        );
       session.version = version;
       session.status = 'ACTIVE_APP';
       session.expiresAt = Date.now() + 7 * 86400000;
       socket.serializeAttachment(session);
-      socket.send(encodeStomp({ command: 'CONNECTED', headers: { version, session: session.id, 'heart-beat': '0,0' }, body: '' }, version));
+      socket.send(
+        encodeStomp(
+          { command: 'CONNECTED', headers: { version, session: session.id, 'heart-beat': '0,0' }, body: '' },
+          version,
+        ),
+      );
       return;
     }
-    if (!session.principal || session.status === 'INACTIVE') throw new ApiError(401, 'UNAUTHORIZED_USER', '인증이 필요합니다.');
+    if (!session.principal || session.status === 'INACTIVE')
+      throw new ApiError(401, 'UNAUTHORIZED_USER', '인증이 필요합니다.');
     const userId = session.principal.id;
     const db = createDatabase(this.env.DB);
     if (frame.command === 'SUBSCRIBE') {
       const id = frame.headers.id ?? (session.version === '1.0' ? frame.headers.destination : undefined);
       const destination = frame.headers.destination;
-      if (!id || !destination || Object.hasOwn(session.subscriptions, id)) throw new ApiError(400, 'INVALID_REQUEST', 'Invalid subscription');
+      if (!id || !destination || Object.hasOwn(session.subscriptions, id))
+        throw new ApiError(400, 'INVALID_REQUEST', 'Invalid subscription');
       if (destination.startsWith('/topic/chatroom/list/')) {
         assertChatListDestination(destination, userId);
         session.status = 'ACTIVE_CHAT_ROOM_LIST';
@@ -259,11 +327,17 @@ export class CommunityChatDurableObject implements ChatBroker {
         await getCommunityChatRoom(db, target.articleId, target.roomId, userId);
         session.status = 'ACTIVE_CHAT_ROOM';
       }
-      Object.defineProperty(session.subscriptions, id, { value: destination, writable: true, enumerable: true, configurable: true });
+      Object.defineProperty(session.subscriptions, id, {
+        value: destination,
+        writable: true,
+        enumerable: true,
+        configurable: true,
+      });
       session.expiresAt = Date.now() + 7 * 86400000;
     } else if (frame.command === 'UNSUBSCRIBE') {
       const id = frame.headers.id ?? frame.headers.destination;
-      if (!id || !Object.hasOwn(session.subscriptions, id)) throw new ApiError(400, 'INVALID_REQUEST', 'Unknown subscription');
+      if (!id || !Object.hasOwn(session.subscriptions, id))
+        throw new ApiError(400, 'INVALID_REQUEST', 'Unknown subscription');
       delete session.subscriptions[id];
       session.status = 'ACTIVE_APP';
       session.expiresAt = Date.now() + 7 * 86400000;
@@ -271,7 +345,8 @@ export class CommunityChatDurableObject implements ChatBroker {
       const target = parseChatDestination(frame.headers.destination ?? '', true);
       const room = await getCommunityChatRoom(db, target.articleId, target.roomId, userId);
       const body: unknown = JSON.parse(frame.body);
-      if (body === null || typeof body !== 'object' || Array.isArray(body)) throw new ApiError(400, 'INVALID_REQUEST', '잘못된 요청입니다.');
+      if (body === null || typeof body !== 'object' || Array.isArray(body))
+        throw new ApiError(400, 'INVALID_REQUEST', '잘못된 요청입니다.');
       await sendCommunityChatMessage(this.env, this, room, userId, body as Record<string, unknown>, true);
     } else if (frame.command === 'DISCONNECT') {
       session.subscriptions = {};
@@ -280,7 +355,13 @@ export class CommunityChatDurableObject implements ChatBroker {
       throw new ApiError(400, 'INVALID_REQUEST', `Unsupported STOMP command: ${frame.command}`);
     }
     socket.serializeAttachment(session);
-    if (frame.headers.receipt) socket.send(encodeStomp({ command: 'RECEIPT', headers: { 'receipt-id': frame.headers.receipt }, body: '' }, session.version));
+    if (frame.headers.receipt)
+      socket.send(
+        encodeStomp(
+          { command: 'RECEIPT', headers: { 'receipt-id': frame.headers.receipt }, body: '' },
+          session.version,
+        ),
+      );
     if (frame.command === 'DISCONNECT') socket.close(1000, 'Disconnected');
   }
 

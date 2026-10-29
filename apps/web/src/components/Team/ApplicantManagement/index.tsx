@@ -1,7 +1,7 @@
-import { useRouter, useParams } from '@tanstack/react-router';
-
 import { cn } from '@bcsdlab/utils';
 import { useQuery } from '@tanstack/react-query';
+import { useRouter, useParams } from '@tanstack/react-router';
+
 import { teamQueries } from 'api/team/queries';
 import EmptyRecruitment from 'assets/svg/common/sleep-bbico.svg';
 import ChatBubbleIcon from 'assets/svg/Team/chat-bubble.svg';
@@ -17,7 +17,7 @@ import styles from './ApplicantManagement.module.scss';
 
 export default function ApplicantManagement() {
   const router = useRouter();
-  const routeParams = useParams({ strict: false }) as Record<string, string | string[] | undefined>;
+  const routeParams = useParams({ strict: false });
   const isLoggedIn = useIsLoggedIn();
   const isMobile = useMediaQuery();
   const { postId } = routeParams;
@@ -31,7 +31,9 @@ export default function ApplicantManagement() {
   const handleGroupChatClick = () => {
     if (!data || data.recruitment.team_chat_room_id === null) return;
 
-    router.navigate({ href: ROUTES.TeamChat({ recruitmentId, chatRoomId: String(data.recruitment.team_chat_room_id) }) });
+    router.navigate({
+      href: ROUTES.TeamChat({ recruitmentId, chatRoomId: String(data.recruitment.team_chat_room_id) }),
+    });
   };
 
   const groupChatButton = data?.recruitment.team_chat_available && (

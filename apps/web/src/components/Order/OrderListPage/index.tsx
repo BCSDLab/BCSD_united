@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
-
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+
 import type { OrderHistoryPeriod, OrderHistoryStatus, OrderHistoryType } from 'api/order/entity';
 import { orderQueries } from 'api/order/queries';
 import SleepingIcon from 'assets/svg/Order/List/sleeping-icon.svg';

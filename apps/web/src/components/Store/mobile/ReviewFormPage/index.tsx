@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
-
 import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+
 import { invalidateShopReviews, storeMobileQueries } from 'api/storeMobile/queries';
 import { getLoggingTime, setStartLoggingTime } from 'components/Store/mobile/common/utils/loggingTime';
 import ReviewForm from 'components/Store/mobile/ReviewFormPage/components/ReviewForm';

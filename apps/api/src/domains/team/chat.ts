@@ -5,7 +5,12 @@ import { createDatabase, executeAtomic, type Database } from '@api/db/client';
 import { schema } from '@api/db/schema';
 import { ApiError } from '@api/errors';
 import type { ApiEnv, Bindings } from '@api/runtime';
-import { outboxConfiguration, TEAM_NOTIFICATION_JOB, TEAM_DEADLINE_JOB, deadlineDelaySeconds } from '@api/domains/team/jobs';
+import {
+  outboxConfiguration,
+  TEAM_NOTIFICATION_JOB,
+  TEAM_DEADLINE_JOB,
+  deadlineDelaySeconds,
+} from '@api/domains/team/jobs';
 import { coordinateRequest } from '@api/coordination';
 
 const rooms = schema.team_recruitment_chat_room;
@@ -17,7 +22,13 @@ const profiles = schema.team_recruitment_profile;
 const notifications = schema.team_recruitment_notification;
 const outbox = schema.team_recruitment_outbox_event;
 
-export type NotificationType = 'NEW_APPLICATION' | 'APPLICATION_ACCEPTED' | 'APPLICATION_REJECTED' | 'RECRUITMENT_CLOSED' | 'RECRUITMENT_DELETED' | 'NEW_CHAT_MESSAGE';
+export type NotificationType =
+  | 'NEW_APPLICATION'
+  | 'APPLICATION_ACCEPTED'
+  | 'APPLICATION_REJECTED'
+  | 'RECRUITMENT_CLOSED'
+  | 'RECRUITMENT_DELETED'
+  | 'NEW_CHAT_MESSAGE';
 export type NotificationInput = {
   eventKey: string | SQL;
   type: NotificationType;
@@ -65,8 +76,10 @@ export async function signalTeamNotifications(env: Bindings, recruitmentId: numb
           AND (next_attempt_at IS NULL OR next_attempt_at <= ${now}))) ORDER BY id`);
   for (const event of ready) {
     const deadline = event.event_type === 'TEAM_RECRUITMENT_DEADLINE';
-    await env.JOBS.send({ kind: deadline ? TEAM_DEADLINE_JOB : TEAM_NOTIFICATION_JOB, key: event.event_key, payload: {} },
-      deadline ? { delaySeconds: deadlineDelaySeconds(event.next_attempt_at!, Date.now()) } : undefined);
+    await env.JOBS.send(
+      { kind: deadline ? TEAM_DEADLINE_JOB : TEAM_NOTIFICATION_JOB, key: event.event_key, payload: {} },
+      deadline ? { delaySeconds: deadlineDelaySeconds(event.next_attempt_at!, Date.now()) } : undefined,
+    );
   }
 }
 
@@ -80,11 +93,20 @@ function outboxStatement(db: Database, predicate: SQL) {
     ON CONFLICT(event_key) DO NOTHING`;
 }
 
-export function closureStatements(db: Database, recruitmentId: number, reason: 'CLOSED' | 'DELETED' | 'CAPACITY' | 'ACCEPTANCE_CAPACITY' | 'DEADLINE', guard: SQL) {
+export function closureStatements(
+  db: Database,
+  recruitmentId: number,
+  reason: 'CLOSED' | 'DELETED' | 'CAPACITY' | 'ACCEPTANCE_CAPACITY' | 'DEADLINE',
+  guard: SQL,
+) {
   const deleted = reason === 'DELETED';
   const acceptedType = deleted ? 'RECRUITMENT_DELETED' : 'RECRUITMENT_CLOSED';
-  const rejectedText = reason === 'ACCEPTANCE_CAPACITY' ? ' 지원이 거절되었어요.'
-    : deleted ? ' 모집이 삭제되어 지원이 취소되었어요.' : ' 모집이 마감되어 지원이 거절되었어요.';
+  const rejectedText =
+    reason === 'ACCEPTANCE_CAPACITY'
+      ? ' 지원이 거절되었어요.'
+      : deleted
+        ? ' 모집이 삭제되어 지원이 취소되었어요.'
+        : ' 모집이 마감되어 지원이 거절되었어요.';
   const acceptedText = deleted ? ' 모집이 삭제되었어요.' : ' 모집이 마감되었어요.';
   const result = [];
   if (reason === 'DEADLINE') {
@@ -107,7 +129,12 @@ export function closureStatements(db: Database, recruitmentId: number, reason: '
       AND NOT EXISTS (SELECT 1 FROM ${outbox} e WHERE e.event_key = 'team-recruitment:application:' || a.id || ':' ||
         CASE WHEN a.status = 'PENDING' THEN 'APPLICATION_REJECTED' ELSE ${acceptedType} END)
     ON CONFLICT(native_event_key) DO NOTHING`);
-  result.push(outboxStatement(db, sql`n.recruitment_id = ${recruitmentId} AND n.type IN ('APPLICATION_REJECTED', ${acceptedType}) AND (${guard})`));
+  result.push(
+    outboxStatement(
+      db,
+      sql`n.recruitment_id = ${recruitmentId} AND n.type IN ('APPLICATION_REJECTED', ${acceptedType}) AND (${guard})`,
+    ),
+  );
   result.push(sql`UPDATE ${applications} SET status = 'REJECTED', decision_reason = ${deleted ? 'RECRUITMENT_DELETED' : 'RECRUITMENT_CLOSED'},
     updated_at = CURRENT_TIMESTAMP WHERE recruitment_id = ${recruitmentId} AND status = 'PENDING' AND (${guard})`);
   return result;
@@ -137,7 +164,9 @@ export function messageWindow(after: string | undefined, before: string | undefi
   return { afterId, beforeId, count };
 }
 
-function illegal(): never { throw new ApiError(400, 'ILLEGAL_ARGUMENT', '잘못된 인자가 전달되었습니다.'); }
+function illegal(): never {
+  throw new ApiError(400, 'ILLEGAL_ARGUMENT', '잘못된 인자가 전달되었습니다.');
+}
 function integer(value: string): number {
   if (!/^\d+$/.test(value)) illegal();
   const parsed = Number(value);
@@ -151,30 +180,66 @@ function signedInteger(value: string | undefined, fallback: number): number {
   if (!Number.isInteger(parsed) || parsed < -2147483648 || parsed > 2147483647) illegal();
   return parsed;
 }
-function chatForbidden(): never { throw new ApiError(403, 'TEAM_RECRUITMENT_CHAT_FORBIDDEN', '채팅방에 대한 권한이 없습니다.'); }
-function closed(): never { throw new ApiError(409, 'TEAM_RECRUITMENT_CLOSED', '마감된 팀원 모집글입니다.'); }
-function requestIds(c: Context<ApiEnv>) {
-  return { userId: requirePrincipal(c, ['STUDENT']).id, recruitmentId: integer(c.req.param('recruitmentId') ?? ''), roomId: integer(c.req.param('chatRoomId') ?? '') };
+function chatForbidden(): never {
+  throw new ApiError(403, 'TEAM_RECRUITMENT_CHAT_FORBIDDEN', '채팅방에 대한 권한이 없습니다.');
 }
-type Room = { id: number; recruitment_id: number; room_type: string; application_id: number | null; title: string; max_participants: number; author_id: number | null; applicant_id: number | null };
+function closed(): never {
+  throw new ApiError(409, 'TEAM_RECRUITMENT_CLOSED', '마감된 팀원 모집글입니다.');
+}
+function requestIds(c: Context<ApiEnv>) {
+  return {
+    userId: requirePrincipal(c, ['STUDENT']).id,
+    recruitmentId: integer(c.req.param('recruitmentId') ?? ''),
+    roomId: integer(c.req.param('chatRoomId') ?? ''),
+  };
+}
+type Room = {
+  id: number;
+  recruitment_id: number;
+  room_type: string;
+  application_id: number | null;
+  title: string;
+  max_participants: number;
+  author_id: number | null;
+  applicant_id: number | null;
+};
 async function authorizedRoom(db: Database, userId: number, recruitmentId: number, roomId: number): Promise<Room> {
   const room = await db.get<Room>(sql`SELECT room.*, r.title, r.max_participants, r.author_id, a.applicant_id
     FROM ${rooms} room JOIN ${recruitments} r ON r.id = room.recruitment_id
     LEFT JOIN ${applications} a ON a.id = room.application_id WHERE room.id = ${roomId} AND r.id = ${recruitmentId}`);
   if (!room) throw new ApiError(404, 'TEAM_RECRUITMENT_CHAT_NOT_FOUND', '채팅방이 존재하지 않습니다.');
-  if (!await db.get(sql`SELECT id FROM ${members} WHERE chat_room_id = ${roomId} AND user_id = ${userId}`)) chatForbidden();
+  if (!(await db.get(sql`SELECT id FROM ${members} WHERE chat_room_id = ${roomId} AND user_id = ${userId}`)))
+    chatForbidden();
   return room;
 }
 async function counterpart(db: Database, roomId: number, userId: number) {
-  const other = await db.get<{ id: number; nickname: string | null }>(sql`SELECT m.user_id id, p.profile_nickname nickname
+  const other = await db.get<{
+    id: number;
+    nickname: string | null;
+  }>(sql`SELECT m.user_id id, p.profile_nickname nickname
     FROM ${members} m LEFT JOIN ${profiles} p ON p.user_id = m.user_id
     WHERE m.chat_room_id = ${roomId} AND m.user_id <> ${userId} ORDER BY m.id LIMIT 1`);
   return { id: other?.id ?? null, nickname: displayNickname(other?.id ?? null, other?.nickname) };
 }
-type Message = { id: number; sender_id: number | null; content: string; created_at: string; is_image: number; nickname: string | null; unread_count: number };
+type Message = {
+  id: number;
+  sender_id: number | null;
+  content: string;
+  created_at: string;
+  is_image: number;
+  nickname: string | null;
+  unread_count: number;
+};
 function messageDto(message: Message) {
-  return { message_id: message.id, user_id: message.sender_id, user_nickname: displayNickname(message.sender_id, message.nickname),
-    content: message.content, timestamp: kstTimestamp(message.created_at), is_image: Boolean(message.is_image), unread_count: message.unread_count };
+  return {
+    message_id: message.id,
+    user_id: message.sender_id,
+    user_nickname: displayNickname(message.sender_id, message.nickname),
+    content: message.content,
+    timestamp: kstTimestamp(message.created_at),
+    is_image: Boolean(message.is_image),
+    unread_count: message.unread_count,
+  };
 }
 function messageSelect(roomId: number) {
   return sql`SELECT msg.*, p.profile_nickname nickname,
@@ -189,9 +254,19 @@ export function registerTeamChat(app: Hono<ApiEnv>): void {
   app.get(base, async (c) => {
     const userId = requirePrincipal(c, ['STUDENT']).id;
     const db = c.get('db');
-    const list = await db.all<{ recruitment_id: number; chat_room_id: number; title: string; room_type: string; counterpart_id: number | null;
-      nickname: string | null; last_message_id: number | null; last_message_content: string | null; last_message_at: string | null;
-      last_message_is_image: number | null; unread_message_count: number }>(sql`SELECT room.recruitment_id, room.id chat_room_id, r.title, room.room_type,
+    const list = await db.all<{
+      recruitment_id: number;
+      chat_room_id: number;
+      title: string;
+      room_type: string;
+      counterpart_id: number | null;
+      nickname: string | null;
+      last_message_id: number | null;
+      last_message_content: string | null;
+      last_message_at: string | null;
+      last_message_is_image: number | null;
+      unread_message_count: number;
+    }>(sql`SELECT room.recruitment_id, room.id chat_room_id, r.title, room.room_type,
         other.user_id counterpart_id, p.profile_nickname nickname, msg.id last_message_id, msg.content last_message_content,
         msg.created_at last_message_at, msg.is_image last_message_is_image,
         (SELECT count(*) FROM ${messages} unread WHERE unread.chat_room_id = room.id
@@ -201,20 +276,35 @@ export function registerTeamChat(app: Hono<ApiEnv>): void {
       LEFT JOIN ${profiles} p ON p.user_id = other.user_id
       LEFT JOIN ${messages} msg ON msg.id = (SELECT max(id) FROM ${messages} WHERE chat_room_id = room.id)
       WHERE mine.user_id = ${userId} ORDER BY msg.created_at DESC, room.id DESC`);
-    return c.json(list.map(({ title, nickname, last_message_is_image, last_message_at, ...item }) => {
-      const name = item.room_type === 'DIRECT' ? displayNickname(item.counterpart_id, nickname) : null;
-      return { ...item, room_name: name ?? title, counterpart_nickname: name, last_message_at: kstTimestamp(last_message_at),
-        last_message_is_image: last_message_is_image === null ? null : Boolean(last_message_is_image) };
-    }));
+    return c.json(
+      list.map(({ title, nickname, last_message_is_image, last_message_at, ...item }) => {
+        const name = item.room_type === 'DIRECT' ? displayNickname(item.counterpart_id, nickname) : null;
+        return {
+          ...item,
+          room_name: name ?? title,
+          counterpart_nickname: name,
+          last_message_at: kstTimestamp(last_message_at),
+          last_message_is_image: last_message_is_image === null ? null : Boolean(last_message_is_image),
+        };
+      }),
+    );
   });
   app.get(`${base}/:recruitmentId/:chatRoomId`, async (c) => {
     const { userId, recruitmentId, roomId } = requestIds(c);
     const db = c.get('db');
     const room = await authorizedRoom(db, userId, recruitmentId, roomId);
     const other = room.room_type === 'DIRECT' ? await counterpart(db, roomId, userId) : null;
-    const count = await db.get<{ count: number }>(sql`SELECT count(*) count FROM ${members} WHERE chat_room_id = ${roomId}`);
-    return c.json({ chat_room_id: roomId, room_name: other?.nickname ?? room.title, room_type: room.room_type,
-      member_count: count!.count, max_member_count: room.room_type === 'DIRECT' ? 2 : room.max_participants + 1, counterpart: other });
+    const count = await db.get<{ count: number }>(
+      sql`SELECT count(*) count FROM ${members} WHERE chat_room_id = ${roomId}`,
+    );
+    return c.json({
+      chat_room_id: roomId,
+      room_name: other?.nickname ?? room.title,
+      room_type: room.room_type,
+      member_count: count!.count,
+      max_member_count: room.room_type === 'DIRECT' ? 2 : room.max_participants + 1,
+      counterpart: other,
+    });
   });
   app.post(`${base}/:recruitmentId/applications/:applicationId/direct`, async (c) => {
     const userId = requirePrincipal(c, ['STUDENT']).id;
@@ -223,16 +313,26 @@ export function registerTeamChat(app: Hono<ApiEnv>): void {
     const coordinated = await coordinateRequest(c, `team:${recruitmentId}`);
     if (coordinated) return coordinated;
     const db = c.get('db');
-    const recruitment = await db.get<{ author_id: number | null }>(sql`SELECT author_id FROM ${recruitments} WHERE id = ${recruitmentId}`);
+    const recruitment = await db.get<{ author_id: number | null }>(
+      sql`SELECT author_id FROM ${recruitments} WHERE id = ${recruitmentId}`,
+    );
     if (!recruitment) throw new ApiError(404, 'TEAM_RECRUITMENT_NOT_FOUND', '팀원 모집글이 존재하지 않습니다.');
-    const application = await db.get<{ applicant_id: number | null; status: string }>(sql`SELECT applicant_id, status FROM ${applications} WHERE id = ${applicationId} AND recruitment_id = ${recruitmentId}`);
-    if (!application) throw new ApiError(404, 'TEAM_RECRUITMENT_APPLICATION_NOT_FOUND', '팀원 모집 지원서가 존재하지 않습니다.');
-    if (userId !== recruitment.author_id && userId !== application.applicant_id) throw new ApiError(403, 'TEAM_RECRUITMENT_FORBIDDEN', '팀원 모집글에 대한 권한이 없습니다.');
-    if (application.status !== 'ACCEPTED') throw new ApiError(409, 'TEAM_RECRUITMENT_APPLICATION_NOT_ACCEPTED', '승인된 지원서가 아닙니다.');
-    let room = await db.get<{ id: number }>(sql`SELECT id FROM ${rooms} WHERE recruitment_id = ${recruitmentId} AND application_id = ${applicationId} AND room_type = 'DIRECT'`);
+    const application = await db.get<{ applicant_id: number | null; status: string }>(
+      sql`SELECT applicant_id, status FROM ${applications} WHERE id = ${applicationId} AND recruitment_id = ${recruitmentId}`,
+    );
+    if (!application)
+      throw new ApiError(404, 'TEAM_RECRUITMENT_APPLICATION_NOT_FOUND', '팀원 모집 지원서가 존재하지 않습니다.');
+    if (userId !== recruitment.author_id && userId !== application.applicant_id)
+      throw new ApiError(403, 'TEAM_RECRUITMENT_FORBIDDEN', '팀원 모집글에 대한 권한이 없습니다.');
+    if (application.status !== 'ACCEPTED')
+      throw new ApiError(409, 'TEAM_RECRUITMENT_APPLICATION_NOT_ACCEPTED', '승인된 지원서가 아닙니다.');
+    let room = await db.get<{ id: number }>(
+      sql`SELECT id FROM ${rooms} WHERE recruitment_id = ${recruitmentId} AND application_id = ${applicationId} AND room_type = 'DIRECT'`,
+    );
     let created = false;
     if (!room) {
-      if (recruitment.author_id === null || application.applicant_id === null) throw new ApiError(403, 'TEAM_RECRUITMENT_FORBIDDEN', '팀원 모집글에 대한 권한이 없습니다.');
+      if (recruitment.author_id === null || application.applicant_id === null)
+        throw new ApiError(403, 'TEAM_RECRUITMENT_FORBIDDEN', '팀원 모집글에 대한 권한이 없습니다.');
       const today = kstDate();
       const result = await executeAtomic(db, [
         sql`INSERT INTO ${rooms} (recruitment_id, room_scope_key, room_type, application_id, status)
@@ -250,28 +350,50 @@ export function registerTeamChat(app: Hono<ApiEnv>): void {
           AND room.room_type = 'DIRECT' AND a.applicant_id IS NOT NULL ON CONFLICT DO NOTHING`,
       ]);
       created = result[0].meta.changes > 0;
-      room = await db.get<{ id: number }>(sql`SELECT id FROM ${rooms} WHERE recruitment_id = ${recruitmentId} AND application_id = ${applicationId} AND room_type = 'DIRECT'`);
+      room = await db.get<{ id: number }>(
+        sql`SELECT id FROM ${rooms} WHERE recruitment_id = ${recruitmentId} AND application_id = ${applicationId} AND room_type = 'DIRECT'`,
+      );
       if (!room) closed();
     }
     const otherId = userId === recruitment.author_id ? application.applicant_id : recruitment.author_id;
-    const profile = otherId === null ? null : await db.get<{ profile_nickname: string | null }>(sql`SELECT profile_nickname FROM ${profiles} WHERE user_id = ${otherId}`);
+    const profile =
+      otherId === null
+        ? null
+        : await db.get<{ profile_nickname: string | null }>(
+            sql`SELECT profile_nickname FROM ${profiles} WHERE user_id = ${otherId}`,
+          );
     const nickname = displayNickname(otherId, profile?.profile_nickname);
-    return c.json({ chat_room_id: room.id, room_name: nickname, room_type: 'DIRECT', counterpart: { id: otherId, nickname } }, created ? 201 : 200);
+    return c.json(
+      { chat_room_id: room.id, room_name: nickname, room_type: 'DIRECT', counterpart: { id: otherId, nickname } },
+      created ? 201 : 200,
+    );
   });
   app.get(`${base}/:recruitmentId/:chatRoomId/messages`, async (c) => {
     const { userId, recruitmentId, roomId } = requestIds(c);
-    const { afterId, beforeId, count } = messageWindow(c.req.query('afterMessageId'), c.req.query('beforeMessageId'), c.req.query('limit'));
+    const { afterId, beforeId, count } = messageWindow(
+      c.req.query('afterMessageId'),
+      c.req.query('beforeMessageId'),
+      c.req.query('limit'),
+    );
     const db = c.get('db');
     await authorizedRoom(db, userId, recruitmentId, roomId);
-    const condition = afterId !== null ? sql`AND msg.id > ${afterId}` : beforeId !== null ? sql`AND msg.id < ${beforeId}` : sql``;
+    const condition =
+      afterId !== null ? sql`AND msg.id > ${afterId}` : beforeId !== null ? sql`AND msg.id < ${beforeId}` : sql``;
     const order = afterId !== null ? sql`ASC` : sql`DESC`;
-    const selected = await db.all<Message>(sql`${messageSelect(roomId)} ${condition} ORDER BY msg.id ${order} LIMIT ${count}`);
+    const selected = await db.all<Message>(
+      sql`${messageSelect(roomId)} ${condition} ORDER BY msg.id ${order} LIMIT ${count}`,
+    );
     if (afterId === null) selected.reverse();
     if (selected.length) {
       const latest = selected[selected.length - 1]!.id;
       await db.run(sql`UPDATE ${members} SET last_read_message_id = max(coalesce(last_read_message_id, 0), ${latest}), updated_at = CURRENT_TIMESTAMP
         WHERE chat_room_id = ${roomId} AND user_id = ${userId}`);
-      const refreshed = await db.all<Message>(sql`${messageSelect(roomId)} AND msg.id IN (${sql.join(selected.map((m) => sql`${m.id}`), sql`,`)}) ORDER BY msg.id ASC`);
+      const refreshed = await db.all<Message>(
+        sql`${messageSelect(roomId)} AND msg.id IN (${sql.join(
+          selected.map((m) => sql`${m.id}`),
+          sql`,`,
+        )}) ORDER BY msg.id ASC`,
+      );
       return c.json(refreshed.map(messageDto));
     }
     return c.json([]);
@@ -287,7 +409,9 @@ export function registerTeamChat(app: Hono<ApiEnv>): void {
     const db = c.get('db');
     const room = await authorizedRoom(db, userId, recruitmentId, roomId);
     if (room.author_id === null || (room.room_type === 'DIRECT' && room.applicant_id === null)) chatForbidden();
-    const profile = await db.get<{ profile_nickname: string | null }>(sql`SELECT profile_nickname FROM ${profiles} WHERE user_id = ${userId}`);
+    const profile = await db.get<{ profile_nickname: string | null }>(
+      sql`SELECT profile_nickname FROM ${profiles} WHERE user_id = ${userId}`,
+    );
     const nickname = displayNickname(userId, profile?.profile_nickname);
     const inserted = sql`(SELECT last_read_message_id FROM ${members} WHERE chat_room_id = ${roomId} AND user_id = ${userId})`;
     const result = await executeAtomic(db, [
@@ -303,7 +427,10 @@ export function registerTeamChat(app: Hono<ApiEnv>): void {
         SELECT 'team-recruitment:chat-message:' || ${inserted} || ':' || user_id, user_id, 'NEW_CHAT_MESSAGE', 'CHAT_ROOM',
           ${body.content.slice(0, 255)}, ${nickname}, ${recruitmentId}, ${room.application_id}, ${roomId}
         FROM ${members} WHERE chat_room_id = ${roomId} AND user_id <> ${userId} ON CONFLICT(native_event_key) DO NOTHING`,
-      outboxStatement(db, sql`n.chat_room_id = ${roomId} AND n.native_event_key LIKE 'team-recruitment:chat-message:' || ${inserted} || ':%'`),
+      outboxStatement(
+        db,
+        sql`n.chat_room_id = ${roomId} AND n.native_event_key LIKE 'team-recruitment:chat-message:' || ${inserted} || ':%'`,
+      ),
       sql`${messageSelect(roomId)} AND msg.id = ${inserted}`,
     ]);
     c.executionCtx.waitUntil(signalTeamNotifications(c.env, recruitmentId));
@@ -317,21 +444,44 @@ function registerNotifications(app: Hono<ApiEnv>): void {
   app.get(base, async (c) => {
     const userId = requirePrincipal(c, ['STUDENT']).id;
     const db = c.get('db');
-    const count = await db.get<{ total: number; unread: number }>(sql`SELECT count(*) total, coalesce(sum(read_at IS NULL), 0) unread
+    const count = await db.get<{
+      total: number;
+      unread: number;
+    }>(sql`SELECT count(*) total, coalesce(sum(read_at IS NULL), 0) unread
       FROM ${notifications} WHERE recipient_id = ${userId} AND is_deleted = 0`);
     const limit = Math.min(50, Math.max(1, signedInteger(c.req.query('limit'), 10)));
     const total = count!.total;
     const page = Math.min(Math.max(1, Math.ceil(total / limit)), Math.max(1, signedInteger(c.req.query('page'), 1)));
-    const list = await db.all<{ id: number; type: string; target_type: string; recruitment_id: number; application_id: number | null;
-      chat_room_id: number | null; sender_nickname: string | null; message_preview: string; is_read: number; created_at: string }>(sql`SELECT id, type, target_type, recruitment_id,
+    const list = await db.all<{
+      id: number;
+      type: string;
+      target_type: string;
+      recruitment_id: number;
+      application_id: number | null;
+      chat_room_id: number | null;
+      sender_nickname: string | null;
+      message_preview: string;
+      is_read: number;
+      created_at: string;
+    }>(sql`SELECT id, type, target_type, recruitment_id,
         application_id, chat_room_id, sender_nickname, message_preview, read_at IS NOT NULL is_read, created_at
       FROM ${notifications} WHERE recipient_id = ${userId} AND is_deleted = 0 ORDER BY id DESC LIMIT ${limit} OFFSET ${(page - 1) * limit}`);
-    return c.json({ notifications: list.map((n) => ({ ...n, is_read: Boolean(n.is_read), created_at: kstTimestamp(n.created_at) })),
-      unread_count: count!.unread, total_count: total, current_count: list.length, total_page: Math.ceil(total / limit), current_page: page });
+    return c.json({
+      notifications: list.map((n) => ({ ...n, is_read: Boolean(n.is_read), created_at: kstTimestamp(n.created_at) })),
+      unread_count: count!.unread,
+      total_count: total,
+      current_count: list.length,
+      total_page: Math.ceil(total / limit),
+      current_page: page,
+    });
   });
   app.post(`${base}/mark-all-read`, async (c) => {
     const id = requirePrincipal(c, ['STUDENT']).id;
-    await c.get('db').run(sql`UPDATE ${notifications} SET read_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE recipient_id = ${id} AND is_deleted = 0 AND read_at IS NULL`);
+    await c
+      .get('db')
+      .run(
+        sql`UPDATE ${notifications} SET read_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE recipient_id = ${id} AND is_deleted = 0 AND read_at IS NULL`,
+      );
     return c.body(null, 204);
   });
   app.post(`${base}/:notificationId/read`, async (c) => {
@@ -342,12 +492,20 @@ function registerNotifications(app: Hono<ApiEnv>): void {
   });
   app.delete(base, async (c) => {
     const id = requirePrincipal(c, ['STUDENT']).id;
-    await c.get('db').run(sql`UPDATE ${notifications} SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE recipient_id = ${id} AND is_deleted = 0`);
+    await c
+      .get('db')
+      .run(
+        sql`UPDATE ${notifications} SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE recipient_id = ${id} AND is_deleted = 0`,
+      );
     return c.body(null, 204);
   });
   app.delete(`${base}/:notificationId`, async (c) => {
     const id = requirePrincipal(c, ['STUDENT']).id;
-    await c.get('db').run(sql`UPDATE ${notifications} SET is_deleted = 1 WHERE recipient_id = ${id} AND id = ${integer(c.req.param('notificationId'))} AND is_deleted = 0`);
+    await c
+      .get('db')
+      .run(
+        sql`UPDATE ${notifications} SET is_deleted = 1 WHERE recipient_id = ${id} AND id = ${integer(c.req.param('notificationId'))} AND is_deleted = 0`,
+      );
     return c.body(null, 204);
   });
 }

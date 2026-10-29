@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-
 import { cn } from '@bcsdlab/utils';
 import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+
 import type { TeamChatMessage, TeamChatRoomListItem } from 'api/team/entity';
 import { teamMutations } from 'api/team/mutations';
 import { TEAM_CHAT_MESSAGE_LIMIT, teamQueries } from 'api/team/queries';

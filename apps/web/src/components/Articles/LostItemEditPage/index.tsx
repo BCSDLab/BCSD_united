@@ -1,7 +1,7 @@
 import { useState } from 'react';
+import { useSuspenseQuery } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
 
-import { useSuspenseQuery } from '@tanstack/react-query';
 import type { LostItemImageDTO } from 'api/articles/entity';
 import { articleQueries } from 'api/articles/queries';
 import LostItemPageTemplate from 'components/Articles/components/LostItemPageTemplate';
@@ -51,7 +51,7 @@ export default function LostItemEditPage({ articleId }: LostItemEditPageProps) {
         id: article.id,
         type,
         category: article.category as FindUserCategory,
-        foundDate: new Date(article.found_date),
+        foundDate: new Date(`${article.found_date}T00:00:00`),
         foundPlace: article.found_place,
         content: article.content ?? '',
         author: article.author,

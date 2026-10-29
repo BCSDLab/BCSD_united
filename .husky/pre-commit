@@ -1,1 +1,2 @@
-pnpm exec lint-staged
+# Windows 실행 래퍼가 추가하는 인자를 고려해 명령 길이와 동시 실행 수를 제한한다.
+corepack pnpm exec lint-staged --max-arg-length 4000 --concurrent 2

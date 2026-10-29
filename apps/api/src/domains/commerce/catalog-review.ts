@@ -4,8 +4,24 @@ import { requirePrincipal } from '@api/auth';
 import { schema } from '@api/db/schema';
 import type { ApiEnv } from '@api/runtime';
 import {
-  array, atomic, body, catalogDate, catalogError, catalogNow, integer, invalid, object, outbox, pageInfo, rows, shop, signalCatalogJobs, strings, text,
-  type CatalogContext, type JsonObject,
+  array,
+  atomic,
+  body,
+  catalogDate,
+  catalogError,
+  catalogNow,
+  integer,
+  invalid,
+  object,
+  outbox,
+  pageInfo,
+  rows,
+  shop,
+  signalCatalogJobs,
+  strings,
+  text,
+  type CatalogContext,
+  type JsonObject,
 } from '@api/domains/commerce/catalog-shared';
 
 type Review = typeof schema.shop_reviews.$inferSelect;
@@ -19,10 +35,19 @@ async function review(c: CatalogContext, id: number): Promise<Review> {
 }
 
 async function reviewResponse(c: CatalogContext, value: Review) {
-  const [user] = await rows<{ nickname: string | null; anonymous_nickname: string }>(c, sql`select nickname,anonymous_nickname from ${schema.users} where id=${value.reviewer_id}`);
+  const [user] = await rows<{ nickname: string | null; anonymous_nickname: string }>(
+    c,
+    sql`select nickname,anonymous_nickname from ${schema.users} where id=${value.reviewer_id}`,
+  );
   const [images, menus] = await Promise.all([
-    rows<{ image_urls: string }>(c, sql`select image_urls from ${schema.shop_review_images} where review_id=${value.id} order by id`),
-    rows<{ menu_name: string }>(c, sql`select menu_name from ${schema.shop_review_menus} where review_id=${value.id} order by id`),
+    rows<{ image_urls: string }>(
+      c,
+      sql`select image_urls from ${schema.shop_review_images} where review_id=${value.id} order by id`,
+    ),
+    rows<{ menu_name: string }>(
+      c,
+      sql`select menu_name from ${schema.shop_review_menus} where review_id=${value.id} order by id`,
+    ),
   ]);
   return {
     review_id: value.id,
@@ -32,18 +57,23 @@ async function reviewResponse(c: CatalogContext, value: Review) {
     image_urls: images.map((row) => row.image_urls),
     menu_names: menus.map((row) => row.menu_name),
     is_modified: value.created_at !== value.updated_at,
-    created_at: catalogDate(value.created_at),
+    created_at: value.created_at === null ? null : catalogDate(value.created_at),
   };
 }
 
 function reviewOrder(c: CatalogContext): SQL {
   const sorter = c.req.query('sorter') ?? 'LATEST';
   switch (sorter) {
-    case 'LATEST': return sql`created_at desc`;
-    case 'OLDEST': return sql`created_at asc`;
-    case 'HIGHEST_RATING': return sql`rating desc`;
-    case 'LOWEST_RATING': return sql`rating asc`;
-    default: return invalid('sorter', '유효하지 않은 정렬입니다.');
+    case 'LATEST':
+      return sql`created_at desc`;
+    case 'OLDEST':
+      return sql`created_at asc`;
+    case 'HIGHEST_RATING':
+      return sql`rating desc`;
+    case 'LOWEST_RATING':
+      return sql`rating asc`;
+    default:
+      return invalid('sorter', '유효하지 않은 정렬입니다.');
   }
 }
 
@@ -59,8 +89,14 @@ function reviewInput(b: JsonObject, emptyContent: string | null) {
 
 function reviewAttachmentStatements(reviewId: SQL, images: string[], menus: string[], now: string): SQL[] {
   return [
-    ...images.map((image) => sql`insert into ${schema.shop_review_images} (review_id,image_urls,created_at,updated_at) values (${reviewId},${image},${now},${now})`),
-    ...menus.map((menu) => sql`insert into ${schema.shop_review_menus} (review_id,menu_name,created_at,updated_at) values (${reviewId},${menu},${now},${now})`),
+    ...images.map(
+      (image) =>
+        sql`insert into ${schema.shop_review_images} (review_id,image_urls,created_at,updated_at) values (${reviewId},${image},${now},${now})`,
+    ),
+    ...menus.map(
+      (menu) =>
+        sql`insert into ${schema.shop_review_menus} (review_id,menu_name,created_at,updated_at) values (${reviewId},${menu},${now},${now})`,
+    ),
   ];
 }
 
@@ -71,14 +107,22 @@ function requireShopReview(found: Review, shopId: number, message: string): void
 
 export function registerCatalogReviews(app: Hono<ApiEnv>) {
   app.get('/shops/reviews/reports/categories', async (c) => {
-    const categories = await rows<{ name: string; detail: string }>(c, sql`select name,detail from ${schema.shop_review_reports_categories} order by id`);
+    const categories = await rows<{ name: string; detail: string }>(
+      c,
+      sql`select name,detail from ${schema.shop_review_reports_categories} order by id`,
+    );
     return c.json({ count: categories.length, categories });
   });
   app.get('/shops/:shopId/reviews/me', async (c) => {
     const user = requirePrincipal(c, [...REVIEWER_ROLES]);
     const shopId = integer(c.req.param('shopId'));
-    const values = await rows<Review>(c, sql`select * from ${schema.shop_reviews} where shop_id=${shopId} and reviewer_id=${user.id} and is_deleted=0 order by ${reviewOrder(c)}`);
-    const reviews = await Promise.all(values.map(async (found) => ({ ...await reviewResponse(c, found), is_mine: true })));
+    const values = await rows<Review>(
+      c,
+      sql`select * from ${schema.shop_reviews} where shop_id=${shopId} and reviewer_id=${user.id} and is_deleted=0 order by ${reviewOrder(c)}`,
+    );
+    const reviews = await Promise.all(
+      values.map(async (found) => ({ ...(await reviewResponse(c, found)), is_mine: true })),
+    );
     return c.json({ count: reviews.length, reviews });
   });
   app.get('/shops/:shopId/reviews', async (c) => {
@@ -87,7 +131,10 @@ export function registerCatalogReviews(app: Hono<ApiEnv>) {
     const page = Math.max(1, Number(c.req.query('page') ?? 1));
     if (!Number.isInteger(limit) || !Number.isInteger(page)) invalid('page', '페이지 값이 올바르지 않습니다.');
     const ratings: Record<string, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-    const groups = await rows<{ rating: number; count: number }>(c, sql`select rating,count(*) count from ${schema.shop_reviews} where shop_id=${shopId} and is_deleted=0 group by rating`);
+    const groups = await rows<{ rating: number; count: number }>(
+      c,
+      sql`select rating,count(*) count from ${schema.shop_reviews} where shop_id=${shopId} and is_deleted=0 group by rating`,
+    );
     let total = 0;
     let sum = 0;
     for (const group of groups) {
@@ -96,12 +143,24 @@ export function registerCatalogReviews(app: Hono<ApiEnv>) {
       sum += group.rating * group.count;
     }
     const { offset, ...paging } = pageInfo(total, page, limit);
-    const values = await rows<Review>(c, sql`select * from ${schema.shop_reviews} where shop_id=${shopId} and is_deleted=0 order by ${reviewOrder(c)} limit ${limit} offset ${offset}`);
-    const reviews = await Promise.all(values.map(async (found) => {
-      const [reported] = await rows<{ reported: number }>(c, sql`select exists(select 1 from ${schema.shop_review_reports} where review_id=${found.id} and status<>'DISMISSED') reported`);
-      return { ...await reviewResponse(c, found), is_mine: found.reviewer_id === c.get('principal')?.id, is_reported: !!reported!.reported };
-    }));
-    const average_rating = total ? Math.round(sum / total * 10) / 10 : 0;
+    const values = await rows<Review>(
+      c,
+      sql`select * from ${schema.shop_reviews} where shop_id=${shopId} and is_deleted=0 order by ${reviewOrder(c)} limit ${limit} offset ${offset}`,
+    );
+    const reviews = await Promise.all(
+      values.map(async (found) => {
+        const [reported] = await rows<{ reported: number }>(
+          c,
+          sql`select exists(select 1 from ${schema.shop_review_reports} where review_id=${found.id} and status<>'DISMISSED') reported`,
+        );
+        return {
+          ...(await reviewResponse(c, found)),
+          is_mine: found.reviewer_id === c.get('principal')?.id,
+          is_reported: !!reported!.reported,
+        };
+      }),
+    );
+    const average_rating = total ? Math.round((sum / total) * 10) / 10 : 0;
     return c.json({ ...paging, current_count: reviews.length, statistics: { average_rating, ratings }, reviews });
   });
   app.get('/shops/:shopId/reviews/:reviewId', async (c) => {
@@ -116,7 +175,10 @@ export function registerCatalogReviews(app: Hono<ApiEnv>) {
     const { rating, content, images, menus } = reviewInput(await body(c), '');
     const now = catalogNow();
     const since = new Date(Date.now() - DAY_MS).toISOString().replace('T', ' ').replace('Z', '');
-    const existing = await rows<{ id: number }>(c, sql`select id from ${schema.shop_reviews} where reviewer_id=${user.id} and shop_id=${shopId} and created_at>${since} limit 1`);
+    const existing = await rows<{ id: number }>(
+      c,
+      sql`select id from ${schema.shop_reviews} where reviewer_id=${user.id} and shop_id=${shopId} and created_at>${since} limit 1`,
+    );
     const rateMessage = `한 상점에 하루에 한번만 리뷰를 남길 수 있습니다. studentId : ${user.id}shopId : ${shopId}`;
     if (existing.length) catalogError(400, '', rateMessage);
     const id = sql`(select max(id) from ${schema.shop_reviews})`;
@@ -153,7 +215,9 @@ export function registerCatalogReviews(app: Hono<ApiEnv>) {
     const user = requirePrincipal(c, [...REVIEWER_ROLES]);
     const found = await review(c, integer(c.req.param('reviewId')));
     if (found.reviewer_id !== user.id) catalogError(401, 'UNAUTHORIZED_USER', '인증이 필요합니다.');
-    await atomic(c.env, [sql`update ${schema.shop_reviews} set is_deleted=1,updated_at=${catalogNow()} where id=${found.id} and reviewer_id=${user.id}`]);
+    await atomic(c.env, [
+      sql`update ${schema.shop_reviews} set is_deleted=1,updated_at=${catalogNow()} where id=${found.id} and reviewer_id=${user.id}`,
+    ]);
     return c.body(null, 204);
   });
   app.post('/shops/:shopId/reviews/:reviewId/reports', async (c) => {
@@ -169,7 +233,10 @@ export function registerCatalogReviews(app: Hono<ApiEnv>) {
     const now = catalogNow();
     const job = { kind: 'commerce.catalog.review-reported', key: crypto.randomUUID() };
     await atomic(c.env, [
-      ...reports.map((report) => sql`insert into ${schema.shop_review_reports} (review_id,user_id,title,content,status,created_at,updated_at) values (${found.id},${user.id},${report.title},${report.content},'UNHANDLED',${now},${now})`),
+      ...reports.map(
+        (report) =>
+          sql`insert into ${schema.shop_review_reports} (review_id,user_id,title,content,status,created_at,updated_at) values (${found.id},${user.id},${report.title},${report.content},'UNHANDLED',${now},${now})`,
+      ),
       outbox(job.kind, { shop: reported.name }, Date.now(), job.key),
     ]);
     signalCatalogJobs(c, [job]);

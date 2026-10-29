@@ -3,10 +3,11 @@ on:
   push:
     branches:
       - main
+      - preview
   pull_request:
     branches:
       - main
-      - develop
+      - preview
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -39,4 +40,3 @@ jobs:
       - uses: ./.github/actions/setup
       - name: Check types
         run: pnpm typecheck
-

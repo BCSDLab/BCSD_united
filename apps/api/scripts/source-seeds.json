@@ -462,9 +462,7 @@
       {
         "id": 1,
         "name": "기계공학부",
-        "dept_nums": [
-          "N/A"
-        ],
+        "dept_nums": ["N/A"],
         "display_order": 1000,
         "is_selectable": 1,
         "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"
@@ -472,9 +470,7 @@
       {
         "id": 2,
         "name": "메카트로닉스공학부",
-        "dept_nums": [
-          "N/A"
-        ],
+        "dept_nums": ["N/A"],
         "display_order": 1000,
         "is_selectable": 1,
         "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"
@@ -482,9 +478,7 @@
       {
         "id": 3,
         "name": "전기전자통신공학부",
-        "dept_nums": [
-          "N/A"
-        ],
+        "dept_nums": ["N/A"],
         "display_order": 1000,
         "is_selectable": 1,
         "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"
@@ -492,9 +486,7 @@
       {
         "id": 4,
         "name": "컴퓨터공학부",
-        "dept_nums": [
-          "N/A"
-        ],
+        "dept_nums": ["N/A"],
         "display_order": 1000,
         "is_selectable": 1,
         "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"
@@ -502,9 +494,7 @@
       {
         "id": 5,
         "name": "디자인·건축공학부",
-        "dept_nums": [
-          "N/A"
-        ],
+        "dept_nums": ["N/A"],
         "display_order": 1000,
         "is_selectable": 1,
         "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"
@@ -512,9 +502,7 @@
       {
         "id": 6,
         "name": "에너지신소재화학공학부",
-        "dept_nums": [
-          "N/A"
-        ],
+        "dept_nums": ["N/A"],
         "display_order": 1000,
         "is_selectable": 1,
         "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"
@@ -522,9 +510,7 @@
       {
         "id": 7,
         "name": "산업경영학부",
-        "dept_nums": [
-          "N/A"
-        ],
+        "dept_nums": ["N/A"],
         "display_order": 1000,
         "is_selectable": 1,
         "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"
@@ -532,9 +518,7 @@
       {
         "id": 8,
         "name": "고용서비스정책학과",
-        "dept_nums": [
-          "N/A"
-        ],
+        "dept_nums": ["N/A"],
         "display_order": 1000,
         "is_selectable": 1,
         "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"
@@ -542,9 +526,7 @@
       {
         "id": 9,
         "name": "디자인공학과",
-        "dept_nums": [
-          "N/A"
-        ],
+        "dept_nums": ["N/A"],
         "display_order": 1000,
         "is_selectable": 1,
         "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"
@@ -552,9 +534,7 @@
       {
         "id": 10,
         "name": "건축공학과",
-        "dept_nums": [
-          "N/A"
-        ],
+        "dept_nums": ["N/A"],
         "display_order": 1000,
         "is_selectable": 1,
         "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"
@@ -562,9 +542,7 @@
       {
         "id": 11,
         "name": "공학융합자율전공",
-        "dept_nums": [
-          "N/A"
-        ],
+        "dept_nums": ["N/A"],
         "display_order": 1000,
         "is_selectable": 1,
         "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"
@@ -572,9 +550,7 @@
       {
         "id": 12,
         "name": "ICT융합자율전공",
-        "dept_nums": [
-          "N/A"
-        ],
+        "dept_nums": ["N/A"],
         "display_order": 1000,
         "is_selectable": 1,
         "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"
@@ -582,9 +558,7 @@
       {
         "id": 13,
         "name": "경영학부",
-        "dept_nums": [
-          "N/A"
-        ],
+        "dept_nums": ["N/A"],
         "display_order": 1000,
         "is_selectable": 1,
         "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"
@@ -592,9 +566,7 @@
       {
         "id": 14,
         "name": "사회융합자율전공",
-        "dept_nums": [
-          "N/A"
-        ],
+        "dept_nums": ["N/A"],
         "display_order": 1000,
         "is_selectable": 1,
         "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"
@@ -602,9 +574,7 @@
       {
         "id": 15,
         "name": "미래융합학부",
-        "dept_nums": [
-          "N/A"
-        ],
+        "dept_nums": ["N/A"],
         "display_order": 1000,
         "is_selectable": 1,
         "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"
@@ -612,9 +582,7 @@
       {
         "id": 16,
         "name": "글로벌인재학부",
-        "dept_nums": [
-          "N/A"
-        ],
+        "dept_nums": ["N/A"],
         "display_order": 1000,
         "is_selectable": 1,
         "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"
@@ -622,9 +590,7 @@
       {
         "id": 17,
         "name": "반도체·디스플레이공학과",
-        "dept_nums": [
-          "N/A"
-        ],
+        "dept_nums": ["N/A"],
         "display_order": 1000,
         "is_selectable": 1,
         "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"
@@ -632,9 +598,7 @@
       {
         "id": 18,
         "name": "기전융합공학과",
-        "dept_nums": [
-          "N/A"
-        ],
+        "dept_nums": ["N/A"],
         "display_order": 1000,
         "is_selectable": 1,
         "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"
@@ -642,9 +606,7 @@
       {
         "id": 19,
         "name": "기계설계공학과",
-        "dept_nums": [
-          "N/A"
-        ],
+        "dept_nums": ["N/A"],
         "display_order": 1000,
         "is_selectable": 1,
         "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"
@@ -652,9 +614,7 @@
       {
         "id": 20,
         "name": "강소기업경영학과",
-        "dept_nums": [
-          "N/A"
-        ],
+        "dept_nums": ["N/A"],
         "display_order": 1000,
         "is_selectable": 1,
         "curriculum_link": "https://www.koreatech.ac.kr/menu.es?mid=a10201000000"

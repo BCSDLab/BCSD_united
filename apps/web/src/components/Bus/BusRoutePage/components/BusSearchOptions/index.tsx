@@ -1,4 +1,5 @@
 import { cn } from '@bcsdlab/utils';
+
 import type { BusTypeRequest } from 'api/bus/entity';
 import ChevronDown24 from 'assets/svg/Bus/chevron-down-24x24.svg';
 import ChevronDown32 from 'assets/svg/Bus/chevron-down-32x32.svg';
@@ -12,6 +13,7 @@ import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
 import { useEscapeKeyDown } from 'utils/hooks/ui/useEscapeKeyDown';
 import { useOutsideClick } from 'utils/hooks/ui/useOutsideClick';
+import { useServerCalendarDate } from 'utils/ssr/useServerNow';
 
 import styles from './BusSearchOptions.module.scss';
 
@@ -23,7 +25,8 @@ interface BusSearchOptionsProps {
 
 export default function BusSearchOptions({ busType, setBusType, timeSelect }: BusSearchOptionsProps) {
   const isMobile = useMediaQuery();
-  const { nowDate } = timeSelect.timeState;
+  const today = useServerCalendarDate();
+  const { nowDate, hour, minute } = timeSelect.timeState;
   const [isTimeDetailOpen, , closeTimeDetail, toggleTimeDetail] = useBooleanState(false);
   const [isBusTypeOpen, , closeBusType, toggleBusType] = useBooleanState(false);
   const { containerRef } = useOutsideClick({ onOutsideClick: closeBusType });
@@ -47,7 +50,7 @@ export default function BusSearchOptions({ busType, setBusType, timeSelect }: Bu
       <div className={styles['time-bus']}>
         <button type="button" className={styles['depart-time']} onClick={handleTimeDetailToggle}>
           <span className={styles['depart-time__text']}>
-            {`${formatRelativeDate(nowDate)} ${format12Hour(nowDate)}`}
+            {`${formatRelativeDate(nowDate, today)} ${format12Hour(hour, minute)}`}
           </span>
           <span className={styles['depart-time__description']}>출발</span>
           <span

@@ -1,5 +1,4 @@
 import { Fragment } from 'react';
-
 import { cn } from '@bcsdlab/utils';
 
 import styles from './StepIndicator.module.scss';

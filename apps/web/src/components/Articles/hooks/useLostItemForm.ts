@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react';
 
+import { useServerCalendarDate } from 'utils/ssr/useServerNow';
+
 import type { FindUserCategory } from './useArticlesLogger';
 
 export interface LostItem {
@@ -33,11 +35,11 @@ export interface LostItemHandler {
   checkIsFoundPlaceSelected: () => void;
 }
 
-const createInitialForm = (id: number, type: 'FOUND' | 'LOST'): LostItem => ({
+const createInitialForm = (id: number, type: 'FOUND' | 'LOST', today: Date): LostItem => ({
   id,
   type,
   category: '',
-  foundDate: new Date(),
+  foundDate: new Date(today),
   foundPlace: '',
   content: '',
   author: '',
@@ -56,8 +58,9 @@ interface UseLostItemFormOptions {
 }
 
 export const useLostItemForm = ({ defaultType, initialItems }: UseLostItemFormOptions) => {
+  const today = useServerCalendarDate();
   const idCounter = useRef(initialItems?.length ?? 1);
-  const [lostItems, setLostItems] = useState<LostItem[]>(initialItems ?? [createInitialForm(0, defaultType)]);
+  const [lostItems, setLostItems] = useState<LostItem[]>(initialItems ?? [createInitialForm(0, defaultType, today)]);
 
   const updateItem = (index: number, updates: Partial<LostItem>) => {
     setLostItems((prev) => {
@@ -109,7 +112,7 @@ export const useLostItemForm = ({ defaultType, initialItems }: UseLostItemFormOp
   const addLostItem = () => {
     const newId = idCounter.current;
     idCounter.current += 1;
-    setLostItems((prev) => [...prev, createInitialForm(newId, defaultType)]);
+    setLostItems((prev) => [...prev, createInitialForm(newId, defaultType, today)]);
   };
 
   const removeLostItem = (key: number) => {

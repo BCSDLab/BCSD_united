@@ -1,5 +1,4 @@
-import { Link } from '@tanstack/react-router';
-import { useLocation } from '@tanstack/react-router';
+import { Link, useLocation } from '@tanstack/react-router';
 
 import LoginRequiredModal from 'components/modal/LoginRequiredModal';
 import type { Portal } from 'components/modal/Modal/PortalProvider';
@@ -11,6 +10,7 @@ import useLogger from 'utils/hooks/analytics/useLogger';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useModalPortal from 'utils/hooks/layout/useModalPortal';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
+import { useServerCalendarDate } from 'utils/ssr/useServerNow';
 
 import styles from './Footer.module.scss';
 
@@ -20,6 +20,7 @@ function Footer() {
   const isStage = process.env.NEXT_PUBLIC_API_PATH?.includes('stage');
   const portalManager = useModalPortal();
   const isLoggedIn = useIsLoggedIn();
+  const copyrightYear = useServerCalendarDate().getFullYear();
 
   const routeLocation = useLocation();
   const { pathname } = routeLocation; // 현재 URL의 경로
@@ -67,16 +68,31 @@ function Footer() {
             .filter((menu) => !menu.mobileOnly)
             .map((submenuInfo) => (
               <li className={styles.footer__service} key={submenuInfo.title}>
-                <>{/^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(isStage && submenuInfo.stageLink ? submenuInfo.stageLink : submenuInfo.link) ? <a  href={isStage && submenuInfo.stageLink ? submenuInfo.stageLink : submenuInfo.link} onClick={(e) => handleClickMenu(e, submenuInfo.title)}>
-                  {submenuInfo.title}
-                </a> : <Link  to={isStage && submenuInfo.stageLink ? submenuInfo.stageLink : submenuInfo.link} preload={false} onClick={(e) => handleClickMenu(e, submenuInfo.title)}>
-                  {submenuInfo.title}
-                </Link>}</>
+                <>
+                  {/^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(
+                    isStage && submenuInfo.stageLink ? submenuInfo.stageLink : submenuInfo.link,
+                  ) ? (
+                    <a
+                      href={isStage && submenuInfo.stageLink ? submenuInfo.stageLink : submenuInfo.link}
+                      onClick={(e) => handleClickMenu(e, submenuInfo.title)}
+                    >
+                      {submenuInfo.title}
+                    </a>
+                  ) : (
+                    <Link
+                      to={isStage && submenuInfo.stageLink ? submenuInfo.stageLink : submenuInfo.link}
+                      preload={false}
+                      onClick={(e) => handleClickMenu(e, submenuInfo.title)}
+                    >
+                      {submenuInfo.title}
+                    </Link>
+                  )}
+                </>
               </li>
             ))}
         </ul>
         <div className={styles.sitemap}>
-          <Link className={styles.sitemap__logo} to={ROUTES.Main()} >
+          <Link className={styles.sitemap__logo} to={ROUTES.Main()}>
             <img
               src="https://static.koreatech.in/assets/img/logo_white.png"
               alt="KOIN service logo"
@@ -109,7 +125,7 @@ function Footer() {
               </a>
             </li>
             <li className={styles.sitemap__link}>
-              <Link to={ROUTES.PrivatePolicy()} preload={false} >
+              <Link to={ROUTES.PrivatePolicy()} preload={false}>
                 개인정보 처리방침
               </Link>
             </li>
@@ -131,7 +147,7 @@ function Footer() {
                 decoding="async"
               />
             </a>
-            <Link className={styles['sitemap__icon-link']} to={ROUTES.Main()} >
+            <Link className={styles['sitemap__icon-link']} to={ROUTES.Main()}>
               <img
                 src="https://static.koreatech.in/upload/1aae9a021f0338527c28e5c3d0518fa1.png"
                 alt="home"
@@ -144,7 +160,7 @@ function Footer() {
           </div>
           <span className={styles.sitemap__copyright}>
             COPYRIGHT ⓒ&nbsp;
-            {new Date().getFullYear()}
+            {copyrightYear}
             &nbsp;BY BCSDLab ALL RIGHTS RESERVED.
           </span>
         </div>

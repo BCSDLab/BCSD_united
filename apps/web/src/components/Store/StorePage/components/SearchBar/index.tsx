@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-
 import { useSuspenseQuery } from '@tanstack/react-query';
+
 import { storeQueries } from 'api/store/queries';
 import MobileSearchIcon from 'assets/svg/mobile-store-search-icon.svg';
 import DesktopSearchIcon from 'assets/svg/Store/search-icon.svg';

@@ -14,8 +14,10 @@ export function registerMisc(app: Hono<ApiEnv>): void {
     if (!['GET', 'HEAD', 'OPTIONS'].includes(c.req.method)) {
       let key: string | null = null;
       if (/^\/admin\/banners(?:\/|$)/.test(c.req.path)) key = 'catalog:banner';
-      else if (/^\/admin\/version\//.test(c.req.path)) key = `catalog:version:${c.req.path.split('/')[3]?.toLowerCase()}`;
-      else if (/^\/notification(?:\/|$)/.test(c.req.path) && c.get('principal')) key = `notification:user:${c.get('principal')!.id}`;
+      else if (c.req.path.startsWith('/admin/version/'))
+        key = `catalog:version:${c.req.path.split('/')[3]?.toLowerCase()}`;
+      else if (/^\/notification(?:\/|$)/.test(c.req.path) && c.get('principal'))
+        key = `notification:user:${c.get('principal')!.id}`;
       if (key) {
         const response = await coordinateRequest(c, key);
         if (response) return response;

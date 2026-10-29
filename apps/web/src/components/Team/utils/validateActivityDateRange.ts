@@ -1,5 +1,7 @@
-import isValidCalendarDate from 'components/Team/utils/isValidCalendarDate';
 import type { z } from 'zod';
+
+import isValidCalendarDate from 'components/Team/utils/isValidCalendarDate';
+import { getYyyyMmDd, toKoreanCalendarDate } from 'utils/ts/calendar';
 
 interface ActivityDateRange {
   startDate: string;
@@ -9,7 +11,7 @@ interface ActivityDateRange {
 
 // 지원서 작성 / 프로필 양쪽의 활동 이력 스키마가 공유하는 시작일 · 종료일 검증 규칙.
 export function validateActivityDateRange(activity: ActivityDateRange, context: z.RefinementCtx) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getYyyyMmDd(toKoreanCalendarDate(new Date()));
 
   if (isValidCalendarDate(activity.startDate) && activity.startDate > today) {
     context.addIssue({ code: 'custom', path: ['startDate'], message: '활동 시작일은 오늘 이전으로 선택해주세요.' });

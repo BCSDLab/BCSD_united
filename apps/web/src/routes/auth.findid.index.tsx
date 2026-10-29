@@ -11,8 +11,6 @@ function FindIdPage() {
   return isMobile ? <MobileFindIdByPhone /> : <PCFindIdByPhone />;
 }
 
-
-
 export default FindIdPage;
 
 export const Route = createFileRoute('/auth/findid/')({
@@ -22,5 +20,6 @@ export const Route = createFileRoute('/auth/findid/')({
 
 function RouteComponent() {
   const page = <FindIdPage />;
+
   return <FindIdLayout>{page}</FindIdLayout>;
 }

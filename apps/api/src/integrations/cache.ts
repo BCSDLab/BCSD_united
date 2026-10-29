@@ -26,9 +26,17 @@ export async function purgeFiles(env: Bindings, keys: string[]): Promise<void> {
       headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
       body: JSON.stringify({ files: files.slice(offset, offset + PURGE_BATCH) }),
     });
-    const result = await jsonResponse<{ success?: boolean; errors?: { code?: number }[] }>('Cloudflare Cache', response);
+    const result = await jsonResponse<{ success?: boolean; errors?: { code?: number }[] }>(
+      'Cloudflare Cache',
+      response,
+    );
     if (!result.success) {
-      throw new IntegrationError('Cloudflare Cache', String(result.errors?.[0]?.code ?? 'PURGE_FAILED'), response.status, true);
+      throw new IntegrationError(
+        'Cloudflare Cache',
+        String(result.errors?.[0]?.code ?? 'PURGE_FAILED'),
+        response.status,
+        true,
+      );
     }
   }
 }

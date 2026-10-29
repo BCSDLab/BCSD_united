@@ -1,14 +1,14 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import Image from 'components/ui/Image';
 import { Link } from '@tanstack/react-router';
+import { useSwipeable } from 'react-swipeable';
 
 import type { BannersResponse } from 'api/banner/entity';
 import ArrowIcon from 'assets/svg/previous-arrow-icon.svg';
-import { useSwipeable } from 'react-swipeable';
+import Image from 'components/ui/Image';
 import useLogger from 'utils/hooks/analytics/useLogger';
-import { parseSearch } from 'utils/routing/search';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
+import { parseSearch } from 'utils/routing/search';
 import { getCookie, setCookie } from 'utils/ts/cookie';
 
 import styles from './Banner.module.scss';
@@ -52,7 +52,13 @@ function BannerCard({ handleImageLinkClick, image_url, redirect_link, isFirst }:
     const [to, search = ''] = pathAndSearch.split('?');
 
     return (
-      <Link to={to} search={parseSearch(search)} hash={hash} onClick={handleImageLinkClick} className={styles['slider__image-outer']}>
+      <Link
+        to={to}
+        search={parseSearch(search)}
+        hash={hash}
+        onClick={handleImageLinkClick}
+        className={styles['slider__image-outer']}
+      >
         {imgWrapper}
       </Link>
     );

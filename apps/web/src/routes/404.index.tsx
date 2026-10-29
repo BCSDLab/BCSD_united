@@ -1,17 +1,13 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import PageLayout from 'components/layout';
-
 
 import Error from 'assets/svg/page-not-found-error.svg';
+import PageLayout from 'components/layout';
 import ROUTES from 'static/routes';
 
 import styles from 'pages/404/PageNotFound.module.scss';
 
 export default function PageNotFound() {
-  
   const routeNavigate = useNavigate();
-  
-  
 
   return (
     <div className={styles.template}>
@@ -40,6 +36,7 @@ export const Route = createFileRoute('/404/')({
 
 function RouteComponent() {
   const page = <PageNotFound />;
+
   return <PageLayout>{page}</PageLayout>;
 }
 

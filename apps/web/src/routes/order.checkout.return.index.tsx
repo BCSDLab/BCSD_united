@@ -1,15 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
-import { loadPageData, validatePageInput, type PageRequest } from 'utils/ssr/pageData';
-
-
 
 import { SSRLayout } from 'components/layout';
 import OrderViewport from 'components/Order/common/OrderViewport';
 import DesktopNotice from 'components/Order/DesktopNotice';
 import OrderPaymentReturnPage, { type PaymentReturnParams } from 'components/Order/OrderPaymentReturnPage';
 import StoreMobileHeader from 'components/Store/mobile/common/StoreMobileHeader';
-
+import { loadPageData, validatePageInput, type PageRequest } from 'utils/ssr/pageData';
 
 interface Props {
   isDesktop: boolean;
@@ -30,7 +27,6 @@ const parsePaymentParams = (query: PageRequest['search']): PaymentReturnParams |
   return { orderType, orderId, paymentKey, amount };
 };
 
-
 function OrderCheckoutReturnRoute({ isDesktop, payment }: Props) {
   return (
     <>
@@ -42,16 +38,17 @@ function OrderCheckoutReturnRoute({ isDesktop, payment }: Props) {
   );
 }
 
-
-
 export default OrderCheckoutReturnRoute;
 
 // 결제 승인은 사용자별 화면이라 공개 캐시를 켜지 않는다. 승인 요청은 클라이언트에서 한 번만 보낸다
-const getPageData = createServerFn({ method: 'GET', strict: { output: false } }).validator(validatePageInput)
-  .handler(({ data }) => loadPageData(data, (context, _cacheControl, serverRequest) => ({
-    isDesktop: serverRequest.device !== 'mobile',
-    payment: parsePaymentParams(context.search),
-  })));
+const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
+  .validator(validatePageInput)
+  .handler(({ data }) =>
+    loadPageData(data, (context, _cacheControl, serverRequest) => ({
+      isDesktop: serverRequest.device !== 'mobile',
+      payment: parsePaymentParams(context.search),
+    })),
+  );
 
 export const Route = createFileRoute('/order/checkout/return/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
@@ -63,5 +60,6 @@ export const Route = createFileRoute('/order/checkout/return/')({
 function RouteComponent() {
   const props = Route.useLoaderData();
   const page = <OrderCheckoutReturnRoute {...props} />;
+
   return <SSRLayout mobileHeader="page">{page}</SSRLayout>;
 }

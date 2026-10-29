@@ -1,6 +1,6 @@
+import { useSuspenseQuery } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
 
-import { useSuspenseQuery } from '@tanstack/react-query';
 import { clubQueries } from 'api/club/queries';
 import BookIcon from 'assets/svg/Club/book-icon.svg';
 import ExerciseIcon from 'assets/svg/Club/exercise-icon.svg';

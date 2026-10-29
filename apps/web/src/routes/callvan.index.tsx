@@ -1,11 +1,8 @@
+import { useEffect, useState } from 'react';
+import { dehydrate, QueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate, useSearch, useParams, redirect } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
-import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
-import { useEffect, useState } from 'react';
 
-
-
-import { dehydrate, QueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import type { CallvanListRequest } from 'api/callvan/entity';
 import { callvanQueries, callvanQueryKeys } from 'api/callvan/queries';
 import CallvanList from 'components/Callvan/components/CallvanList';
@@ -16,7 +13,7 @@ import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import useMount from 'utils/hooks/state/useMount';
 import useInfiniteScroll from 'utils/hooks/ui/useInfiniteScroll';
-
+import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 
 import listStyles from 'components/Callvan/components/CallvanList/CallvanList.module.scss';
 
@@ -43,13 +40,12 @@ function toCallvanApiParams(params: CallvanParams): Omit<CallvanListRequest, 'pa
   };
 }
 
-
-
 function useCallvanParams(initialParams: CallvanParams): CallvanParams {
-  
-  
-  const routeQuery: Record<string, string | string[] | undefined> = { ...useSearch({ strict: false }), ...useParams({ strict: false }) };
-  
+  const routeQuery: Record<string, string | string[] | undefined> = {
+    ...useSearch({ strict: false }),
+    ...useParams({ strict: false }),
+  };
+
   const mounted = useMount();
 
   if (!mounted) return initialParams;
@@ -58,10 +54,8 @@ function useCallvanParams(initialParams: CallvanParams): CallvanParams {
 }
 
 export default function CallvanPage({ initialParams }: Awaited<ReturnType<typeof getPageData>>) {
-  
   const routeNavigate = useNavigate();
-  
-  
+
   const isMobile = useMediaQuery();
   const mounted = useMount();
 
@@ -119,40 +113,41 @@ function CallvanContent({ params }: CallvanContentProps) {
   );
 }
 
+const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
+  .validator(validatePageInput)
+  .handler(({ data }) =>
+    loadPageData(data, async (context, _cacheControl, serverRequest) => {
+      // 모바일 전용 화면이다. 데스크톱은 서버에서 바로 돌려보낸다. 클라이언트에서 판정하면
+      // 서버가 페이지 전체를 그린 뒤 마운트 직후 통째로 버리게 된다.
+      if (serverRequest.device !== 'mobile') {
+        throw redirect({ href: ROUTES.Main(), statusCode: 302 });
+      }
 
+      const queryClient = new QueryClient();
+      const { search: query } = context;
 
-const getPageData = createServerFn({ method: 'GET', strict: { output: false } }).validator(validatePageInput)
-  .handler(({ data }) => loadPageData(data, async (context, _cacheControl, serverRequest) => {
-  // 모바일 전용 화면이다. 데스크톱은 서버에서 바로 돌려보낸다. 클라이언트에서 판정하면
-  // 서버가 페이지 전체를 그린 뒤 마운트 직후 통째로 버리게 된다.
-  if (serverRequest.device !== 'mobile') {
-    throw redirect({ href: ROUTES.Main(), statusCode: 302 });
-  }
+      const params = parseCallvanQuery(query, DEFAULT_PARAMS);
+      const apiParams = toCallvanApiParams(params);
 
-  const queryClient = new QueryClient();
-  const { search: query } = context;
+      const { isLoggedIn } = serverRequest;
 
-  const params = parseCallvanQuery(query, DEFAULT_PARAMS);
-  const apiParams = toCallvanApiParams(params);
+      try {
+        await Promise.all([
+          queryClient.prefetchInfiniteQuery(callvanQueries.infiniteList(apiParams, isLoggedIn)),
+          isLoggedIn
+            ? queryClient.prefetchQuery(callvanQueries.notifications(isLoggedIn))
+            : queryClient.setQueryData(callvanQueryKeys.notifications(isLoggedIn), []),
+        ]);
+      } catch (error) {
+        console.error('[SSR] callvan prefetch failed:', error);
+      }
 
-  const { isLoggedIn } = serverRequest;
-
-  try {
-    await Promise.all([
-      queryClient.prefetchInfiniteQuery(callvanQueries.infiniteList(apiParams, isLoggedIn)),
-      isLoggedIn
-        ? queryClient.prefetchQuery(callvanQueries.notifications(isLoggedIn))
-        : queryClient.setQueryData(callvanQueryKeys.notifications(isLoggedIn), []),
-    ]);
-  } catch (error) {
-    console.error('[SSR] callvan prefetch failed:', error);
-  }
-
-  return {
-      dehydratedState: dehydrate(queryClient),
-      initialParams: params,
-    };
-}));
+      return {
+        dehydratedState: dehydrate(queryClient),
+        initialParams: params,
+      };
+    }),
+  );
 
 export const Route = createFileRoute('/callvan/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,

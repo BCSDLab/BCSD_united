@@ -36,13 +36,26 @@ export function teamDatabase() {
       const statement = sqlite.prepare(query);
       const results = statement.columns().length ? statement.all(...values) : [];
       const mutation = statement.columns().length ? undefined : statement.run(...values);
-      return { success: true, results, meta: { changes: Number(mutation?.changes ?? 0), last_row_id: Number(mutation?.lastInsertRowid ?? 0), duration: 0 } };
+      return {
+        success: true,
+        results,
+        meta: {
+          changes: Number(mutation?.changes ?? 0),
+          last_row_id: Number(mutation?.lastInsertRowid ?? 0),
+          duration: 0,
+        },
+      };
     };
-    return { bind: (...parameters: SQLInputValue[]) => prepared(query, parameters), all: async () => execute(), run: async () => execute(),
+    return {
+      bind: (...parameters: SQLInputValue[]) => prepared(query, parameters),
+      all: async () => execute(),
+      run: async () => execute(),
       raw: async () => {
         const statement = sqlite.prepare(query);
         return statement.all(...values).map((row) => Object.values(row));
-      }, execute };
+      },
+      execute,
+    };
   }
   const binding = {
     prepare: prepared,

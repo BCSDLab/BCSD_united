@@ -1,11 +1,11 @@
-import { createFileRoute } from '@tanstack/react-router';
-import PageLayout from 'components/layout';
 import { useState } from 'react';
+import { createFileRoute } from '@tanstack/react-router';
 
 import type { NewClubData } from 'api/club/entity';
 import AdditionalInfoModal from 'components/Club/NewClubPage/components/AdditionalInfoModal';
 import MobileView from 'components/Club/NewClubPage/components/MobileView';
 import PCView from 'components/Club/NewClubPage/components/PCView';
+import PageLayout from 'components/layout';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
 import { useUser } from 'utils/hooks/state/useUser';
@@ -49,5 +49,6 @@ export const Route = createFileRoute('/clubs/new/')({
 
 function RouteComponent() {
   const page = <NewClubPage />;
+
   return <PageLayout>{page}</PageLayout>;
 }

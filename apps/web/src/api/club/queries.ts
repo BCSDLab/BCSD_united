@@ -1,5 +1,6 @@
 import { isKoinError } from '@bcsdlab/koin';
 import { queryOptions } from '@tanstack/react-query';
+
 import { getViewerScope } from 'utils/ts/getViewerScope';
 
 import type { ClubRecruitmentResponse, HotClubResponse } from './entity';

@@ -5,21 +5,48 @@ import { executeAtomic } from '@api/db/client';
 import { schema } from '@api/db/schema';
 import { ApiError } from '@api/errors';
 import type { ApiEnv } from '@api/runtime';
-import { integer, invalid, kstDate, normalizeName, recruitmentInfo, sqlNow, text, validateClub } from '@api/domains/clubs/behavior';
-import { body, clubId, clubResponse, contactsSql, getCategory, getClub, getUser, missing, outboxSql, requireManager } from '@api/domains/clubs/shared';
+import {
+  integer,
+  invalid,
+  kstDate,
+  normalizeName,
+  recruitmentInfo,
+  sqlNow,
+  text,
+  validateClub,
+} from '@api/domains/clubs/behavior';
+import {
+  body,
+  clubId,
+  clubResponse,
+  contactsSql,
+  getCategory,
+  getClub,
+  getUser,
+  missing,
+  outboxSql,
+  requireManager,
+} from '@api/domains/clubs/shared';
 
 export function registerCatalog(app: Hono<ApiEnv>): void {
-  app.get('/clubs/categories', async c => c.json({ club_categories: await c.get('db').select().from(schema.club_category) }));
+  app.get('/clubs/categories', async (c) =>
+    c.json({ club_categories: await c.get('db').select().from(schema.club_category) }),
+  );
 
-  app.get('/clubs/search/related', async c => {
+  app.get('/clubs/search/related', async (c) => {
     const query = normalizeName(c.req.query('query') ?? '');
     if (!query) return c.json({ keywords: [] });
-    const clubs = await c.get('db').select({ club_id: schema.club.id, club_name: schema.club.name }).from(schema.club)
-      .where(and(eq(schema.club.is_active, true), sql`${schema.club.normalized_name} LIKE ${`${query}%`}`)).orderBy(asc(schema.club.normalized_name)).limit(5);
+    const clubs = await c
+      .get('db')
+      .select({ club_id: schema.club.id, club_name: schema.club.name })
+      .from(schema.club)
+      .where(and(eq(schema.club.is_active, true), sql`${schema.club.normalized_name} LIKE ${`${query}%`}`))
+      .orderBy(asc(schema.club.normalized_name))
+      .limit(5);
     return c.json({ keywords: clubs });
   });
 
-  app.get('/clubs/hot', async c => {
+  app.get('/clubs/hot', async (c) => {
     const db = c.get('db');
     const [cache] = await db.select().from(schema.native_club_hot).where(eq(schema.native_club_hot.key, 'hot'));
     if (cache) return c.json(JSON.parse(cache.payload));
@@ -27,41 +54,87 @@ export function registerCatalog(app: Hono<ApiEnv>): void {
     if (!hot) missing('인기 동아리가 존재하지 않습니다.');
     const club = await getClub(db, hot.club_id);
     const response = { club_id: club.id, name: club.name, image_url: club.image_url };
-    await db.insert(schema.native_club_hot).values({ key: 'hot', payload: JSON.stringify(response) }).onConflictDoNothing();
+    await db
+      .insert(schema.native_club_hot)
+      .values({ key: 'hot', payload: JSON.stringify(response) })
+      .onConflictDoNothing();
     return c.json(response);
   });
 
-  app.get('/clubs', async c => {
+  app.get('/clubs', async (c) => {
     const db = c.get('db');
     const userId = c.get('principal')?.id ?? null;
     const recruitingValue = c.req.query('isRecruiting') ?? 'false';
     if (!['true', 'false'].includes(recruitingValue)) invalid('isRecruiting', '올바른 Boolean 값이 아닙니다.');
     const recruiting = recruitingValue === 'true';
     const sort = c.req.query('sortType') ?? 'CREATED_AT_ASC';
-    if (!['NONE', 'CREATED_AT_ASC', 'HITS_DESC', 'RECRUITMENT_UPDATED_DESC', 'RECRUITING_DEADLINE_ASC'].includes(sort)) invalid('sortType', '지원하지 않는 정렬 방식입니다.');
-    if (!recruiting && ['RECRUITMENT_UPDATED_DESC', 'RECRUITING_DEADLINE_ASC'].includes(sort)) throw new ApiError(400, 'NOT_ALLOWED_RECRUITING_SORT_TYPE', '해당 정렬 방식은 모집 중일 때만 사용할 수 있습니다.');
+    if (!['NONE', 'CREATED_AT_ASC', 'HITS_DESC', 'RECRUITMENT_UPDATED_DESC', 'RECRUITING_DEADLINE_ASC'].includes(sort))
+      invalid('sortType', '지원하지 않는 정렬 방식입니다.');
+    if (!recruiting && ['RECRUITMENT_UPDATED_DESC', 'RECRUITING_DEADLINE_ASC'].includes(sort))
+      throw new ApiError(
+        400,
+        'NOT_ALLOWED_RECRUITING_SORT_TYPE',
+        '해당 정렬 방식은 모집 중일 때만 사용할 수 있습니다.',
+      );
     const category = c.req.query('categoryId');
     const query = normalizeName(c.req.query('query') ?? '');
     const today = kstDate();
     const r = schema.club_recruitment;
-    const order = sort === 'HITS_DESC' ? [desc(schema.club.hits)] : sort === 'RECRUITMENT_UPDATED_DESC' ? [desc(r.updated_at)] : sort === 'RECRUITING_DEADLINE_ASC'
-      ? [sql`CASE WHEN ${r.is_always_recruiting} = 1 THEN 1 WHEN ${r.start_date} > ${today} THEN 2 ELSE 0 END ASC`, asc(r.end_date)] : [asc(schema.club.created_at)];
-    const clubs = await db.select({ club: schema.club, category: schema.club_category.name, recruitment: r }).from(schema.club)
+    const order =
+      sort === 'HITS_DESC'
+        ? [desc(schema.club.hits)]
+        : sort === 'RECRUITMENT_UPDATED_DESC'
+          ? [desc(r.updated_at)]
+          : sort === 'RECRUITING_DEADLINE_ASC'
+            ? [
+                sql`CASE WHEN ${r.is_always_recruiting} = 1 THEN 1 WHEN ${r.start_date} > ${today} THEN 2 ELSE 0 END ASC`,
+                asc(r.end_date),
+              ]
+            : [asc(schema.club.created_at)];
+    const clubs = await db
+      .select({ club: schema.club, category: schema.club_category.name, recruitment: r })
+      .from(schema.club)
       .innerJoin(schema.club_category, eq(schema.club.club_category_id, schema.club_category.id))
       .leftJoin(r, eq(r.club_id, schema.club.id))
-      .where(and(eq(schema.club.is_active, true), category === undefined ? undefined : eq(schema.club.club_category_id, integer(category, 'categoryId')),
-        query ? sql`instr(${schema.club.normalized_name},${query}) > 0` : undefined,
-        recruiting ? sql`${r.id} IS NOT NULL AND (${r.end_date} >= ${today} OR ${r.is_always_recruiting} = 1)` : undefined)).orderBy(...order);
-    const likes = userId === null ? [] : await db.select({ club_id: schema.club_like.club_id }).from(schema.club_like).where(eq(schema.club_like.user_id, userId));
-    const liked = new Set(likes.map(item => item.club_id));
-    return c.json({ clubs: clubs.map(({ club, category: categoryName, recruitment }) => ({
-      id: club.id, name: club.name, category: categoryName, likes: club.likes, image_url: club.image_url,
-      is_liked: liked.has(club.id), is_like_hidden: club.is_like_hidden,
-      recruitment_info: recruitmentInfo(recruitment?.is_always_recruiting ?? null, recruitment?.start_date ?? null, recruitment?.end_date ?? null, today),
-    })) });
+      .where(
+        and(
+          eq(schema.club.is_active, true),
+          category === undefined ? undefined : eq(schema.club.club_category_id, integer(category, 'categoryId')),
+          query ? sql`instr(${schema.club.normalized_name},${query}) > 0` : undefined,
+          recruiting
+            ? sql`${r.id} IS NOT NULL AND (${r.end_date} >= ${today} OR ${r.is_always_recruiting} = 1)`
+            : undefined,
+        ),
+      )
+      .orderBy(...order);
+    const likes =
+      userId === null
+        ? []
+        : await db
+            .select({ club_id: schema.club_like.club_id })
+            .from(schema.club_like)
+            .where(eq(schema.club_like.user_id, userId));
+    const liked = new Set(likes.map((item) => item.club_id));
+    return c.json({
+      clubs: clubs.map(({ club, category: categoryName, recruitment }) => ({
+        id: club.id,
+        name: club.name,
+        category: categoryName,
+        likes: club.likes,
+        image_url: club.image_url,
+        is_liked: liked.has(club.id),
+        is_like_hidden: club.is_like_hidden,
+        recruitment_info: recruitmentInfo(
+          recruitment?.is_always_recruiting ?? null,
+          recruitment?.start_date ?? null,
+          recruitment?.end_date ?? null,
+          today,
+        ),
+      })),
+    });
   });
 
-  app.post('/clubs', async c => {
+  app.post('/clubs', async (c) => {
     const user = requirePrincipal(c, ['STUDENT']).id;
     const request = await body(c);
     validateClub(request, 'request');
@@ -76,15 +149,29 @@ export function registerCatalog(app: Hono<ApiEnv>): void {
     return c.body(null, 200);
   });
 
-  app.put('/clubs/empowerment', async c => {
+  app.put('/clubs/empowerment', async (c) => {
     const request = await body(c);
     const id = integer(request.club_id, 'club_id');
     const { userId } = await requireManager(c, id);
     const login = text(request, 'changed_manager_id', 255, true)!;
     const db = c.get('db');
-    const [next] = await db.select().from(schema.users).where(and(eq(schema.users.user_id, login), eq(schema.users.is_deleted, false), inArray(schema.users.user_type, ['STUDENT', 'COUNCIL']))).limit(1);
+    const [next] = await db
+      .select()
+      .from(schema.users)
+      .where(
+        and(
+          eq(schema.users.user_id, login),
+          eq(schema.users.is_deleted, false),
+          inArray(schema.users.user_type, ['STUDENT', 'COUNCIL']),
+        ),
+      )
+      .limit(1);
     if (!next) missing('사용자가 존재하지 않습니다.');
-    const [existing] = await db.select().from(schema.club_manager).where(and(eq(schema.club_manager.club_id, id), eq(schema.club_manager.user_id, next.id))).limit(1);
+    const [existing] = await db
+      .select()
+      .from(schema.club_manager)
+      .where(and(eq(schema.club_manager.club_id, id), eq(schema.club_manager.user_id, next.id)))
+      .limit(1);
     if (existing) throw new ApiError(400, 'INVALID_REQUEST', '이미 동아리의 관리자입니다.');
     await executeAtomic(db, [
       sql`DELETE FROM ${schema.club_manager} WHERE club_id=${id} AND user_id=${userId}`,
@@ -93,15 +180,21 @@ export function registerCatalog(app: Hono<ApiEnv>): void {
     return c.body(null, 200);
   });
 
-  app.get('/clubs/:clubId', async c => {
+  app.get('/clubs/:clubId', async (c) => {
     const db = c.get('db');
     const club = await getClub(db, clubId(c));
     if (!club.is_active) throw new ApiError(400, 'ILLEGAL_STATE', '잘못된 상태로 요청이 들어왔습니다.');
-    await db.insert(schema.native_club_hits).values({ club_id: club.id, hits: 1 }).onConflictDoUpdate({ target: schema.native_club_hits.club_id, set: { hits: sql`${schema.native_club_hits.hits} + 1` } });
+    await db
+      .insert(schema.native_club_hits)
+      .values({ club_id: club.id, hits: 1 })
+      .onConflictDoUpdate({
+        target: schema.native_club_hits.club_id,
+        set: { hits: sql`${schema.native_club_hits.hits} + 1` },
+      });
     return c.json(await clubResponse(db, club, c.get('principal')?.id ?? null, true));
   });
 
-  app.put('/clubs/:clubId', async c => {
+  app.put('/clubs/:clubId', async (c) => {
     const { club, userId } = await requireManager(c);
     const data = validateClub(await body(c), 'update');
     const db = c.get('db');
@@ -114,15 +207,19 @@ export function registerCatalog(app: Hono<ApiEnv>): void {
     return c.json(await clubResponse(db, await getClub(db, club.id), userId));
   });
 
-  app.put('/clubs/:clubId/introduction', async c => {
+  app.put('/clubs/:clubId/introduction', async (c) => {
     const { club, userId } = await requireManager(c);
     const introduction = text(await body(c), 'introduction', Infinity, true)!;
     const db = c.get('db');
-    const [updated] = await db.update(schema.club).set({ introduction, updated_at: sqlNow() }).where(eq(schema.club.id, club.id)).returning();
+    const [updated] = await db
+      .update(schema.club)
+      .set({ introduction, updated_at: sqlNow() })
+      .where(eq(schema.club.id, club.id))
+      .returning();
     return c.json(await clubResponse(db, updated!, userId));
   });
 
-  app.put('/clubs/:clubId/like', async c => {
+  app.put('/clubs/:clubId/like', async (c) => {
     const user = requirePrincipal(c, ['STUDENT']).id;
     const db = c.get('db');
     const id = clubId(c);
@@ -136,7 +233,7 @@ export function registerCatalog(app: Hono<ApiEnv>): void {
     return c.body(null, 200);
   });
 
-  app.delete('/clubs/:clubId/like/cancel', async c => {
+  app.delete('/clubs/:clubId/like/cancel', async (c) => {
     const user = requirePrincipal(c, ['STUDENT']).id;
     const db = c.get('db');
     const id = clubId(c);

@@ -1,7 +1,5 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 
-
-
 import FindIdLayout from 'components/Auth/FindIdPage/Mobile';
 import { STORAGE_KEY } from 'static/auth';
 import ROUTES from 'static/routes';
@@ -10,10 +8,8 @@ import { useSessionStorage } from 'utils/hooks/state/useWebStorage';
 import styles from 'pages/auth/findid/result/ResultPage.module.scss';
 
 function ResultPage() {
-  
   const routeNavigate = useNavigate();
-  
-  
+
   const [userId] = useSessionStorage<string | null>(STORAGE_KEY.FOUND_LOGIN_ID, null);
   const onClickLogin = () => {
     routeNavigate({ href: ROUTES.Auth() });
@@ -40,8 +36,6 @@ function ResultPage() {
   );
 }
 
-
-
 export default ResultPage;
 
 export const Route = createFileRoute('/auth/findid/result/')({
@@ -51,5 +45,6 @@ export const Route = createFileRoute('/auth/findid/result/')({
 
 function RouteComponent() {
   const page = <ResultPage />;
+
   return <FindIdLayout>{page}</FindIdLayout>;
 }

@@ -33,14 +33,18 @@ export function catalogDate(value: string): string {
 
 export function signalCatalogJobs(c: CatalogContext, jobs: { kind: string; key: string; dueAt?: number }[]): void {
   if (!jobs.length) return;
-  c.executionCtx.waitUntil((async () => {
-    for (let offset = 0; offset < jobs.length; offset += JOB_BATCH) {
-      await c.env.JOBS.sendBatch(jobs.slice(offset, offset + JOB_BATCH).map((job) => ({
-        body: { kind: job.kind, key: job.key, payload: {} },
-        delaySeconds: Math.max(0, Math.ceil(((job.dueAt ?? Date.now()) - Date.now()) / 1000)),
-      })));
-    }
-  })());
+  c.executionCtx.waitUntil(
+    (async () => {
+      for (let offset = 0; offset < jobs.length; offset += JOB_BATCH) {
+        await c.env.JOBS.sendBatch(
+          jobs.slice(offset, offset + JOB_BATCH).map((job) => ({
+            body: { kind: job.kind, key: job.key, payload: {} },
+            delaySeconds: Math.max(0, Math.ceil(((job.dueAt ?? Date.now()) - Date.now()) / 1000)),
+          })),
+        );
+      }
+    })(),
+  );
 }
 
 export function catalogError(status: number, code: string, message: string): never {
@@ -53,12 +57,14 @@ export function invalid(field: string, message: string): never {
 
 export function integer(value: unknown, field = 'id', min = 1): number {
   const parsed = typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value;
-  if (typeof parsed !== 'number' || !Number.isSafeInteger(parsed) || parsed < min) invalid(field, `${field} 값이 올바르지 않습니다.`);
+  if (typeof parsed !== 'number' || !Number.isSafeInteger(parsed) || parsed < min)
+    invalid(field, `${field} 값이 올바르지 않습니다.`);
   return parsed;
 }
 
 export function text(value: unknown, field: string, min = 1, max = 65535): string {
-  if (typeof value !== 'string' || value.trim().length < min || value.length > max) invalid(field, `${field} 값이 올바르지 않습니다.`);
+  if (typeof value !== 'string' || value.trim().length < min || value.length > max)
+    invalid(field, `${field} 값이 올바르지 않습니다.`);
   return value;
 }
 
@@ -68,7 +74,8 @@ export function boolean(value: unknown, field: string): boolean {
 }
 
 export function array(value: unknown, field: string, min = 0, max = 10000): unknown[] {
-  if (!Array.isArray(value) || value.length < min || value.length > max) invalid(field, `${field} 개수가 올바르지 않습니다.`);
+  if (!Array.isArray(value) || value.length < min || value.length > max)
+    invalid(field, `${field} 개수가 올바르지 않습니다.`);
   return value;
 }
 
@@ -118,7 +125,8 @@ export async function atomic(env: Bindings, statements: SQL[], condition?: SQL):
     ]);
     return result.slice(1, -1);
   } catch (error) {
-    if (String(error).includes('native_commerce_guard_check_0')) catalogError(409, 'OPTIMISTIC_LOCKING_FAILURE', '이미 처리된 요청입니다.');
+    if (String(error).includes('native_commerce_guard_check_0'))
+      catalogError(409, 'OPTIMISTIC_LOCKING_FAILURE', '이미 처리된 요청입니다.');
     throw error;
   }
 }
@@ -152,7 +160,16 @@ export function outbox(kind: string, payload: JsonObject, dueAt = Date.now(), id
 
 export function pageInfo(total: number, page: number, limit: number) {
   const current = total ? Math.min(page, Math.ceil(total / limit)) : 1;
-  return { total_count: total, total_page: Math.ceil(total / limit), current_page: current, offset: (current - 1) * limit };
+  return {
+    total_count: total,
+    total_page: Math.ceil(total / limit),
+    current_page: current,
+    offset: (current - 1) * limit,
+  };
 }
 
-export const sqlList = (values: readonly unknown[]) => sql.join(values.map((value) => sql`${value}`), sql`, `);
+export const sqlList = (values: readonly unknown[]) =>
+  sql.join(
+    values.map((value) => sql`${value}`),
+    sql`, `,
+  );

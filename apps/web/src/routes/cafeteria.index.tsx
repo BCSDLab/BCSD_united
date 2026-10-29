@@ -1,9 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { createServerFn } from '@tanstack/react-start';
-import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { useEffect, useRef } from 'react';
-
-
 import {
   dehydrate,
   type DehydratedState,
@@ -11,6 +6,9 @@ import {
   QueryClient,
   useSuspenseQuery,
 } from '@tanstack/react-query';
+import { createFileRoute } from '@tanstack/react-router';
+import { createServerFn } from '@tanstack/react-start';
+
 import { cafeteriaQueries } from 'api/cafeteria/queries';
 import type { Opens } from 'api/coopshop/entity';
 import { coopshopQueries } from 'api/coopshop/queries';
@@ -36,7 +34,7 @@ import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useModalPortal from 'utils/hooks/layout/useModalPortal';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import useScrollToTop from 'utils/hooks/ui/useScrollToTop';
-
+import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 
 import styles from 'pages/cafeteria/Cafeteria.module.scss';
 
@@ -72,8 +70,6 @@ function isWithinOperatingHours(opens: Opens[], viewedDate: Date, diningType: Di
     liveNow >= kstTimeOn(viewedDate, openHour, openMinute) && liveNow < kstTimeOn(viewedDate, closeHour, closeMinute)
   );
 }
-
-
 
 function Cafeteria() {
   const isMobile = useMediaQuery();
@@ -181,32 +177,33 @@ export default function CafeteriaPage({ dehydratedState, serverNowISO }: Cafeter
   );
 }
 
+const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
+  .validator(validatePageInput)
+  .handler(({ data }) =>
+    loadPageData(data, async (context, cacheControl) => {
+      const queryClient = new QueryClient();
+      const { date } = context.search;
 
+      // date 쿼리 유무와 무관한, 요청을 받은 실제 시각. 렌더 경로의 "오늘" 기준값으로 내려보낸다.
+      const serverNow = new Date();
 
-const getPageData = createServerFn({ method: 'GET', strict: { output: false } }).validator(validatePageInput)
-  .handler(({ data }) => loadPageData(data, async (context, cacheControl) => {
-  const queryClient = new QueryClient();
-  const { date } = context.search;
+      const currentDate = date ? new Date(Array.isArray(date) ? date[0] : date) : serverNow;
 
-  // date 쿼리 유무와 무관한, 요청을 받은 실제 시각. 렌더 경로의 "오늘" 기준값으로 내려보낸다.
-  const serverNow = new Date();
+      const convertedDate = convertDateToSimpleString(currentDate);
 
-  const currentDate = date ? new Date(Array.isArray(date) ? date[0] : date) : serverNow;
+      await Promise.all([
+        queryClient.prefetchQuery(cafeteriaQueries.dinings(convertedDate)),
+        queryClient.prefetchQuery(coopshopQueries.cafeteriaInfo()),
+      ]);
 
-  const convertedDate = convertDateToSimpleString(currentDate);
+      cacheControl.enablePublicCache();
 
-  await Promise.all([
-    queryClient.prefetchQuery(cafeteriaQueries.dinings(convertedDate)),
-    queryClient.prefetchQuery(coopshopQueries.cafeteriaInfo()),
-  ]);
-
-  cacheControl.enablePublicCache();
-
-  return {
-      dehydratedState: dehydrate(queryClient),
-      serverNowISO: serverNow.toISOString(),
-    };
-}));
+      return {
+        dehydratedState: dehydrate(queryClient),
+        serverNowISO: serverNow.toISOString(),
+      };
+    }),
+  );
 
 export const Route = createFileRoute('/cafeteria/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
@@ -219,5 +216,6 @@ export const Route = createFileRoute('/cafeteria/')({
 function RouteComponent() {
   const props = Route.useLoaderData();
   const page = <CafeteriaPage {...props} />;
+
   return <Layout mobileHeader="page">{page}</Layout>;
 }

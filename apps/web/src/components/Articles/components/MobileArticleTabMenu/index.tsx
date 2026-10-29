@@ -1,6 +1,6 @@
+import { cn } from '@bcsdlab/utils';
 import { useRouter, useLocation } from '@tanstack/react-router';
 
-import { cn } from '@bcsdlab/utils';
 import { BOARD_IDS } from 'components/Articles/utils/convertArticlesTag';
 
 import styles from './MobileArticleTabMenu.module.scss';

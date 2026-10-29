@@ -1,6 +1,6 @@
 import React from 'react';
-
 import type { MutateOptions } from '@tanstack/react-query';
+
 import type { NicknameDuplicateCheckResponse } from 'api/auth/entity';
 import showToast from 'utils/ts/showToast';
 

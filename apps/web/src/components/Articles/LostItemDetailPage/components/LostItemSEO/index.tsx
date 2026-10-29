@@ -1,5 +1,3 @@
-
-
 import type { SingleLostItemArticleResponseDTO } from 'api/articles/entity';
 
 interface LostItemSEOProps {

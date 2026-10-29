@@ -1,8 +1,9 @@
 import { Suspense, useEffect, useState } from 'react';
-import { Link, useParams, useRouter } from '@tanstack/react-router';
-
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link, useParams, useRouter } from '@tanstack/react-router';
+import { FormProvider, useForm } from 'react-hook-form';
+
 import { teamMutations } from 'api/team/mutations';
 import { teamQueries } from 'api/team/queries';
 import type { UpsertTeamRecruitmentProfileRequest } from 'api/teamRecruitmentProfile/entity';
@@ -15,7 +16,6 @@ import MobilePageHeader from 'components/layout/MobilePageHeader';
 import SubmitConfirmModal from 'components/Team/components/SubmitConfirmModal';
 import useTeamFormStep from 'components/Team/hooks/useTeamFormStep';
 import { createApplicationFormSchema } from 'components/Team/RecruitmentApplyPage/schema';
-import { FormProvider, useForm } from 'react-hook-form';
 import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
@@ -47,7 +47,7 @@ const toProfileRequestBody = (values: ApplicationFormValues): UpsertTeamRecruitm
 
 export default function RecruitmentApplyPage() {
   const router = useRouter();
-  const routeParams = useParams({ strict: false }) as Record<string, string | string[] | undefined>;
+  const routeParams = useParams({ strict: false });
   const isLoggedIn = useIsLoggedIn();
   const queryClient = useQueryClient();
   const { actionEventClick } = useLogger();
@@ -225,7 +225,7 @@ export default function RecruitmentApplyPage() {
         <MobilePageHeader title="팀원 모집 지원" background="gray" />
         <h1 className={styles.title}>팀원 모집 지원</h1>
 
-        {(isRecruitmentLoading) && <p className={styles.state}>모집글을 불러오는 중입니다.</p>}
+        {isRecruitmentLoading && <p className={styles.state}>모집글을 불러오는 중입니다.</p>}
 
         {!recruitment && (!isValidRecruitmentId || isRecruitmentError) && (
           <p className={styles.state}>모집글을 불러오지 못했습니다.</p>
@@ -234,7 +234,7 @@ export default function RecruitmentApplyPage() {
         {recruitment && !canApply && (
           <div className={styles.blocked}>
             <p className={styles.blocked__message}>지원할 수 없는 모집글이에요.</p>
-            <Link className={styles.blocked__link} to={ROUTES.TeamDetail({ postId: String(postId) })} >
+            <Link className={styles.blocked__link} to={ROUTES.TeamDetail({ postId: String(postId) })}>
               모집글로 돌아가기
             </Link>
           </div>

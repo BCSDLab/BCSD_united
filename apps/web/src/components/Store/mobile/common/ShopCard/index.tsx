@@ -37,7 +37,7 @@ export default function ShopCard({
   tags = [],
 }: ShopCardProps) {
   const router = useRouter();
-  const routeSearch = useSearch({ strict: false }) as Record<string, string | string[] | undefined>;
+  const routeSearch = useSearch({ strict: false });
   const logger = useLogger();
 
   const handleShopCardClick = () => {

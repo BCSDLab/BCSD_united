@@ -1,6 +1,6 @@
 /**
- * next-sitemap 설정
- * 빌드 후 postbuild 스크립트로 실행되어 public/sitemap*.xml 과 public/robots.txt 를 생성한다.
+ * 공개 페이지 sitemap과 robots.txt 설정.
+ * 빌드 뒤 scripts/generate-sitemap.mjs가 정적 파일을 생성한다.
  * stage/prod 환경 분기는 NEXT_PUBLIC_API_PATH 에 'stage' 포함 여부로 판단 (src/static/url.ts 와 동일 규칙).
  */
 
@@ -30,7 +30,6 @@ const PRIVATE_PATHS = [
   '/store/review/edit/**',
 ];
 
-/** @type {import('next-sitemap').IConfig} */
 export default {
   siteUrl: SITE_URL,
   generateRobotsTxt: true,

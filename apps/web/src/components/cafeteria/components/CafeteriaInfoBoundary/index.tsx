@@ -1,7 +1,6 @@
 import React from 'react';
-
 import { sendClientError } from '@bcsdlab/koin';
-import * as Sentry from '@sentry/core';
+import { captureError } from '@koin/telemetry/runtime';
 
 interface Props {
   children: React.ReactNode;
@@ -28,7 +27,7 @@ export default class CafeteriaInfoBoundary extends React.Component<Props, State>
 
   componentDidCatch(error: Error) {
     sendClientError(error);
-    Sentry.captureException(error);
+    captureError(error);
   }
 
   render() {

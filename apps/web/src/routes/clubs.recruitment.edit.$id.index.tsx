@@ -1,9 +1,7 @@
-import { createFileRoute, useSearch, useParams } from '@tanstack/react-router';
-import PageLayout from 'components/layout';
 import { useState } from 'react';
-
-
 import { useSuspenseQuery } from '@tanstack/react-query';
+import { createFileRoute, useSearch, useParams } from '@tanstack/react-router';
+
 import type { ClubRecruitment } from 'api/club/entity';
 import { clubQueries } from 'api/club/queries';
 import useClubDetail from 'components/Club/ClubDetailPage/hooks/useClubdetail';
@@ -11,6 +9,7 @@ import usePutClubRecruitment from 'components/Club/ClubRecruitmentEditPage/hooks
 import ConfirmModal from 'components/Club/NewClubRecruitment/components/ConfirmModal';
 import DetailDescription from 'components/Club/NewClubRecruitment/components/DetailDescription';
 import ClubImageUploader from 'components/Club/NewClubRecruitment/components/ImageUploader';
+import PageLayout from 'components/layout';
 import DatePicker from 'components/ui/DatePicker';
 import DatePickerModal from 'components/ui/DatePickerModal';
 import useLogger from 'utils/hooks/analytics/useLogger';
@@ -239,10 +238,10 @@ function ClubRecruitmentEditPage({ id }: { id: string }) {
 }
 
 export default function ClubRecruitmentEditPageWrapper() {
-  
-  
-  const routeQuery: Record<string, string | string[] | undefined> = { ...useSearch({ strict: false }), ...useParams({ strict: false }) };
-  
+  const routeQuery: Record<string, string | string[] | undefined> = {
+    ...useSearch({ strict: false }),
+    ...useParams({ strict: false }),
+  };
 
   const { id } = routeQuery;
 
@@ -260,5 +259,6 @@ export const Route = createFileRoute('/clubs/recruitment/edit/$id/')({
 
 function RouteComponent() {
   const page = <ClubRecruitmentEditPageWrapper />;
+
   return <PageLayout>{page}</PageLayout>;
 }

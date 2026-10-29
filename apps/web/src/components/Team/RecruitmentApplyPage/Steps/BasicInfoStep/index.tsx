@@ -1,6 +1,8 @@
 'use no memo';
 
 import { cn } from '@bcsdlab/utils';
+import { Controller, useFormContext, useFormState, useWatch } from 'react-hook-form';
+
 import useAcademicInfoStep from 'components/Team/hooks/useAcademicInfoStep';
 import DeptSelect from 'components/Team/ProfilePage/components/DeptSelect';
 import FormField from 'components/Team/ProfilePage/components/FormField';
@@ -14,7 +16,6 @@ import {
 } from 'components/Team/RecruitmentApplyPage/schema';
 import { APPLY_STEPS } from 'components/Team/RecruitmentApplyPage/types';
 import type { ApplicationFormValues } from 'components/Team/RecruitmentApplyPage/types';
-import { Controller, useFormContext, useFormState, useWatch } from 'react-hook-form';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import showToast from 'utils/ts/showToast';
 

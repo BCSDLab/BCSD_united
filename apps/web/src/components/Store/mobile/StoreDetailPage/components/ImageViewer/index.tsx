@@ -1,9 +1,9 @@
 import type { CSSProperties } from 'react';
+import { Navigation, Pagination, Zoom } from 'swiper/modules';
+import { Swiper, SwiperSlide } from 'swiper/react';
 
 import type { ShopInfoSummaryResponse } from 'api/storeMobile/entity';
 import Portal from 'components/Portal';
-import { Navigation, Pagination, Zoom } from 'swiper/modules';
-import { Swiper, SwiperSlide } from 'swiper/react';
 
 import 'swiper/swiper-bundle.css';
 import styles from './ImageViewer.module.scss';

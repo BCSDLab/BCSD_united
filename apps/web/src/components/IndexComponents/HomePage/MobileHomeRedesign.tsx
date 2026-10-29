@@ -1,9 +1,7 @@
 import type { ReactNode } from 'react';
-import Image from 'components/ui/Image';
-import { Link } from '@tanstack/react-router';
-import { parseSearch } from 'utils/routing/search';
-
 import { useSuspenseQuery } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
+
 import { callvanQueries } from 'api/callvan/queries';
 import { storeQueries } from 'api/store/queries';
 import { weatherQueries } from 'api/weather/queries';
@@ -15,10 +13,13 @@ import BusRouteIcon from 'assets/svg/common/route-icon.svg';
 import VanIcon from 'assets/svg/common/van-icon.svg';
 import IndexMobileCafeteria from 'components/IndexComponents/IndexMobileCafeteria';
 import IconBox from 'components/ui/IconBox';
+import Image from 'components/ui/Image';
 import { BUS_LINKS } from 'static/bus';
 import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import { useUser } from 'utils/hooks/state/useUser';
+import { parseSearch } from 'utils/routing/search';
+import { useServerNow } from 'utils/ssr/useServerNow';
 
 import styles from './MobileHomeRedesign.module.scss';
 
@@ -73,6 +74,7 @@ function SectionHeader({ titleId, title, children }: SectionHeaderProps) {
 
 function MobileHomeRedesign() {
   const logger = useLogger();
+  const serverNow = useServerNow();
   const { data: userInfo } = useUser();
   const { data: weatherData } = useSuspenseQuery(weatherQueries.info());
   const { data: callvanData } = useSuspenseQuery({
@@ -87,7 +89,7 @@ function MobileHomeRedesign() {
   const { data: storeEventCount } = useSuspenseQuery(storeQueries.eventCount());
 
   const displayName = userInfo?.nickname?.trim() || userInfo?.name?.trim() || '코리';
-  const todayLabel = dateFormatter.format(new Date());
+  const todayLabel = dateFormatter.format(serverNow);
 
   const logClick = (event_label: string, value: string) => {
     logger.actionEventClick({
@@ -124,8 +126,11 @@ function MobileHomeRedesign() {
 
       <section className={styles.section} aria-labelledby="today-menu-title">
         <SectionHeader titleId="today-menu-title" title="오늘의 식단">
-          <Link  to={ROUTES.Cafeteria()} className={styles['section-link']}
-          onClick={() => logClick('today_meal', '전체보기')}>
+          <Link
+            to={ROUTES.Cafeteria()}
+            className={styles['section-link']}
+            onClick={() => logClick('today_meal', '전체보기')}
+          >
             <span>전체보기</span>
             <ArrowRightIcon aria-hidden />
           </Link>
@@ -136,10 +141,13 @@ function MobileHomeRedesign() {
 
       <section className={styles.section} aria-labelledby="transport-title">
         <SectionHeader titleId="transport-title" title="교통">
-          <a  href={unibus.link} className={styles['ticket-card']}
-          target="_blank"
-          rel="noreferrer"
-          onClick={() => logClick('shuttle_ticket', '셔틀 탑승권')}>
+          <a
+            href={unibus.link}
+            className={styles['ticket-card']}
+            target="_blank"
+            rel="noreferrer"
+            onClick={() => logClick('shuttle_ticket', '셔틀 탑승권')}
+          >
             <span className={styles['ticket-card__text']}>
               <strong>셔틀 탑승권</strong>
               <span>QR 조회</span>
@@ -148,8 +156,11 @@ function MobileHomeRedesign() {
           </a>
         </SectionHeader>
 
-        <Link  to={ROUTES.Callvan()} className={styles['callvan-card']}
-        onClick={() => logClick('callvanpot', '콜밴팟 모집보기')}>
+        <Link
+          to={ROUTES.Callvan()}
+          className={styles['callvan-card']}
+          onClick={() => logClick('callvanpot', '콜밴팟 모집보기')}
+        >
           <IconBox className={styles['callvan-card__icon']}>
             <VanIcon />
           </IconBox>
@@ -165,9 +176,13 @@ function MobileHomeRedesign() {
 
         <div className={styles['transport-grid']}>
           {transportCards.map(({ href, title, description, Icon, logging }) => (
-            <Link  to={href.split('?')[0]} search={parseSearch(href.split('?')[1] ?? '')} className={styles['transport-card']}
-            key={href}
-            onClick={() => logClick(logging.event_label, logging.value)}>
+            <Link
+              to={href.split('?')[0]}
+              search={parseSearch(href.split('?')[1] ?? '')}
+              className={styles['transport-card']}
+              key={href}
+              onClick={() => logClick(logging.event_label, logging.value)}
+            >
               <IconBox>
                 <Icon />
               </IconBox>
@@ -183,14 +198,23 @@ function MobileHomeRedesign() {
 
       <section className={styles.section} aria-labelledby="nearby-store-title">
         <SectionHeader titleId="nearby-store-title" title="주변 상점">
-          <Link  to={mobileStoreLink.split('?')[0]} search={parseSearch(mobileStoreLink.split('?')[1] ?? '')} className={styles['section-link']} onClick={() => logClick('shop', '전체보기')}>
+          <Link
+            to={mobileStoreLink.split('?')[0]}
+            search={parseSearch(mobileStoreLink.split('?')[1] ?? '')}
+            className={styles['section-link']}
+            onClick={() => logClick('shop', '전체보기')}
+          >
             <span>전체보기</span>
             <ArrowRightIcon aria-hidden />
           </Link>
         </SectionHeader>
 
-        <Link  to={mobileStoreLink.split('?')[0]} search={parseSearch(mobileStoreLink.split('?')[1] ?? '')} className={styles['store-card']}
-        onClick={() => logClick('popular_shop', '많이 찾는 상점 둘러보기')}>
+        <Link
+          to={mobileStoreLink.split('?')[0]}
+          search={parseSearch(mobileStoreLink.split('?')[1] ?? '')}
+          className={styles['store-card']}
+          onClick={() => logClick('popular_shop', '많이 찾는 상점 둘러보기')}
+        >
           <div className={styles['store-card__content-wrapper']}>
             <IconBox>
               <ForkKnifeIcon />

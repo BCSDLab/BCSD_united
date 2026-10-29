@@ -2,17 +2,48 @@ import { and, asc, count, desc, eq } from 'drizzle-orm';
 import type { Context, Hono, MiddlewareHandler } from 'hono';
 import { requirePrincipal } from '@api/auth';
 import { schema } from '@api/db/schema';
-import { integerParameter, kstTimestamp, legacyError, pagination, requiredInteger } from '@api/domains/experiments/algorithms';
+import {
+  integerParameter,
+  kstTimestamp,
+  legacyError,
+  pagination,
+  requiredInteger,
+} from '@api/domains/experiments/algorithms';
 import { ApiError } from '@api/errors';
 import type { ApiEnv } from '@api/runtime';
 
 export const auditDomains = {
-  MEMBERS: 'BCSDLAB 회원', TRACKS: '트랙', TECHSTACKS: '기술 스택', NOTICE: '코인 공지', VERSION: '버전관리',
-  CATEGORIES: '카테고리', BENEFIT: '혜택', BENEFITCATEGORIES: '혜택 카테고리', SHOPS: '상점', SHOPSCATEGORIES: '상점 카테고리',
-  MENUS: '메뉴', MENUSCATEGORIES: '메뉴 카테고리', REVIEWS: '리뷰', ABTEST: 'AB 테스트', LANDS: '복덕방',
-  LECTURES: '강의', SEMESTER: '학기', COOP_SHOPS: '생협 매장', USERS: '회원', STUDENT: '학생', OWNER: '사장님', ADMIN: '어드민',
-  BANNERS: '배너', BANNER_CATEGORIES: '배너 카테고리', CLUBS: '동아리', KEYWORDS: '키워드 알림', LOST_ITEMS: '분실물',
-  COOP_SEMESTER: '생협 학기', SHUTTLE_BUS: '셔틀 버스', COMMUTING_BUS: '등하교 버스', NOTIFICATION: '알림',
+  MEMBERS: 'BCSDLAB 회원',
+  TRACKS: '트랙',
+  TECHSTACKS: '기술 스택',
+  NOTICE: '코인 공지',
+  VERSION: '버전관리',
+  CATEGORIES: '카테고리',
+  BENEFIT: '혜택',
+  BENEFITCATEGORIES: '혜택 카테고리',
+  SHOPS: '상점',
+  SHOPSCATEGORIES: '상점 카테고리',
+  MENUS: '메뉴',
+  MENUSCATEGORIES: '메뉴 카테고리',
+  REVIEWS: '리뷰',
+  ABTEST: 'AB 테스트',
+  LANDS: '복덕방',
+  LECTURES: '강의',
+  SEMESTER: '학기',
+  COOP_SHOPS: '생협 매장',
+  USERS: '회원',
+  STUDENT: '학생',
+  OWNER: '사장님',
+  ADMIN: '어드민',
+  BANNERS: '배너',
+  BANNER_CATEGORIES: '배너 카테고리',
+  CLUBS: '동아리',
+  KEYWORDS: '키워드 알림',
+  LOST_ITEMS: '분실물',
+  COOP_SEMESTER: '생협 학기',
+  SHUTTLE_BUS: '셔틀 버스',
+  COMMUTING_BUS: '등하교 버스',
+  NOTIFICATION: '알림',
 } as const;
 
 export type AuditDomain = keyof typeof auditDomains;
@@ -90,15 +121,26 @@ const auditRoutes: readonly AuditRoute[] = [
 
 const policies = auditRoutes.map(([method, path, domain, idParam]) => {
   const parameters: string[] = [];
-  const pattern = path.split('/').map((part) => {
-    if (!part.startsWith(':')) return part;
-    parameters.push(part.slice(1));
-    return part === ':type' ? '([^/]+)' : '([+-]?\\d+)';
-  }).join('/');
-  return { method, domain, expression: new RegExp(`^${pattern}$`), idGroup: idParam ? parameters.indexOf(idParam) + 1 : 0 };
+  const pattern = path
+    .split('/')
+    .map((part) => {
+      if (!part.startsWith(':')) return part;
+      parameters.push(part.slice(1));
+      return part === ':type' ? '([^/]+)' : '([+-]?\\d+)';
+    })
+    .join('/');
+  return {
+    method,
+    domain,
+    expression: new RegExp(`^${pattern}$`),
+    idGroup: idParam ? parameters.indexOf(idParam) + 1 : 0,
+  };
 });
 
-export function matchAdminActivity(method: string, path: string): { domain: AuditDomain; domainId: number | null } | null {
+export function matchAdminActivity(
+  method: string,
+  path: string,
+): { domain: AuditDomain; domainId: number | null } | null {
   for (const policy of policies) {
     if (policy.method !== method) continue;
     const match = policy.expression.exec(path);
@@ -117,16 +159,25 @@ export function markAdminActivityDelegated(c: Context<ApiEnv>): void {
 }
 
 export async function recordAdminActivity(
-  c: Context<ApiEnv>, domain: AuditDomain, domainId: number | null = null, requestMessage?: string,
+  c: Context<ApiEnv>,
+  domain: AuditDomain,
+  domainId: number | null = null,
+  requestMessage?: string,
 ): Promise<void> {
   if (recordedRequests.has(c) || delegatedRequests.has(c)) return;
   const admin = requirePrincipal(c, ['ADMIN']);
   const method = c.req.method as AuditMethod;
   if (!(method in auditMethods)) throw new TypeError(`Unsupported admin activity method: ${method}`);
-  await c.get('db').insert(schema.admins_activity_history).values({
-    admin_id: admin.id, domain_id: domainId, domain_name: domain, request_method: method,
-    request_message: requestMessage ?? requestBodies.get(c) ?? await c.req.text(),
-  });
+  await c
+    .get('db')
+    .insert(schema.admins_activity_history)
+    .values({
+      admin_id: admin.id,
+      domain_id: domainId,
+      domain_name: domain,
+      request_method: method,
+      request_message: requestMessage ?? requestBodies.get(c) ?? (await c.req.text()),
+    });
   recordedRequests.add(c);
 }
 
@@ -143,9 +194,14 @@ export const adminActivityMiddleware: MiddlewareHandler<ApiEnv> = async (c, next
   if (!c.error && c.res.status < 400) await recordAdminActivity(c, policy.domain, policy.domainId, body);
 };
 
-function enumParameter<T extends Record<string, string>>(value: string | undefined, values: T, name: string): keyof T | undefined {
+function enumParameter<T extends Record<string, string>>(
+  value: string | undefined,
+  values: T,
+  name: string,
+): keyof T | undefined {
   if (value === undefined || value === '') return undefined;
-  if (!Object.hasOwn(values, value)) throw new ApiError(400, 'ILLEGAL_ARGUMENT', `Failed to convert value '${value}' for parameter '${name}'`);
+  if (!Object.hasOwn(values, value))
+    throw new ApiError(400, 'ILLEGAL_ARGUMENT', `Failed to convert value '${value}' for parameter '${name}'`);
   return value;
 }
 
@@ -160,13 +216,22 @@ const historySelection = {
 };
 
 type HistoryRow = {
-  id: number; domain_id: number | null; name: string | null; domain_name: string;
-  request_method: string; request_message: string | null; created_at: string;
+  id: number;
+  domain_id: number | null;
+  name: string | null;
+  domain_name: string;
+  request_method: string;
+  request_message: string | null;
+  created_at: string;
 };
 
 function historyResponse(row: HistoryRow) {
-  return { ...row, domain_name: auditDomains[row.domain_name as AuditDomain],
-    request_method: auditMethods[row.request_method as AuditMethod], created_at: kstTimestamp(row.created_at) };
+  return {
+    ...row,
+    domain_name: auditDomains[row.domain_name as AuditDomain],
+    request_method: auditMethods[row.request_method as AuditMethod],
+    created_at: kstTimestamp(row.created_at),
+  };
 }
 
 export function registerHistory(app: Hono<ApiEnv>): void {
@@ -177,26 +242,50 @@ export function registerHistory(app: Hono<ApiEnv>): void {
     const domain = enumParameter(c.req.query('domainName'), auditDomains, 'domainName');
     const domainId = integerParameter(c.req.query('domainId'), 'domainId');
     const sort = enumParameter(c.req.query('sort'), { CREATED_AT_ASC: 'ASC', CREATED_AT_DESC: 'DESC' }, 'sort');
-    const filter = and(method === undefined ? undefined : eq(schema.admins_activity_history.request_method, method),
+    const filter = and(
+      method === undefined ? undefined : eq(schema.admins_activity_history.request_method, method),
       domain === undefined ? undefined : eq(schema.admins_activity_history.domain_name, domain),
-      domainId === undefined ? undefined : eq(schema.admins_activity_history.domain_id, domainId));
+      domainId === undefined ? undefined : eq(schema.admins_activity_history.domain_id, domainId),
+    );
     const [{ total: globalTotal }] = await db.select({ total: count() }).from(schema.admins_activity_history);
-    const paging = pagination(integerParameter(c.req.query('page'), 'page'), integerParameter(c.req.query('limit'), 'limit'), globalTotal!);
+    const paging = pagination(
+      integerParameter(c.req.query('page'), 'page'),
+      integerParameter(c.req.query('limit'), 'limit'),
+      globalTotal!,
+    );
     const [{ total }] = await db.select({ total: count() }).from(schema.admins_activity_history).where(filter);
-    const rows = await db.select(historySelection).from(schema.admins_activity_history)
+    const rows = await db
+      .select(historySelection)
+      .from(schema.admins_activity_history)
       .innerJoin(schema.admins, eq(schema.admins_activity_history.admin_id, schema.admins.user_id))
-      .innerJoin(schema.users, eq(schema.admins.user_id, schema.users.id)).where(filter)
-      .orderBy(sort === 'CREATED_AT_ASC' ? asc(schema.admins_activity_history.created_at) : desc(schema.admins_activity_history.created_at))
-      .limit(paging.limit).offset(paging.offset);
-    return c.json({ total_count: total, current_count: rows.length, total_page: Math.ceil(total! / paging.limit),
-      current_page: paging.current_page, histories: rows.map(historyResponse) });
+      .innerJoin(schema.users, eq(schema.admins.user_id, schema.users.id))
+      .where(filter)
+      .orderBy(
+        sort === 'CREATED_AT_ASC'
+          ? asc(schema.admins_activity_history.created_at)
+          : desc(schema.admins_activity_history.created_at),
+      )
+      .limit(paging.limit)
+      .offset(paging.offset);
+    return c.json({
+      total_count: total,
+      current_count: rows.length,
+      total_page: Math.ceil(total! / paging.limit),
+      current_page: paging.current_page,
+      histories: rows.map(historyResponse),
+    });
   });
   app.get('/admin/history/:id', async (c) => {
     requirePrincipal(c, ['ADMIN']);
     const id = requiredInteger(c.req.param('id'), 'id');
-    const [row] = await c.get('db').select(historySelection).from(schema.admins_activity_history)
+    const [row] = await c
+      .get('db')
+      .select(historySelection)
+      .from(schema.admins_activity_history)
       .innerJoin(schema.admins, eq(schema.admins_activity_history.admin_id, schema.admins.user_id))
-      .innerJoin(schema.users, eq(schema.admins.user_id, schema.users.id)).where(eq(schema.admins_activity_history.id, id)).limit(1);
+      .innerJoin(schema.users, eq(schema.admins.user_id, schema.users.id))
+      .where(eq(schema.admins_activity_history.id, id))
+      .limit(1);
     if (!row) throw legacyError(404, `admin_activity_history id: ${id}`, 'null');
     return c.json(historyResponse(row));
   });

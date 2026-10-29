@@ -1,24 +1,20 @@
-import Seo from 'components/seo/Seo';
+import { useRef } from 'react';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 
-import { useRef } from 'react';
-
-
-
-
-import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { TeamRecruitmentNotification } from 'api/team/entity';
 import { teamMutations } from 'api/team/mutations';
 import { teamQueries } from 'api/team/queries';
 import EmptyRecruitment from 'assets/svg/common/sleep-bbico.svg';
 import Layout from 'components/layout';
+import Seo from 'components/seo/Seo';
 import NotificationCard from 'components/Team/components/NotificationCard';
 import TeamNotificationHeader from 'components/Team/components/TeamNotificationHeader';
 import getNotificationTitle from 'components/Team/utils/getNotificationTitle';
 import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
-import useMount from 'utils/hooks/state/useMount';
+import useLiveNow from 'utils/hooks/state/useLiveNow';
 import useInfiniteScroll from 'utils/hooks/ui/useInfiniteScroll';
 import showToast from 'utils/ts/showToast';
 
@@ -26,14 +22,12 @@ import styles from 'pages/team/notifications/TeamNotificationsPage.module.scss';
 
 export default function TeamNotificationsPage() {
   const isLoggedIn = useIsLoggedIn();
-  
+
   const routeNavigate = useNavigate();
-  
-  
+
   const queryClient = useQueryClient();
-  const isMounted = useMount();
   const logger = useLogger();
-  const now = isMounted ? new Date() : null;
+  const now = useLiveNow();
   const pendingNotificationIdsRef = useRef(new Set<number>());
 
   const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
@@ -80,10 +74,12 @@ export default function TeamNotificationsPage() {
       notification.recruitment_id !== null &&
       notification.chat_room_id !== null
     ) {
-      routeNavigate({ href: ROUTES.TeamChat({
+      routeNavigate({
+        href: ROUTES.TeamChat({
           recruitmentId: String(notification.recruitment_id),
           chatRoomId: String(notification.chat_room_id),
-        }) });
+        }),
+      });
 
       return;
     }
@@ -151,8 +147,6 @@ export default function TeamNotificationsPage() {
   );
 }
 
-
-
 export const Route = createFileRoute('/team/notifications/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   staticData: { hasPageSeo: true },
@@ -161,5 +155,6 @@ export const Route = createFileRoute('/team/notifications/')({
 
 function RouteComponent() {
   const page = <TeamNotificationsPage />;
+
   return <Layout mobileHeader="page">{page}</Layout>;
 }

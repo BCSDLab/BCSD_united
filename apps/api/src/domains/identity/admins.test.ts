@@ -1,8 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  adminOwnerBody, adminPagination, adminStudentBody, createAdminBody,
-  ownerAdminChanges, validateAdminEmail, validateOwnerSearch,
+  adminOwnerBody,
+  adminPagination,
+  adminStudentBody,
+  createAdminBody,
+  ownerAdminChanges,
+  validateAdminEmail,
+  validateOwnerSearch,
 } from '@api/domains/identity/admins';
 import { ApiError } from '@api/errors';
 
@@ -15,8 +20,12 @@ test('manager accounts use exactly five digits and the university domain', () =>
     assert.doesNotThrow(() => validateAdminEmail(email));
   }
   for (const email of [
-    'student@koreatech.ac.kr', 'koin1234@koreatech.ac.kr', 'koin123456@koreatech.ac.kr',
-    'KOIN12345@koreatech.ac.kr', 'koin12345@example.com', 'koin12345@koreatech.ac.kr.attacker.test',
+    'student@koreatech.ac.kr',
+    'koin1234@koreatech.ac.kr',
+    'koin123456@koreatech.ac.kr',
+    'KOIN12345@koreatech.ac.kr',
+    'koin12345@example.com',
+    'koin12345@koreatech.ac.kr.attacker.test',
   ]) {
     assert.throws(() => validateAdminEmail(email), isBadRequest);
   }
@@ -49,12 +58,20 @@ test('owner search requires a target only when a nonempty query is supplied', ()
 
 test('owner administration changes only registration and grant flags, not credentials or user profile', () => {
   const body = adminOwnerBody.parse({
-    company_registration_number: '123-45-67890', grant_shop: false, grant_event: true,
-    email: 'new@example.com', name: '새 이름', nickname: '새 닉네임', phone_number: '01012345678',
-    password: 'replacement-secret', gender: 1,
+    company_registration_number: '123-45-67890',
+    grant_shop: false,
+    grant_event: true,
+    email: 'new@example.com',
+    name: '새 이름',
+    nickname: '새 닉네임',
+    phone_number: '01012345678',
+    password: 'replacement-secret',
+    gender: 1,
   });
   assert.deepEqual(ownerAdminChanges(body), {
-    company_registration_number: '123-45-67890', grant_shop: 0, grant_event: 1,
+    company_registration_number: '123-45-67890',
+    grant_shop: 0,
+    grant_event: 1,
   });
   assert.throws(() => ownerAdminChanges({ ...body, grant_shop: null }), TypeError);
 });

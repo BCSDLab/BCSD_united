@@ -1,4 +1,6 @@
 import { cn } from '@bcsdlab/utils';
+import { Controller, useFormContext, useFormState, useWatch } from 'react-hook-form';
+
 import type { TeamRecruitmentRole } from 'api/team/entity';
 import FormField from 'components/Team/ProfilePage/components/FormField';
 import StepIndicator from 'components/Team/ProfilePage/components/StepIndicator';
@@ -8,7 +10,6 @@ import {
 } from 'components/Team/RecruitmentApplyPage/schema';
 import { APPLY_STEPS } from 'components/Team/RecruitmentApplyPage/types';
 import type { ApplicationFormValues } from 'components/Team/RecruitmentApplyPage/types';
-import { Controller, useFormContext, useFormState, useWatch } from 'react-hook-form';
 import useLogger from 'utils/hooks/analytics/useLogger';
 
 import styles from './ApplicationStep.module.scss';

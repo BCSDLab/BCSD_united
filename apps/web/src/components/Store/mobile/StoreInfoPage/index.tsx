@@ -1,5 +1,6 @@
 import { cn } from '@bcsdlab/utils';
 import { useSuspenseQuery } from '@tanstack/react-query';
+
 import { storeMobileQueries } from 'api/storeMobile/queries';
 import useHashSection from 'components/Store/mobile/common/hooks/useHashSection';
 

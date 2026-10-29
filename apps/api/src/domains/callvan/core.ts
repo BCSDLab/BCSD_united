@@ -11,8 +11,21 @@ export type Notification = typeof schema.callvan_notification.$inferSelect;
 export type Report = typeof schema.callvan_report.$inferSelect;
 export type User = typeof schema.users.$inferSelect;
 export type ProcessType = 'WARNING' | 'TEMPORARY_RESTRICTION_14_DAYS' | 'PERMANENT_RESTRICTION' | 'REJECT';
-export type EventType = 'PARTICIPANT_JOINED' | 'RECRUITMENT_COMPLETE' | 'NEW_MESSAGE' | 'DEPARTURE_UPCOMING' | 'REPORT_WARNING' | 'REPORT_RESTRICTION_14_DAYS' | 'REPORT_PERMANENT_RESTRICTION';
-export interface EventPayload { sender_id?: number; sender_nickname?: string; content?: string; is_image?: boolean; recipient_id?: number }
+export type EventType =
+  | 'PARTICIPANT_JOINED'
+  | 'RECRUITMENT_COMPLETE'
+  | 'NEW_MESSAGE'
+  | 'DEPARTURE_UPCOMING'
+  | 'REPORT_WARNING'
+  | 'REPORT_RESTRICTION_14_DAYS'
+  | 'REPORT_PERMANENT_RESTRICTION';
+export interface EventPayload {
+  sender_id?: number;
+  sender_nickname?: string;
+  content?: string;
+  is_image?: boolean;
+  recipient_id?: number;
+}
 
 const errors = {
   INVALID_REQUEST_BODY: [400, '잘못된 입력값이 포함되어 있습니다.'],
@@ -43,16 +56,27 @@ export function fail(code: keyof typeof errors): never {
 }
 
 export const locations = {
-  FRONT_GATE: '정문', BACK_GATE: '후문', TENNIS_COURT: '테니스장', DORMITORY_MAIN: '본관동',
-  DORMITORY_SUB: '별관동', TERMINAL: '천안터미널', STATION: '천안역', ASAN_STATION: '천안아산역', CUSTOM: 'CUSTOM',
+  FRONT_GATE: '정문',
+  BACK_GATE: '후문',
+  TENNIS_COURT: '테니스장',
+  DORMITORY_MAIN: '본관동',
+  DORMITORY_SUB: '별관동',
+  TERMINAL: '천안터미널',
+  STATION: '천안역',
+  ASAN_STATION: '천안아산역',
+  CUSTOM: 'CUSTOM',
 } as const;
 
 export function locationName(type: string | null, name: string | null): string {
-  return name?.trim() ? name : locations[type as keyof typeof locations] ?? '';
+  return name?.trim() ? name : (locations[type as keyof typeof locations] ?? '');
 }
 
 export function displayNickname(user: Pick<User, 'nickname' | 'anonymous_nickname'>): string {
-  return user.nickname?.trim() ? user.nickname : user.anonymous_nickname?.trim() ? user.anonymous_nickname : '익명 사용자';
+  return user.nickname?.trim()
+    ? user.nickname
+    : user.anonymous_nickname?.trim()
+      ? user.anonymous_nickname
+      : '익명 사용자';
 }
 
 export function utcText(now = Date.now()): string {
@@ -65,7 +89,9 @@ function kstText(now = Date.now()): string {
 
 export function localDateTime(value: string | null): string | null {
   if (!value) return null;
-  return kstText(Date.parse(value.includes('T') ? value : value.replace(' ', 'T') + 'Z')).replace(' ', 'T').replace(/\.000$/, '');
+  return kstText(Date.parse(value.includes('T') ? value : value.replace(' ', 'T') + 'Z'))
+    .replace(' ', 'T')
+    .replace(/\.000$/, '');
 }
 
 export function departureMillis(post: Pick<Post, 'departure_date' | 'departure_time'>): number {
@@ -77,13 +103,19 @@ export function reminderTime(post: Pick<Post, 'departure_date' | 'departure_time
   return due > now ? utcText(due) : null;
 }
 
-export function assertJoinable(post: Pick<Post, 'status' | 'departure_date' | 'departure_time' | 'current_participants' | 'max_participants'>, now: number): void {
+export function assertJoinable(
+  post: Pick<Post, 'status' | 'departure_date' | 'departure_time' | 'current_participants' | 'max_participants'>,
+  now: number,
+): void {
   if (post.status !== 'RECRUITING') fail('CALLVAN_POST_NOT_RECRUITING');
   if (departureMillis(post) <= now) fail('CALLVAN_POST_JOIN_FAILED_TIME');
   if (post.current_participants >= post.max_participants) fail('CALLVAN_POST_FULL');
 }
 
-export function assertReopenable(post: Pick<Post, 'departure_date' | 'departure_time' | 'current_participants' | 'max_participants'>, now: number): void {
+export function assertReopenable(
+  post: Pick<Post, 'departure_date' | 'departure_time' | 'current_participants' | 'max_participants'>,
+  now: number,
+): void {
   if (post.current_participants >= post.max_participants) fail('CALLVAN_POST_REOPEN_FAILED_FULL');
   if (departureMillis(post) <= now) fail('CALLVAN_POST_REOPEN_FAILED_TIME');
 }
@@ -96,7 +128,8 @@ export function pagination(page: number | undefined, limit: number | undefined, 
 }
 
 export function integer(value: unknown): number {
-  const result = typeof value === 'number' ? value : typeof value === 'string' && /^-?\d+$/.test(value) ? Number(value) : NaN;
+  const result =
+    typeof value === 'number' ? value : typeof value === 'string' && /^-?\d+$/.test(value) ? Number(value) : NaN;
   if (!Number.isSafeInteger(result)) fail('INVALID_REQUEST_BODY');
   return result;
 }
@@ -126,9 +159,13 @@ export async function body(c: Context<ApiEnv>): Promise<Record<string, unknown>>
 }
 
 export interface CreatePostInput {
-  departure_type: keyof typeof locations; departure_custom_name: string;
-  arrival_type: keyof typeof locations; arrival_custom_name: string;
-  departure_date: string; departure_time: string; max_participants: number;
+  departure_type: keyof typeof locations;
+  departure_custom_name: string;
+  arrival_type: keyof typeof locations;
+  arrival_custom_name: string;
+  departure_date: string;
+  departure_time: string;
+  max_participants: number;
 }
 
 export function createInput(value: Record<string, unknown>): CreatePostInput {
@@ -143,14 +180,28 @@ export function createInput(value: Record<string, unknown>): CreatePostInput {
   };
   const date = value.departure_date;
   const time = value.departure_time;
-  if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(`${date}T00:00:00Z`)) || new Date(`${date}T00:00:00Z`).toISOString().slice(0, 10) !== date) fail('INVALID_REQUEST_BODY');
+  if (
+    typeof date !== 'string' ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+    !Number.isFinite(Date.parse(`${date}T00:00:00Z`)) ||
+    new Date(`${date}T00:00:00Z`).toISOString().slice(0, 10) !== date
+  )
+    fail('INVALID_REQUEST_BODY');
   if (typeof time !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) fail('INVALID_REQUEST_BODY');
   const max = integer(value.max_participants);
   if (max < 2 || max > 11) fail('INVALID_REQUEST_BODY');
   const from = name(departure, value.departure_custom_name);
   const to = name(arrival, value.arrival_custom_name);
   if (`${from} -> ${to}`.length > 100 || `${from} -> ${to} ${time}`.length > 100) fail('INVALID_REQUEST_BODY');
-  return { departure_type: departure, departure_custom_name: from, arrival_type: arrival, arrival_custom_name: to, departure_date: date, departure_time: `${time}:00`, max_participants: max };
+  return {
+    departure_type: departure,
+    departure_custom_name: from,
+    arrival_type: arrival,
+    arrival_custom_name: to,
+    departure_date: date,
+    departure_time: `${time}:00`,
+    max_participants: max,
+  };
 }
 
 export function gate(key: string): SQL {
@@ -190,7 +241,16 @@ export async function requireParticipant(db: Database, postId: number, userId: n
   if (!row?.present) fail('FORBIDDEN_PARTICIPANT');
 }
 
-export function eventStatement(key: string, eventId: string, postId: number | SQL, type: EventType, payload: EventPayload, now: string, due = now, extra: SQL = sql`1`): SQL {
+export function eventStatement(
+  key: string,
+  eventId: string,
+  postId: number | SQL,
+  type: EventType,
+  payload: EventPayload,
+  now: string,
+  due = now,
+  extra: SQL = sql`1`,
+): SQL {
   return sql`INSERT INTO ${schema.native_callvan_event} (id, post_id, type, payload, available_at, created_at) SELECT ${eventId}, ${postId}, ${type}, ${JSON.stringify(payload)}, ${due}, ${now} WHERE ${gate(key)} AND ${extra}`;
 }
 
@@ -200,12 +260,26 @@ export function queueDelaySeconds(availableAt: string, now = Date.now()): number
 }
 
 export async function signalEvents(env: Bindings, ids: string[], availableAt?: string): Promise<void> {
-  for (const id of ids) await env.JOBS.send(
-    { kind: 'callvan.event', key: id, payload: {} },
-    { delaySeconds: availableAt ? queueDelaySeconds(availableAt) : 0 },
-  );
+  for (const id of ids)
+    await env.JOBS.send(
+      { kind: 'callvan.event', key: id, payload: {} },
+      { delaySeconds: availableAt ? queueDelaySeconds(availableAt) : 0 },
+    );
 }
 
 export function summary(post: Post & { author_nickname: string | null; joined: number }, userId: number | null) {
-  return { id: post.id, title: post.title, departure: locationName(post.departure_type, post.departure_custom_name), arrival: locationName(post.arrival_type, post.arrival_custom_name), departure_date: post.departure_date, departure_time: post.departure_time.slice(0, 5), author_nickname: post.author_nickname, current_participants: post.current_participants, max_participants: post.max_participants, status: post.status, is_joined: Boolean(post.joined), is_author: post.author_id === userId };
+  return {
+    id: post.id,
+    title: post.title,
+    departure: locationName(post.departure_type, post.departure_custom_name),
+    arrival: locationName(post.arrival_type, post.arrival_custom_name),
+    departure_date: post.departure_date,
+    departure_time: post.departure_time.slice(0, 5),
+    author_nickname: post.author_nickname,
+    current_participants: post.current_participants,
+    max_participants: post.max_participants,
+    status: post.status,
+    is_joined: Boolean(post.joined),
+    is_author: post.author_id === userId,
+  };
 }

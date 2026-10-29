@@ -1,4 +1,5 @@
 import { cn } from '@bcsdlab/utils';
+
 import type { DepartArrivalPlace } from 'api/bus/entity';
 import {
   locationLabels,

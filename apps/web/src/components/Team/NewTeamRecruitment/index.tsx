@@ -1,12 +1,12 @@
 import { type ComponentType, useState } from 'react';
-
 import { cn } from '@bcsdlab/utils';
+import { Controller, useWatch } from 'react-hook-form';
+
 import ComputerIcon from 'assets/svg/Team/computer.svg';
 import KeyframesDoubleIcon from 'assets/svg/Team/keyframes-double.svg';
 import UserGroupIcon from 'assets/svg/Team/user-group-02.svg';
 import MobilePageHeader from 'components/layout/MobilePageHeader';
 import SubmitConfirmModal from 'components/Team/components/SubmitConfirmModal';
-import { Controller, useWatch } from 'react-hook-form';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useBooleanState from 'utils/hooks/state/useBooleanState';

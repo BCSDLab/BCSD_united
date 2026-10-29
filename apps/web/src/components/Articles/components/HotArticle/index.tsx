@@ -1,9 +1,9 @@
-import Image from 'components/ui/Image';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 
-import { useQuery } from '@tanstack/react-query';
 import { articleQueries } from 'api/articles/queries';
 import LoadingSpinner from 'components/feedback/LoadingSpinner';
+import Image from 'components/ui/Image';
 import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
@@ -53,10 +53,14 @@ export default function HotArticles() {
           <LoadingSpinner size="80" />
         ) : (
           hotArticles.map((article, index) => (
-            <Link className={styles['hot-article__content']} to={ROUTES.ArticlesDetail({ id: String(article.id) })} key={article.id + article.board_id}
-            onClick={() =>
-              logger.actionEventClick({ team: 'CAMPUS', event_label: 'notice_hot', value: article.title })
-            }>
+            <Link
+              className={styles['hot-article__content']}
+              to={ROUTES.ArticlesDetail({ id: String(article.id) })}
+              key={article.id + article.board_id}
+              onClick={() =>
+                logger.actionEventClick({ team: 'CAMPUS', event_label: 'notice_hot', value: article.title })
+              }
+            >
               <span className={styles['hot-article__rank']}>{index + 1}</span>
               <span className={styles['hot-article__item']}>{article.title}</span>
             </Link>

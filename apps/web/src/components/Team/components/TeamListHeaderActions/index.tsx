@@ -1,6 +1,6 @@
+import { useQuery } from '@tanstack/react-query';
 import { useRouter, useLocation } from '@tanstack/react-router';
 
-import { useQuery } from '@tanstack/react-query';
 import { teamQueries } from 'api/team/queries';
 import NotificationIcon from 'assets/svg/Team/notification.svg';
 import ProfileIcon from 'assets/svg/Team/profile.svg';

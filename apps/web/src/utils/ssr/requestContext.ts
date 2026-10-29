@@ -1,5 +1,5 @@
 import { WebSession } from 'api/auth/APIDetail';
-import { KOIN_BASE_URL, WEB_AUTH_ACCESS_COOKIE_KEY } from 'static/url';
+import { WEB_AUTH_ACCESS_COOKIE_KEY } from 'static/url';
 import { toUserType, type UserType } from 'utils/auth/session';
 import APIClient from 'utils/ts/apiClient';
 
@@ -69,7 +69,9 @@ export async function getServerRequestContext(request: Request): Promise<ServerR
   const now = new Date().toISOString();
   const cookie = request.headers.get('cookie');
 
-  const accessToken = cookie?.split(';').map((entry) => entry.trim())
+  const accessToken = cookie
+    ?.split(';')
+    .map((entry) => entry.trim())
     .find((entry) => entry.startsWith(`${WEB_AUTH_ACCESS_COOKIE_KEY}=`))
     ?.slice(WEB_AUTH_ACCESS_COOKIE_KEY.length + 1);
   if (!cookie || !hasUsableAccessToken(accessToken)) {
@@ -77,7 +79,7 @@ export async function getServerRequestContext(request: Request): Promise<ServerR
   }
 
   try {
-    const session = await APIClient.request(new WebSession({ Cookie: cookie, Origin: KOIN_BASE_URL }));
+    const session = await APIClient.request(new WebSession({ Cookie: cookie, Origin: new URL(request.url).origin }));
     const userType = session.authenticated ? toUserType(session.user_type) : null;
 
     return { device, isLoggedIn: userType !== null, userType, now };

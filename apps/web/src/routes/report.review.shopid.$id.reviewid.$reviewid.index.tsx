@@ -1,13 +1,9 @@
-import { createFileRoute, useNavigate, useSearch, useParams, notFound } from '@tanstack/react-router';
-import { createServerFn } from '@tanstack/react-start';
-import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
-
 import { useEffect, useRef, useState } from 'react';
-
-
-
 import { cn } from '@bcsdlab/utils';
 import { dehydrate, QueryClient } from '@tanstack/react-query';
+import { createFileRoute, useNavigate, useSearch, useParams, notFound } from '@tanstack/react-router';
+import { createServerFn } from '@tanstack/react-start';
+
 import { storeMobileQueries } from 'api/storeMobile/queries';
 import Layout, { SSRLayout } from 'components/layout';
 import ReviewReportPage from 'components/Store/mobile/ReviewReportPage';
@@ -18,7 +14,7 @@ import useStoreDetail from 'components/Store/StoreDetailPage/hooks/useStoreDetai
 import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useMount from 'utils/hooks/state/useMount';
-
+import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import showToast from 'utils/ts/showToast';
 
 import styles from 'pages/report/review/shopid/[id]/reviewid/[reviewid]/ReviewReporting.module.scss';
@@ -58,10 +54,8 @@ const REVIEW_CONTEXT = {
 };
 
 function ReviewReportingPage({ shopid, reviewid }: { shopid: string; reviewid: string }) {
-  
   const routeNavigate = useNavigate();
-  
-  
+
   const logger = useLogger();
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -172,7 +166,10 @@ function ReviewReportingPage({ shopid, reviewid }: { shopid: string; reviewid: s
 
 // 기존 데스크톱 화면. getPageData가 없던 때처럼 서버는 비워 두고 클라이언트에서만 그린다
 function ReviewReportingPageWrapper() {
-  const routeQuery: Record<string, string | string[] | undefined> = { ...useSearch({ strict: false }), ...useParams({ strict: false }) };
+  const routeQuery: Record<string, string | string[] | undefined> = {
+    ...useSearch({ strict: false }),
+    ...useParams({ strict: false }),
+  };
   const isMounted = useMount();
   const { id, reviewid } = routeQuery;
   if (!isMounted || typeof id !== 'string' || typeof reviewid !== 'string') return null;
@@ -186,29 +183,28 @@ function ReviewReportRoute({ id, reviewId, isMobile }: Props) {
   return <ReviewReportPage id={id} reviewId={reviewId} />;
 }
 
-
-
-
-
 export default ReviewReportRoute;
 
 // 로그인 필수 화면이라 공용 캐시를 켜지 않는다(loadPageData 기본값 private)
-const getPageData = createServerFn({ method: 'GET', strict: { output: false } }).validator(validatePageInput)
-  .handler(({ data }) => loadPageData(data, async (context, _cacheControl, serverRequest) => {
-    const { id, reviewid: reviewId } = context.params;
-    if (!id || !reviewId) throw notFound();
+const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
+  .validator(validatePageInput)
+  .handler(({ data }) =>
+    loadPageData(data, async (context, _cacheControl, serverRequest) => {
+      const { id, reviewid: reviewId } = context.params;
+      if (!id || !reviewId) throw notFound();
 
-    // 데스크톱은 기존처럼 클라이언트에서 그린다
-    if (serverRequest.device !== 'mobile') {
-      return { id, reviewId, isMobile: false };
-    }
+      // 데스크톱은 기존처럼 클라이언트에서 그린다
+      if (serverRequest.device !== 'mobile') {
+        return { id, reviewId, isMobile: false };
+      }
 
-    // 모바일은 KOIN_ORDER_WEBVIEW처럼 신고 카테고리만 받아 본문까지 렌더한다(클라이언트는 같은 쿼리 키로 캐시를 이어받는다)
-    const queryClient = new QueryClient();
-    await queryClient.fetchQuery(storeMobileQueries.reportCategories());
+      // 모바일은 KOIN_ORDER_WEBVIEW처럼 신고 카테고리만 받아 본문까지 렌더한다(클라이언트는 같은 쿼리 키로 캐시를 이어받는다)
+      const queryClient = new QueryClient();
+      await queryClient.fetchQuery(storeMobileQueries.reportCategories());
 
-    return { id, reviewId, isMobile: true, dehydratedState: dehydrate(queryClient) };
-  }));
+      return { id, reviewId, isMobile: true, dehydratedState: dehydrate(queryClient) };
+    }),
+  );
 
 export const Route = createFileRoute('/report/review/shopid/$id/reviewid/$reviewid/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
@@ -219,7 +215,12 @@ export const Route = createFileRoute('/report/review/shopid/$id/reviewid/$review
 });
 
 function RouteComponent() {
-  const props = Route.useLoaderData();
-  const page = <ReviewReportRoute {...props} />;
-  return props.isMobile ? <SSRLayout mobileHeader="page">{page}</SSRLayout> : <Layout>{page}</Layout>;
+  const loaderData = Route.useLoaderData();
+  const page = <ReviewReportRoute {...loaderData} />;
+
+  return loaderData.serverRequest.device === 'mobile' ? (
+    <SSRLayout mobileHeader="page">{page}</SSRLayout>
+  ) : (
+    <Layout>{page}</Layout>
+  );
 }

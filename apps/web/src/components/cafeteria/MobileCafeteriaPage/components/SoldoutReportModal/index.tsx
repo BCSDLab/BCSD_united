@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-
 import { cn } from '@bcsdlab/utils';
+
 import type { DiningPlace } from 'api/dinings/entity';
 import CloseIcon from 'assets/svg/cafeteria/soldout-report-close-icon.svg';
 import { useCafeteriaParams } from 'components/cafeteria/hooks/useCafeteriaParams';

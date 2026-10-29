@@ -8,13 +8,13 @@
     "build": "wrangler deploy --dry-run --outdir dist",
     "db:generate": "drizzle-kit generate",
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
-    "test": "tsx --tsconfig tsconfig.json --test \"src/**/*.test.ts\" \"tests/**/*.test.ts\"",
-    "deploy": "wrangler deploy"
+    "test": "tsx --tsconfig tsconfig.json --test \"src/**/*.test.ts\" \"tests/**/*.test.ts\" && node --test \"scripts/*.test.mjs\"",
+    "deploy": "wrangler deploy",
+    "deploy:preview": "wrangler preview"
   },
   "dependencies": {
+    "@hono/swagger-ui": "0.6.2",
     "@koin/telemetry": "workspace:*",
-    "@sentry/cloudflare": "10.77.1",
-    "@sentry/core": "10.77.1",
     "bcryptjs": "3.0.3",
     "drizzle-orm": "0.45.4",
     "fast-xml-parser": "5.11.2",
@@ -25,6 +25,8 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@aws-sdk/client-s3": "3.1158.0",
+    "@types/node": "^24.13.3",
     "drizzle-kit": "0.31.11",
     "mysql2": "3.24.6"
   }

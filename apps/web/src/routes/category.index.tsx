@@ -1,8 +1,5 @@
-import { parseSearch } from 'utils/routing/search';
-import { createFileRoute, Link } from '@tanstack/react-router';
-
 import type { ComponentType, MouseEvent, SVGProps } from 'react';
-
+import { createFileRoute, Link } from '@tanstack/react-router';
 
 import BriefcaseIcon from 'assets/svg/category/briefcase-icon.svg';
 import CalendarIcon from 'assets/svg/category/calendar-icon.svg';
@@ -27,6 +24,7 @@ import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useModalPortal from 'utils/hooks/layout/useModalPortal';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
+import { parseSearch } from 'utils/routing/search';
 
 import styles from 'pages/category/CategoryPage.module.scss';
 
@@ -255,7 +253,13 @@ function CategoryPage() {
     <main className={styles.category}>
       <section className={styles.quick} aria-label="주요 서비스">
         {quickMenus.map(({ title, description, href, Icon, logging }) => (
-          <Link key={title} to={href.split('?')[0]} search={parseSearch(href.split('?')[1] ?? '')} className={styles['quick-card']} onClick={() => handleCategoryClick(logging)}>
+          <Link
+            key={title}
+            to={href.split('?')[0]}
+            search={parseSearch(href.split('?')[1] ?? '')}
+            className={styles['quick-card']}
+            onClick={() => handleCategoryClick(logging)}
+          >
             <CategoryIconBox Icon={Icon} />
             <div>
               <p className={styles['quick-card__title']}>{title}</p>
@@ -276,7 +280,12 @@ function CategoryPage() {
 
               return (
                 <li key={itemTitle}>
-                  <Link to={href.split('?')[0]} search={parseSearch(href.split('?')[1] ?? '')} className={styles.menu__link} onClick={(e) => handleMenuClick(e, item)}>
+                  <Link
+                    to={href.split('?')[0]}
+                    search={parseSearch(href.split('?')[1] ?? '')}
+                    className={styles.menu__link}
+                    onClick={(e) => handleMenuClick(e, item)}
+                  >
                     <div className={styles.menu__content}>
                       <CategoryIconBox Icon={Icon} />
                       <span className={styles.menu__title}>{itemTitle}</span>
@@ -293,8 +302,6 @@ function CategoryPage() {
   );
 }
 
-
-
 export default CategoryPage;
 
 export const Route = createFileRoute('/category/')({
@@ -304,5 +311,6 @@ export const Route = createFileRoute('/category/')({
 
 function RouteComponent() {
   const page = <CategoryPage />;
+
   return <HomeLayout>{page}</HomeLayout>;
 }

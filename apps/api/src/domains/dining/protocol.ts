@@ -4,23 +4,54 @@ export type DiningType = 'BREAKFAST' | 'LUNCH' | 'DINNER';
 export type ReportStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 export type ProcessingType = 'MANUAL' | 'SAME_DINING_APPROVED' | 'COOP_PREPROCESSED';
 export type Outcome = 'SUCCEEDED' | 'FAILED';
-export interface Actor { workspace_id: string; user_id: string; display_name: string }
+export interface Actor {
+  workspace_id: string;
+  user_id: string;
+  display_name: string;
+}
 export interface DiningRow {
-  id: number; date: string; type: DiningType; place: string; price_card: number | null;
-  price_cash: number | null; kcal: number | null; menu: string; image_url: string | null;
-  created_at: string; updated_at: string; sold_out: string | null; sold_out_source: string | null;
-  is_changed: string | null; likes: number | null;
+  id: number;
+  date: string;
+  type: DiningType;
+  place: string;
+  price_card: number | null;
+  price_cash: number | null;
+  kcal: number | null;
+  menu: string;
+  image_url: string | null;
+  created_at: string;
+  updated_at: string;
+  sold_out: string | null;
+  sold_out_source: string | null;
+  is_changed: string | null;
+  likes: number | null;
 }
 export interface ReportRow {
-  id: number; dining_id: number; reporter_id: number | null; image_url: string; status: ReportStatus;
-  processing_type: ProcessingType | null; processing_id: string | null; source_report_id: number | null;
-  processor_workspace_id: string | null; processor_user_id: string | null; processor_name: string | null;
-  processed_at: string | null; created_at: string; updated_at: string;
+  id: number;
+  dining_id: number;
+  reporter_id: number | null;
+  image_url: string;
+  status: ReportStatus;
+  processing_type: ProcessingType | null;
+  processing_id: string | null;
+  source_report_id: number | null;
+  processor_workspace_id: string | null;
+  processor_user_id: string | null;
+  processor_name: string | null;
+  processed_at: string | null;
+  created_at: string;
+  updated_at: string;
 }
 export interface ChangeRow {
-  sequence: string; report_id: number; delivery_id: string | null; report_snapshot: string | null;
-  delivery_state: 'QUEUED' | 'IN_PROGRESS' | 'DELIVERED'; attempt_token: string | null;
-  expires_at: string | null; next_attempt_at: string | null; accepted_outcome: Outcome | null;
+  sequence: string;
+  report_id: number;
+  delivery_id: string | null;
+  report_snapshot: string | null;
+  delivery_state: 'QUEUED' | 'IN_PROGRESS' | 'DELIVERED';
+  attempt_token: string | null;
+  expires_at: string | null;
+  next_attempt_at: string | null;
+  accepted_outcome: Outcome | null;
 }
 const errors = {
   DINING_REPORT_DATE_NOT_ALLOWED: [400, '오늘 식단만 제보할 수 있습니다.'],
@@ -43,21 +74,35 @@ export function fail(code: keyof typeof errors): never {
   throw new ApiError(status, code, message);
 }
 export function utcSql(now: Date, micros = false): string {
-  return now.toISOString().replace('T', ' ').slice(0, micros ? 23 : 19) + (micros ? '000' : '');
+  return (
+    now
+      .toISOString()
+      .replace('T', ' ')
+      .slice(0, micros ? 23 : 19) + (micros ? '000' : '')
+  );
 }
 export function asInstant(value: string): Date {
   return new Date(value.includes('Z') || /[+-]\d\d:\d\d$/.test(value) ? value : `${value.replace(' ', 'T')}Z`);
 }
-export function kstDate(now: Date): string { return new Date(now.getTime() + 32_400_000).toISOString().slice(0, 10); }
+export function kstDate(now: Date): string {
+  return new Date(now.getTime() + 32_400_000).toISOString().slice(0, 10);
+}
 export function kstTimestamp(value: string | null): string | null {
-  return value === null ? null : new Date(asInstant(value).getTime() + 32_400_000).toISOString().slice(0, 19).replace('T', ' ');
+  return value === null
+    ? null
+    : new Date(asInstant(value).getTime() + 32_400_000).toISOString().slice(0, 19).replace('T', ' ');
 }
 export function offsetTimestamp(value: string): string {
   const shifted = new Date(asInstant(value).getTime() + 32_400_000).toISOString();
   return shifted.slice(0, 23) + '+09:00';
 }
 export function parseDate(value: string): string {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(Date.parse(`${value}T00:00:00Z`)) || new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) !== value) fail('ILLEGAL_ARGUMENT');
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(value) ||
+    Number.isNaN(Date.parse(`${value}T00:00:00Z`)) ||
+    new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) !== value
+  )
+    fail('ILLEGAL_ARGUMENT');
   return value;
 }
 export function integer(value: unknown): number {
@@ -83,35 +128,71 @@ export function menuItems(menu: string): string[] {
 export interface ReportResponse {
   report_id: number;
   dining: { id: number; date: string; type: DiningType; place: string };
-  status: ReportStatus; processing_type: ProcessingType | null; reason: string | null;
-  created_at: string | null; processed_at: string | null;
+  status: ReportStatus;
+  processing_type: ProcessingType | null;
+  reason: string | null;
+  created_at: string | null;
+  processed_at: string | null;
   processor: { workspace_id: string | null; user_id: string | null; display_name: string | null } | null;
-  image_url: string; processing_id: string | null; source_report_id: number | null; updated_at: string | null;
+  image_url: string;
+  processing_id: string | null;
+  source_report_id: number | null;
+  updated_at: string | null;
 }
 export function reportResponse(report: ReportRow, dining: DiningRow, encoded = false): ReportResponse {
   const manual = report.processing_type === 'MANUAL';
-  const reason = report.processing_type === 'MANUAL' ? (report.status === 'APPROVED' ? '담당자 승인' : '담당자 반려')
-    : report.processing_type === 'SAME_DINING_APPROVED' ? '동일 코스 제보 승인에 따른 자동 처리'
-      : report.processing_type === 'COOP_PREPROCESSED' ? '영양사 선처리로 제보 확인 없이 종료' : null;
+  const reason =
+    report.processing_type === 'MANUAL'
+      ? report.status === 'APPROVED'
+        ? '담당자 승인'
+        : '담당자 반려'
+      : report.processing_type === 'SAME_DINING_APPROVED'
+        ? '동일 코스 제보 승인에 따른 자동 처리'
+        : report.processing_type === 'COOP_PREPROCESSED'
+          ? '영양사 선처리로 제보 확인 없이 종료'
+          : null;
   return {
-    report_id: report.id, dining: { id: dining.id, date: dining.date, type: dining.type, place: dining.place },
-    status: report.status, processing_type: report.processing_type, reason,
-    created_at: kstTimestamp(report.created_at), processed_at: manual ? kstTimestamp(report.processed_at) : null,
-    processor: manual ? { workspace_id: report.processor_workspace_id, user_id: report.processor_user_id, display_name: report.processor_name } : null,
+    report_id: report.id,
+    dining: { id: dining.id, date: dining.date, type: dining.type, place: dining.place },
+    status: report.status,
+    processing_type: report.processing_type,
+    reason,
+    created_at: kstTimestamp(report.created_at),
+    processed_at: manual ? kstTimestamp(report.processed_at) : null,
+    processor: manual
+      ? {
+          workspace_id: report.processor_workspace_id,
+          user_id: report.processor_user_id,
+          display_name: report.processor_name,
+        }
+      : null,
     image_url: encoded ? encodeImagePath(report.image_url) : report.image_url,
-    processing_id: report.processing_id, source_report_id: report.source_report_id, updated_at: kstTimestamp(report.updated_at),
+    processing_id: report.processing_id,
+    source_report_id: report.source_report_id,
+    updated_at: kstTimestamp(report.updated_at),
   };
 }
 export function encodeImagePath(value: string): string {
-  return encodeURI(value).replace(/[?#\[\]+]/g, (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`);
+  return encodeURI(value).replace(/[?#[\]+]/g, (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`);
 }
 export function claimable(change: ChangeRow, earlier: readonly ChangeRow[], now: string): boolean {
-  const due = change.delivery_state === 'QUEUED' ? change.next_attempt_at === null || change.next_attempt_at <= now
-    : change.delivery_state === 'IN_PROGRESS' && change.expires_at !== null && change.expires_at <= now;
-  return due && !earlier.some((row) => row.report_id === change.report_id && BigInt(row.sequence) < BigInt(change.sequence) && row.delivery_state !== 'DELIVERED');
+  const due =
+    change.delivery_state === 'QUEUED'
+      ? change.next_attempt_at === null || change.next_attempt_at <= now
+      : change.delivery_state === 'IN_PROGRESS' && change.expires_at !== null && change.expires_at <= now;
+  return (
+    due &&
+    !earlier.some(
+      (row) =>
+        row.report_id === change.report_id &&
+        BigInt(row.sequence) < BigInt(change.sequence) &&
+        row.delivery_state !== 'DELIVERED',
+    )
+  );
 }
 export function checkResult(change: ChangeRow, token: string, outcome: Outcome, belongsElsewhere: boolean): boolean {
-  if (token !== change.attempt_token) fail(belongsElsewhere ? 'NOT_FOUND_DINING_REPORT_DELIVERY' : 'DINING_REPORT_DELIVERY_CONFLICT');
+  if (token !== change.attempt_token)
+    fail(belongsElsewhere ? 'NOT_FOUND_DINING_REPORT_DELIVERY' : 'DINING_REPORT_DELIVERY_CONFLICT');
   if (change.accepted_outcome !== null) {
     if (change.accepted_outcome !== outcome) fail('DINING_REPORT_DELIVERY_CONFLICT');
     return true;
@@ -129,13 +210,19 @@ export function resultBody(body: unknown): { attempt_token: string; outcome: Out
     if (fields[key] == null || fields[key] === '') fail('INVALID_REQUEST_BODY');
     if (typeof fields[key] !== 'string') fail('NOT_READABLE_HTTP_MESSAGE');
   }
-  if (!uuidPattern.test(fields.attempt_token as string) || !['SUCCEEDED', 'FAILED'].includes(fields.outcome as string)) fail('NOT_READABLE_HTTP_MESSAGE');
+  if (!uuidPattern.test(fields.attempt_token as string) || !['SUCCEEDED', 'FAILED'].includes(fields.outcome as string))
+    fail('NOT_READABLE_HTTP_MESSAGE');
   return { attempt_token: (fields.attempt_token as string).toLowerCase(), outcome: fields.outcome as Outcome };
 }
 export function actorBody(body: unknown): Actor {
-  if (!body || typeof body !== 'object' || !('actor' in body) || !body.actor || typeof body.actor !== 'object') fail('INVALID_REQUEST_BODY');
+  if (!body || typeof body !== 'object' || !('actor' in body) || !body.actor || typeof body.actor !== 'object')
+    fail('INVALID_REQUEST_BODY');
   const actor = body.actor as Record<string, unknown>;
-  for (const [key, max] of [['workspace_id', 64], ['user_id', 64], ['display_name', 80]] as const) {
+  for (const [key, max] of [
+    ['workspace_id', 64],
+    ['user_id', 64],
+    ['display_name', 80],
+  ] as const) {
     if (typeof actor[key] !== 'string' || !actor[key].trim() || actor[key].length > max) fail('INVALID_REQUEST_BODY');
   }
   return actor as unknown as Actor;

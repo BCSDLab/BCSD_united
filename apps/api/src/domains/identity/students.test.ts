@@ -1,22 +1,42 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { ApiError } from '@api/errors';
-import { defaultAcademicMajor, legacyStudentRegistration, studentRegistration, studentView, validateAcademicSelection, validateStudentNumber } from '@api/domains/identity/students';
+import {
+  defaultAcademicMajor,
+  legacyStudentRegistration,
+  studentRegistration,
+  studentView,
+  validateAcademicSelection,
+  validateStudentNumber,
+} from '@api/domains/identity/students';
 
 const major = (id: number, departmentId: number, name: string | null) => ({
-  id, department_id: departmentId, name, created_at: '2026-01-01 00:00:00', updated_at: '2026-01-01 00:00:00',
+  id,
+  department_id: departmentId,
+  name,
+  created_at: '2026-01-01 00:00:00',
+  updated_at: '2026-01-01 00:00:00',
 });
 
 const registration = {
-  name: '홍길동', nickname: '학생1', email: 'student@koreatech.ac.kr',
-  phone_number: '01012345678', gender: 0, department: '컴퓨터공학부',
-  student_number: '2026136001', login_id: 'student1', password: 'a'.repeat(64),
+  name: '홍길동',
+  nickname: '학생1',
+  email: 'student@koreatech.ac.kr',
+  phone_number: '01012345678',
+  gender: 0,
+  department: '컴퓨터공학부',
+  student_number: '2026136001',
+  login_id: 'student1',
+  password: 'a'.repeat(64),
 };
 
 describe('student academic eligibility', () => {
   it('requires an eight-to-ten digit student number even without a year catalogue', () => {
     for (const value of [null, '', '2026136', '20261360010', '2026A36001']) {
-      assert.throws(() => validateAcademicSelection(value, { id: 1 }, null, []), (error) => error instanceof ApiError && error.status === 400);
+      assert.throws(
+        () => validateAcademicSelection(value, { id: 1 }, null, []),
+        (error) => error instanceof ApiError && error.status === 400,
+      );
     }
     for (const value of ['20261360', '202613600', '2026136001']) {
       assert.doesNotThrow(() => validateAcademicSelection(value, { id: 1 }, null, []));
@@ -32,7 +52,10 @@ describe('student academic eligibility', () => {
   });
 
   it('rejects a major belonging to another department even without year records', () => {
-    assert.throws(() => validateAcademicSelection('2026136001', { id: 1 }, major(10, 2, '전자공학전공'), []), (error) => error instanceof ApiError && error.status === 404);
+    assert.throws(
+      () => validateAcademicSelection('2026136001', { id: 1 }, major(10, 2, '전자공학전공'), []),
+      (error) => error instanceof ApiError && error.status === 404,
+    );
     assert.throws(() => validateAcademicSelection('2026136001', null, null, []));
   });
 
@@ -83,7 +106,7 @@ describe('legacy password reset view', () => {
     const html = studentView('password', 'https://example.test/" onmouseover="alert(1)', '"><script>alert(2)</script>');
     assert.ok(!html.includes('value="https://example.test/" onmouseover='));
     assert.ok(!html.includes('<script>alert(2)</script>'));
-    assert.ok(html.includes('crypto.subtle.digest(\'SHA-256\''));
+    assert.ok(html.includes("crypto.subtle.digest('SHA-256'"));
     assert.ok(html.includes('패스워드가 일치하지 않습니다.'));
   });
 });

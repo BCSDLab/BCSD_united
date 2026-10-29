@@ -1,11 +1,11 @@
-import Image from 'components/ui/Image';
+import { cn } from '@bcsdlab/utils';
 import { Link } from '@tanstack/react-router';
 
-import { cn } from '@bcsdlab/utils';
 import type { ClubEvent } from 'api/club/entity';
 import SmallBellIcon from 'assets/svg/Club/small_bell-icon.svg';
 import ClubNotificationModal from 'components/Club/ClubDetailPage/components/ClubNotificationModal';
 import useClubNotification from 'components/Club/ClubDetailPage/hooks/useClubNotification';
+import Image from 'components/ui/Image';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
@@ -57,7 +57,6 @@ export default function ClubEventCard({ event, setEventId, clubId, clubName }: C
   const isUpcomingMobile = isMobile && event.status === 'UPCOMING';
   const notifyModalType = event.is_subscribed ? 'unsubscribed' : 'subscribed';
 
-
   const handleLinkClick: React.MouseEventHandler<HTMLAnchorElement> = (e) => {
     if ((e.target as HTMLElement).closest('button')) {
       e.preventDefault();
@@ -85,10 +84,11 @@ export default function ClubEventCard({ event, setEventId, clubId, clubName }: C
       search={(previous) => ({ ...previous, tab: 'event', eventId: String(event.id) })}
       resetScroll={false}
       onClick={handleLinkClick}
-    className={cn({
-      [styles['club-event-card']]: true,
-      [styles['club-event-card--ended']]: event.status === 'ENDED',
-    })}>
+      className={cn({
+        [styles['club-event-card']]: true,
+        [styles['club-event-card--ended']]: event.status === 'ENDED',
+      })}
+    >
       {event.image_urls.length > 0 && (
         <div className={styles['card-image-container']}>
           <Image
@@ -100,11 +100,11 @@ export default function ClubEventCard({ event, setEventId, clubId, clubName }: C
           />
         </div>
       )}
-    
+
       <div className={styles['club-event-card__content']}>
         <div className={styles['club-event-card__header']}>
           <h3 className={styles['club-event-card__title']}>{event.name}</h3>
-    
+
           <div
             className={cn({
               [styles['club-event-card__status']]: true,

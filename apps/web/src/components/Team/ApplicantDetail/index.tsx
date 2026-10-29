@@ -1,7 +1,7 @@
 import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter, useParams } from '@tanstack/react-router';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { TeamRecruitmentApplicationDecision } from 'api/team/entity';
 import { teamMutations } from 'api/team/mutations';
 import { teamQueries } from 'api/team/queries';
@@ -51,7 +51,7 @@ const DECISION_MODAL_COPY: Record<TeamRecruitmentApplicationDecision, DecisionMo
 
 export default function ApplicantDetail() {
   const router = useRouter();
-  const routeParams = useParams({ strict: false }) as Record<string, string | string[] | undefined>;
+  const routeParams = useParams({ strict: false });
   const isLoggedIn = useIsLoggedIn();
   const logger = useLogger();
   const queryClient = useQueryClient();

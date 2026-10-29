@@ -1,6 +1,6 @@
 import { startTransition, useState } from 'react';
-
 import { useSuspenseQuery } from '@tanstack/react-query';
+
 import { graduationCalculatorQueries } from 'api/graduationCalculator/queries';
 import CloseIcon from 'assets/svg/close-icon-grey.svg';
 import SemesterCourseTable from 'components/GraduationCalculatorPage/components/CourseTable/SemesterCourseTable';

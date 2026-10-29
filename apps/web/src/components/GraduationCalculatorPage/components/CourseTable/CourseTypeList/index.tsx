@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
-
 import { cn } from '@bcsdlab/utils';
 import { useQuery } from '@tanstack/react-query';
+
 import { graduationCalculatorQueries } from 'api/graduationCalculator/queries';
 import DownArrowIcon from 'assets/svg/chervron-up-grey.svg';
 import useLogger from 'utils/hooks/analytics/useLogger';

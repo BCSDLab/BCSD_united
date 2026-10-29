@@ -1,7 +1,7 @@
 import { useState } from 'react';
+import { cn } from '@bcsdlab/utils';
 import { useRouter } from '@tanstack/react-router';
 
-import { cn } from '@bcsdlab/utils';
 import { CALLVAN_POST_LOCATION_LABEL, type CallvanPostLocationType } from 'api/callvan/entity';
 import ArrowBackIcon from 'assets/svg/Callvan/arrow-back.svg';
 import SwapIcon from 'assets/svg/Callvan/swap.svg';
@@ -12,6 +12,7 @@ import useCallvanToast from 'components/Callvan/hooks/useCallvanToast';
 import useCreateCallvan from 'components/Callvan/hooks/useCreateCallvan';
 import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
+import { useServerCalendarDate } from 'utils/ssr/useServerNow';
 
 import styles from './AddPostForm.module.scss';
 
@@ -59,13 +60,14 @@ export default function AddPostForm() {
   const logger = useLogger();
   const { open: openToast } = useCallvanToast();
   const { mutate, isPending } = useCreateCallvan();
+  const serverNow = useServerCalendarDate();
 
   const [form, setForm] = useState<FormState>({
     departureType: null,
     departureCustomName: '',
     arrivalType: null,
     arrivalCustomName: '',
-    departureDate: new Date(),
+    departureDate: serverNow,
     departureHour: 12,
     departureMinute: 0,
     isPM: false,
@@ -101,22 +103,14 @@ export default function AddPostForm() {
   const handleSubmit = () => {
     if (!form.departureType || !form.arrivalType || isPending) return;
 
-    const selectedDateTime = new Date(form.departureDate);
-    let hour24: number;
-    if (form.isPM) {
-      hour24 = form.departureHour === 12 ? 12 : form.departureHour + 12;
-    } else {
-      hour24 = form.departureHour === 12 ? 0 : form.departureHour;
-    }
-    selectedDateTime.setHours(hour24, form.departureMinute, 0, 0);
+    const departureTime = formatTime(form.departureHour, form.departureMinute, form.isPM);
+    const selectedDateTime = new Date(`${formatDateParam(form.departureDate)}T${departureTime}:00+09:00`);
 
     if (selectedDateTime < new Date()) {
       openToast('현재 시각보다 이전 시각으로 모집글을 생성할 수 없습니다.');
 
       return;
     }
-
-    const departureTime = formatTime(form.departureHour, form.departureMinute, form.isPM);
 
     mutate(
       {

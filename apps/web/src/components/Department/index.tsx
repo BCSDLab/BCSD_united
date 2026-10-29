@@ -1,4 +1,5 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
+
 import type { DepartmentContactCategory } from 'api/departmentContact/entity';
 import { departmentContactQueries } from 'api/departmentContact/queries';
 import { BUS_FEEDBACK_FORM } from 'static/bus';

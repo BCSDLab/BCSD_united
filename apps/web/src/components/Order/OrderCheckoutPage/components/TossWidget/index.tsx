@@ -1,5 +1,4 @@
 import { useEffect, type Dispatch, type SetStateAction } from 'react';
-
 import { loadTossPayments, type TossPaymentsWidgets } from '@tosspayments/tosspayments-sdk';
 
 import styles from './TossWidget.module.scss';

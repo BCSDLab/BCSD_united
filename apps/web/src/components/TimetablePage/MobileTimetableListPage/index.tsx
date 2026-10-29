@@ -1,8 +1,7 @@
 import React, { useEffect } from 'react';
-import { Link } from '@tanstack/react-router';
-import { useRouter } from '@tanstack/react-router';
-
 import { useSuspenseQueries } from '@tanstack/react-query';
+import { Link, useRouter } from '@tanstack/react-router';
+
 import type { Semester, TimetableFrameInfo } from 'api/timetable/entity';
 import { createDefaultTimetableFrameList, timetableQueries } from 'api/timetable/queries';
 import TimetableEmptyIllustration from 'assets/svg/timetable-empty-illustration.svg';
@@ -65,11 +64,14 @@ function SemesterSection({ semester, frames, isMember, onRequireLogin, onOpenSet
       value: `click_semester_${semester.year}${semester.term}`,
     });
     updateSemester(semester);
-    router.navigate({ to: ROUTES.Timetable(), search: {
-      year: String(semester.year),
-      term: semester.term,
-      ...(frame.id ? { timetableFrameId: String(frame.id) } : {}),
-    } });
+    router.navigate({
+      to: ROUTES.Timetable(),
+      search: {
+        year: String(semester.year),
+        term: semester.term,
+        ...(frame.id ? { timetableFrameId: String(frame.id) } : {}),
+      },
+    });
   };
 
   return (
@@ -154,7 +156,7 @@ function GuestList({ isLoggedIn, onRequireLogin, onOpenSetting }: GuestListProps
       {!isLoggedIn && (
         <div className={styles.notice}>
           <p className={styles.notice__text}>
-            <Link  to={ROUTES.Auth()} className={styles.notice__login}>
+            <Link to={ROUTES.Auth()} className={styles.notice__login}>
               로그인
             </Link>
             을 통해 학기를 편집하고 계절학기와 예비 시간표를 작성할 수 있어요.

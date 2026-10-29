@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+
 import { coopshopQueries } from 'api/coopshop/queries';
 import InformationIcon from 'assets/svg/common/information/information-icon-grey.svg';
 import useCafeteriaInfoParam from 'components/cafeteria/hooks/useCafeteriaInfoParam';

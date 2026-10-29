@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 import { useLocation } from '@tanstack/react-router';
+import { create } from 'zustand';
 
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
-import { create } from 'zustand';
 
 interface SidebarState {
   isSidebarOpen: boolean;

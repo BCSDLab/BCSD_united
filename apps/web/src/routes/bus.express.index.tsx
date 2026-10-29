@@ -1,17 +1,15 @@
-import { createFileRoute } from '@tanstack/react-router';
-
 import { useState } from 'react';
-
-
 import { cn } from '@bcsdlab/utils';
 import { useQuery } from '@tanstack/react-query';
+import { createFileRoute } from '@tanstack/react-router';
+import dayjs from 'dayjs';
+
 import { busQueries } from 'api/bus/queries';
 import BusCoursePage from 'components/Bus/BusCoursePage';
 import Template from 'components/Bus/BusCoursePage/components/ExternalTemplate';
 import InfoFooter from 'components/Bus/BusCoursePage/components/InfoFooter';
 import useBusPrefetch from 'components/Bus/BusCoursePage/hooks/useBusPrefetch';
 import Layout from 'components/layout';
-import dayjs from 'dayjs';
 import { EXPRESS_COURSES } from 'static/bus';
 import useLogger from 'utils/hooks/analytics/useLogger';
 
@@ -97,8 +95,6 @@ export default function ExpressBusTimetable() {
   );
 }
 
-
-
 export const Route = createFileRoute('/bus/express/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   component: RouteComponent,
@@ -106,5 +102,6 @@ export const Route = createFileRoute('/bus/express/')({
 
 function RouteComponent() {
   const page = <ExpressBusTimetable />;
+
   return <Layout mobileHeader="page">{page}</Layout>;
 }

@@ -18,19 +18,19 @@ export default function MobileArticleDetailFooter({ prevId, nextId, hotArticles 
   return (
     <div className={styles.footer}>
       <nav className={styles.navigation} aria-label="공지사항 상세 이동">
-        <Link className={styles.navigation__button} to={ROUTES.Articles()} >
+        <Link className={styles.navigation__button} to={ROUTES.Articles()}>
           목록
         </Link>
         <div className={styles.navigation__group}>
           {prevId ? (
-            <Link className={styles.navigation__button} to={ROUTES.ArticlesDetail({ id: String(prevId) })} >
+            <Link className={styles.navigation__button} to={ROUTES.ArticlesDetail({ id: String(prevId) })}>
               이전 글
             </Link>
           ) : (
             <span className={styles['navigation__button--disabled']}>이전 글</span>
           )}
           {nextId ? (
-            <Link className={styles.navigation__button} to={ROUTES.ArticlesDetail({ id: String(nextId) })} >
+            <Link className={styles.navigation__button} to={ROUTES.ArticlesDetail({ id: String(nextId) })}>
               다음 글
             </Link>
           ) : (

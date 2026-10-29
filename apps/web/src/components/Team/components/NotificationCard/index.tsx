@@ -1,4 +1,5 @@
 import { cn } from '@bcsdlab/utils';
+
 import type { TeamRecruitmentNotification } from 'api/team/entity';
 import ChatIcon from 'assets/svg/Team/chat.svg';
 import UserGroupIcon from 'assets/svg/Team/user-group.svg';
@@ -9,7 +10,7 @@ import styles from './NotificationCard.module.scss';
 
 interface NotificationCardProps {
   notification: TeamRecruitmentNotification;
-  now: Date | null;
+  now: Date;
   onNotificationClick: (notification: TeamRecruitmentNotification) => void;
 }
 
@@ -30,7 +31,7 @@ export default function NotificationCard({ notification, now, onNotificationClic
       <span className={styles.card__body}>
         <span className={styles.card__heading}>
           <span className={styles.card__title}>{getNotificationTitle(notification)}</span>
-          <span className={styles.card__time}>{now ? formatRelativeTime(notification.created_at, now) : ''}</span>
+          <span className={styles.card__time}>{formatRelativeTime(notification.created_at, now)}</span>
         </span>
 
         <span className={styles.card__message}>{notification.message_preview}</span>

@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 import { useRouter } from '@tanstack/react-router';
+import { Controller, FormProvider, useForm, useWatch } from 'react-hook-form';
 
 import CustomInput from 'components/Auth/SignupPage/components/CustomInput';
-import { Controller, FormProvider, useForm, useWatch } from 'react-hook-form';
 import { MESSAGES } from 'static/auth';
 import ROUTES from 'static/routes';
 import usePhoneVerificationInFindId from 'utils/hooks/auth/usePhoneVerificationInFindId';

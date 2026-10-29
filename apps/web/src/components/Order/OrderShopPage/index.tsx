@@ -1,7 +1,7 @@
 import { useMemo, useRef } from 'react';
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
 
-import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { orderQueries } from 'api/order/queries';
 import type { ShopInfoResponse } from 'api/storeMobile/entity';
 import { storeMobileQueries } from 'api/storeMobile/queries';

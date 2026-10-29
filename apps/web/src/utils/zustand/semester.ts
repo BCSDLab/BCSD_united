@@ -1,8 +1,9 @@
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+
 import type { Semester } from 'api/timetable/entity';
 import { getRecentSemester } from 'utils/timetable/semester';
 import { writeSemesterCookie } from 'utils/timetable/semesterCookie';
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 
 interface State {
   semester: Semester;

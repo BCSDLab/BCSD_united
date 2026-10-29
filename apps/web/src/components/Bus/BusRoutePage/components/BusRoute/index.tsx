@@ -1,9 +1,11 @@
 import { cn } from '@bcsdlab/utils';
+
 import BusIcon from 'assets/svg/Bus/bus-icon-28x28.svg';
 import { SHORT_BUS_TYPE_MAP } from 'components/Bus/BusRoutePage/constants/busType';
 import type { Schedule } from 'components/Bus/BusRoutePage/ts/types';
 import { formatTimeDifference, formatTimeWithSeconds, isToday } from 'components/Bus/BusRoutePage/utils/timeModule';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
+import useLiveNow from 'utils/hooks/state/useLiveNow';
 
 import styles from './BusRoute.module.scss';
 
@@ -14,6 +16,8 @@ interface BusRouteProps {
 
 export default function BusRoute({ departDate, schedule }: BusRouteProps) {
   const isMobile = useMediaQuery();
+  // 남은 시간은 분 단위로만 보여주므로 1분마다 갱신한다.
+  const now = useLiveNow(60_000);
   const { busType, busName, departTime } = schedule;
 
   return (
@@ -41,7 +45,7 @@ export default function BusRoute({ departDate, schedule }: BusRouteProps) {
       </div>
       <div className={styles['before-arrive']}>
         <span className={styles['before-arrive__text']}>
-          {isToday(new Date(departDate)) ? formatTimeDifference(departTime, formatTimeWithSeconds(new Date())) : ''}
+          {isToday(new Date(departDate), now) ? formatTimeDifference(departTime, formatTimeWithSeconds(now)) : ''}
         </span>
       </div>
     </div>

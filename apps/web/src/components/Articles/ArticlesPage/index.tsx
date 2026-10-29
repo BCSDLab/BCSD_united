@@ -23,7 +23,7 @@ export default function ArticlesPageLayout({ children, mobileTabMenu }: Articles
       <div className={styles.content}>
         {!isMobile && (
           <div className={styles.header}>
-            <Link  to={ROUTES.Articles()} >
+            <Link to={ROUTES.Articles()}>
               <h1 className={styles.header__title}>게시판</h1>
             </Link>
           </div>

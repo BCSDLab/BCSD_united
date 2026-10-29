@@ -1,22 +1,44 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "koin-web-local",
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "koin-web",
   "main": "src/server.ts",
   "compatibility_date": "2026-10-26",
   "compatibility_flags": ["nodejs_compat"],
-  "assets": { "binding": "ASSETS" },
-  "images": { "binding": "IMAGES" },
-  "observability": { "enabled": true },
-  "env": {
-    "stage": {
-      "name": "koin-web-stage",
-      "images": { "binding": "IMAGES" },
-      "vars": { "NEXT_PUBLIC_SENTRY_ENVIRONMENT": "stage" }
+  "upload_source_maps": true,
+  "assets": {
+    "binding": "ASSETS",
+  },
+  "images": {
+    "binding": "IMAGES",
+  },
+  "observability": {
+    "enabled": true,
+    "issues": {
+      "enabled": true,
     },
-    "production": {
-      "name": "koin-web",
-      "images": { "binding": "IMAGES" },
-      "vars": { "NEXT_PUBLIC_SENTRY_ENVIRONMENT": "production" }
-    }
-  }
+    "traces": {
+      "enabled": true,
+    },
+  },
+  "vars": {
+    "KOIN_ENVIRONMENT": "main",
+    "KOIN_API_ORIGIN": "https://koin-api.bcsdlab.workers.dev",
+    "NEXT_PUBLIC_SENTRY_ENVIRONMENT": "production",
+  },
+  "services": [
+    {
+      "binding": "KOIN_API",
+      "service": "koin-api",
+    },
+  ],
+  "previews": {
+    "vars": {
+      "KOIN_ENVIRONMENT": "preview",
+      "KOIN_API_ORIGIN": "https://preview-koin-api.bcsdlab.workers.dev",
+      "NEXT_PUBLIC_SENTRY_ENVIRONMENT": "preview",
+    },
+    "images": {
+      "binding": "IMAGES",
+    },
+  },
 }

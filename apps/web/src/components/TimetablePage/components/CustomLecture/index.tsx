@@ -3,8 +3,8 @@
 /* eslint-disable react-hooks/refs -- DOM 크기 측정을 위해 렌더 중 ref.current를 직접 읽음 ('use no memo'로 컴파일러 최적화 제외) */
 /* eslint-disable react-hooks/set-state-in-effect -- DOM 레이아웃 측정(getBoundingClientRect) 후에만 알 수 있는 값을 effect에서 상태로 반영 */
 import { useState, useEffect, useRef } from 'react';
-
 import { cn } from '@bcsdlab/utils';
+
 import type { MyLectureInfo, Semester } from 'api/timetable/entity';
 import AddIcon from 'assets/svg/add-icon.svg';
 import CloseIcon from 'assets/svg/close-icon-black.svg';
@@ -609,7 +609,7 @@ function CustomLecture({ timetableFrameId, semester }: { timetableFrameId: numbe
       };
     });
 
-    setTimeSpaceComponents([...newLectureInfos.map(({ id }) => ({ id }))]);
+    setTimeSpaceComponents(newLectureInfos.map(({ id }) => ({ id })));
 
     updateCustomTempLecture({
       class_title: selectedEditLecture.class_title,

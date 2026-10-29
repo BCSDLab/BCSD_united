@@ -1,7 +1,7 @@
 import React from 'react';
+import { useSuspenseQuery } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
 
-import { useSuspenseQuery } from '@tanstack/react-query';
 import { deptQueries } from 'api/dept/queries';
 import type { Lecture, MyLectureInfo, SemesterCheckResponse, TimetableFrameListResponse } from 'api/timetable/entity';
 import { isValidTimetableFrameId } from 'api/timetable/queries';
@@ -138,7 +138,9 @@ function ValidMainTimetable({ timetableFrameId }: { readonly timetableFrameId: n
 
   const onClickEdit = () => {
     if (checkSemesterAndTimetable(mySemester, timeTableFrameList)) {
-      router.navigate({ href: `${ROUTES.TimetableModify({ id: String(timetableFrameId), type: 'regular' })}&year=${semester?.year}&term=${semester?.term}` });
+      router.navigate({
+        href: `${ROUTES.TimetableModify({ id: String(timetableFrameId), type: 'regular' })}&year=${semester?.year}&term=${semester?.term}`,
+      });
     }
   };
 

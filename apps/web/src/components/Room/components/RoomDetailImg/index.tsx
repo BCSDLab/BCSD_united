@@ -1,6 +1,5 @@
-import Image from 'components/ui/Image';
-
 import useClickArrow from 'components/Room/RoomDetailPage/hooks/useClickArrow';
+import Image from 'components/ui/Image';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 
 import styles from './RoomDetailImg.module.scss';

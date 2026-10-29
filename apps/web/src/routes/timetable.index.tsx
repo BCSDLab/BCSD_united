@@ -1,14 +1,9 @@
-import { createFileRoute, useSearch, useParams } from '@tanstack/react-router';
-import { lazy } from 'react';
-import { createServerFn } from '@tanstack/react-start';
-import { loadPageData, validatePageInput, type PageRequest } from 'utils/ssr/pageData';
-import { useEffect, useState } from 'react';
-
-
-
-
+import { lazy, useEffect, useState } from 'react';
 import { isKoinError } from '@bcsdlab/koin';
 import { dehydrate, QueryClient } from '@tanstack/react-query';
+import { createFileRoute, useSearch, useParams } from '@tanstack/react-router';
+import { createServerFn } from '@tanstack/react-start';
+
 import { deptQueries } from 'api/dept/queries';
 import type { TimetableFrameListResponse } from 'api/timetable/entity';
 import {
@@ -26,8 +21,8 @@ import useLogger from 'utils/hooks/analytics/useLogger';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useGoBack from 'utils/hooks/routing/useGoBack';
 import useScrollToTop from 'utils/hooks/ui/useScrollToTop';
+import { loadPageData, validatePageInput, type PageRequest } from 'utils/ssr/pageData';
 import type { ServerRequestContext } from 'utils/ssr/requestContext';
-
 import { getRecentSemester, getSemesterFromQuery, resolveTimetableSemester } from 'utils/timetable/semester';
 import { isomorphicSessionStorage } from 'utils/ts/env';
 import getElapsedSeconds from 'utils/ts/getElapsedSeconds';
@@ -36,7 +31,9 @@ import { useSemester } from 'utils/zustand/semester';
 
 import styles from 'pages/timetable/TimetablePage.module.scss';
 
-const MobilePage = lazy(() => import('components/TimetablePage/MainTimetablePage/MobilePage').then((mod) => ({ default: mod.MobilePage })));
+const MobilePage = lazy(() =>
+  import('components/TimetablePage/MainTimetablePage/MobilePage').then((mod) => ({ default: mod.MobilePage })),
+);
 
 const prefetchBaseTimetableData = async (queryClient: QueryClient) => {
   await Promise.all([
@@ -116,16 +113,16 @@ async function prefetchTimetableData(
   }
 }
 
-
-
 function TimetablePage() {
   const isMobile = useMediaQuery();
   useScrollToTop();
   const semester = useSemester();
-  
-  
-  const routeQuery: Record<string, string | string[] | undefined> = { ...useSearch({ strict: false }), ...useParams({ strict: false }) };
-  
+
+  const routeQuery: Record<string, string | string[] | undefined> = {
+    ...useSearch({ strict: false }),
+    ...useParams({ strict: false }),
+  };
+
   const logger = useLogger();
   const goBack = useGoBack();
   const { timetableFrameId } = routeQuery;
@@ -172,33 +169,34 @@ function TimetablePage() {
 
 export default TimetablePage;
 
+const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
+  .validator(validatePageInput)
+  .handler(({ data }) =>
+    loadPageData(data, async (context, cacheControl, serverRequest) => {
+      const queryClient = new QueryClient();
+      const { search: query } = context;
+      const frameId = Number(query.timetableFrameId);
+      const validatedFrameId = isValidTimetableFrameId(frameId) ? frameId : null;
 
+      if (serverRequest.isLoggedIn) {
+        await prefetchTimetableData(
+          queryClient,
+          context,
+          serverRequest.isLoggedIn,
+          serverRequest.userType,
+          query,
+          validatedFrameId,
+        );
+      } else {
+        setDefaultTimetableFrameList(queryClient, false);
+        cacheControl.enablePublicCache();
+      }
 
-const getPageData = createServerFn({ method: 'GET', strict: { output: false } }).validator(validatePageInput)
-  .handler(({ data }) => loadPageData(data, async (context, cacheControl, serverRequest) => {
-    const queryClient = new QueryClient();
-    const { search: query } = context;
-    const frameId = Number(query.timetableFrameId);
-    const validatedFrameId = isValidTimetableFrameId(frameId) ? frameId : null;
-
-    if (serverRequest.isLoggedIn) {
-      await prefetchTimetableData(
-        queryClient,
-        context,
-        serverRequest.isLoggedIn,
-        serverRequest.userType,
-        query,
-        validatedFrameId,
-      );
-    } else {
-      setDefaultTimetableFrameList(queryClient, false);
-      cacheControl.enablePublicCache();
-    }
-
-    return {
+      return {
         dehydratedState: dehydrate(queryClient),
       };
-  }));
+    }),
+  );
 
 export const Route = createFileRoute('/timetable/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
@@ -209,5 +207,6 @@ export const Route = createFileRoute('/timetable/')({
 
 function RouteComponent() {
   const page = <TimetablePage />;
+
   return <SSRLayout mobileHeader="page">{page}</SSRLayout>;
 }

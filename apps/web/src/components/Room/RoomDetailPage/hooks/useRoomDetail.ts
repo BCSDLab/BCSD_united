@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+
 import { roomQueries } from 'api/room/queries';
 
 const useRoomDetail = (id: string) => {

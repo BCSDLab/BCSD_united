@@ -6,6 +6,7 @@ import {
   savedApplyActivitySchema,
 } from 'components/Team/RecruitmentApplyPage/schema';
 import DatePickerModal from 'components/ui/DatePickerModal';
+import { useServerCalendarDate } from 'utils/ssr/useServerNow';
 
 import styles from './ActivityHistoryField.module.scss';
 
@@ -24,6 +25,7 @@ const validateActivity = (activity: ActivityValue) => {
 };
 
 export default function ActivityHistoryField() {
+  const serverNow = useServerCalendarDate();
   const {
     fields,
     activities,
@@ -205,7 +207,7 @@ export default function ActivityHistoryField() {
 
           return (
             <DatePickerModal
-              selectedDate={rawDate ? new Date(`${rawDate}T00:00:00`) : new Date()}
+              selectedDate={rawDate ? new Date(`${rawDate}T00:00:00`) : serverNow}
               onChange={handleDateSelect(openDatePicker.index, openDatePicker.field)}
               onClose={handleCloseDatePicker}
             />

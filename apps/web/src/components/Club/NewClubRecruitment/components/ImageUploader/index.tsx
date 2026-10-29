@@ -1,9 +1,9 @@
 import { type Dispatch, type SetStateAction, useState } from 'react';
-import Image from 'components/ui/Image';
-
 import { cn } from '@bcsdlab/utils';
+
 import type { ClubRecruitment } from 'api/club/entity';
 import UploadIcon from 'assets/svg/Club/add-image.svg';
+import Image from 'components/ui/Image';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useImageUpload, { UploadError } from 'utils/hooks/ui/useImageUpload';
 import imageResize from 'utils/ts/imageResize';

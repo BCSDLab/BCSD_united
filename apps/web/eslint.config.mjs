@@ -68,12 +68,14 @@ export default [
     settings: {
       react: { version: 'detect' },
       'import/resolver': { typescript: {} },
+      'import/core-modules': ['cloudflare:workers'],
       node: { tryExtensions: ['.js', '.jsx', '.ts', '.tsx', '.scss'] },
     },
     rules: {
       ...react.configs.recommended.rules,
       ...react.configs['jsx-runtime'].rules,
       ...reactHooks.configs['recommended-latest'].rules,
+      'import/no-duplicates': ['error', { considerQueryString: true }],
 
       // SSR 안전성 (CLAUDE.md 규칙 4, 10)
       // bare 참조는 no-restricted-globals 가, window/globalThis 경유는

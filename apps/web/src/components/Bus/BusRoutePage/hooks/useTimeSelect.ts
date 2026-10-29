@@ -1,6 +1,8 @@
 import { useState } from 'react';
 
 import { formatDate, formatTime } from 'components/Bus/BusRoutePage/utils/timeModule';
+import { useServerNow } from 'utils/ssr/useServerNow';
+import { toKoreanCalendarDate } from 'utils/ts/calendar';
 
 interface TimeState {
   nowDate: Date;
@@ -28,27 +30,28 @@ export interface UseTimeSelectReturn {
 }
 
 export const useTimeSelect = () => {
-  const nowDate = new Date();
+  const now = useServerNow();
+  const nowDate = toKoreanCalendarDate(now);
   const [timeState, setTimeState] = useState({
     nowDate,
     dayOfMonth: nowDate.getDate(),
-    hour: nowDate.getHours(),
-    minute: nowDate.getMinutes(),
+    hour: (now.getUTCHours() + 9) % 24,
+    minute: now.getUTCMinutes(),
   });
 
   const timeHandler = {
     setNow: (date: Date) => {
-      setTimeState((prev) => ({
-        ...prev,
-        nowDate: date,
-        dayOfMonth: date.getDate(),
-        hour: date.getHours(),
-        minute: date.getMinutes(),
-      }));
+      const calendarDate = toKoreanCalendarDate(date);
+      setTimeState({
+        nowDate: calendarDate,
+        dayOfMonth: calendarDate.getDate(),
+        hour: (date.getUTCHours() + 9) % 24,
+        minute: date.getUTCMinutes(),
+      });
     },
     setDayOfMonth: (dateDiff: number) =>
       setTimeState((prev) => {
-        const newDate = new Date();
+        const newDate = new Date(nowDate);
         newDate.setDate(newDate.getDate() + dateDiff);
 
         return {
@@ -57,28 +60,8 @@ export const useTimeSelect = () => {
           dayOfMonth: newDate.getDate(),
         };
       }),
-    setHour: (hour: number) =>
-      setTimeState((prev) => {
-        const newDate = new Date(prev.nowDate);
-        newDate.setHours(hour);
-
-        return {
-          ...prev,
-          nowDate: newDate,
-          hour: newDate.getHours(),
-        };
-      }),
-    setMinute: (minute: number) =>
-      setTimeState((prev) => {
-        const newDate = new Date(prev.nowDate);
-        newDate.setMinutes(minute);
-
-        return {
-          ...prev,
-          nowDate: newDate,
-          minute: newDate.getMinutes(),
-        };
-      }),
+    setHour: (hour: number) => setTimeState((prev) => ({ ...prev, hour })),
+    setMinute: (minute: number) => setTimeState((prev) => ({ ...prev, minute })),
   };
 
   const formattedValues = {

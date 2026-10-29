@@ -1,5 +1,6 @@
 import { isKoinError, sendClientError } from '@bcsdlab/koin';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+
 import { agreeGraduationCredits } from 'api/graduationCalculator';
 import { graduationCalculatorQueryKeys } from 'api/graduationCalculator/queries';
 import showToast from 'utils/ts/showToast';

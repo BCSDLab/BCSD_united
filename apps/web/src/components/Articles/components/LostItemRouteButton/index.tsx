@@ -31,7 +31,7 @@ export default function LostItemRouteButton() {
   } = useArticlesLogger();
   const router = useRouter();
   const routeLocation = useLocation();
-  const routeSearch = useSearch({ strict: false }) as Record<string, string | string[] | undefined>;
+  const routeSearch = useSearch({ strict: false });
 
   const [isWriting, setIsWriting] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -100,9 +100,7 @@ export default function LostItemRouteButton() {
     const nextQuery = buildQueryFromFilter(filter, {
       page: 1,
       sort:
-        (Array.isArray(routeSearch.sort) ? routeSearch.sort[0] : routeSearch.sort) === 'OLDEST'
-          ? 'OLDEST'
-          : 'LATEST',
+        (Array.isArray(routeSearch.sort) ? routeSearch.sort[0] : routeSearch.sort) === 'OLDEST' ? 'OLDEST' : 'LATEST',
     });
 
     router.navigate({ to: routeLocation.pathname, search: nextQuery });
@@ -186,18 +184,26 @@ export default function LostItemRouteButton() {
             </div>
 
             <div className={styles['write-body']}>
-              <Link className={styles['write-option-button']} to={ROUTES.LostItemFound()} onClick={() => {
-                logFindUserWriteClick();
-                setIsWriting(false);
-              }}>
+              <Link
+                className={styles['write-option-button']}
+                to={ROUTES.LostItemFound()}
+                onClick={() => {
+                  logFindUserWriteClick();
+                  setIsWriting(false);
+                }}
+              >
                 <FoundIcon />
                 <span className={styles['write-option-text']}>주인을 찾아요</span>
               </Link>
 
-              <Link className={styles['write-option-button']} to={ROUTES.LostItemLost()} onClick={() => {
-                logLostItemWriteClick();
-                setIsWriting(false);
-              }}>
+              <Link
+                className={styles['write-option-button']}
+                to={ROUTES.LostItemLost()}
+                onClick={() => {
+                  logLostItemWriteClick();
+                  setIsWriting(false);
+                }}
+              >
                 <LostIcon />
                 <span className={styles['write-option-text']}>잃어버렸어요</span>
               </Link>

@@ -1,6 +1,6 @@
 import React from 'react';
-
 import { cn } from '@bcsdlab/utils';
+
 import type { DeptListResponse } from 'api/dept/entity';
 import CurriculumIcon from 'assets/svg/curriculum-icon.svg';
 import DownArrowIcon from 'assets/svg/down-arrow-icon.svg';

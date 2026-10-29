@@ -1,6 +1,6 @@
 import { useState } from 'react';
-
 import { cn } from '@bcsdlab/utils';
+
 import ArrowBackIcon from 'assets/svg/Articles/chevron-left.svg';
 import ArrowGoIcon from 'assets/svg/Articles/chevron-right.svg';
 import { DAYS } from 'static/day';

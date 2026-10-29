@@ -4768,6 +4768,38 @@ export const native_notification_outbox = sqliteTable("native_notification_outbo
   index("native_notification_outbox__index_0").on(table.status, table.available_at),
 ]);
 
+export const native_source_metadata_file = sqliteTable("native_source_metadata_file", {
+  id: text("id").primaryKey().notNull(),
+  source: text("source").notNull(),
+  row_count: integer("row_count").notNull(),
+  byte_count: integer("byte_count").notNull(),
+  sha256: text("sha256").notNull(),
+  chunk_count: integer("chunk_count").notNull(),
+}, (table) => [
+  check("native_source_metadata_file_row_count_type_0", sql.raw("\"row_count\" IS NULL OR typeof(\"row_count\") = 'integer'")),
+  check("native_source_metadata_file_row_count_type_1", sql.raw("\"row_count\" BETWEEN -9007199254740991 AND 9007199254740991")),
+  check("native_source_metadata_file_byte_count_type_0", sql.raw("\"byte_count\" IS NULL OR typeof(\"byte_count\") = 'integer'")),
+  check("native_source_metadata_file_byte_count_type_1", sql.raw("\"byte_count\" BETWEEN -9007199254740991 AND 9007199254740991")),
+  check("native_source_metadata_file_chunk_count_type_0", sql.raw("\"chunk_count\" IS NULL OR typeof(\"chunk_count\") = 'integer'")),
+  check("native_source_metadata_file_chunk_count_type_1", sql.raw("\"chunk_count\" BETWEEN -9007199254740991 AND 9007199254740991")),
+  check("native_source_metadata_file_check_0", sql.raw("row_count >= 0")),
+  check("native_source_metadata_file_check_1", sql.raw("byte_count >= 0")),
+  check("native_source_metadata_file_check_2", sql.raw("chunk_count >= 0")),
+  check("native_source_metadata_file_check_3", sql.raw("length(sha256) = 64")),
+]);
+
+export const native_source_metadata_chunk = sqliteTable("native_source_metadata_chunk", {
+  file_id: text("file_id").notNull(),
+  position: integer("position").notNull(),
+  payload: text("payload").notNull(),
+}, (table) => [
+  check("native_source_metadata_chunk_position_type_0", sql.raw("\"position\" IS NULL OR typeof(\"position\") = 'integer'")),
+  check("native_source_metadata_chunk_position_type_1", sql.raw("\"position\" BETWEEN -9007199254740991 AND 9007199254740991")),
+  primaryKey({ columns: [table.file_id, table.position] }),
+  foreignKey({ name: "native_source_metadata_chunk_file_id_fk", columns: [table.file_id], foreignColumns: ((): [AnySQLiteColumn] => [native_source_metadata_file.id])() }).onDelete("cascade").onUpdate("no action"),
+  check("native_source_metadata_chunk_check_0", sql.raw("position >= 0")),
+]);
+
 export const schema = {
   abtest,
   abtest_variable,
@@ -4991,4 +5023,6 @@ export const schema = {
   citybus_timetables,
   native_transport_cache,
   native_notification_outbox,
+  native_source_metadata_file,
+  native_source_metadata_chunk,
 };

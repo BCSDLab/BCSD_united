@@ -1,12 +1,8 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { createServerFn } from '@tanstack/react-start';
-import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
-
-
-
-
 import { cn } from '@bcsdlab/utils';
 import { dehydrate, QueryClient, useQuery, useSuspenseQuery } from '@tanstack/react-query';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { createServerFn } from '@tanstack/react-start';
+
 import { clubQueries } from 'api/club/queries';
 import BookIcon from 'assets/svg/Club/book-icon.svg';
 import ExerciseIcon from 'assets/svg/Club/exercise-icon.svg';
@@ -27,7 +23,7 @@ import useModalPortal from 'utils/hooks/layout/useModalPortal';
 import useParamsHandler from 'utils/hooks/routing/useParamsHandler';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
-
+import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import {
   createQueryParser,
   parseQueryBoolean,
@@ -76,15 +72,12 @@ export const parseClubListQuery = createQueryParser<ClubListQuery>({
   },
 });
 
-
-
 function ClubListPage({ initialQuery }: Awaited<ReturnType<typeof getPageData>>) {
   const logger = useLogger();
   const isLoggedIn = useIsLoggedIn();
-  
+
   const routeNavigate = useNavigate();
-  
-  
+
   const navigate = (path: string) => {
     routeNavigate({ href: path });
   };
@@ -357,36 +350,37 @@ function ClubListPage({ initialQuery }: Awaited<ReturnType<typeof getPageData>>)
 
 export default ClubListPage;
 
+const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
+  .validator(validatePageInput)
+  .handler(({ data }) =>
+    loadPageData(data, async (context, cacheControl, serverRequest) => {
+      const params = parseClubListQuery(context.search);
 
+      const queryClient = new QueryClient();
 
-const getPageData = createServerFn({ method: 'GET', strict: { output: false } }).validator(validatePageInput)
-  .handler(({ data }) => loadPageData(data, async (context, cacheControl, serverRequest) => {
-    const params = parseClubListQuery(context.search);
+      await Promise.all([
+        queryClient.prefetchQuery(clubQueries.categories()),
+        queryClient.prefetchQuery(
+          clubQueries.list({
+            isLoggedIn: serverRequest.isLoggedIn,
+            categoryId: params.categoryId ?? undefined,
+            sortType: params.sortType,
+            isRecruiting: params.isRecruiting,
+            clubName: params.clubName,
+          }),
+        ),
+      ]);
 
-    const queryClient = new QueryClient();
+      if (!serverRequest.isLoggedIn) {
+        cacheControl.enablePublicCache();
+      }
 
-    await Promise.all([
-      queryClient.prefetchQuery(clubQueries.categories()),
-      queryClient.prefetchQuery(
-        clubQueries.list({
-          isLoggedIn: serverRequest.isLoggedIn,
-          categoryId: params.categoryId ?? undefined,
-          sortType: params.sortType,
-          isRecruiting: params.isRecruiting,
-          clubName: params.clubName,
-        }),
-      ),
-    ]);
-
-    if (!serverRequest.isLoggedIn) {
-      cacheControl.enablePublicCache();
-    }
-
-    return {
+      return {
         dehydratedState: dehydrate(queryClient),
         initialQuery: params,
       };
-  }));
+    }),
+  );
 
 export const Route = createFileRoute('/clubs/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
@@ -398,5 +392,6 @@ export const Route = createFileRoute('/clubs/')({
 function RouteComponent() {
   const props = Route.useLoaderData();
   const page = <ClubListPage {...props} />;
+
   return <SSRLayout>{page}</SSRLayout>;
 }

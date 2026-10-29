@@ -27,18 +27,26 @@ export default function LostItemWriteBottomSheet({ isOpen, onClose, onFoundClick
         </div>
 
         <div className={styles.body}>
-          <Link className={styles.option} to={ROUTES.LostItemFound()} onClick={() => {
-            onFoundClick?.();
-            onClose();
-          }}>
+          <Link
+            className={styles.option}
+            to={ROUTES.LostItemFound()}
+            onClick={() => {
+              onFoundClick?.();
+              onClose();
+            }}
+          >
             <FoundIcon />
             <span>주인을 찾아요</span>
           </Link>
 
-          <Link className={styles.option} to={ROUTES.LostItemLost()} onClick={() => {
-            onLostClick?.();
-            onClose();
-          }}>
+          <Link
+            className={styles.option}
+            to={ROUTES.LostItemLost()}
+            onClick={() => {
+              onLostClick?.();
+              onClose();
+            }}
+          >
             <LostIcon />
             <span>잃어버렸어요</span>
           </Link>

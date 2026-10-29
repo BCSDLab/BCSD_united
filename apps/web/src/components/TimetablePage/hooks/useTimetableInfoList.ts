@@ -1,4 +1,5 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
+
 import type { TimetableLectureInfoResponse, MyLectureInfo } from 'api/timetable/entity';
 import { timetableQueries } from 'api/timetable/queries';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';

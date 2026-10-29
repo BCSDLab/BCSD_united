@@ -82,7 +82,9 @@ export default function SelectButton({ is_mine, review_id, is_reported, store_id
           <>
             <button
               type="button"
-              onClick={() => router.navigate({ href: ROUTES.ReviewEdit({ id: store_id, reviewId: String(review_id) }) })}
+              onClick={() =>
+                router.navigate({ href: ROUTES.ReviewEdit({ id: store_id, reviewId: String(review_id) }) })
+              }
               className={styles.section}
             >
               수정하기
@@ -103,10 +105,12 @@ export default function SelectButton({ is_mine, review_id, is_reported, store_id
               }
               if (userInfo) {
                 loggingReportClick();
-                router.navigate({ href: ROUTES.ReviewReport({
-                  shopid: store_id,
-                  reviewid: String(review_id),
-                }) });
+                router.navigate({
+                  href: ROUTES.ReviewReport({
+                    shopid: store_id,
+                    reviewid: String(review_id),
+                  }),
+                });
               } else {
                 openLoginModal();
               }

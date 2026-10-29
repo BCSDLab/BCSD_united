@@ -1,13 +1,15 @@
 // reference: https://github.com/16Yongjin/tutoring-app/tree/main/src/api
-import * as Sentry from '@sentry/core';
-import { WebRefresh, WebSession } from 'api/auth/APIDetail';
+import { traceOperation } from '@koin/telemetry/runtime';
 import axios, { type AxiosError, type AxiosResponse } from 'axios';
+
+import { WebRefresh, WebSession } from 'api/auth/APIDetail';
 import type { CustomAxiosError, KoinError } from 'interfaces/APIError';
 import { type APIRequest, HTTP_METHOD } from 'interfaces/APIRequest';
 import type { APIResponse } from 'interfaces/APIResponse';
 import { WEB_AUTH_CSRF_COOKIE_KEY } from 'static/url';
 import { hasSessionCookie } from 'utils/auth/session';
 import { markSessionAuthenticated, markSessionExpired } from 'utils/auth/sessionControl';
+import { getApiBaseUrl } from 'utils/ssr/apiTarget';
 import { getServerRequestHeaders } from 'utils/ssr/cookieForwarding';
 import qsStringify from 'utils/ts/qsStringfy';
 import { useServerStateStore } from 'utils/zustand/serverState';
@@ -15,8 +17,6 @@ import { useServerStateStore } from 'utils/zustand/serverState';
 import { getCookie } from './cookie';
 
 const isBrowser = typeof window !== 'undefined';
-const isLocalDev = isBrowser && process.env.NODE_ENV === 'development';
-const API_URL = isLocalDev ? '/api/proxy' : process.env.NEXT_PUBLIC_API_PATH;
 
 function normalizeApiPath(path: string | undefined): string {
   if (!path) return 'unknown';
@@ -84,7 +84,9 @@ export default class APIClient {
 
   static of = APIClient.toCallable;
 
-  baseURL = API_URL;
+  get baseURL(): string {
+    return getApiBaseUrl();
+  }
 
   timeout: number = 20 * 1000;
 
@@ -107,7 +109,7 @@ export default class APIClient {
           withCredentials: request.withCredentials ?? true,
         })
         .then((data: AxiosResponse<U>) => {
-          const response = Sentry.startSpan(
+          const response = traceOperation(
             {
               name: `Parse API response: ${route}`,
               op: 'koin.api.parse',
@@ -134,7 +136,7 @@ export default class APIClient {
               const handledResponse = await this.errorMiddleware(err, request);
 
               if (handledResponse) {
-                const response = Sentry.startSpan(
+                const response = traceOperation(
                   {
                     name: `Parse retried API response: ${route}`,
                     op: 'koin.api.parse',
@@ -208,7 +210,7 @@ export default class APIClient {
 
       const route = normalizeApiPath(originalRequest?.url);
 
-      return await Sentry.startSpan(
+      return await traceOperation(
         {
           name: `Retry API request: ${route}`,
           op: 'koin.api.retry',
@@ -223,7 +225,7 @@ export default class APIClient {
   }
 
   private handleUnauthorized = async (error: AxiosError, request: AuthFlags) => {
-    const refreshed = await Sentry.startSpan(
+    const refreshed = await traceOperation(
       {
         name: 'Refresh API access token',
         op: 'koin.api.auth_refresh',
@@ -303,7 +305,7 @@ export default class APIClient {
   }
 
   private createTracedKoinError(error: AxiosError<KoinError>, route: string): Error & (KoinError | CustomAxiosError) {
-    return Sentry.startSpan(
+    return traceOperation(
       {
         name: `Convert API error: ${route}`,
         op: 'koin.api.error_conversion',

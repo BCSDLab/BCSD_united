@@ -4,6 +4,7 @@ import useActivityHistoryField, { type ActivityValue } from 'components/Team/hoo
 import { savedActivitySchema } from 'components/Team/ProfilePage/schema';
 import type { TeamProfileFormMode } from 'components/Team/ProfilePage/types';
 import DatePickerModal from 'components/ui/DatePickerModal';
+import { useServerCalendarDate } from 'utils/ssr/useServerNow';
 
 import styles from './ActivityHistoryField.module.scss';
 
@@ -28,6 +29,7 @@ const LOGGING_TITLE: Record<TeamProfileFormMode, { ADD: string; EDIT: string; NE
   };
 
 export default function ActivityHistoryField({ mode }: ActivityHistoryFieldProps) {
+  const serverNow = useServerCalendarDate();
   const loggingTitle = LOGGING_TITLE[mode];
 
   const validateActivity = (activity: ActivityValue) => {
@@ -228,7 +230,7 @@ export default function ActivityHistoryField({ mode }: ActivityHistoryFieldProps
 
           return (
             <DatePickerModal
-              selectedDate={rawDate ? new Date(`${rawDate}T00:00:00`) : new Date()}
+              selectedDate={rawDate ? new Date(`${rawDate}T00:00:00`) : serverNow}
               onChange={handleDateSelect(openDatePicker.index, openDatePicker.field)}
               onClose={handleCloseDatePicker}
             />

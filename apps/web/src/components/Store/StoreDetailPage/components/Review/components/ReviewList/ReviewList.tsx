@@ -1,6 +1,6 @@
 import { useCallback, useDeferredValue, useEffect, useRef, useState } from 'react';
-
 import { keepPreviousData, useQuery, useSuspenseInfiniteQuery } from '@tanstack/react-query';
+
 import { storeQueries } from 'api/store/queries';
 import ChervronUp from 'assets/svg/chervron-up.svg';
 import NoReview from 'assets/svg/Review/no-review.svg';
@@ -82,8 +82,7 @@ export default function ReviewList({ id }: { id: string }) {
   );
 
   const setStickyMode = useCallback((entries: IntersectionObserverEntry[]) => {
-    if (entries[0].boundingClientRect.top < 0)
-      setIsSticky(true); // 옵저버가 지정한 top에 닿으면 조건부 렌더링
+    if (entries[0].boundingClientRect.top < 0) setIsSticky(true); // 옵저버가 지정한 top에 닿으면 조건부 렌더링
     else setIsSticky(false);
   }, []);
 

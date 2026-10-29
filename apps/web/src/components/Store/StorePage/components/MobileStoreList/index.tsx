@@ -1,7 +1,7 @@
-import { Link } from '@tanstack/react-router';
-
 import { getJosaPicker } from '@bcsdlab/utils';
 import { useSuspenseQuery } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
+
 import type { StoreListV2 } from 'api/store/entity';
 import { storeQueries } from 'api/store/queries';
 import EventIcon from 'assets/svg/event.svg';
@@ -34,18 +34,22 @@ export default function MobileStoreList(mobileStoreListProps: MobileStoreListPro
   return (
     <div className={styles['store-list']}>
       {storeListData?.map((store: StoreListV2) => (
-        <Link  to={ROUTES.StoreDetail({ id: String(store.id) })} search={{ state: '메뉴', type: storeType }} className={styles['store-list__item']}
-        key={store.id}
-        onClick={() =>
-          logger.actionEventClick({
-            team: 'BUSINESS',
-            event_label: `${storeType}_click`,
-            value: store.name,
-            previous_page: `${koreanCategory || '전체보기'}`,
-            current_page: `${store.name}`,
-            duration_time: getCategoryDurationTime(),
-          })
-        }>
+        <Link
+          to={ROUTES.StoreDetail({ id: String(store.id) })}
+          search={{ state: '메뉴', type: storeType }}
+          className={styles['store-list__item']}
+          key={store.id}
+          onClick={() =>
+            logger.actionEventClick({
+              team: 'BUSINESS',
+              event_label: `${storeType}_click`,
+              value: store.name,
+              previous_page: `${koreanCategory || '전체보기'}`,
+              current_page: `${store.name}`,
+              duration_time: getCategoryDurationTime(),
+            })
+          }
+        >
           {store.is_event && store.is_open && (
             <div className={styles['store-list__item--event']}>
               이벤트

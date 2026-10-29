@@ -1,7 +1,7 @@
 import React from 'react';
-
 import { cn } from '@bcsdlab/utils';
 import type { UseMutateFunction } from '@tanstack/react-query';
+
 import type {
   AddTimetableFrameRequest,
   SemesterCheckResponse,

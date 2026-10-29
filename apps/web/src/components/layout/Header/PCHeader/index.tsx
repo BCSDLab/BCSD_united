@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { Link } from '@tanstack/react-router';
-import { useLocation } from '@tanstack/react-router';
-
 import { cn } from '@bcsdlab/utils';
+import { Link, useLocation } from '@tanstack/react-router';
+
 import { getStoreDetailInfo } from 'api/store';
 import LoginRequiredModal from 'components/modal/LoginRequiredModal';
 import type { Portal } from 'components/modal/Modal/PortalProvider';
@@ -213,11 +212,26 @@ export default function PCHeader({ openModal }: PCHeaderProps) {
                 return (
                   <li className={styles.megamenu__menu} key={menu.title}>
                     {/* TODO: 키보드 Focus 접근성 향상 */}
-                    <>{/^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(href) ? <a className={styles.megamenu__link} href={href} onClick={(e) => handleMenuClick(e, menu.title)}>
-                      {menu.title}
-                    </a> : <Link className={styles.megamenu__link} to={href} preload={false} onClick={(e) => handleMenuClick(e, menu.title)}>
-                      {menu.title}
-                    </Link>}</>
+                    <>
+                      {/^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(href) ? (
+                        <a
+                          className={styles.megamenu__link}
+                          href={href}
+                          onClick={(e) => handleMenuClick(e, menu.title)}
+                        >
+                          {menu.title}
+                        </a>
+                      ) : (
+                        <Link
+                          className={styles.megamenu__link}
+                          to={href}
+                          preload={false}
+                          onClick={(e) => handleMenuClick(e, menu.title)}
+                        >
+                          {menu.title}
+                        </Link>
+                      )}
+                    </>
                   </li>
                 );
               })}
@@ -228,24 +242,32 @@ export default function PCHeader({ openModal }: PCHeaderProps) {
         {!isLoggedin ? (
           <>
             <li className={styles['header__auth-link']}>
-              <Link to={ROUTES.AuthSignup({ currentStep: '약관동의' })} preload={false} onClick={() => {
-                sessionLogger.actionSessionEvent({
-                  session_name: 'sign_up',
-                  event_label: 'header',
-                  value: '회원가입 시작',
-                });
-              }}>
+              <Link
+                to={ROUTES.AuthSignup({ currentStep: '약관동의' })}
+                preload={false}
+                onClick={() => {
+                  sessionLogger.actionSessionEvent({
+                    session_name: 'sign_up',
+                    event_label: 'header',
+                    value: '회원가입 시작',
+                  });
+                }}
+              >
                 회원가입
               </Link>
             </li>
             <li className={styles['header__auth-link']}>
-              <Link to={ROUTES.Auth()} preload={false} onClick={() => {
-                logger.actionEventClick({
-                  team: 'USER',
-                  event_label: 'header',
-                  value: '로그인 시도',
-                });
-              }}>
+              <Link
+                to={ROUTES.Auth()}
+                preload={false}
+                onClick={() => {
+                  logger.actionEventClick({
+                    team: 'USER',
+                    event_label: 'header',
+                    value: '로그인 시도',
+                  });
+                }}
+              >
                 로그인
               </Link>
             </li>

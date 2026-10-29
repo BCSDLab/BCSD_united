@@ -1,9 +1,9 @@
 import { useRef, type ChangeEvent, type Key, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
 import { Link } from '@tanstack/react-router';
-import { parseSearch } from 'utils/routing/search';
 
 import ImageUploadIcon from 'assets/svg/common/chat-photo.svg';
 import SendIcon from 'assets/svg/common/chat-send.svg';
+import { parseSearch } from 'utils/routing/search';
 
 import styles from './Chat.module.scss';
 
@@ -114,9 +114,14 @@ export function ChatRoomList({ items }: ChatRoomListProps) {
   }
 
   return items.map((item) => (
-    <Link key={item.key} to={item.href.split('?')[0]} search={parseSearch(item.href.split('?')[1] ?? '')} className={joinClassNames(styles['room-list__item'], item.isActive && styles['room-list__item--active'])}
-    aria-current={item.isActive ? 'page' : undefined}
-    onClick={item.onClick}>
+    <Link
+      key={item.key}
+      to={item.href.split('?')[0]}
+      search={parseSearch(item.href.split('?')[1] ?? '')}
+      className={joinClassNames(styles['room-list__item'], item.isActive && styles['room-list__item--active'])}
+      aria-current={item.isActive ? 'page' : undefined}
+      onClick={item.onClick}
+    >
       <div className={styles['room-list__avatar']} aria-hidden={item.avatarAriaHidden}>
         {item.avatar}
       </div>
@@ -148,7 +153,7 @@ export function ChatMessageList({ groups, classNames = {} }: ChatMessageListProp
     const bubble = (
       <div className={bubbleClassName}>
         {message.isImage ? (
-                  // 채팅 이미지의 원본 비율을 유지하고 CSS로 표시 크기를 제한한다.
+          // 채팅 이미지의 원본 비율을 유지하고 CSS로 표시 크기를 제한한다.
           <img src={message.content} alt="전송된 이미지" className={styles['message-list__image']} />
         ) : (
           message.content

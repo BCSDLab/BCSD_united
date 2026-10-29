@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useRouter, useLocation, useSearch } from '@tanstack/react-router';
 
-import { useQuery } from '@tanstack/react-query';
 import type { CallvanAuthor, CallvanLocation, CallvanSort, CallvanStatus } from 'api/callvan/entity';
 import { callvanQueries } from 'api/callvan/queries';
 import ArrowBackIcon from 'assets/svg/Callvan/arrow-back.svg';
@@ -42,7 +42,7 @@ export default function CallvanPageLayout({
 }: CallvanPageLayoutProps) {
   const router = useRouter();
   const routeLocation = useLocation();
-  const routeSearch = useSearch({ strict: false }) as Record<string, string | string[] | undefined>;
+  const routeSearch = useSearch({ strict: false });
   const logger = useLogger();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const isLoggedIn = useIsLoggedIn();
@@ -83,26 +83,34 @@ export default function CallvanPageLayout({
       author: CallvanAuthor;
       joined: boolean;
     }) => {
-      router.navigate({ to: routeLocation.pathname, search: {
-        ...routeSearch,
-        statuses: filter.statuses.length > 0 ? filter.statuses.join(',') : undefined,
-        departures: filter.departures.length > 0 ? filter.departures.join(',') : undefined,
-        arrivals: filter.arrivals.length > 0 ? filter.arrivals.join(',') : undefined,
-        sort: filter.sort !== 'LATEST_DESC' ? filter.sort : undefined,
-        author: filter.author === 'ALL' ? undefined : filter.author,
-        joined: filter.joined ? 'true' : undefined,
-        page: undefined,
-      }, replace: true });
+      router.navigate({
+        to: routeLocation.pathname,
+        search: {
+          ...routeSearch,
+          statuses: filter.statuses.length > 0 ? filter.statuses.join(',') : undefined,
+          departures: filter.departures.length > 0 ? filter.departures.join(',') : undefined,
+          arrivals: filter.arrivals.length > 0 ? filter.arrivals.join(',') : undefined,
+          sort: filter.sort !== 'LATEST_DESC' ? filter.sort : undefined,
+          author: filter.author === 'ALL' ? undefined : filter.author,
+          joined: filter.joined ? 'true' : undefined,
+          page: undefined,
+        },
+        replace: true,
+      });
     },
     [router, routeLocation.pathname, routeSearch],
   );
 
   const handleSearch = () => {
-    router.navigate({ to: routeLocation.pathname, search: {
-      ...routeSearch,
-      title: title.trim() || undefined,
-      page: undefined,
-    }, replace: true });
+    router.navigate({
+      to: routeLocation.pathname,
+      search: {
+        ...routeSearch,
+        title: title.trim() || undefined,
+        page: undefined,
+      },
+      replace: true,
+    });
   };
 
   return (

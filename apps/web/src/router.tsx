@@ -1,9 +1,9 @@
-import { captureException } from '@sentry/core';
+import { captureError } from '@koin/telemetry/runtime';
 import { addIntegration, tanstackRouterBrowserTracingIntegration } from '@sentry/react';
 import { createRouter, type Router } from '@tanstack/react-router';
+
 import { routeTree } from 'routeTree.gen';
 import { parseSearch, stringifySearch } from 'utils/routing/search';
-
 
 export function getRouter() {
   const router = createRouter({
@@ -13,7 +13,7 @@ export function getRouter() {
     parseSearch,
     stringifySearch,
     defaultPreload: false,
-    defaultOnCatch: (error) => captureException(error),
+    defaultOnCatch: (error) => captureError(error),
   });
   if (!router.isServer) addIntegration(tanstackRouterBrowserTracingIntegration(router));
 

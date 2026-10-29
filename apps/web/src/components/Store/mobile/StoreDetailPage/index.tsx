@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
-
 import { useSuspenseQuery } from '@tanstack/react-query';
+
 import type { UnorderableShopMenusResponse } from 'api/storeMobile/entity';
 import { storeMobileQueries } from 'api/storeMobile/queries';
 import { setStartLoggingTime } from 'components/Store/mobile/common/utils/loggingTime';

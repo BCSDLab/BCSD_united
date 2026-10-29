@@ -1,10 +1,7 @@
+import { dehydrate, keepPreviousData, QueryClient, useQuery } from '@tanstack/react-query';
 import { createFileRoute, useSearch, useParams } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
-import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 
-
-
-import { dehydrate, keepPreviousData, QueryClient, useQuery } from '@tanstack/react-query';
 import { articleQueries } from 'api/articles/queries';
 import ArticlesPageLayout from 'components/Articles/ArticlesPage';
 import ArticleList from 'components/Articles/components/ArticleList';
@@ -16,17 +13,16 @@ import { createArticlesWithNewSelector } from 'components/Articles/utils/selectA
 import HomeLayout from 'components/layout/HomeLayout';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import useMount from 'utils/hooks/state/useMount';
-
+import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 
 const DEFAULT_BOARD_ID = 4;
 
-
-
 function usePageParams(initialPage: string) {
-  
-  
-  const routeQuery: Record<string, string | string[] | undefined> = { ...useSearch({ strict: false }), ...useParams({ strict: false }) };
-  
+  const routeQuery: Record<string, string | string[] | undefined> = {
+    ...useSearch({ strict: false }),
+    ...useParams({ strict: false }),
+  };
+
   const mounted = useMount();
 
   if (!mounted) return initialPage;
@@ -36,10 +32,11 @@ function usePageParams(initialPage: string) {
 }
 
 function useBoardIdParams(initialBoardId: number) {
-  
-  
-  const routeQuery: Record<string, string | string[] | undefined> = { ...useSearch({ strict: false }), ...useParams({ strict: false }) };
-  
+  const routeQuery: Record<string, string | string[] | undefined> = {
+    ...useSearch({ strict: false }),
+    ...useParams({ strict: false }),
+  };
+
   const mounted = useMount();
 
   if (!mounted) return initialBoardId;
@@ -87,34 +84,35 @@ export default function ArticleListPage({
   );
 }
 
+const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
+  .validator(validatePageInput)
+  .handler(({ data }) =>
+    loadPageData(data, async (context, cacheControl, serverRequest) => {
+      const { search: query } = context;
+      const pageNumber = typeof query.page === 'string' ? query.page : '1';
+      const boardId = typeof query.boardId === 'string' ? Number(query.boardId) : DEFAULT_BOARD_ID;
 
+      const queryClient = new QueryClient();
 
-const getPageData = createServerFn({ method: 'GET', strict: { output: false } }).validator(validatePageInput)
-  .handler(({ data }) => loadPageData(data, async (context, cacheControl, serverRequest) => {
-    const { search: query } = context;
-    const pageNumber = typeof query.page === 'string' ? query.page : '1';
-    const boardId = typeof query.boardId === 'string' ? Number(query.boardId) : DEFAULT_BOARD_ID;
+      const prefetchPromises = [
+        queryClient.prefetchQuery(articleQueries.hot()),
+        queryClient.prefetchQuery(articleQueries.list(serverRequest.isLoggedIn, pageNumber, boardId)),
+      ];
 
-    const queryClient = new QueryClient();
+      await Promise.all(prefetchPromises);
 
-    const prefetchPromises = [
-      queryClient.prefetchQuery(articleQueries.hot()),
-      queryClient.prefetchQuery(articleQueries.list(serverRequest.isLoggedIn, pageNumber, boardId)),
-    ];
+      if (!serverRequest.isLoggedIn) {
+        cacheControl.enablePublicCache();
+      }
 
-    await Promise.all(prefetchPromises);
-
-    if (!serverRequest.isLoggedIn) {
-      cacheControl.enablePublicCache();
-    }
-
-    return {
+      return {
         dehydratedState: dehydrate(queryClient),
         initialPage: pageNumber,
         serverNow: new Date().toISOString(),
         initialBoardId: boardId,
       };
-  }));
+    }),
+  );
 
 export const Route = createFileRoute('/articles/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
@@ -126,5 +124,6 @@ export const Route = createFileRoute('/articles/')({
 function RouteComponent() {
   const props = Route.useLoaderData();
   const page = <ArticleListPage {...props} />;
+
   return <HomeLayout whiteMobileBg>{page}</HomeLayout>;
 }

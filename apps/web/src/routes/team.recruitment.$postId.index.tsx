@@ -1,10 +1,7 @@
-import Seo from 'components/seo/Seo';
 import { createFileRoute } from '@tanstack/react-router';
 
-
-
-
 import Layout from 'components/layout';
+import Seo from 'components/seo/Seo';
 import RecruitmentDetail from 'components/Team/RecruitmentDetail';
 
 export default function TeamDetailPage() {
@@ -17,8 +14,6 @@ export default function TeamDetailPage() {
   );
 }
 
-
-
 export const Route = createFileRoute('/team/recruitment/$postId/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   staticData: { hasPageSeo: true },
@@ -27,5 +22,6 @@ export const Route = createFileRoute('/team/recruitment/$postId/')({
 
 function RouteComponent() {
   const page = <TeamDetailPage />;
+
   return <Layout mobileHeader="page">{page}</Layout>;
 }

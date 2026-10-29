@@ -1,9 +1,10 @@
+import { useFormContext, useFormState, useWatch } from 'react-hook-form';
+
 import FormField from 'components/Team/ProfilePage/components/FormField';
 import StepIndicator from 'components/Team/ProfilePage/components/StepIndicator';
 import TagInput from 'components/Team/ProfilePage/components/TagInput';
 import { PROFILE_LOG_MODE } from 'components/Team/ProfilePage/constants';
 import { PROFILE_STEPS, type ProfileFormValues, type TeamProfileFormMode } from 'components/Team/ProfilePage/types';
-import { useFormContext, useFormState, useWatch } from 'react-hook-form';
 import useLogger from 'utils/hooks/analytics/useLogger';
 
 import ActivityHistoryField from './ActivityHistoryField';

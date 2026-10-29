@@ -1,5 +1,6 @@
-import type { LostItemChatroomDetailMessage } from 'api/articles/entity';
 import { openDB, type IDBPDatabase } from 'idb';
+
+import type { LostItemChatroomDetailMessage } from 'api/articles/entity';
 
 const DB_NAME = 'koin-chat';
 const DB_VERSION = 1;

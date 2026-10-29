@@ -31,8 +31,11 @@ export default function DepartmentDesktop({
         <ul className={styles.menu}>
           {categories.map(({ category, title, Icon }) => (
             <li key={category}>
-              <Link  to={ROUTES.DepartmentCategory({ category })} className={styles.menu__link}
-              onClick={() => onCategoryClick(category, title)}>
+              <Link
+                to={ROUTES.DepartmentCategory({ category })}
+                className={styles.menu__link}
+                onClick={() => onCategoryClick(category, title)}
+              >
                 <div className={styles.menu__content}>
                   <IconBox className={styles['menu__icon-box']}>
                     <Icon className={styles.menu__icon} />

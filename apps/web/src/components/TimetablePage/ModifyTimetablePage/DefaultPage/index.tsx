@@ -1,7 +1,7 @@
 import React from 'react';
+import { cn } from '@bcsdlab/utils';
 import { useRouter, useSearch } from '@tanstack/react-router';
 
-import { cn } from '@bcsdlab/utils';
 import type { Semester } from 'api/timetable/entity';
 import PenIcon from 'assets/svg/pen-icon.svg';
 import TimetableIcon from 'assets/svg/timetable-icon.svg';
@@ -19,7 +19,7 @@ import styles from './DefaultPage.module.scss';
 
 export default function DefaultPage({ timetableFrameId, semester }: { timetableFrameId: number; semester: Semester }) {
   const router = useRouter();
-  const routeSearch = useSearch({ strict: false }) as Record<string, string | string[] | undefined>;
+  const routeSearch = useSearch({ strict: false });
   const navigate = (href: string) => router.navigate({ href });
   const { myLectures } = useMyLectures(Number(timetableFrameId), semester);
   const { data: lectureList } = useLectureList(semester);

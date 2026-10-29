@@ -1,9 +1,14 @@
-import { createFileRoute, useNavigate, useRouter, useSearch, useParams, notFound, redirect } from '@tanstack/react-router';
-import { createServerFn } from '@tanstack/react-start';
-import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { useEffect } from 'react';
-
-
+import {
+  createFileRoute,
+  useNavigate,
+  useRouter,
+  useSearch,
+  useParams,
+  notFound,
+  redirect,
+} from '@tanstack/react-router';
+import { createServerFn } from '@tanstack/react-start';
 
 import ReportForm from 'components/Articles/LostItemDetailPage/components/ReportForm';
 import Layout from 'components/layout';
@@ -11,7 +16,7 @@ import MobilePageHeader from 'components/layout/MobilePageHeader';
 import ROUTES from 'static/routes';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useMount from 'utils/hooks/state/useMount';
-
+import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 
 import styles from 'pages/lost-item/report/[id]/ReportPage.module.scss';
 
@@ -34,7 +39,10 @@ function ReportPage({ id }: { id: string }) {
 
 export default function ReportPageWrapper() {
   const routeNavigate = useNavigate();
-  const routeQuery: Record<string, string | string[] | undefined> = { ...useSearch({ strict: false }), ...useParams({ strict: false }) };
+  const routeQuery: Record<string, string | string[] | undefined> = {
+    ...useSearch({ strict: false }),
+    ...useParams({ strict: false }),
+  };
   const { id } = routeQuery;
   const isMobile = useMediaQuery();
   const mounted = useMount();
@@ -54,20 +62,23 @@ export default function ReportPageWrapper() {
 }
 
 // 신고하기는 모바일 전용 화면이기에 데스크톱에서는 게시물 상세로 리다이랙션한다
-const getPageData = createServerFn({ method: 'GET', strict: { output: false } }).validator(validatePageInput)
-  .handler(({ data }) => loadPageData(data, (context, _cacheControl, serverRequest) => {
-  const { id } = context.params;
+const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
+  .validator(validatePageInput)
+  .handler(({ data }) =>
+    loadPageData(data, (context, _cacheControl, serverRequest) => {
+      const { id } = context.params;
 
-  if (!id) {
-    throw notFound();
-  }
+      if (!id) {
+        throw notFound();
+      }
 
-  if (serverRequest.device !== 'mobile') {
-    throw redirect({ href: ROUTES.LostItemDetail({ id }), statusCode: 302 });
-  }
+      if (serverRequest.device !== 'mobile') {
+        throw redirect({ href: ROUTES.LostItemDetail({ id }), statusCode: 302 });
+      }
 
-  return {};
-}));
+      return {};
+    }),
+  );
 
 export const Route = createFileRoute('/lost-item/report/$id/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
@@ -78,5 +89,6 @@ export const Route = createFileRoute('/lost-item/report/$id/')({
 
 function RouteComponent() {
   const page = <ReportPageWrapper />;
+
   return <Layout mobileHeader="page">{page}</Layout>;
 }

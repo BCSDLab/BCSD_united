@@ -1,8 +1,8 @@
 import { useCallback, useEffect } from 'react';
-import { useRouter, useSearch } from '@tanstack/react-router';
-
 import { cn } from '@bcsdlab/utils';
 import { keepPreviousData, useQuery, useSuspenseQuery } from '@tanstack/react-query';
+import { useRouter, useSearch } from '@tanstack/react-router';
+
 import type { ShopCategory } from 'api/storeMobile/entity';
 import { storeMobileQueries } from 'api/storeMobile/queries';
 import CheckIcon from 'assets/svg/Store/check-icon.svg';
@@ -38,7 +38,7 @@ import styles from './StoreListPage.module.scss';
 // 카테고리는 서버에 보내지 않고 받은 목록을 클라이언트에서 거른다(order와 같은 요청)
 export default function StoreListPage() {
   const router = useRouter();
-  const routeSearch = useSearch({ strict: false }) as Record<string, string | string[] | undefined>;
+  const routeSearch = useSearch({ strict: false });
   const logger = useLogger();
   const [isSortModalOpen, openSortModal, closeSortModal] = useBooleanState(false);
 

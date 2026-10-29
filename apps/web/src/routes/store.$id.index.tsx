@@ -1,11 +1,4 @@
-import { createFileRoute, useNavigate, notFound } from '@tanstack/react-router';
-import { createServerFn } from '@tanstack/react-start';
-import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import React, { Suspense, useEffect, useRef } from 'react';
-
-
-
-
 import { cn } from '@bcsdlab/utils';
 import {
   dehydrate,
@@ -15,6 +8,9 @@ import {
   useSuspenseQuery,
   type DehydratedState,
 } from '@tanstack/react-query';
+import { createFileRoute, useNavigate, notFound } from '@tanstack/react-router';
+import { createServerFn } from '@tanstack/react-start';
+
 import { storeQueries, storeQueryKeys } from 'api/store/queries';
 import { storeMobileQueries } from 'api/storeMobile/queries';
 import EmptyImageIcon from 'assets/svg/empty-thumbnail.svg';
@@ -38,7 +34,7 @@ import useModalPortal from 'utils/hooks/layout/useModalPortal';
 import useParamsHandler from 'utils/hooks/routing/useParamsHandler';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import useScrollToTop from 'utils/hooks/ui/useScrollToTop';
-import { STORE_PUBLIC_SSR_CACHE_CONTROL } from 'utils/ssr/pageData';
+import { loadPageData, validatePageInput, STORE_PUBLIC_SSR_CACHE_CONTROL } from 'utils/ssr/pageData';
 import { copyToClipboard } from 'utils/ts/copyToClipboard';
 import { isomorphicSessionStorage } from 'utils/ts/env';
 import getDayOfWeek from 'utils/ts/getDayOfWeek';
@@ -375,7 +371,8 @@ function StoreDetailPage({ id }: Props) {
                       src={img}
                       alt="상점이미지"
                       width={320}
-                      height={360} fetchPriority="high"
+                      height={360}
+                      fetchPriority="high"
                     />
                   </button>
                 </div>
@@ -481,25 +478,62 @@ function StoreDetail({ dehydratedState, id, isMobilePage }: StoreDetailProps) {
 
 export default StoreDetail;
 
-const getPageData = createServerFn({ method: 'GET', strict: { output: false } }).validator(validatePageInput)
-  .handler(({ data }) => loadPageData(data, async (context, cacheControl, serverRequest) => {
-    const queryClient = new QueryClient();
-    const { isLoggedIn } = serverRequest;
+const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
+  .validator(validatePageInput)
+  .handler(({ data }) =>
+    loadPageData(data, async (context, cacheControl, serverRequest) => {
+      const queryClient = new QueryClient();
+      const { isLoggedIn } = serverRequest;
 
-    const storeId = context.params.id;
-    if (!storeId) {
-      throw notFound();
-    }
+      const storeId = context.params.id;
+      if (!storeId) {
+        throw notFound();
+      }
 
-    // 모바일은 KOIN_ORDER_WEBVIEW 상점 상세 화면을 그린다. order가 부르는 API(요약·v2 상세·메뉴·이벤트)만 서버에서 받아 본문까지 렌더한다
-    if (serverRequest.device === 'mobile') {
-      const mobileQueryClient = new QueryClient();
+      // 모바일은 KOIN_ORDER_WEBVIEW 상점 상세 화면을 그린다. order가 부르는 API(요약·v2 상세·메뉴·이벤트)만 서버에서 받아 본문까지 렌더한다
+      if (serverRequest.device === 'mobile') {
+        const mobileQueryClient = new QueryClient();
+        try {
+          await Promise.all([
+            mobileQueryClient.fetchQuery(storeMobileQueries.summary(storeId)),
+            mobileQueryClient.fetchQuery(storeMobileQueries.detail(storeId)),
+            mobileQueryClient.fetchQuery(storeMobileQueries.menus(storeId)),
+            mobileQueryClient.fetchQuery(storeMobileQueries.events(storeId)),
+          ]);
+        } catch (error) {
+          if (isNotFoundKoinError(error)) {
+            throw notFound();
+          }
+          throw error;
+        }
+
+        cacheControl.enablePublicCache(STORE_PUBLIC_SSR_CACHE_CONTROL);
+
+        return {
+          isMobilePage: true,
+          dehydratedState: dehydrate(mobileQueryClient),
+          id: storeId,
+        };
+      }
+
       try {
         await Promise.all([
-          mobileQueryClient.fetchQuery(storeMobileQueries.summary(storeId)),
-          mobileQueryClient.fetchQuery(storeMobileQueries.detail(storeId)),
-          mobileQueryClient.fetchQuery(storeMobileQueries.menus(storeId)),
-          mobileQueryClient.fetchQuery(storeMobileQueries.events(storeId)),
+          queryClient.fetchQuery(storeQueries.detail(storeId)),
+          queryClient.fetchQuery(storeQueries.detailMenu(storeId)),
+          // 리뷰는 요청 쿠키가 실린다. 만료·무효 access 쿠키면 API가 401을 주는데 서버는 refresh를 못 하므로
+          // 실패해도 페이지는 그리고 클라이언트가 갱신 후 다시 받게 한다(prefetchQuery는 오류를 삼킨다)
+          queryClient.prefetchQuery(
+            storeQueries.reviewList({
+              shopId: Number(storeId),
+              page: 1,
+              sorter: 'LATEST',
+              isLoggedIn,
+            }),
+          ),
+          // 이벤트/공지 탭 데이터는 부가 정보이므로 실패해도 페이지 렌더를 막지 않도록 오류를 여기서 삼킵니다.
+          queryClient.fetchQuery(storeQueries.eventList(storeId)).catch((error: unknown) => {
+            console.error(`[SSR] failed to prefetch optional store events for ${storeId}:`, error);
+          }),
         ]);
       } catch (error) {
         if (isNotFoundKoinError(error)) {
@@ -511,45 +545,11 @@ const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
       cacheControl.enablePublicCache(STORE_PUBLIC_SSR_CACHE_CONTROL);
 
       return {
-          isMobilePage: true,
-          dehydratedState: dehydrate(mobileQueryClient),
-          id: storeId,
-        };
-    }
-
-    try {
-      await Promise.all([
-        queryClient.fetchQuery(storeQueries.detail(storeId)),
-        queryClient.fetchQuery(storeQueries.detailMenu(storeId)),
-        // 리뷰는 요청 쿠키가 실린다. 만료·무효 access 쿠키면 API가 401을 주는데 서버는 refresh를 못 하므로
-        // 실패해도 페이지는 그리고 클라이언트가 갱신 후 다시 받게 한다(prefetchQuery는 오류를 삼킨다)
-        queryClient.prefetchQuery(
-          storeQueries.reviewList({
-            shopId: Number(storeId),
-            page: 1,
-            sorter: 'LATEST',
-            isLoggedIn,
-          }),
-        ),
-        // 이벤트/공지 탭 데이터는 부가 정보이므로 실패해도 페이지 렌더를 막지 않도록 오류를 여기서 삼킵니다.
-        queryClient.fetchQuery(storeQueries.eventList(storeId)).catch((error) => {
-          console.error(`[SSR] failed to prefetch optional store events for ${storeId}:`, error);
-        }),
-      ]);
-    } catch (error) {
-      if (isNotFoundKoinError(error)) {
-        throw notFound();
-      }
-      throw error;
-    }
-
-    cacheControl.enablePublicCache(STORE_PUBLIC_SSR_CACHE_CONTROL);
-
-    return {
         dehydratedState: dehydrate(queryClient),
         id: storeId,
       };
-  }));
+    }),
+  );
 
 export const Route = createFileRoute('/store/$id/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
@@ -560,7 +560,12 @@ export const Route = createFileRoute('/store/$id/')({
 
 // 기기는 서버가 확정한다. 모바일은 상세 전용 오버레이 헤더를 본문에서 그리므로 페이지 헤더 레이아웃을 쓰고, 데스크톱은 기본 레이아웃 그대로 둔다
 function RouteComponent() {
-  const props = Route.useLoaderData();
-  const page = <StoreDetail {...props} />;
-  return props.isMobilePage ? <SSRLayout mobileHeader="page">{page}</SSRLayout> : <Layout>{page}</Layout>;
+  const loaderData = Route.useLoaderData();
+  const page = <StoreDetail {...loaderData} />;
+
+  return loaderData.serverRequest.device === 'mobile' ? (
+    <SSRLayout mobileHeader="page">{page}</SSRLayout>
+  ) : (
+    <Layout>{page}</Layout>
+  );
 }

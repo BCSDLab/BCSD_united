@@ -1,5 +1,4 @@
 import type { HTMLAttributes, ReactElement, SVGProps } from 'react';
-
 import { cn } from '@bcsdlab/utils';
 
 import styles from './Badge.module.scss';

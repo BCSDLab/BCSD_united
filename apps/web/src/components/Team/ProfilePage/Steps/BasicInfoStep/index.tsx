@@ -1,9 +1,10 @@
+import { Controller, useFormContext, useFormState, useWatch } from 'react-hook-form';
+
 import useAcademicInfoStep from 'components/Team/hooks/useAcademicInfoStep';
 import DeptSelect from 'components/Team/ProfilePage/components/DeptSelect';
 import FormField from 'components/Team/ProfilePage/components/FormField';
 import StepIndicator from 'components/Team/ProfilePage/components/StepIndicator';
 import { PROFILE_STEPS, type ProfileFormValues, type TeamProfileFormMode } from 'components/Team/ProfilePage/types';
-import { Controller, useFormContext, useFormState, useWatch } from 'react-hook-form';
 
 import styles from './BasicInfoStep.module.scss';
 

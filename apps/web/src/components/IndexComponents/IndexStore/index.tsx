@@ -1,15 +1,14 @@
 import { useEffect } from 'react';
-import Image from 'components/ui/Image';
-import { Link } from '@tanstack/react-router';
-import { useRouter } from '@tanstack/react-router';
-import { parseSearch } from 'utils/routing/search';
+import { Link, useRouter } from '@tanstack/react-router';
 
 import type { StoreCategoriesResponse } from 'api/store/entity';
 import { getMainDurationTime, initializeMainEntryTime } from 'components/Store/utils/durationTime';
+import Image from 'components/ui/Image';
 import type { LoggingTeam } from 'lib/gtag';
 import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
+import { parseSearch } from 'utils/routing/search';
 
 import styles from './IndexStore.module.scss';
 
@@ -93,7 +92,11 @@ export default function IndexStore({ categories }: { categories: StoreCategories
 
   return (
     <section className={styles.template}>
-      <Link  to={titleLink.split('?')[0]} search={parseSearch(titleLink.split('?')[1] ?? '')} className={styles.template__title}>
+      <Link
+        to={titleLink.split('?')[0]}
+        search={parseSearch(titleLink.split('?')[1] ?? '')}
+        className={styles.template__title}
+      >
         주변 상점
       </Link>
       <div className={styles.category__wrapper}>

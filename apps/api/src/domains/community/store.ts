@@ -19,11 +19,13 @@ export function invalid(message: string): never {
   throw new ApiError(400, 'INVALID_REQUEST', message);
 }
 
+/** 부호 있는 32비트 정수를 받는다. 누락된 값에만 기본값을 적용하며, 양수 제약은 호출자가 검사한다. */
 export function integer(value: string | undefined, fallback?: number): number {
   if (value === undefined && fallback !== undefined) return fallback;
   if (!value || !/^-?\d+$/.test(value)) return invalid('올바른 정수 값을 입력해주세요.');
   const result = Number(value);
-  if (!Number.isSafeInteger(result) || result < -2147483648 || result > 2147483647) return invalid('올바른 정수 값을 입력해주세요.');
+  if (!Number.isSafeInteger(result) || result < -2147483648 || result > 2147483647)
+    return invalid('올바른 정수 값을 입력해주세요.');
   return result;
 }
 
@@ -36,7 +38,13 @@ export function paging(c: Context<ApiEnv>, total?: number) {
 }
 
 export function pageResult<T>(values: T[], total: number, page: number, limit: number) {
-  return { articles: values, total_count: total, current_count: values.length, total_page: Math.ceil(total / limit), current_page: page };
+  return {
+    articles: values,
+    total_count: total,
+    current_count: values.length,
+    total_page: Math.ceil(total / limit),
+    current_page: page,
+  };
 }
 
 export function kstDate(value: string): string {
@@ -56,8 +64,19 @@ export function outbox(kind: string, payload: unknown): SQL {
 }
 
 export async function signalOutbox(env: Bindings, results: D1Result[]) {
-  const messages = results.flatMap((result) => result.results)
-    .filter((row): row is Record<string, unknown> & { id: string; kind: string } => typeof row.id === 'string' && typeof row.kind === 'string' && row.kind.startsWith('community.'))
+  const messages = results
+    .flatMap((result) => result.results)
+    .filter(
+      (row): row is { id: string; kind: string } =>
+        typeof row === 'object' &&
+        row !== null &&
+        'id' in row &&
+        'kind' in row &&
+        typeof row.id === 'string' &&
+        typeof row.kind === 'string' &&
+        row.kind.startsWith('community.'),
+    )
     .map((row) => ({ body: { kind: row.kind, key: row.id, payload: {} } }));
-  for (let start = 0; start < messages.length; start += JOB_BATCH) await env.JOBS.sendBatch(messages.slice(start, start + JOB_BATCH));
+  for (let start = 0; start < messages.length; start += JOB_BATCH)
+    await env.JOBS.sendBatch(messages.slice(start, start + JOB_BATCH));
 }

@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { useRouter } from '@tanstack/react-router';
-
 import { isKoinError } from '@bcsdlab/koin';
 import { useMutation } from '@tanstack/react-query';
+import { useRouter } from '@tanstack/react-router';
+
 import {
   emailExists,
   verificationEmailSend,

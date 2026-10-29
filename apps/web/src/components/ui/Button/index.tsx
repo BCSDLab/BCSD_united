@@ -1,5 +1,4 @@
 import type { ButtonHTMLAttributes, ReactElement, ReactNode, SVGProps } from 'react';
-
 import { cn } from '@bcsdlab/utils';
 
 import styles from './Button.module.scss';

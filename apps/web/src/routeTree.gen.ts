@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as MonitoringRouteImport } from './routes/monitoring'
 import { Route as R404IndexRouteImport } from './routes/404.index'
+import { Route as ApiSplatRouteImport } from './routes/api.$'
 import { Route as ApiHealthRouteImport } from './routes/api.health'
 import { Route as ApiImageRouteImport } from './routes/api.image'
 import { Route as ArticlesIndexRouteImport } from './routes/articles.index'
@@ -33,7 +34,6 @@ import { Route as RoomIndexRouteImport } from './routes/room.index'
 import { Route as StoreIndexRouteImport } from './routes/store.index'
 import { Route as TeamIndexRouteImport } from './routes/team.index'
 import { Route as TimetableIndexRouteImport } from './routes/timetable.index'
-import { Route as ApiProxySplatRouteImport } from './routes/api.proxy.$'
 import { Route as ArticlesIdIndexRouteImport } from './routes/articles.$id.index'
 import { Route as ArticlesSearchIndexRouteImport } from './routes/articles.search.index'
 import { Route as AuthFindidIndexRouteImport } from './routes/auth.findid.index'
@@ -119,6 +119,11 @@ const MonitoringRoute = MonitoringRouteImport.update({
 const R404IndexRoute = R404IndexRouteImport.update({
   id: '/404/',
   path: '/404/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSplatRoute = ApiSplatRouteImport.update({
+  id: '/api/$',
+  path: '/api/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiHealthRoute = ApiHealthRouteImport.update({
@@ -224,11 +229,6 @@ const TeamIndexRoute = TeamIndexRouteImport.update({
 const TimetableIndexRoute = TimetableIndexRouteImport.update({
   id: '/timetable/',
   path: '/timetable/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiProxySplatRoute = ApiProxySplatRouteImport.update({
-  id: '/api/proxy/$',
-  path: '/api/proxy/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ArticlesIdIndexRoute = ArticlesIdIndexRouteImport.update({
@@ -610,6 +610,7 @@ const ReportReviewShopidIdReviewidReviewidIndexRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/monitoring': typeof MonitoringRoute
+  '/api/$': typeof ApiSplatRoute
   '/api/health': typeof ApiHealthRoute
   '/api/image': typeof ApiImageRoute
   '/404/': typeof R404IndexRoute
@@ -632,7 +633,6 @@ export interface FileRoutesByFullPath {
   '/store/': typeof StoreIndexRoute
   '/team/': typeof TeamIndexRoute
   '/timetable/': typeof TimetableIndexRoute
-  '/api/proxy/$': typeof ApiProxySplatRoute
   '/bus/route/': typeof BusRouteIndexRoute
   '/articles/$id/': typeof ArticlesIdIndexRoute
   '/articles/search/': typeof ArticlesSearchIndexRoute
@@ -708,6 +708,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/monitoring': typeof MonitoringRoute
+  '/api/$': typeof ApiSplatRoute
   '/api/health': typeof ApiHealthRoute
   '/api/image': typeof ApiImageRoute
   '/404': typeof R404IndexRoute
@@ -730,7 +731,6 @@ export interface FileRoutesByTo {
   '/store': typeof StoreIndexRoute
   '/team': typeof TeamIndexRoute
   '/timetable': typeof TimetableIndexRoute
-  '/api/proxy/$': typeof ApiProxySplatRoute
   '/bus/route': typeof BusRouteIndexRoute
   '/articles/$id': typeof ArticlesIdIndexRoute
   '/articles/search': typeof ArticlesSearchIndexRoute
@@ -807,6 +807,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/monitoring': typeof MonitoringRoute
+  '/api/$': typeof ApiSplatRoute
   '/api/health': typeof ApiHealthRoute
   '/api/image': typeof ApiImageRoute
   '/404/': typeof R404IndexRoute
@@ -829,7 +830,6 @@ export interface FileRoutesById {
   '/store/': typeof StoreIndexRoute
   '/team/': typeof TeamIndexRoute
   '/timetable/': typeof TimetableIndexRoute
-  '/api/proxy/$': typeof ApiProxySplatRoute
   '/bus/route/': typeof BusRouteIndexRoute
   '/articles/$id/': typeof ArticlesIdIndexRoute
   '/articles/search/': typeof ArticlesSearchIndexRoute
@@ -907,6 +907,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/monitoring'
+    | '/api/$'
     | '/api/health'
     | '/api/image'
     | '/404/'
@@ -929,7 +930,6 @@ export interface FileRouteTypes {
     | '/store/'
     | '/team/'
     | '/timetable/'
-    | '/api/proxy/$'
     | '/bus/route/'
     | '/articles/$id/'
     | '/articles/search/'
@@ -1005,6 +1005,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/monitoring'
+    | '/api/$'
     | '/api/health'
     | '/api/image'
     | '/404'
@@ -1027,7 +1028,6 @@ export interface FileRouteTypes {
     | '/store'
     | '/team'
     | '/timetable'
-    | '/api/proxy/$'
     | '/bus/route'
     | '/articles/$id'
     | '/articles/search'
@@ -1103,6 +1103,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/monitoring'
+    | '/api/$'
     | '/api/health'
     | '/api/image'
     | '/404/'
@@ -1125,7 +1126,6 @@ export interface FileRouteTypes {
     | '/store/'
     | '/team/'
     | '/timetable/'
-    | '/api/proxy/$'
     | '/bus/route/'
     | '/articles/$id/'
     | '/articles/search/'
@@ -1202,6 +1202,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   MonitoringRoute: typeof MonitoringRoute
+  ApiSplatRoute: typeof ApiSplatRoute
   ApiHealthRoute: typeof ApiHealthRoute
   ApiImageRoute: typeof ApiImageRoute
   R404IndexRoute: typeof R404IndexRoute
@@ -1224,7 +1225,6 @@ export interface RootRouteChildren {
   StoreIndexRoute: typeof StoreIndexRoute
   TeamIndexRoute: typeof TeamIndexRoute
   TimetableIndexRoute: typeof TimetableIndexRoute
-  ApiProxySplatRoute: typeof ApiProxySplatRoute
   BusRouteIndexRoute: typeof BusRouteIndexRoute
   ArticlesIdIndexRoute: typeof ArticlesIdIndexRoute
   ArticlesSearchIndexRoute: typeof ArticlesSearchIndexRoute
@@ -1319,6 +1319,13 @@ declare module '@tanstack/react-router' {
       path: '/404'
       fullPath: '/404/'
       preLoaderRoute: typeof R404IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/$': {
+      id: '/api/$'
+      path: '/api/$'
+      fullPath: '/api/$'
+      preLoaderRoute: typeof ApiSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/health': {
@@ -1466,13 +1473,6 @@ declare module '@tanstack/react-router' {
       path: '/timetable'
       fullPath: '/timetable/'
       preLoaderRoute: typeof TimetableIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/proxy/$': {
-      id: '/api/proxy/$'
-      path: '/api/proxy/$'
-      fullPath: '/api/proxy/$'
-      preLoaderRoute: typeof ApiProxySplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/articles/$id/': {
@@ -1978,6 +1978,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   MonitoringRoute: MonitoringRoute,
+  ApiSplatRoute: ApiSplatRoute,
   ApiHealthRoute: ApiHealthRoute,
   ApiImageRoute: ApiImageRoute,
   R404IndexRoute: R404IndexRoute,
@@ -2000,7 +2001,6 @@ const rootRouteChildren: RootRouteChildren = {
   StoreIndexRoute: StoreIndexRoute,
   TeamIndexRoute: TeamIndexRoute,
   TimetableIndexRoute: TimetableIndexRoute,
-  ApiProxySplatRoute: ApiProxySplatRoute,
   BusRouteIndexRoute: BusRouteIndexRoute,
   ArticlesIdIndexRoute: ArticlesIdIndexRoute,
   ArticlesSearchIndexRoute: ArticlesSearchIndexRoute,

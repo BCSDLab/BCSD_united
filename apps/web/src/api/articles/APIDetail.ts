@@ -194,9 +194,9 @@ export class GetLostItemChatroomDetail<R extends LostItemChatroomDetailResponse>
   }
 }
 
-export class GetLostItemChatroomDetailMessages<R extends LostItemChatroomDetailMessagesResponse>
-  implements APIRequest<R>
-{
+export class GetLostItemChatroomDetailMessages<
+  R extends LostItemChatroomDetailMessagesResponse,
+> implements APIRequest<R> {
   method = HTTP_METHOD.GET;
 
   path: string;

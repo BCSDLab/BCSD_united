@@ -8,8 +8,8 @@ import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import DefaultPage from './DefaultPage';
 import styles from './ModifyTimetablePage.module.scss';
 
-const MobilePage = lazy(
-  () => import('components/TimetablePage/MainTimetablePage/MobilePage').then((mod) => ({ default: mod.MobilePage })),
+const MobilePage = lazy(() =>
+  import('components/TimetablePage/MainTimetablePage/MobilePage').then((mod) => ({ default: mod.MobilePage })),
 );
 
 export default function ModifyTimetablePage({ id, semester }: { id?: string; semester: Semester }) {

@@ -4,9 +4,26 @@
     "commit": "a2c4b432af834bb9887475089b9c495ecd6d669b",
     "flyway": "V1 through V20, applied unmodified to a disposable empty MySQL 8.0 database",
     "tables": 165,
-    "mongoCollections": ["citybus_timetables", "shuttlebus_timetables", "lost_item_chat_room", "lost_item_chat_user_block", "address_byeongcheon"],
+    "mongoCollections": [
+      "citybus_timetables",
+      "shuttlebus_timetables",
+      "lost_item_chat_room",
+      "lost_item_chat_user_block",
+      "address_byeongcheon"
+    ],
+    "archivedMongoCollections": ["bus_timetables", "shuttlebus_timetables_backup_deployment_20260928"],
+    "mongoArchivePolicy": "The two observed historical collections have no active Java collection mapping. Preserve every canonical Extended JSON document in native_legacy_mongo without creating current timetable rows. Missing active collections export as empty files; any other unrecognized collection still blocks export.",
     "metadata": "source-schema.json",
     "migrationHashesAndFreshCatalogRows": "source-seeds.json"
+  },
+  "mysqlMetadataArchive": {
+    "requiredTables": ["flyway_schema_history", "flyway_schema_history_legacy_20260617"],
+    "inventory": "Exactly the 165 baseline business tables and both named metadata tables; unknown tables and additional business columns fail closed.",
+    "comparison": "Only utf8_/utf8mb3_ collation aliases and ASCII-only charset-introduced string literals inside DEFAULT_GENERATED json_array expressions are canonicalized. Non-ASCII, escaped content, ordinary defaults, other expressions and actual schema differences remain exact.",
+    "export": "Both histories include every row, including failed or historical migrations, and exact SHOW CREATE TABLE JSON. Each file records source row count, byte count and SHA-256; current history must prove successful V20.",
+    "destination": "0002_source_metadata_archive.sql adds native_source_metadata_file descriptors and ordered native_source_metadata_chunk base64 payloads. Both JSONL histories, both DDL files and the original snapshot manifest are archived byte-for-byte in 48KiB chunks.",
+    "verification": "Conversion checks file hashes, row counts, current-history manifest agreement and reconstructed archive hashes. Import re-reads every chunk from D1, checks descriptor/count/order and recomputes original SHA-256 before marking verified.",
+    "schemaGeneration": "Run node scripts/generate-schema.mjs --schema-only after additive metadata schema changes. Applied migrations 0000 and 0001 remain unchanged."
   },
   "commandsFromAppDirectory": {
     "generate": "node scripts/generate-schema.mjs",
@@ -45,7 +62,13 @@
     "sql": "Source *_ci columns use actual SQLite NOCASE in both DDL and Drizzle custom types; this supports only ASCII folding, not arbitrary MySQL Unicode equality",
     "storage": "native_collation_key has PRIMARY KEY(scope,owner) and UNIQUE(scope,normalized). Original display text stays unchanged. Converter populates every applicable source unique index. Runtime normalizedUniqueWrites must be in the same atomic batch as writes; normalizedUniqueLookup queries the registry",
     "normalization": "PAD SPACE for non0900 collations; general_ci uses NFD, other *_ci uses NFKD; lowercase plus combining-mark removal; final-sigma folding; general_ci sharp-s to s, Unicode sharp-s to ss; oe-ligature folding outside general_ci; ae/stroked-l/stroked-d/slashed-o folding only for0900",
-    "verifiedSourceExamples": {"general_ci sharp-s=s": true, "general_ci sharp-s=ss": false, "unicode_ci sharp-s=ss": true, "unicode_ci ae-ligature=ae": false, "0900_ai_ci ae-ligature=ae": true},
+    "verifiedSourceExamples": {
+      "general_ci sharp-s=s": true,
+      "general_ci sharp-s=ss": false,
+      "unicode_ci sharp-s=ss": true,
+      "unicode_ci ae-ligature=ae": false,
+      "0900_ai_ci ae-ligature=ae": true
+    },
     "limits": "This is an explicit approximation, not MySQL UCA4/UCA9/general_ci weight tables. Context-sensitive contractions, all-script case/mark equivalences, compatibility characters and utf8mb3 supplementary-character restrictions are not fully reproduced. SQL LIKE/equality/sorts remain SQLite semantics unless a domain uses normalized lookup. Imported normalization collisions fail closed; operator must reconcile, never silently merge"
   },
   "importSafety": {
@@ -58,5 +81,49 @@
     "mongoArchive": "Every original canonical Extended JSON document is also retained in native_legacy_mongo, including historical/unknown fields; no selected-column transform discards source data",
     "search": "new_articles title bigrams backfilled using the exact domain NFC/lowercase/codepoint/stopword algorithm; ongoing title writes replace their index atomically in the community domain"
   },
-  "providerReferences": ["https://developers.cloudflare.com/d1/best-practices/import-export-data/", "https://developers.cloudflare.com/d1/platform/limits/", "https://developers.cloudflare.com/d1/sql-api/foreign-keys/"]
+  "fileMigration": {
+    "commandFromAppDirectory": "node scripts/migrate-files.mjs",
+    "dependency": "@aws-sdk/client-s3@3.1158.0 (Node 24); explicit SDK multipart commands retain upload IDs for durable recovery",
+    "requiredEnvironment": [
+      "S3_SOURCE_BUCKET",
+      "S3_SOURCE_REGION",
+      "S3_SOURCE_ACCESS_KEY_ID",
+      "S3_SOURCE_SECRET_ACCESS_KEY",
+      "R2_ACCOUNT_ID",
+      "R2_BUCKET",
+      "R2_ACCESS_KEY_ID",
+      "R2_SECRET_ACCESS_KEY",
+      "CLOUDFLARE_API_TOKEN",
+      "FILE_MIGRATION_RUN",
+      "FILE_MIGRATION_DB_SNAPSHOT",
+      "FILE_MIGRATION_EXCLUSIVE_PRIVATE_TARGET=true",
+      "FILE_MIGRATION_CURRENT_KEYS_ONLY=true",
+      "FILE_MIGRATION_DB_URLS_REVIEWED=true"
+    ],
+    "optionalEnvironment": ["S3_SOURCE_SESSION_TOKEN", "R2_JURISDICTION=default|eu|us"],
+    "credentials": "Runtime environment only; no credential arguments, dotenv loading or secret output. Source credential must be read-only. Cloudflare token needs read access to bucket managed/custom domains; R2 credential needs object read/write, multipart list/create/upload/complete/abort. The tool never creates public access, domains, buckets or source writes",
+    "privateTarget": "Dedicated empty R2 bucket or matching checkpoint only. Managed r2.dev and custom domain public access are checked through the Cloudflare API before transfer and completion. Operator must independently ensure no Workers/public bindings, competing writers or lifecycle deletions, and restrict migration-data filesystem ACLs (especially on Windows). A public synthetic test bucket cannot receive source objects",
+    "scope": "All exact current object keys and bytes, including empty objects; historical version bodies and deleted-key bodies remain in S3. Source is never deleted. No domain cutover or database URL rewriting occurs here",
+    "metadata": "ContentType, CacheControl, ContentDisposition, ContentLanguage, ContentEncoding, Expires and complete user Metadata are copied and compared on destination reads. Private current-object JSONL preserves all readable HEAD fields, current tags and ACL. Version JSONL archives bucket versioning, every version-list entry and delete marker, including historical version IDs; unsupported ACL/tag/redirect/encryption/storage/retention semantics are audit-only, not silently mapped",
+    "databaseReferences": "FILE_MIGRATION_DB_SNAPSHOT must be a complete exporter snapshot covering MySQL, Mongo and Redis; every manifest file hash and byte count is rechecked. Any versionId/version_id query reference found recursively in JSONL, percent-encoded strings, MySQL/Mongo binary or Redis base64 values blocks migration. FILE_MIGRATION_DB_URLS_REVIEWED confirms independent review of opaque application encodings and indirect historical-version dependencies; required historical bodies need a separately designed migration, never a bypass",
+    "snapshot": "Two complete paginated source inventories must match before first upload. Every current object HEAD/ACL/tag record and full version/delete-marker inventory participates in SHA256 snapshot identity; final full scan must match. Additions, deletions, metadata changes and overwrites block completion. Source ETag-conditional GET additionally checks version ID, modification time, metadata and exact length. These are observational scans, not an S3 write lock: arrange an authorized stable writer window before completion/cutover",
+    "integrity": "Hash actual source stream bytes with SHA256, durably store hash before committing object, separately GET and hash all destination bytes, and compare metadata. Never use multipart ETag as a content hash. Final target inventory checks exact count, byte totals, ETag and modification time against verified checkpoints",
+    "durability": "Ignored repository migration-data/<FILE_MIGRATION_RUN>/ contains atomic fsynced manifest/checkpoints, baseline/observed/final current and version JSONL, and verification.jsonl with SHA256/count/byte evidence. Restart same run/environment/database snapshot only. Existing target objects need snapshot-matching checkpoints and source hashes and are re-read/rehashed; unrelated objects are never overwritten. Keep this private audit directory backed up",
+    "failureRecovery": "Transfer failure aborts its unfinished multipart upload. Restart aborts only exact checkpoint-owned upload IDs and restarts that object; completed verified objects are rehashed, not overwritten. A hard kill between remote creation and local upload-ID persistence leaves an unknown upload and fails closed for manual ownership reconciliation. run.lock is exclusive: after a hard kill, verify the original process is dead before manually removing only that local lock. Never discard checkpoints or clear a target bucket to force a resume",
+    "limits": "Single-object sequential streaming with one dynamically sized multipart buffer (8 MiB minimum, up to 524 MiB at R2 maximum), at most 10000 parts. R2 maximum supported size is 5 TiB minus 5 GiB; larger objects fail before upload. Archive-tier unreadable objects and unavailable source ACL/tag/version permissions fail closed; the tool does not restore or modify source objects. Multipart completion sends If-None-Match plus a pre-completion existence check, but exclusive target-writer access remains required because R2 documentation does not promise conditional multipart completion",
+    "tests": "node --test scripts/file-migration.test.mjs",
+    "references": [
+      "https://registry.npmjs.org/@aws-sdk/client-s3/latest",
+      "https://docs.aws.amazon.com/AmazonS3/latest/API/API_CompleteMultipartUpload.html",
+      "https://developers.cloudflare.com/r2/api/s3/api/",
+      "https://developers.cloudflare.com/r2/platform/limits/",
+      "https://developers.cloudflare.com/api/resources/r2/subresources/buckets/subresources/domains/subresources/managed/methods/list/",
+      "https://developers.cloudflare.com/api/resources/r2/subresources/buckets/subresources/domains/subresources/custom/methods/list/"
+    ]
+  },
+  "providerReferences": [
+    "https://developers.cloudflare.com/d1/best-practices/import-export-data/",
+    "https://developers.cloudflare.com/d1/platform/limits/",
+    "https://developers.cloudflare.com/d1/sql-api/foreign-keys/"
+  ]
 }

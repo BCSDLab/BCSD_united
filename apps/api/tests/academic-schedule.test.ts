@@ -1,6 +1,16 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { courseTimeText, customLectureInfo, earnedCredits, encodeClassInfo, encodeLectureInfo, legacyClassInfo, parseTimes, regularLectureInfo, semesterOrder } from '@api/domains/academic/schedule';
+import {
+  courseTimeText,
+  customLectureInfo,
+  earnedCredits,
+  encodeClassInfo,
+  encodeLectureInfo,
+  legacyClassInfo,
+  parseTimes,
+  regularLectureInfo,
+  semesterOrder,
+} from '@api/domains/academic/schedule';
 import { courseTimes } from '@api/domains/academic/catalog';
 
 test('regular lectures group only consecutive source slots and preserve day offsets', () => {
@@ -36,22 +46,35 @@ test('custom lecture separators retain places even when sessions touch or overla
 test('legacy class info keeps a null-place list unsegmented and splits named places', () => {
   assert.deepEqual(legacyClassInfo('[0, 1, -1, 100]', null), [{ class_time: [0, 1, -1, 100], class_place: null }]);
   assert.deepEqual(legacyClassInfo('[0, 1, -1, 100]', 'A'), [
-    { class_time: [0, 1], class_place: 'A' }, { class_time: [100], class_place: '' },
+    { class_time: [0, 1], class_place: 'A' },
+    { class_time: [100], class_place: '' },
   ]);
   assert.deepEqual(encodeClassInfo(null), { class_time: null, class_place: null });
   assert.deepEqual(parseTimes(' [ 0, 101, -1 ] '), [0, 101, -1]);
 });
 
 test('credits use catalog lecture credit instead of edited display credit and ignore nonmain frames', () => {
-  const rows = [{ grades: '9', lecture_grades: '3' }, { grades: '2', lecture_grades: null }];
+  const rows = [
+    { grades: '9', lecture_grades: '3' },
+    { grades: '2', lecture_grades: null },
+  ];
   assert.equal(earnedCredits(rows, true), 5);
   assert.equal(earnedCredits(rows, false), 0);
   assert.equal(earnedCredits(rows, true, true), 3);
 });
 
 test('semesters order descending year then winter, second, summer, first', () => {
-  const semesters = [{ year: 2025, term: 'FIRST' }, { year: 2024, term: 'WINTER' }, { year: 2025, term: 'SUMMER' }, { year: 2025, term: 'SECOND' }, { year: 2025, term: 'WINTER' }];
-  assert.deepEqual(semesters.sort(semesterOrder).map((row) => `${row.year}:${row.term}`), ['2025:WINTER', '2025:SECOND', '2025:SUMMER', '2025:FIRST', '2024:WINTER']);
+  const semesters = [
+    { year: 2025, term: 'FIRST' },
+    { year: 2024, term: 'WINTER' },
+    { year: 2025, term: 'SUMMER' },
+    { year: 2025, term: 'SECOND' },
+    { year: 2025, term: 'WINTER' },
+  ];
+  assert.deepEqual(
+    semesters.sort(semesterOrder).map((row) => `${row.year}:${row.term}`),
+    ['2025:WINTER', '2025:SECOND', '2025:SUMMER', '2025:FIRST', '2024:WINTER'],
+  );
 });
 
 test('course registration sorts raw slots and retains source first-three-period display restriction', () => {

@@ -1,11 +1,13 @@
 'use no memo'; //react compiler로 인한 watch 오류 방지
 
 import { cn } from '@bcsdlab/utils';
-import CustomCheckbox from 'components/Auth/SignupPage/components/CustomCheckbox';
 import { useFormContext } from 'react-hook-form';
+
+import CustomCheckbox from 'components/Auth/SignupPage/components/CustomCheckbox';
 import { privacy, koin, marketing } from 'static/terms';
 import { useSessionLogger } from 'utils/hooks/analytics/useSessionLogger';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
+import { useServerCalendarDate } from 'utils/ssr/useServerNow';
 
 import styles from './Terms.module.scss';
 
@@ -19,7 +21,7 @@ export default function Terms({ onNext }: TermsProps) {
   const { register, setValue, watch } = useFormContext();
   const isMobile = useMediaQuery();
   const watchAllTerms = watch(TERMS_NAMES);
-  const currentYear = new Date().getFullYear();
+  const currentYear = useServerCalendarDate().getFullYear();
   const sessionLogger = useSessionLogger();
 
   const handleAllAgreeToggle = () => {

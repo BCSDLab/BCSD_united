@@ -1,7 +1,7 @@
-import { useRouter, useParams } from '@tanstack/react-router';
-
 import { cn } from '@bcsdlab/utils';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRouter, useParams } from '@tanstack/react-router';
+
 import type { TeamRecruitmentDetailResponse } from 'api/team/entity';
 import { teamMutations } from 'api/team/mutations';
 import { teamQueries } from 'api/team/queries';
@@ -131,10 +131,12 @@ function DetailContent({ recruitment, onEdit, onDelete }: DetailContentProps) {
         return;
       case 'chat':
         if (recruitment.team_chat_room_id !== null) {
-          router.navigate({ href: ROUTES.TeamChat({
-            recruitmentId: String(recruitment.id),
-            chatRoomId: String(recruitment.team_chat_room_id),
-          }) });
+          router.navigate({
+            href: ROUTES.TeamChat({
+              recruitmentId: String(recruitment.id),
+              chatRoomId: String(recruitment.team_chat_room_id),
+            }),
+          });
         }
 
         return;
@@ -284,7 +286,7 @@ function DetailContent({ recruitment, onEdit, onDelete }: DetailContentProps) {
 
 export default function RecruitmentDetail() {
   const router = useRouter();
-  const routeParams = useParams({ strict: false }) as Record<string, string | string[] | undefined>;
+  const routeParams = useParams({ strict: false });
   const queryClient = useQueryClient();
   const logger = useLogger();
   const isLoggedIn = useIsLoggedIn();
@@ -352,10 +354,8 @@ export default function RecruitmentDetail() {
         background="gray"
         rightAction={data?.is_author ? <OwnerActionMenu onEdit={handleEdit} onDelete={handleDeleteClick} /> : undefined}
       />
-      {(isLoading) && <p className={styles.state}>모집글을 불러오는 중입니다.</p>}
-      {!data && (!isValidRecruitmentId || isError) && (
-        <p className={styles.state}>모집글을 불러오지 못했습니다.</p>
-      )}
+      {isLoading && <p className={styles.state}>모집글을 불러오는 중입니다.</p>}
+      {!data && (!isValidRecruitmentId || isError) && <p className={styles.state}>모집글을 불러오지 못했습니다.</p>}
       {data && <DetailContent recruitment={data} onEdit={handleEdit} onDelete={handleDeleteClick} />}
 
       {data?.is_author && isDeleteModalOpen && (

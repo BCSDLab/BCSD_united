@@ -1,12 +1,12 @@
-import { useParams } from '@tanstack/react-router';
-
 import { isKoinError, sendClientError } from '@bcsdlab/koin';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useParams } from '@tanstack/react-router';
+
 import { clubMutations } from 'api/club/mutations';
 import showToast from 'utils/ts/showToast';
 
 export default function useDeleteRecruitment() {
-  const { id } = useParams({ strict: false }) as { id: string };
+  const { id } = useParams({ strict: false });
   const queryClient = useQueryClient();
 
   return useMutation({

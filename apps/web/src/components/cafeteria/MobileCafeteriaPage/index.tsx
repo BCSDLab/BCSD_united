@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
+import { cn } from '@bcsdlab/utils';
 import { useRouter } from '@tanstack/react-router';
 
-import { cn } from '@bcsdlab/utils';
 import type { DiningPlace, DiningType } from 'api/dinings/entity';
 import ArrowBackNewIcon from 'assets/svg/arrow-back-new.svg';
 import StoreCtaIcon from 'assets/svg/Store/store-cta-icon.svg';

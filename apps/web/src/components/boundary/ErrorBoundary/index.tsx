@@ -1,8 +1,8 @@
 import React from 'react';
-
 import { sendClientError } from '@bcsdlab/koin';
-import * as Sentry from '@sentry/core';
+import { captureError } from '@koin/telemetry/runtime';
 import type { AxiosError } from 'axios';
+
 import showToast from 'utils/ts/showToast';
 
 interface Props {
@@ -46,7 +46,7 @@ export default class ErrorBoundary extends React.Component<Props, State> {
       : error.message;
     showToast('error', errorMessage);
     sendClientError(error);
-    const eventId = Sentry.captureException(error);
+    const eventId = captureError(error);
     this.setState({ eventId });
   }
 

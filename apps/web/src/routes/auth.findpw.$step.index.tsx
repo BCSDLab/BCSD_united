@@ -1,7 +1,6 @@
-import { createFileRoute, useNavigate, useRouter, useSearch, useParams } from '@tanstack/react-router';
-
 import { Suspense, useCallback, useEffect, useState } from 'react';
-
+import { createFileRoute, useNavigate, useRouter, useSearch, useParams } from '@tanstack/react-router';
+import { FormProvider, useForm } from 'react-hook-form';
 
 import ChevronLeftIcon from 'assets/svg/Login/chevron-left.svg';
 import CompletePage from 'components/Auth/FindPasswordPage/Complete';
@@ -14,7 +13,6 @@ import PCVerifyEmail from 'components/Auth/FindPasswordPage/PC/PCVerifyEmail';
 import PCVerifyPhone from 'components/Auth/FindPasswordPage/PC/PCVerifyPhone';
 import ProgressBar from 'components/Auth/SignupPage/components/ProgressBar';
 import LoadingSpinner from 'components/feedback/LoadingSpinner';
-import { FormProvider, useForm } from 'react-hook-form';
 import type { ContactType } from 'static/auth';
 import ROUTES from 'static/routes';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
@@ -170,18 +168,16 @@ function FindPasswordPage({ step }: { step: StepTitle }) {
 }
 
 function FindPassword() {
-  
-  
-  const routeQuery: Record<string, string | string[] | undefined> = { ...useSearch({ strict: false }), ...useParams({ strict: false }) };
-  
+  const routeQuery: Record<string, string | string[] | undefined> = {
+    ...useSearch({ strict: false }),
+    ...useParams({ strict: false }),
+  };
 
   const { step } = routeQuery as { step?: StepTitle };
   if (!step) return null;
 
   return <FindPasswordPage step={step} />;
 }
-
-
 
 export default FindPassword;
 
@@ -192,5 +188,6 @@ export const Route = createFileRoute('/auth/findpw/$step/')({
 
 function RouteComponent() {
   const page = <FindPassword />;
+
   return <FindPWLayout>{page}</FindPWLayout>;
 }

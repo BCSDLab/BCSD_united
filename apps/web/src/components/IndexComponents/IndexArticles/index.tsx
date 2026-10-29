@@ -1,6 +1,6 @@
+import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 
-import { useQuery } from '@tanstack/react-query';
 import { articleQueries } from 'api/articles/queries';
 import RightArrow from 'assets/svg/right-arrow.svg';
 import { convertArticlesTag } from 'components/Articles/utils/convertArticlesTag';
@@ -27,14 +27,20 @@ export default function IndexArticles({ serverNow }: IndexArticlesProps) {
   return (
     <section className={styles.template}>
       <div className={styles.template__header}>
-        <Link  to={ROUTES.Articles()} className={styles['template__title-link']}
-        onClick={() => logger.actionEventClick({ team: 'CAMPUS', event_label: 'main_notice', value: '공지사항' })}>
+        <Link
+          to={ROUTES.Articles()}
+          className={styles['template__title-link']}
+          onClick={() => logger.actionEventClick({ team: 'CAMPUS', event_label: 'main_notice', value: '공지사항' })}
+        >
           <h1 className={styles.template__title}>공지사항</h1>
         </Link>
-        <Link  to={ROUTES.Articles()} className={styles.template__link}
-        onClick={() =>
-          logger.actionEventClick({ team: 'CAMPUS', event_label: 'main_notice_detail', value: '공지사항' })
-        }>
+        <Link
+          to={ROUTES.Articles()}
+          className={styles.template__link}
+          onClick={() =>
+            logger.actionEventClick({ team: 'CAMPUS', event_label: 'main_notice_detail', value: '공지사항' })
+          }
+        >
           더보기
           <RightArrow aria-hidden />
         </Link>
@@ -43,11 +49,15 @@ export default function IndexArticles({ serverNow }: IndexArticlesProps) {
       <ul className={styles.list}>
         {articlesData?.articles.slice(0, 7).map((article) => (
           <li key={article.id} className={styles.list__item}>
-            <Link to={ROUTES.ArticlesDetail({ id: String(article.id) })} preload={false} className={styles['list__item-link']}>
+            <Link
+              to={ROUTES.ArticlesDetail({ id: String(article.id) })}
+              preload={false}
+              className={styles['list__item-link']}
+            >
               <span className={styles['list__item-type']}>{convertArticlesTag(article.board_id)}</span>
               <span className={styles['list__item-title']}>{article.title}</span>
               {article.isNew && (
-                    // 작은 정적 이미지는 크기를 조정하지 않는다.
+                // 작은 정적 이미지는 크기를 조정하지 않는다.
                 <img
                   className={styles['list__item-tag']}
                   src="https://static.koreatech.in/upload/7f2af097aeeca368b0a491f9e00f80ca.png"

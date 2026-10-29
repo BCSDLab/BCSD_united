@@ -1,7 +1,7 @@
 import React from 'react';
+import { cn } from '@bcsdlab/utils';
 import { useRouter } from '@tanstack/react-router';
 
-import { cn } from '@bcsdlab/utils';
 import type { Lecture, MyLectureInfo, Semester } from 'api/timetable/entity';
 import LectureCloseIcon from 'assets/svg/lecture-close-icon.svg';
 import LectureEditIcon from 'assets/svg/lecture-edit-icon.svg';

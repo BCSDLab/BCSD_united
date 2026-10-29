@@ -1,6 +1,6 @@
 import { useRef, useState, type ChangeEvent } from 'react';
-
 import { cn } from '@bcsdlab/utils';
+
 import CloseIcon from 'assets/svg/Store/close-icon.svg';
 import BottomModal, {
   BottomModalContent,

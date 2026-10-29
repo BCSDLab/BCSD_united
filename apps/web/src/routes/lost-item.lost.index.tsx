@@ -7,8 +7,6 @@ export default function LostItemLost() {
   return <LostItemWritePage />;
 }
 
-
-
 export const Route = createFileRoute('/lost-item/lost/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   component: RouteComponent,
@@ -16,5 +14,6 @@ export const Route = createFileRoute('/lost-item/lost/')({
 
 function RouteComponent() {
   const page = <LostItemLost />;
+
   return <Layout mobileHeader="page">{page}</Layout>;
 }

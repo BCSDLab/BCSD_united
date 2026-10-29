@@ -4,9 +4,29 @@ import { requirePrincipal } from '@api/auth';
 import { schema } from '@api/db/schema';
 import type { ApiEnv } from '@api/runtime';
 import {
-  array, atomic, body, boolean, catalogDate, catalogDateTime, catalogError, catalogNow, ids, integer, invalid,
-  kstDate, menu, object, pageInfo, rows, shop, sqlList, strings, text,
-  type CatalogContext, type JsonObject, type Shop,
+  array,
+  atomic,
+  body,
+  boolean,
+  catalogDate,
+  catalogDateTime,
+  catalogError,
+  catalogNow,
+  ids,
+  integer,
+  invalid,
+  kstDate,
+  menu,
+  object,
+  pageInfo,
+  rows,
+  shop,
+  sqlList,
+  strings,
+  text,
+  type CatalogContext,
+  type JsonObject,
+  type Shop,
 } from '@api/domains/commerce/catalog-shared';
 import { menuCategories, menuDetail, menuList, saveMenu } from '@api/domains/commerce/catalog-menu';
 import { registerCommerceCatalogAdminReviews } from '@api/domains/commerce/catalog-admin-reviews';
@@ -33,7 +53,7 @@ function queryInteger(value: string | undefined, fallback: number): number {
 
 export function adminPagination(c: CatalogContext, total: number) {
   const limit = Math.min(50, Math.max(1, queryInteger(c.req.query('limit'), 10)));
-  return pageInfo(total, Math.max(1, queryInteger(c.req.query('page'), 1)), limit);
+  return { ...pageInfo(total, Math.max(1, queryInteger(c.req.query('page'), 1)), limit), limit };
 }
 
 export function adminQueryBoolean(c: CatalogContext, name: string): boolean | undefined {
@@ -57,7 +77,8 @@ export async function catalogAdminWrite(c: CatalogContext, statements: SQL[], co
       sql`delete from native_commerce_guard where id=${id}`,
     ]);
   } catch (error) {
-    if (String(error).includes('CHECK constraint failed')) catalogError(409, 'CONCURRENT_MODIFICATION', '데이터가 변경되었습니다. 다시 요청해주세요.');
+    if (String(error).includes('CHECK constraint failed'))
+      catalogError(409, 'CONCURRENT_MODIFICATION', '데이터가 변경되었습니다. 다시 요청해주세요.');
     throw error;
   }
 }
@@ -69,7 +90,13 @@ async function category(c: CatalogContext, id: number): Promise<ShopCategory> {
 }
 
 function categoryResponse(value: ShopCategory) {
-  return { id: value.id, name: value.name, image_url: value.image_url, parent_category_id: value.parent_category_id, event_banner_image_url: value.event_banner_image_url };
+  return {
+    id: value.id,
+    name: value.name,
+    image_url: value.image_url,
+    parent_category_id: value.parent_category_id,
+    event_banner_image_url: value.event_banner_image_url,
+  };
 }
 
 function optionalText(value: unknown, field: string, max: number) {
@@ -88,7 +115,12 @@ function openingHours(value: unknown) {
     const day = text(open.day_of_week, 'day_of_week');
     if (!WEEK_DAYS.includes(day)) invalid('day_of_week', '요일은 올바른 값이어야 합니다.');
     const closed = Number(open.closed === undefined ? false : boolean(open.closed, 'closed'));
-    return { day, closed, start: clockTime(open.open_time, 'open_time'), end: clockTime(open.close_time, 'close_time') };
+    return {
+      day,
+      closed,
+      start: clockTime(open.open_time, 'open_time'),
+      end: clockTime(open.close_time, 'close_time'),
+    };
   });
 }
 
@@ -112,34 +144,54 @@ async function saveShop(c: CatalogContext, request: JsonObject, id?: number) {
   const opens = openingHours(request.open);
   const now = catalogNow();
   const target = id === undefined ? sql`(select max(id) from ${schema.shops})` : sql`${id}`;
-  const statements: SQL[] = id === undefined
-    ? [
-      sql`insert into ${schema.shops} (name,internal_name,chosung,address,description,phone,delivery,delivery_price,pay_bank,pay_card,main_category_id,remarks,hit,is_event,is_deleted,created_at,updated_at) values (${name},${name},${name.slice(0, 1)},${address},${description},${phone},${delivery},${deliveryPrice},${payBank},${payCard},${main},'',0,0,0,${now},${now})`,
-      ...DEFAULT_MENU_CATEGORIES.map((categoryName) => sql`insert into ${schema.shop_menu_categories}(shop_id,name) values (${target},${categoryName})`),
-    ]
-    : [
-      sql`update ${schema.shops} set name=${name},address=${address},description=${description},phone=${phone},delivery=${delivery},delivery_price=${deliveryPrice},pay_bank=${payBank},pay_card=${payCard},main_category_id=${main},bank=${bank},account_number=${account},updated_at=${now} where id=${id}`,
-      sql`delete from ${schema.shop_category_map} where shop_id=${id}`,
-      sql`delete from ${schema.shop_images} where shop_id=${id}`,
-      sql`delete from ${schema.shop_opens} where shop_id=${id}`,
-    ];
+  const statements: SQL[] =
+    id === undefined
+      ? [
+          sql`insert into ${schema.shops} (name,internal_name,chosung,address,description,phone,delivery,delivery_price,pay_bank,pay_card,main_category_id,remarks,hit,is_event,is_deleted,created_at,updated_at) values (${name},${name},${name.slice(0, 1)},${address},${description},${phone},${delivery},${deliveryPrice},${payBank},${payCard},${main},'',0,0,0,${now},${now})`,
+          ...DEFAULT_MENU_CATEGORIES.map(
+            (categoryName) =>
+              sql`insert into ${schema.shop_menu_categories}(shop_id,name) values (${target},${categoryName})`,
+          ),
+        ]
+      : [
+          sql`update ${schema.shops} set name=${name},address=${address},description=${description},phone=${phone},delivery=${delivery},delivery_price=${deliveryPrice},pay_bank=${payBank},pay_card=${payCard},main_category_id=${main},bank=${bank},account_number=${account},updated_at=${now} where id=${id}`,
+          sql`delete from ${schema.shop_category_map} where shop_id=${id}`,
+          sql`delete from ${schema.shop_images} where shop_id=${id}`,
+          sql`delete from ${schema.shop_opens} where shop_id=${id}`,
+        ];
   statements.push(
     sql`insert into ${schema.shop_category_map}(shop_id,shop_category_id) select ${target},id from ${schema.shop_categories} where id in (${sqlList(categories)})`,
     ...images.map((image) => sql`insert into ${schema.shop_images}(shop_id,image_url) values (${target},${image})`),
-    ...opens.map((open) => sql`insert into ${schema.shop_opens}(shop_id,day_of_week,closed,open_time,close_time) values (${target},${open.day},${open.closed},${open.start},${open.end})`),
+    ...opens.map(
+      (open) =>
+        sql`insert into ${schema.shop_opens}(shop_id,day_of_week,closed,open_time,close_time) values (${target},${open.day},${open.closed},${open.start},${open.end})`,
+    ),
     catalogAdminAudit(c, 'SHOPS', id ?? null, request),
   );
-  await catalogAdminWrite(c, statements, id === undefined ? undefined : sql`exists(select 1 from ${schema.shops} where id=${id} and is_deleted=0)`);
+  await catalogAdminWrite(
+    c,
+    statements,
+    id === undefined ? undefined : sql`exists(select 1 from ${schema.shops} where id=${id} and is_deleted=0)`,
+  );
 }
 
 async function shopResponse(c: CatalogContext, id: number) {
   const value = await shop(c, id);
   const [images, opens, categories, menus, event] = await Promise.all([
     rows<{ image_url: string }>(c, sql`select image_url from ${schema.shop_images} where shop_id=${id} order by id`),
-    rows<{ day_of_week: string; closed: number; open_time: string | null; close_time: string | null }>(c, sql`select day_of_week,closed,open_time,close_time from ${schema.shop_opens} where shop_id=${id} order by id`),
-    rows<{ id: number; name: string }>(c, sql`select c.id,c.name from ${schema.shop_categories} c join ${schema.shop_category_map} m on m.shop_category_id=c.id where m.shop_id=${id}`),
+    rows<{ day_of_week: string; closed: number; open_time: string | null; close_time: string | null }>(
+      c,
+      sql`select day_of_week,closed,open_time,close_time from ${schema.shop_opens} where shop_id=${id} order by id`,
+    ),
+    rows<{ id: number; name: string }>(
+      c,
+      sql`select c.id,c.name from ${schema.shop_categories} c join ${schema.shop_category_map} m on m.shop_category_id=c.id where m.shop_id=${id}`,
+    ),
     menuCategories(c, id),
-    rows<{ count: number }>(c, sql`select count(*) count from ${schema.event_articles} where shop_id=${id} and is_deleted=0 and ${kstDate()} between start_date and end_date`),
+    rows<{ count: number }>(
+      c,
+      sql`select count(*) count from ${schema.event_articles} where shop_id=${id} and is_deleted=0 and ${kstDate()} between start_date and end_date`,
+    ),
   ]);
   return {
     address: value.address,
@@ -150,7 +202,12 @@ async function shopResponse(c: CatalogContext, id: number) {
     image_urls: images.map((image) => image.image_url),
     menu_categories: menus.menu_categories,
     name: value.name,
-    open: opens.map((open) => ({ ...open, closed: Boolean(open.closed), open_time: open.open_time?.slice(0, 5) ?? null, close_time: open.close_time?.slice(0, 5) ?? null })),
+    open: opens.map((open) => ({
+      ...open,
+      closed: Boolean(open.closed),
+      open_time: open.open_time?.slice(0, 5) ?? null,
+      close_time: open.close_time?.slice(0, 5) ?? null,
+    })),
     pay_bank: Boolean(value.pay_bank),
     pay_card: Boolean(value.pay_card),
     phone: value.phone,
@@ -170,15 +227,21 @@ async function saveCategory(c: CatalogContext, request: JsonObject, id?: number)
   const parent = integer(request.parent_category_id, 'parent_category_id');
   const banner = optionalText(request.event_banner_image_url, 'event_banner_image_url', 255);
   const duplicate = sql`exists(select 1 from ${schema.shop_categories} where name=${name} and id<>${id ?? -1})`;
-  if ((await rows<{ found: number }>(c, sql`select ${duplicate} found`))[0]?.found) catalogError(409, '', `카테고리명이 이미 존재합니다 name: 중복되는 상점 카테고리명이 존재합니다.: ${name}`);
+  if ((await rows<{ found: number }>(c, sql`select ${duplicate} found`))[0]?.found)
+    catalogError(409, '', `카테고리명이 이미 존재합니다 name: 중복되는 상점 카테고리명이 존재합니다.: ${name}`);
   if (id !== undefined) await category(c, id);
-  if (!(await rows(c, sql`select id from ${schema.shop_parent_categories} where id=${parent}`)).length) catalogError(404, '', `존재하지 않는 상위 카테고리입니다. shopParentCategoryId: ${parent}`);
-  await catalogAdminWrite(c, [
-    id === undefined
-      ? sql`insert into ${schema.shop_categories}(name,image_url,parent_category_id,event_banner_image_url,order_index) values (${name},${image},${parent},${banner},coalesce((select max(order_index) from ${schema.shop_categories}),0))`
-      : sql`update ${schema.shop_categories} set name=${name},image_url=${image},parent_category_id=${parent},event_banner_image_url=${banner},updated_at=${catalogNow()} where id=${id}`,
-    catalogAdminAudit(c, 'SHOPSCATEGORIES', id ?? null, request),
-  ], sql`not ${duplicate}`);
+  if (!(await rows(c, sql`select id from ${schema.shop_parent_categories} where id=${parent}`)).length)
+    catalogError(404, '', `존재하지 않는 상위 카테고리입니다. shopParentCategoryId: ${parent}`);
+  await catalogAdminWrite(
+    c,
+    [
+      id === undefined
+        ? sql`insert into ${schema.shop_categories}(name,image_url,parent_category_id,event_banner_image_url,order_index) values (${name},${image},${parent},${banner},coalesce((select max(order_index) from ${schema.shop_categories}),0))`
+        : sql`update ${schema.shop_categories} set name=${name},image_url=${image},parent_category_id=${parent},event_banner_image_url=${banner},updated_at=${catalogNow()} where id=${id}`,
+      catalogAdminAudit(c, 'SHOPSCATEGORIES', id ?? null, request),
+    ],
+    sql`not ${duplicate}`,
+  );
 }
 
 async function menuCategory(c: CatalogContext, id: number): Promise<MenuCategory> {
@@ -202,8 +265,12 @@ export function registerCommerceCatalogAdmin(app: Hono<ApiEnv>): void {
     const categories = await rows<ShopCategory>(c, sql`select * from ${schema.shop_categories} order by order_index`);
     return c.json(categories.map(categoryResponse));
   });
-  app.get('/admin/shops/categories/:id', async (c) => c.json(categoryResponse(await category(c, integer(c.req.param('id'))))));
-  app.get('/admin/shops/parent-categories', async (c) => c.json(await rows(c, sql`select id,name from ${schema.shop_parent_categories}`)));
+  app.get('/admin/shops/categories/:id', async (c) =>
+    c.json(categoryResponse(await category(c, integer(c.req.param('id'))))),
+  );
+  app.get('/admin/shops/parent-categories', async (c) =>
+    c.json(await rows(c, sql`select id,name from ${schema.shop_parent_categories}`)),
+  );
   app.post('/admin/shops/categories', async (c) => {
     await saveCategory(c, await body(c));
     return c.body(null, 201);
@@ -213,11 +280,19 @@ export function registerCommerceCatalogAdmin(app: Hono<ApiEnv>): void {
     const order = array(request.shop_category_ids, 'shop_category_ids').map((value) => integer(value));
     const current = await rows<{ id: number }>(c, sql`select id from ${schema.shop_categories}`);
     const distinct = new Set(order);
-    if (distinct.size !== current.length || current.some((value) => !distinct.has(value.id))) catalogError(400, '', '카테고리를 찾을 수 없습니다 카테고리 목록이 잘못되었습니다.');
-    await catalogAdminWrite(c, [
-      ...order.map((id, index) => sql`update ${schema.shop_categories} set order_index=${index},updated_at=${catalogNow()} where id=${id}`),
-      catalogAdminAudit(c, 'SHOPSCATEGORIES', null, request),
-    ], sql`(select count(*) from ${schema.shop_categories})=${current.length}`);
+    if (distinct.size !== current.length || current.some((value) => !distinct.has(value.id)))
+      catalogError(400, '', '카테고리를 찾을 수 없습니다 카테고리 목록이 잘못되었습니다.');
+    await catalogAdminWrite(
+      c,
+      [
+        ...order.map(
+          (id, index) =>
+            sql`update ${schema.shop_categories} set order_index=${index},updated_at=${catalogNow()} where id=${id}`,
+        ),
+        catalogAdminAudit(c, 'SHOPSCATEGORIES', null, request),
+      ],
+      sql`(select count(*) from ${schema.shop_categories})=${current.length}`,
+    );
     return c.body(null, 204);
   });
   app.put('/admin/shops/categories/:id', async (c) => {
@@ -227,20 +302,48 @@ export function registerCommerceCatalogAdmin(app: Hono<ApiEnv>): void {
   app.delete('/admin/shops/categories/:id', async (c) => {
     const id = integer(c.req.param('id'));
     const empty = sql`not exists(select 1 from ${schema.shop_category_map} where shop_category_id=${id})`;
-    if (!(await rows<{ empty: number }>(c, sql`select ${empty} empty`))[0]?.empty) catalogError(400, '', `카테고리에 상점이 남아있어 삭제할 수 없습니다 카테고리에 상점이 존재합니다.${id}`);
-    await catalogAdminWrite(c, [sql`delete from ${schema.shop_categories} where id=${id}`, catalogAdminAudit(c, 'SHOPSCATEGORIES', id)], empty);
+    if (!(await rows<{ empty: number }>(c, sql`select ${empty} empty`))[0]?.empty)
+      catalogError(400, '', `카테고리에 상점이 남아있어 삭제할 수 없습니다 카테고리에 상점이 존재합니다.${id}`);
+    await catalogAdminWrite(
+      c,
+      [sql`delete from ${schema.shop_categories} where id=${id}`, catalogAdminAudit(c, 'SHOPSCATEGORIES', id)],
+      empty,
+    );
     return c.body(null, 204);
   });
   app.get('/admin/shops', async (c) => {
     const deleted = Number(adminQueryBoolean(c, 'is_deleted') ?? false);
-    const [{ total }] = await rows<{ total: number }>(c, sql`select count(*) total from ${schema.shops} where is_deleted=${deleted}`);
+    const [{ total }] = await rows<{ total: number }>(
+      c,
+      sql`select count(*) total from ${schema.shops} where is_deleted=${deleted}`,
+    );
     const page = adminPagination(c, total);
-    const shops = await rows<Shop>(c, sql`select * from ${schema.shops} where is_deleted=${deleted} order by id limit ${page.limit} offset ${page.offset}`);
-    const mapped = await Promise.all(shops.map(async (value) => {
-      const categoryNames = await rows<{ name: string }>(c, sql`select c.name from ${schema.shop_categories} c join ${schema.shop_category_map} m on m.shop_category_id=c.id where m.shop_id=${value.id}`);
-      return { id: value.id, name: value.name, phone: value.phone, is_deleted: Boolean(value.is_deleted), category_names: categoryNames.map((item) => item.name) };
-    }));
-    return c.json({ total_count: total, current_count: mapped.length, total_page: page.total_page, current_page: page.current_page, shops: mapped });
+    const shops = await rows<Shop>(
+      c,
+      sql`select * from ${schema.shops} where is_deleted=${deleted} order by id limit ${page.limit} offset ${page.offset}`,
+    );
+    const mapped = await Promise.all(
+      shops.map(async (value) => {
+        const categoryNames = await rows<{ name: string }>(
+          c,
+          sql`select c.name from ${schema.shop_categories} c join ${schema.shop_category_map} m on m.shop_category_id=c.id where m.shop_id=${value.id}`,
+        );
+        return {
+          id: value.id,
+          name: value.name,
+          phone: value.phone,
+          is_deleted: Boolean(value.is_deleted),
+          category_names: categoryNames.map((item) => item.name),
+        };
+      }),
+    );
+    return c.json({
+      total_count: total,
+      current_count: mapped.length,
+      total_page: page.total_page,
+      current_page: page.current_page,
+      shops: mapped,
+    });
   });
   app.get('/admin/shops/:id', async (c) => c.json(await shopResponse(c, integer(c.req.param('id')))));
   app.post('/admin/shops', async (c) => {
@@ -254,14 +357,25 @@ export function registerCommerceCatalogAdmin(app: Hono<ApiEnv>): void {
   app.post('/admin/shops/:id/undelete', async (c) => {
     const id = integer(c.req.param('id'));
     const deleted = sql`exists(select 1 from ${schema.shops} where id=${id} and is_deleted=1)`;
-    if (!(await rows(c, sql`select id from ${schema.shops} where id=${id} and is_deleted=1`)).length) catalogError(404, '', `해당 상점이 존재하지 않습니다.: ${id} null`);
-    await catalogAdminWrite(c, [sql`update ${schema.shops} set is_deleted=0,updated_at=${catalogNow()} where id=${id}`, catalogAdminAudit(c, 'SHOPS', id)], deleted);
+    if (!(await rows(c, sql`select id from ${schema.shops} where id=${id} and is_deleted=1`)).length)
+      catalogError(404, '', `해당 상점이 존재하지 않습니다.: ${id} null`);
+    await catalogAdminWrite(
+      c,
+      [
+        sql`update ${schema.shops} set is_deleted=0,updated_at=${catalogNow()} where id=${id}`,
+        catalogAdminAudit(c, 'SHOPS', id),
+      ],
+      deleted,
+    );
     return c.body(null, 200);
   });
   app.delete('/admin/shops/:id', async (c) => {
     const id = integer(c.req.param('id'));
     await shop(c, id);
-    await catalogAdminWrite(c, [sql`update ${schema.shops} set is_deleted=1,updated_at=${catalogNow()} where id=${id}`, catalogAdminAudit(c, 'SHOPS', id)]);
+    await catalogAdminWrite(c, [
+      sql`update ${schema.shops} set is_deleted=1,updated_at=${catalogNow()} where id=${id}`,
+      catalogAdminAudit(c, 'SHOPS', id),
+    ]);
     return c.body(null, 200);
   });
 
@@ -293,7 +407,10 @@ export function registerCommerceCatalogAdmin(app: Hono<ApiEnv>): void {
     const id = integer(request.id);
     await menuCategory(c, id);
     const name = text(request.name, 'name', 0, 255);
-    await catalogAdminWrite(c, [sql`update ${schema.shop_menu_categories} set name=${name},updated_at=${catalogNow()} where id=${id}`, catalogAdminAudit(c, 'MENUSCATEGORIES', null, request)]);
+    await catalogAdminWrite(c, [
+      sql`update ${schema.shop_menu_categories} set name=${name},updated_at=${catalogNow()} where id=${id}`,
+      catalogAdminAudit(c, 'MENUSCATEGORIES', null, request),
+    ]);
     return c.body(null, 201);
   });
   app.put('/admin/shops/:shopId/menus/:menuId', async (c) => {
@@ -310,13 +427,17 @@ export function registerCommerceCatalogAdmin(app: Hono<ApiEnv>): void {
     await shop(c, id);
     const request = await body(c);
     const name = text(request.name, 'name', 1, 20);
-    await catalogAdminWrite(c, [sql`insert into ${schema.shop_menu_categories}(shop_id,name) values (${id},${name})`, catalogAdminAudit(c, 'MENUSCATEGORIES', null, request)]);
+    await catalogAdminWrite(c, [
+      sql`insert into ${schema.shop_menu_categories}(shop_id,name) values (${id},${name})`,
+      catalogAdminAudit(c, 'MENUSCATEGORIES', null, request),
+    ]);
     return c.body(null, 201);
   });
   app.delete('/admin/shops/:shopId/menus/categories/:categoryId', async (c) => {
     const id = integer(c.req.param('categoryId'));
     const value = await menuCategory(c, id);
-    if (value.shop_id !== integer(c.req.param('shopId'))) catalogError(400, '', '해당 상점의 카테고리가 아닙니다. null');
+    if (value.shop_id !== integer(c.req.param('shopId')))
+      catalogError(400, '', '해당 상점의 카테고리가 아닙니다. null');
     await catalogAdminWrite(c, [
       sql`delete from ${schema.shop_menu_category_map} where shop_menu_category_id=${id}`,
       sql`delete from ${schema.shop_menu_categories} where id=${id}`,
@@ -342,33 +463,55 @@ export function registerCommerceCatalogAdmin(app: Hono<ApiEnv>): void {
     const query = c.req.query('query');
     const status = c.req.query('status');
     const sort = c.req.query('sort') ?? 'CREATED_AT_ASC';
-    if (query !== undefined && !query.trim()) catalogError(400, 'SEARCH_QUERY_ONLY_WHITESPACE', '검색 내용은 공백 문자로만 이루어져 있으면 안됩니다.');
+    if (query !== undefined && !query.trim())
+      catalogError(400, 'SEARCH_QUERY_ONLY_WHITESPACE', '검색 내용은 공백 문자로만 이루어져 있으면 안됩니다.');
     if (status !== undefined && !REQUEST_STATUSES.includes(status)) invalid('status', '상태가 올바르지 않습니다.');
     if (!REQUEST_SORTS.includes(sort)) invalid('sort', '정렬 기준이 올바르지 않습니다.');
-    const where = sql.join([
-      sql`s.is_deleted=0`,
-      ...(query === undefined ? [] : [sql`s.name like ${`%${query}%`}`]),
-      ...(status === undefined ? [] : [sql`r.request_status=${status}`]),
-    ], sql` and `);
+    const where = sql.join(
+      [
+        sql`s.is_deleted=0`,
+        ...(query === undefined ? [] : [sql`s.name like ${`%${query}%`}`]),
+        ...(status === undefined ? [] : [sql`r.request_status=${status}`]),
+      ],
+      sql` and `,
+    );
     // 검색어가 없으면 전체 건수는 삭제된 상점의 요청까지 세고, 목록은 삭제되지 않은 상점만 보여준다.
-    const countQuery = query === undefined
-      ? sql`select count(*) total from ${schema.shop_order_service_requests} r where ${status === undefined ? sql`1=1` : sql`r.request_status=${status}`}`
-      : sql`select count(*) total from ${schema.shop_order_service_requests} r join ${schema.shops} s on s.id=r.shop_id where ${where}`;
+    const countQuery =
+      query === undefined
+        ? sql`select count(*) total from ${schema.shop_order_service_requests} r where ${status === undefined ? sql`1=1` : sql`r.request_status=${status}`}`
+        : sql`select count(*) total from ${schema.shop_order_service_requests} r join ${schema.shops} s on s.id=r.shop_id where ${where}`;
     const [{ total }] = await rows<{ total: number }>(c, countQuery);
     const page = adminPagination(c, total);
     const direction = sort === 'CREATED_AT_ASC' ? sql`asc` : sql`desc`;
-    const requests = await rows<{ id: number; shop_id: number; shop_name: string; request_status: string; created_at: string; approved_at: string | null }>(c, sql`select r.id,r.shop_id,s.name shop_name,r.request_status,r.created_at,r.approved_at from ${schema.shop_order_service_requests} r join ${schema.shops} s on s.id=r.shop_id where ${where} order by r.created_at ${direction} limit ${page.limit} offset ${page.offset}`);
+    const requests = await rows<{
+      id: number;
+      shop_id: number;
+      shop_name: string;
+      request_status: string;
+      created_at: string;
+      approved_at: string | null;
+    }>(
+      c,
+      sql`select r.id,r.shop_id,s.name shop_name,r.request_status,r.created_at,r.approved_at from ${schema.shop_order_service_requests} r join ${schema.shops} s on s.id=r.shop_id where ${where} order by r.created_at ${direction} limit ${page.limit} offset ${page.offset}`,
+    );
     return c.json({
       total_count: total,
       total_page: page.total_page,
       current_page: page.current_page,
       current_count: requests.length,
-      order_service_requests: requests.map((value) => ({ ...value, created_at: catalogDateTime(value.created_at), approved_at: value.approved_at === null ? null : catalogDateTime(value.approved_at) })),
+      order_service_requests: requests.map((value) => ({
+        ...value,
+        created_at: catalogDateTime(value.created_at),
+        approved_at: value.approved_at === null ? null : catalogDateTime(value.approved_at),
+      })),
     });
   });
   app.get('/admin/owner/shops/order-service-requests/:id', async (c) => {
     const id = integer(c.req.param('id'));
-    const [value] = await rows<OrderServiceRequest & { shop_name: string }>(c, sql`select r.*,s.name shop_name from ${schema.shop_order_service_requests} r join ${schema.shops} s on s.id=r.shop_id and s.is_deleted=0 where r.id=${id}`);
+    const [value] = await rows<OrderServiceRequest & { shop_name: string }>(
+      c,
+      sql`select r.*,s.name shop_name from ${schema.shop_order_service_requests} r join ${schema.shops} s on s.id=r.shop_id and s.is_deleted=0 where r.id=${id}`,
+    );
     if (!value) catalogError(404, 'NOT_FOUND_SHOP_ORDER_SERVICE_REQUEST', '상점 서비스 전환 요청이 존재하지 않습니다.');
     return c.json({
       id: value.id,

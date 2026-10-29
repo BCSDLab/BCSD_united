@@ -1,6 +1,7 @@
+import { z } from 'zod';
+
 import isValidCalendarDate from 'components/Team/utils/isValidCalendarDate';
 import { validateActivityDateRange } from 'components/Team/utils/validateActivityDateRange';
-import { z } from 'zod';
 
 export const APPLY_NICKNAME_MAX_LENGTH = 20;
 export const APPLY_PREFERRED_ROLE_MAX_LENGTH = 20;

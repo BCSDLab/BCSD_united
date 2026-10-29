@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState, type ChangeEvent } from 'react';
-import { useRouter, useLocation, useSearch } from '@tanstack/react-router';
-
 import { isKoinError, sendClientError } from '@bcsdlab/koin';
 import { keepPreviousData, useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { useRouter, useLocation, useSearch } from '@tanstack/react-router';
+
 import { deleteReview } from 'api/store';
 import type { ReviewSorter } from 'api/storeMobile/entity';
 import { invalidateShopReviews, storeMobileQueries } from 'api/storeMobile/queries';
@@ -41,7 +41,7 @@ const LOGIN_MODAL_SUBTITLE = '리뷰작성은 회원만 사용 가능합니다.'
 export default function StoreReviewsPage({ id }: StoreReviewsPageProps) {
   const router = useRouter();
   const routeLocation = useLocation();
-  const routeSearch = useSearch({ strict: false }) as Record<string, string | string[] | undefined>;
+  const routeSearch = useSearch({ strict: false });
   const logger = useLogger();
   const queryClient = useQueryClient();
   const isLoggedIn = useIsLoggedIn();

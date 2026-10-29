@@ -1,6 +1,6 @@
 import { useRef } from 'react';
-
 import { cn } from '@bcsdlab/utils';
+
 import ThreeDotsIcon from 'assets/svg/Team/three-dots.svg';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
 import { useEscapeKeyDown } from 'utils/hooks/ui/useEscapeKeyDown';

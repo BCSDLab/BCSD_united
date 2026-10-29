@@ -1,7 +1,9 @@
+import { type Control, Controller } from 'react-hook-form';
+
 import type { TeamRecruitmentFormValues } from 'components/Team/NewTeamRecruitment/schema';
 import DatePickerModal from 'components/ui/DatePickerModal';
-import { type Control, Controller } from 'react-hook-form';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
+import { useServerCalendarDate } from 'utils/ssr/useServerNow';
 import { getYyyyMmDd } from 'utils/ts/calendar';
 
 import styles from './ScheduleField.module.scss';
@@ -17,6 +19,7 @@ function formatDotDate(date: Date | null) {
 }
 
 export default function ScheduleField({ control, periodError, deadlineError }: ScheduleFieldProps) {
+  const serverNow = useServerCalendarDate();
   const [isStartCalendarOpen, openStartCalendar, closeStartCalendar] = useBooleanState(false);
   const [isEndCalendarOpen, openEndCalendar, closeEndCalendar] = useBooleanState(false);
   const [isDeadlineCalendarOpen, openDeadlineCalendar, closeDeadlineCalendar] = useBooleanState(false);
@@ -40,7 +43,7 @@ export default function ScheduleField({ control, periodError, deadlineError }: S
                   </button>
                   {isStartCalendarOpen && (
                     <DatePickerModal
-                      selectedDate={field.value ?? new Date()}
+                      selectedDate={field.value ?? serverNow}
                       onChange={field.onChange}
                       onClose={closeStartCalendar}
                     />
@@ -59,7 +62,7 @@ export default function ScheduleField({ control, periodError, deadlineError }: S
                   </button>
                   {isEndCalendarOpen && (
                     <DatePickerModal
-                      selectedDate={field.value ?? new Date()}
+                      selectedDate={field.value ?? serverNow}
                       onChange={field.onChange}
                       onClose={closeEndCalendar}
                     />
@@ -82,7 +85,7 @@ export default function ScheduleField({ control, periodError, deadlineError }: S
                 </button>
                 {isDeadlineCalendarOpen && (
                   <DatePickerModal
-                    selectedDate={field.value ?? new Date()}
+                    selectedDate={field.value ?? serverNow}
                     onChange={field.onChange}
                     onClose={closeDeadlineCalendar}
                   />

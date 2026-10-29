@@ -23,3 +23,7 @@ migration-data/
 apps/web/public/sitemap*.xml
 apps/web/public/robots.txt
 .playwright-mcp/
+apps/b-bot/.nitro/
+apps/b-bot/.output/
+apps/b-bot/.data/
+apps/b-bot/.secret/

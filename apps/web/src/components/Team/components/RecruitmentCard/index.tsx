@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
+import { cn } from '@bcsdlab/utils';
 import { Link } from '@tanstack/react-router';
 
-import { cn } from '@bcsdlab/utils';
 import type { TeamRecruitmentCard as TeamRecruitment } from 'api/team/entity';
 import CalendarIcon from 'assets/svg/Team/calendar.svg';
 import LocationIcon from 'assets/svg/Team/location.svg';
@@ -77,9 +77,12 @@ export default function RecruitmentCard({
 
   return (
     <div className={styles.card}>
-      <Link  to={ROUTES.TeamDetail({ postId: String(recruitment.id) })} className={styles.card__overlayLink}
-      onClick={handleClick}
-      aria-label={recruitment.title} />
+      <Link
+        to={ROUTES.TeamDetail({ postId: String(recruitment.id) })}
+        className={styles.card__overlayLink}
+        onClick={handleClick}
+        aria-label={recruitment.title}
+      />
 
       <div className={styles.card__header}>
         <RecruitmentBadges category={recruitment.category} status={recruitment.status} dDay={recruitment.d_day} />

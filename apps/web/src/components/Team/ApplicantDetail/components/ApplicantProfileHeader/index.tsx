@@ -1,4 +1,5 @@
 import { cn } from '@bcsdlab/utils';
+
 import type { TeamApplicationRole, TeamApplicationStatus } from 'api/team/entity';
 import ApplicantChatIcon from 'assets/svg/Team/applicant-chat.svg';
 import ProfileAvatarIcon from 'assets/svg/Team/profile-avatar-icon.svg';

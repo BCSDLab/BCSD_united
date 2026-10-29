@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import Image from 'components/ui/Image';
-
 import { cn } from '@bcsdlab/utils';
+
 import type { MenuCategory } from 'api/store/entity';
 import EmptyImageIcon from 'assets/svg/empty-thumbnail.svg';
+import Image from 'components/ui/Image';
 import MENU_CATEGORY from 'static/menu';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 

@@ -1,8 +1,5 @@
-import { createFileRoute, useNavigate, useSearch, useParams } from '@tanstack/react-router';
-
-
 import React, { useEffect, useRef, useState } from 'react';
-
+import { createFileRoute, useNavigate, useSearch, useParams } from '@tanstack/react-router';
 
 import BlockIcon from 'assets/svg/Articles/block.svg';
 import DefaultPhotoIcon from 'assets/svg/Articles/default-photo.svg';
@@ -283,7 +280,10 @@ function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageP
 export default function LostItemChatPageWrapper() {
   const isLoggedIn = useIsLoggedIn();
   const routeNavigate = useNavigate();
-  const routeQuery: Record<string, string | string[] | undefined> = { ...useSearch({ strict: false }), ...useParams({ strict: false }) };
+  const routeQuery: Record<string, string | string[] | undefined> = {
+    ...useSearch({ strict: false }),
+    ...useParams({ strict: false }),
+  };
 
   const articleId = routeQuery.articleId;
   const chatRoomId = routeQuery.chatRoomId ?? routeQuery.chatroomId;
@@ -308,9 +308,6 @@ export default function LostItemChatPageWrapper() {
   );
 }
 
-
-
-
 export const Route = createFileRoute('/lost-item/chat/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   staticData: { requireAuth: true },
@@ -319,5 +316,6 @@ export const Route = createFileRoute('/lost-item/chat/')({
 
 function RouteComponent() {
   const page = <LostItemChatPageWrapper />;
+
   return <Layout mobileHeader="page">{page}</Layout>;
 }

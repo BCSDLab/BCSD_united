@@ -1,8 +1,9 @@
 import { Suspense, useEffect, useState } from 'react';
-import { useRouter } from '@tanstack/react-router';
-
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery } from '@tanstack/react-query';
+import { useRouter } from '@tanstack/react-router';
+import { FormProvider, useForm } from 'react-hook-form';
+
 import type {
   TeamRecruitmentProfileResponse,
   UpsertTeamRecruitmentProfileRequest,
@@ -14,7 +15,6 @@ import {
 import MobilePageHeader from 'components/layout/MobilePageHeader';
 import SubmitConfirmModal from 'components/Team/components/SubmitConfirmModal';
 import useTeamFormStep from 'components/Team/hooks/useTeamFormStep';
-import { FormProvider, useForm } from 'react-hook-form';
 import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';

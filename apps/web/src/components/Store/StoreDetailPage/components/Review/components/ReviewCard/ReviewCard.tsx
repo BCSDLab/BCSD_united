@@ -1,7 +1,6 @@
 import { useCallback, useEffect } from 'react';
-import Image from 'components/ui/Image';
-
 import { cn } from '@bcsdlab/utils';
+
 import type { Review } from 'api/store/entity';
 import InformationIcon from 'assets/svg/common/information/information-icon-white.svg';
 import Mine from 'assets/svg/Review/check-mine.svg';
@@ -13,6 +12,7 @@ import ImageModal from 'components/modal/Modal/ImageModal';
 import type { Portal } from 'components/modal/Modal/PortalProvider';
 import SelectButton from 'components/Store/StoreDetailPage/components/Review/components/SelectButton/SelectButton';
 import { useDropdown } from 'components/Store/StoreDetailPage/hooks/useDropdown';
+import Image from 'components/ui/Image';
 import useModalPortal from 'utils/hooks/layout/useModalPortal';
 
 import styles from './ReviewCard.module.scss';
@@ -30,8 +30,8 @@ export default function ReviewCard({
   is_reported,
   store_id,
 }: Review & { store_id: string }) {
-  const emptyStarList = new Array(5 - rating).fill(false);
-  const starList = new Array(rating).fill(true);
+  const emptyStarList = Array.from({ length: 5 - rating }, () => false);
+  const starList = Array.from({ length: rating }, () => true);
   const portalManager = useModalPortal();
   const { openDropdown, toggleDropdown, closeDropdown } = useDropdown();
   const isOpen = openDropdown === String(review_id);

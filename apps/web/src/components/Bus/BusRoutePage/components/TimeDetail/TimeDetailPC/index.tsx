@@ -1,10 +1,11 @@
 import { useState } from 'react';
-
 import { useSuspenseQuery } from '@tanstack/react-query';
+
 import { coopshopQueries } from 'api/coopshop/queries';
 import SelectDropdown from 'components/Bus/BusRoutePage/components/SelectDropdown';
 import type { useTimeSelect } from 'components/Bus/BusRoutePage/hooks/useTimeSelect';
 import { useBusLogger } from 'components/Bus/hooks/useBusLogger';
+import { useServerCalendarDate } from 'utils/ssr/useServerNow';
 
 import styles from './TimeDetailPC.module.scss';
 
@@ -24,11 +25,12 @@ export default function TimeDetailPC({ timeSelect }: TimeDetailPCProps) {
   const { setNow, setDayOfMonth, setHour, setMinute } = timeSelect.timeHandler;
   const { logDepartureNowClick } = useBusLogger();
   const { data: semesterData } = useSuspenseQuery(coopshopQueries.allShopInfo());
+  const today = useServerCalendarDate();
 
   const displaySemester = formatSemesterLabel(semesterData.semester);
 
   const dates = [...Array(90)].map((_, index) => {
-    const now = new Date();
+    const now = new Date(today);
     now.setDate(now.getDate() + index);
 
     let label = `${now.getMonth() + 1}월 ${now.getDate()}일`;
@@ -59,8 +61,8 @@ export default function TimeDetailPC({ timeSelect }: TimeDetailPCProps) {
     const now = new Date();
     setNow(now);
     setDayOfMonthDisplay(dates[0].label);
-    setHourDisplay(`${now.getHours()}시`);
-    setMinuteDisplay(`${now.getMinutes()}분`);
+    setHourDisplay(`${(now.getUTCHours() + 9) % 24}시`);
+    setMinuteDisplay(`${now.getUTCMinutes()}분`);
     logDepartureNowClick();
   };
 

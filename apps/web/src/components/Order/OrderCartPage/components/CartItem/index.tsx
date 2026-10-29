@@ -1,7 +1,7 @@
-import { useRouter } from '@tanstack/react-router';
-
 import { isKoinError } from '@bcsdlab/koin';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from '@tanstack/react-router';
+
 import type { CartItem as CartItemType } from 'api/order/entity';
 import { orderMutations } from 'api/order/mutations';
 import MinusIcon from 'assets/svg/Order/Cart/minus-icon.svg';
@@ -34,10 +34,12 @@ export default function CartItem({ shopId, item }: CartItemProps) {
   const { mutate: updateCartItemQuantity } = useMutation(orderMutations.updateCartItemQuantity(queryClient));
 
   const changeOptions = () =>
-    router.navigate({ href: `${ROUTES.OrderShopMenu({
-      id: String(shopId),
-      menuId: String(item.orderable_shop_menu_id),
-    })}?editCartItemId=${item.cart_menu_item_id}` });
+    router.navigate({
+      href: `${ROUTES.OrderShopMenu({
+        id: String(shopId),
+        menuId: String(item.orderable_shop_menu_id),
+      })}?editCartItemId=${item.cart_menu_item_id}`,
+    });
 
   const changeQuantity = (quantity: number) =>
     updateCartItemQuantity({ cartMenuItemId: item.cart_menu_item_id, quantity }, { onError: handleError });

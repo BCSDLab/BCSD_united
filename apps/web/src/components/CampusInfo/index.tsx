@@ -1,5 +1,6 @@
 import { cn } from '@bcsdlab/utils';
 import { useSuspenseQuery } from '@tanstack/react-query';
+
 import { coopshopQueries } from 'api/coopshop/queries';
 
 import styles from './CampusInfo.module.scss';
@@ -43,7 +44,7 @@ function ShopIcon({ iconUrl, name }: ShopIconProps) {
   return (
     <div className={styles['icon-wrapper']}>
       {iconUrl ? (
-      // 아이콘 호스트가 고정되지 않아 이미지 API를 거치지 않는다.
+        // 아이콘 호스트가 고정되지 않아 이미지 API를 거치지 않는다.
         <img className={styles['icon-image']} src={iconUrl} alt={name} decoding="async" />
       ) : (
         <span className={styles['icon-fallback']} aria-hidden="true">

@@ -5,7 +5,7 @@ import ROUTES from 'static/routes';
 
 function useStep<T extends string>(steps: T[]) {
   const router = useRouter();
-  const { id } = useParams({ strict: false }) as { id?: T };
+  const { id } = useParams({ strict: false });
 
   const nextStep = useCallback(
     (next: T, options?: { replace: boolean }) => {
@@ -20,7 +20,7 @@ function useStep<T extends string>(steps: T[]) {
 
   const goBack = useCallback(() => {
     if (!id) return;
-    const currentIndex = steps.indexOf(id);
+    const currentIndex = steps.findIndex((step) => step === id);
     if (currentIndex > 0) {
       const previousStep = steps[currentIndex - 1];
       nextStep(previousStep);

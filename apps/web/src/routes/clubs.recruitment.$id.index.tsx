@@ -1,7 +1,5 @@
-import { createFileRoute, useSearch, useParams } from '@tanstack/react-router';
-import PageLayout from 'components/layout';
 import { useState } from 'react';
-
+import { createFileRoute, useSearch, useParams } from '@tanstack/react-router';
 
 import type { ClubRecruitment } from 'api/club/entity';
 import useClubDetail from 'components/Club/ClubDetailPage/hooks/useClubdetail';
@@ -9,11 +7,13 @@ import ConfirmModal from 'components/Club/NewClubRecruitment/components/ConfirmM
 import DetailDescription from 'components/Club/NewClubRecruitment/components/DetailDescription';
 import ClubImageUploader from 'components/Club/NewClubRecruitment/components/ImageUploader';
 import usePostNewRecruitment from 'components/Club/NewClubRecruitment/hooks/usePostNewRecruitment';
+import PageLayout from 'components/layout';
 import DatePicker from 'components/ui/DatePicker';
 import DatePickerModal from 'components/ui/DatePickerModal';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
+import { useServerCalendarDate } from 'utils/ssr/useServerNow';
 import { formatKoreanDate, getYyyyMmDd } from 'utils/ts/calendar';
 
 import styles from 'pages/clubs/recruitment/NewClubRecruitment.module.scss';
@@ -23,9 +23,10 @@ function NewClubRecruitment({ id }: { id: string }) {
   const { clubDetail } = useClubDetail(Number(id));
   const { mutateAsync } = usePostNewRecruitment(Number(id));
   const isMobile = useMediaQuery();
+  const serverNow = useServerCalendarDate();
 
-  const [startDate, setStartDate] = useState(new Date());
-  const [endDate, setEndDate] = useState(new Date());
+  const [startDate, setStartDate] = useState(serverNow);
+  const [endDate, setEndDate] = useState(serverNow);
 
   const [modalType, setModalType] = useState<'confirm' | 'cancel'>('confirm');
   const [isModalOpen, openModal, closeModal] = useBooleanState(false);
@@ -207,10 +208,11 @@ function NewClubRecruitment({ id }: { id: string }) {
 }
 
 export default function ClubRecruitmentPage() {
-  
-  
-  const routeQuery: Record<string, string | string[] | undefined> = { ...useSearch({ strict: false }), ...useParams({ strict: false }) };
-  
+  const routeQuery: Record<string, string | string[] | undefined> = {
+    ...useSearch({ strict: false }),
+    ...useParams({ strict: false }),
+  };
+
   const { id } = routeQuery as { id: string };
   if (!id) return null;
 
@@ -224,5 +226,6 @@ export const Route = createFileRoute('/clubs/recruitment/$id/')({
 
 function RouteComponent() {
   const page = <ClubRecruitmentPage />;
+
   return <PageLayout>{page}</PageLayout>;
 }

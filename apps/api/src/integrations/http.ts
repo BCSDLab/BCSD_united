@@ -44,7 +44,13 @@ export async function request(provider: string, url: string, init: RequestInit, 
 
 export async function jsonResponse<T>(provider: string, response: Response): Promise<T> {
   if (!response.ok) {
-    throw new IntegrationError(provider, `HTTP_${response.status}`, response.status, retryableStatus(response.status), retryAfter(response));
+    throw new IntegrationError(
+      provider,
+      `HTTP_${response.status}`,
+      response.status,
+      retryableStatus(response.status),
+      retryAfter(response),
+    );
   }
   try {
     return await response.json<T>();
@@ -69,6 +75,8 @@ export function decodeBase64url(value: string): Uint8Array {
 
 export async function hmac(secret: string, message: string): Promise<ArrayBuffer> {
   const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey('raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const key = await crypto.subtle.importKey('raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, [
+    'sign',
+  ]);
   return crypto.subtle.sign('HMAC', key, encoder.encode(message));
 }

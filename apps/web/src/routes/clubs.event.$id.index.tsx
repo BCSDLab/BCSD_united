@@ -1,7 +1,5 @@
-import { createFileRoute, useSearch, useParams } from '@tanstack/react-router';
-import PageLayout from 'components/layout';
 import { useState } from 'react';
-
+import { createFileRoute, useSearch, useParams } from '@tanstack/react-router';
 
 import type { ClubEventRequest } from 'api/club/entity';
 import useClubDetail from 'components/Club/ClubDetailPage/hooks/useClubdetail';
@@ -11,11 +9,13 @@ import TimeSelector from 'components/Club/NewClubEvent/components/TimeSelector';
 import usePostNewEvent from 'components/Club/NewClubEvent/hooks/usePostNewEvent';
 import ConfirmModal from 'components/Club/NewClubRecruitment/components/ConfirmModal';
 import DetailDescription from 'components/Club/NewClubRecruitment/components/DetailDescription';
+import PageLayout from 'components/layout';
 import DatePicker from 'components/ui/DatePicker';
 import DatePickerModal from 'components/ui/DatePickerModal';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
+import { useServerCalendarDate } from 'utils/ssr/useServerNow';
 import { formatISODateTime, formatKoreanDate } from 'utils/ts/calendar';
 
 import styles from 'pages/clubs/event/[id]/NewClubEvent.module.scss';
@@ -25,6 +25,7 @@ function NewClubEvent({ id }: { id: string }) {
   const { mutateAsync } = usePostNewEvent(Number(id));
   const logger = useLogger();
   const isMobile = useMediaQuery();
+  const serverNow = useServerCalendarDate();
 
   const [modalType, setModalType] = useState<'confirm' | 'cancel'>('confirm');
   const [isModalOpen, openModal, closeModal] = useBooleanState(false);
@@ -33,8 +34,8 @@ function NewClubEvent({ id }: { id: string }) {
   const [isStartTimePickerOpen, openStartTimePicker, closeStartTimePicker] = useBooleanState(false);
   const [isEndTimePickerOpen, openEndTimePicker, closeEndTimePicker] = useBooleanState(false);
 
-  const [startDate, setStartDate] = useState(new Date());
-  const [endDate, setEndDate] = useState(new Date());
+  const [startDate, setStartDate] = useState(serverNow);
+  const [endDate, setEndDate] = useState(serverNow);
   const [startTime, setStartTime] = useState({ hour: 0, minute: 0 });
   const [endTime, setEndTime] = useState({ hour: 0, minute: 0 });
 
@@ -260,10 +261,11 @@ function NewClubEvent({ id }: { id: string }) {
 }
 
 export default function NewClubEventWrapper() {
-  
-  
-  const routeQuery: Record<string, string | string[] | undefined> = { ...useSearch({ strict: false }), ...useParams({ strict: false }) };
-  
+  const routeQuery: Record<string, string | string[] | undefined> = {
+    ...useSearch({ strict: false }),
+    ...useParams({ strict: false }),
+  };
+
   const { id } = routeQuery;
   if (typeof id !== 'string') {
     return null;
@@ -279,5 +281,6 @@ export const Route = createFileRoute('/clubs/event/$id/')({
 
 function RouteComponent() {
   const page = <NewClubEventWrapper />;
+
   return <PageLayout>{page}</PageLayout>;
 }

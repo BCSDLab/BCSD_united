@@ -1,10 +1,6 @@
+import { dehydrate, QueryClient } from '@tanstack/react-query';
 import { createFileRoute, notFound } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
-import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
-
-
-
-import { dehydrate, QueryClient } from '@tanstack/react-query';
 
 import { roomQueries } from 'api/room/queries';
 import { SSRLayout } from 'components/layout';
@@ -15,6 +11,7 @@ import RoomDetailTable from 'components/Room/components/RoomDetailTable';
 import useRoomDetail from 'components/Room/RoomDetailPage/hooks/useRoomDetail';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useScrollToTop from 'utils/hooks/ui/useScrollToTop';
+import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { isNotFoundKoinError, ROOM_ISR_REVALIDATE_SECONDS, withStaticFetchRetry } from 'utils/ts/isr';
 
 import styles from 'pages/room/[id]/RoomDetailPage.module.scss';
@@ -22,10 +19,6 @@ import styles from 'pages/room/[id]/RoomDetailPage.module.scss';
 interface RoomDetailPageProps {
   readonly id: string;
 }
-
-
-
-
 
 function RoomDetailPage({ id }: RoomDetailPageProps) {
   const isMobile = useMediaQuery();
@@ -54,12 +47,7 @@ function RoomDetailPage({ id }: RoomDetailPageProps) {
           <RoomDetailImg imgUrl={roomDetail?.image_urls} />
         ) : (
           <div className={styles['info__img-slider__img--empty']}>
-            <img
-              src="https://static.koreatech.in/assets/ic-room/img.png"
-              alt="이미지 없음"
-              width={712}
-              height={402}
-            />
+            <img src="https://static.koreatech.in/assets/ic-room/img.png" alt="이미지 없음" width={712} height={402} />
           </div>
         )}
       </div>
@@ -79,33 +67,35 @@ function RoomDetailPage({ id }: RoomDetailPageProps) {
 
 export default RoomDetailPage;
 
+const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
+  .validator(validatePageInput)
+  .handler(({ data }) =>
+    loadPageData(data, async ({ params }, cacheControl) => {
+      const { id } = params;
+      if (!id) {
+        cacheControl.enablePublicCache(`public, s-maxage=${ROOM_ISR_REVALIDATE_SECONDS}, stale-while-revalidate=300`);
+        throw notFound();
+      }
+      const queryClient = new QueryClient();
 
+      try {
+        await withStaticFetchRetry('room.detail', () => queryClient.fetchQuery(roomQueries.detail(id)));
+      } catch (error) {
+        if (isNotFoundKoinError(error)) {
+          cacheControl.enablePublicCache(`public, s-maxage=${ROOM_ISR_REVALIDATE_SECONDS}, stale-while-revalidate=300`);
+          throw notFound();
+        }
+        throw error;
+      }
 
-const getPageData = createServerFn({ method: 'GET', strict: { output: false } }).validator(validatePageInput)
-  .handler(({ data }) => loadPageData(data, async ({ params }, cacheControl) => {
-  const { id } = params;
-  if (!id) {
-    cacheControl.enablePublicCache(`public, s-maxage=${ROOM_ISR_REVALIDATE_SECONDS}, stale-while-revalidate=300`);
-throw notFound();
-  }
-  const queryClient = new QueryClient();
-
-  try {
-    await withStaticFetchRetry('room.detail', () => queryClient.fetchQuery(roomQueries.detail(id)));
-  } catch (error) {
-    if (isNotFoundKoinError(error)) {
       cacheControl.enablePublicCache(`public, s-maxage=${ROOM_ISR_REVALIDATE_SECONDS}, stale-while-revalidate=300`);
-throw notFound();
-    }
-    throw error;
-  }
 
-  cacheControl.enablePublicCache(`public, s-maxage=${ROOM_ISR_REVALIDATE_SECONDS}, stale-while-revalidate=300`);
-return {
-      dehydratedState: dehydrate(queryClient),
-      id,
-    };
-}));
+      return {
+        dehydratedState: dehydrate(queryClient),
+        id,
+      };
+    }),
+  );
 
 export const Route = createFileRoute('/room/$id/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
@@ -117,5 +107,6 @@ export const Route = createFileRoute('/room/$id/')({
 function RouteComponent() {
   const props = Route.useLoaderData();
   const page = <RoomDetailPage {...props} />;
+
   return <SSRLayout>{page}</SSRLayout>;
 }

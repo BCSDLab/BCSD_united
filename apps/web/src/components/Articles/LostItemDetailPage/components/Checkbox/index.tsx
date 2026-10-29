@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
-
 import { cn } from '@bcsdlab/utils';
+
 import CheckedIcon from 'assets/svg/mobile-checked-icon.svg';
 
 import styles from './Checkbox.module.scss';

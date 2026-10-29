@@ -13,10 +13,23 @@
   "arrowParens": "always",
   "endOfLine": "lf",
   "ignorePatterns": [
-    "**/node_modules/**", "**/dist/**", "**/.wrangler/**", "**/.tanstack/**", ".claude/**",
-    "pnpm-lock.yaml", "**/worker-configuration.d.ts", "**/routeTree.gen.ts", "**/src/generated/**",
-    "**/analytics.events.json", "apps/web/src/assets/lottie/**", "apps/api/src/db/schema.ts",
-    "apps/api/scripts/source-schema.json", "apps/api/drizzle/meta/**"
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/.wrangler/**",
+    "**/.tanstack/**",
+    ".claude/**",
+    "apps/b-bot/.nitro/**",
+    "apps/b-bot/.output/**",
+    "apps/b-bot/.data/**",
+    "pnpm-lock.yaml",
+    "**/worker-configuration.d.ts",
+    "**/routeTree.gen.ts",
+    "**/src/generated/**",
+    "**/analytics.events.json",
+    "apps/web/src/assets/lottie/**",
+    "apps/api/src/db/schema.ts",
+    "apps/api/scripts/source-schema.json",
+    "apps/api/drizzle/meta/**"
   ],
   "overrides": [{ "files": ["**/*.scss", "**/*.css"], "options": { "singleQuote": false } }]
 }

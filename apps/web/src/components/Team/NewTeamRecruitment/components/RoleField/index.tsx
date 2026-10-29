@@ -1,4 +1,6 @@
 import { cn } from '@bcsdlab/utils';
+import { type Control, Controller, type UseFormTrigger, useFieldArray, useWatch } from 'react-hook-form';
+
 import MinusIcon from 'assets/svg/Team/minus-sign.svg';
 import PlusIcon from 'assets/svg/Team/plus.svg';
 import DeleteIcon from 'assets/svg/Team/x.svg';
@@ -8,7 +10,6 @@ import {
   TEAM_RECRUITMENT_ROLE_NAME_MAX_LENGTH,
 } from 'components/Team/NewTeamRecruitment/constants';
 import type { TeamRecruitmentFormValues } from 'components/Team/NewTeamRecruitment/schema';
-import { type Control, Controller, type UseFormTrigger, useFieldArray, useWatch } from 'react-hook-form';
 import useLogger from 'utils/hooks/analytics/useLogger';
 
 import styles from './RoleField.module.scss';

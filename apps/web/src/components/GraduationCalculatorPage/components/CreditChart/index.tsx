@@ -1,12 +1,12 @@
 import { startTransition } from 'react';
-
 import { cn } from '@bcsdlab/utils';
 import { useQuery } from '@tanstack/react-query';
+import { motion, AnimatePresence } from 'framer-motion';
+
 import type { GradesByCourseType } from 'api/graduationCalculator/entity';
 import { graduationCalculatorQueries } from 'api/graduationCalculator/queries';
 import type { Portal } from 'components/modal/Modal/PortalProvider';
 import useGetMultiMajorLecture from 'components/TimetablePage/hooks/useGetMultiMajorLecture';
-import { motion, AnimatePresence } from 'framer-motion';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useModalPortal from 'utils/hooks/layout/useModalPortal';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';

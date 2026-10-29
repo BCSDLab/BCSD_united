@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+
 import type { Arrival, BusTypeRequest, Depart } from 'api/bus/entity';
 import { busQueries } from 'api/bus/queries';
 import BusRoute from 'components/Bus/BusRoutePage/components/BusRoute';

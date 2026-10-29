@@ -1,15 +1,12 @@
-import Seo from 'components/seo/Seo';
+import { dehydrate, QueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
-import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 
-
-
-
-import { dehydrate, QueryClient } from '@tanstack/react-query';
 import { teamRecruitmentProfileQueries } from 'api/teamRecruitmentProfile/queries';
 import Layout from 'components/layout';
+import Seo from 'components/seo/Seo';
 import TeamProfileForm from 'components/Team/ProfilePage';
+import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 
 // 로그인은 루트 라우트의 beforeLoad가 보장한다. 기존 프로필을 서버에서 미리 prefetch해 내려줘야
 // 폼이 "빈 값으로 시작했다가 나중에 채워지는" 하이드레이션 불일치 없이 처음부터 채워진 채로 렌더된다.
@@ -23,22 +20,23 @@ function TeamProfileEditPage() {
   );
 }
 
-
-
 export default TeamProfileEditPage;
 
-const getPageData = createServerFn({ method: 'GET', strict: { output: false } }).validator(validatePageInput)
-  .handler(({ data }) => loadPageData(data, async (_context, _cacheControl, serverRequest) => {
-  const queryClient = new QueryClient();
+const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
+  .validator(validatePageInput)
+  .handler(({ data }) =>
+    loadPageData(data, async (_context, _cacheControl, serverRequest) => {
+      const queryClient = new QueryClient();
 
-  if (serverRequest.isLoggedIn) {
-    await queryClient.prefetchQuery(teamRecruitmentProfileQueries.me(serverRequest.isLoggedIn));
-  }
+      if (serverRequest.isLoggedIn) {
+        await queryClient.prefetchQuery(teamRecruitmentProfileQueries.me(serverRequest.isLoggedIn));
+      }
 
-  return {
-      dehydratedState: dehydrate(queryClient),
-    };
-}));
+      return {
+        dehydratedState: dehydrate(queryClient),
+      };
+    }),
+  );
 
 export const Route = createFileRoute('/team/profile/edit/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
@@ -50,5 +48,6 @@ export const Route = createFileRoute('/team/profile/edit/')({
 
 function RouteComponent() {
   const page = <TeamProfileEditPage />;
+
   return <Layout mobileHeader="page">{page}</Layout>;
 }

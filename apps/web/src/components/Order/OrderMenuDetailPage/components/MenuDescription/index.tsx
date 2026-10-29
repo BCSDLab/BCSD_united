@@ -1,4 +1,5 @@
 import { cn } from '@bcsdlab/utils';
+
 import { formatNumber } from 'utils/ts/formatPrice';
 
 import styles from './MenuDescription.module.scss';

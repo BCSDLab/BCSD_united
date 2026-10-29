@@ -63,7 +63,7 @@ function MobilePage({ timetableFrameId, setCurrentFrameId }: MobilePageProps) {
         <SemesterGuard />
       </React.Suspense>
       <div className={styles.page__header}>
-        <Link  to={ROUTES.TimetableList()} className={styles.page__semester}>
+        <Link to={ROUTES.TimetableList()} className={styles.page__semester}>
           {semesterLabel}
         </Link>
         <button type="button" className={styles.page__button} onClick={handleImageDownloadClick}>

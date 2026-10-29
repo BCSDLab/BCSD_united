@@ -1,6 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { useScrollPicker } from 'utils/hooks/ui/useScrollPicker';
+import { useServerCalendarDate } from 'utils/ssr/useServerNow';
 import { clampDate, getDateRange } from 'utils/ts/calendar';
 
 import styles from './MobileDatePicker.module.scss';
@@ -17,7 +18,7 @@ export default function MobileDatePicker({ selectedDate, setSelectedDate }: Mobi
   const monthRef = useRef<HTMLDivElement>(null);
   const dayRef = useRef<HTMLDivElement>(null);
 
-  const today = useMemo(() => new Date(), []);
+  const today = useServerCalendarDate();
   const [pendingDate, setPendingDate] = useState<Date>(selectedDate);
 
   const { years, months, days, currentYear, currentMonth, currentDay } = useMemo(
@@ -45,7 +46,7 @@ export default function MobileDatePicker({ selectedDate, setSelectedDate }: Mobi
   };
 
   const handleReset = () => {
-    setPendingDate(new Date());
+    setPendingDate(today);
   };
 
   const columns = [

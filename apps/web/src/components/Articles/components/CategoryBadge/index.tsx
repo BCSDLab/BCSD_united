@@ -1,4 +1,5 @@
 import { cn } from '@bcsdlab/utils';
+
 import { CATEGORY_BADGE_MODIFIER } from 'static/lostItem';
 
 import styles from './CategoryBadge.module.scss';

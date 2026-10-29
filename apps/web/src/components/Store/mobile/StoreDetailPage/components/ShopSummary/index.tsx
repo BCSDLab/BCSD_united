@@ -1,6 +1,6 @@
+import { useSuspenseQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 
-import { useSuspenseQuery } from '@tanstack/react-query';
 import type { ShopInfoSummaryResponse } from 'api/storeMobile/entity';
 import { storeMobileQueries } from 'api/storeMobile/queries';
 import CallIcon from 'assets/svg/Store/call-icon.svg';
@@ -83,7 +83,7 @@ export default function ShopSummary({
     <div className={styles.summary}>
       <span className={styles.summary__name}>{shopInfoSummary.name}</span>
       <div className={styles.summary__row}>
-        <Link  to={reviewsHref} className={styles.review} onClick={handleReviewClick}>
+        <Link to={reviewsHref} className={styles.review} onClick={handleReviewClick}>
           <div className={styles.review__star}>
             <StarIcon className={styles.icon} />
           </div>
@@ -94,7 +94,7 @@ export default function ShopSummary({
             <ChevronRightIcon fill="black" className={styles.icon} />
           </div>
         </Link>
-        <Link  to={infoHref} className={styles.info} onClick={handleShopInfoClick}>
+        <Link to={infoHref} className={styles.info} onClick={handleShopInfoClick}>
           <div className={styles.info__text}>{infoLabel}</div>
           <div className={styles.info__chevron}>
             <ChevronRightIcon fill="#CACACA" className={styles.icon} />
@@ -108,7 +108,7 @@ export default function ShopSummary({
       </div>
       <div className={styles.summary__cards}>
         {deliveryCard ? (
-          <Link  to={deliveryCard.href} className={styles.card} onClick={handleShopInfoClick}>
+          <Link to={deliveryCard.href} className={styles.card} onClick={handleShopInfoClick}>
             <div className={styles.card__delivery}>
               <div className={styles['card__delivery-row']}>
                 <span className={styles.card__label}>최소주문</span>
@@ -130,8 +130,11 @@ export default function ShopSummary({
           </div>
         )}
 
-        <Link  to={ROUTES.StoreEvents({ id: String(shopInfoSummary.shop_id) })} className={styles.card}
-        onClick={handleBenefitEntryClick}>
+        <Link
+          to={ROUTES.StoreEvents({ id: String(shopInfoSummary.shop_id) })}
+          className={styles.card}
+          onClick={handleBenefitEntryClick}
+        >
           <SpeakerIcon className={styles.icon} />
           <span className={styles.card__event}>{latestEvent?.title ?? '아직 이벤트/공지가 없어요'}</span>
           <div className={styles.card__chevron}>

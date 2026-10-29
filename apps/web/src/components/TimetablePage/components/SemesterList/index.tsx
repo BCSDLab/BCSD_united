@@ -1,7 +1,7 @@
 import React from 'react';
+import { cn } from '@bcsdlab/utils';
 import { useLocation } from '@tanstack/react-router';
 
-import { cn } from '@bcsdlab/utils';
 import type { Semester } from 'api/timetable/entity';
 import AddIcon from 'assets/svg/add-icon.svg';
 import DownArrowIcon from 'assets/svg/down-arrow-icon.svg';

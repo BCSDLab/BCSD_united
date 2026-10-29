@@ -1,8 +1,8 @@
-import Image from 'components/ui/Image';
 import { Link, useLocation, useRouter } from '@tanstack/react-router';
 
 import Logo from 'assets/svg/Login/logo.svg';
 import MobileLogo from 'assets/svg/Login/mobile-logo.svg';
+import Image from 'components/ui/Image';
 import ROUTES from 'static/routes';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 
@@ -28,7 +28,7 @@ function AuthLayout({ children }: { children: React.ReactNode }) {
       )}
       <div className={styles.template__content}>
         {routeLocation.pathname === ROUTES.Auth() && (
-          <Link className={styles.template__logo} to={ROUTES.Main()} >
+          <Link className={styles.template__logo} to={ROUTES.Main()}>
             {!isMobile ? (
               <Logo className={styles.template__image} width={107} height={60} aria-label="main logo" />
             ) : (

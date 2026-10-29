@@ -31,9 +31,12 @@ function IndexCallvan() {
       </div>
       <div className={styles.cards}>
         {CALLVAN_LINKS.map(({ key, title, subtitle, link }) => (
-          <Link  to={link} key={key}
-          className={styles.card}
-          onClick={() => logger.actionEventClick({ team: 'CAMPUS', event_label: `main_callvan_${key}`, value: '' })}>
+          <Link
+            to={link}
+            key={key}
+            className={styles.card}
+            onClick={() => logger.actionEventClick({ team: 'CAMPUS', event_label: `main_callvan_${key}`, value: '' })}
+          >
             <div className={styles.card__guide}>
               <span className={styles.card__title}>{title}</span>
               <span className={styles.card__subtitle}>{subtitle}</span>

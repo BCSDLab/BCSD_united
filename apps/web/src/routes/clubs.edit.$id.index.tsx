@@ -1,13 +1,12 @@
-import { createFileRoute, useSearch, useParams } from '@tanstack/react-router';
-import PageLayout from 'components/layout';
 import { useRef, useState } from 'react';
-
+import { createFileRoute, useSearch, useParams } from '@tanstack/react-router';
 
 import type { NewClubData } from 'api/club/entity';
 import useClubDetail from 'components/Club/ClubDetailPage/hooks/useClubdetail';
 import EditConfirmModal from 'components/Club/ClubEditPage/components/EditConfirmModal';
 import MobileView from 'components/Club/NewClubPage/components/MobileView';
 import PCView from 'components/Club/NewClubPage/components/PCView';
+import PageLayout from 'components/layout';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
 import { mapDetailToForm } from 'utils/ts/clubCategoryMapping';
@@ -52,10 +51,11 @@ function ClubEditPage({ id }: { id: number }) {
 }
 
 export default function ClubEditPageWrapper() {
-  
-  
-  const routeQuery: Record<string, string | string[] | undefined> = { ...useSearch({ strict: false }), ...useParams({ strict: false }) };
-  
+  const routeQuery: Record<string, string | string[] | undefined> = {
+    ...useSearch({ strict: false }),
+    ...useParams({ strict: false }),
+  };
+
   const { id } = routeQuery;
 
   if (typeof id !== 'string') {
@@ -72,5 +72,6 @@ export const Route = createFileRoute('/clubs/edit/$id/')({
 
 function RouteComponent() {
   const page = <ClubEditPageWrapper />;
+
   return <PageLayout>{page}</PageLayout>;
 }

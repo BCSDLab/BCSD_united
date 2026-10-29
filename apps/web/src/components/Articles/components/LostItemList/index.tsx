@@ -1,5 +1,4 @@
 import React from 'react';
-import Image from 'components/ui/Image';
 import { Link } from '@tanstack/react-router';
 
 import type { LostItemArticleForGetDTO } from 'api/articles/entity';
@@ -7,6 +6,7 @@ import CategoryBadge from 'components/Articles/components/CategoryBadge';
 import { useArticlesLogger } from 'components/Articles/hooks/useArticlesLogger';
 import FoundChip from 'components/Articles/LostItemDetailPage/components/FoundChip';
 import setArticleRegisteredDate from 'components/Articles/utils/setArticleRegisteredDate';
+import Image from 'components/ui/Image';
 import ROUTES from 'static/routes';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import { useServerRequest } from 'utils/ssr/useServerRequest';
@@ -75,10 +75,14 @@ export default function LostItemList({ articles }: LostItemListProps) {
     }
 
     return (
-      <Link key={article.id}
-      className={styles['lost-item-list-mobile__row']} to={detailLink} onClick={() => logLostItemPostEntry(article.type === 'LOST' ? '분실물' : '습득물')}>
+      <Link
+        key={article.id}
+        className={styles['lost-item-list-mobile__row']}
+        to={detailLink}
+        onClick={() => logLostItemPostEntry(article.type === 'LOST' ? '분실물' : '습득물')}
+      >
         <div className={styles['lost-item-list-mobile__type']}>{typeText}</div>
-      
+
         <div className={styles['lost-item-list-mobile__title']}>
           <div className={styles['lost-item-list-mobile__titleMeta']}>
             <CategoryBadge
@@ -92,9 +96,9 @@ export default function LostItemList({ articles }: LostItemListProps) {
           </div>
           <FoundChip isFound={article.is_found} size="xs" />
         </div>
-      
+
         <div className={styles['lost-item-list-mobile__content']}>{article.content}</div>
-      
+
         <div className={styles['lost-item-list-mobile__writeMeta']}>
           <div className={styles['lost-item-list-mobile__author']}>{article.author}</div>
           <div className={styles['lost-item-list-mobile__dot']}>·</div>
@@ -132,10 +136,14 @@ export default function LostItemList({ articles }: LostItemListProps) {
     }
 
     return (
-      <Link key={article.id}
-      className={styles['lost-item-list__row']} to={detailLink} onClick={() => logLostItemPostEntry(article.type === 'LOST' ? '분실물' : '습득물')}>
+      <Link
+        key={article.id}
+        className={styles['lost-item-list__row']}
+        to={detailLink}
+        onClick={() => logLostItemPostEntry(article.type === 'LOST' ? '분실물' : '습득물')}
+      >
         <div className={styles['lost-item-list__type']}>{typeText}</div>
-      
+
         <div className={styles['lost-item-list__title']}>
           <div className={styles['lost-item-list__titleMeta']}>
             <CategoryBadge
@@ -146,7 +154,7 @@ export default function LostItemList({ articles }: LostItemListProps) {
             <div className={styles['lost-item-list__place']}>{article.found_place}</div>
             <div>|</div>
             <div className={styles['lost-item-list__foundDate']}>{article.found_date}</div>
-      
+
             {isNewArticle && (
               <Image
                 className={styles['lost-item-list__newIcon']}
@@ -158,10 +166,10 @@ export default function LostItemList({ articles }: LostItemListProps) {
             )}
           </div>
         </div>
-      
+
         <div className={styles['lost-item-list__author']}>{article.author}</div>
         <div className={styles['lost-item-list__date']}>{registeredDate}</div>
-      
+
         <div className={styles['lost-item-list__chip']}>
           <FoundChip isFound={article.is_found} size="xs" />
         </div>

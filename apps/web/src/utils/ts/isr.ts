@@ -1,5 +1,5 @@
 import { isKoinError } from '@bcsdlab/koin';
-import * as Sentry from '@sentry/core';
+import { traceOperation } from '@koin/telemetry/runtime';
 
 export const ARTICLE_DETAIL_ISR_REVALIDATE_SECONDS = 60 * 10;
 export const BUS_SHUTTLE_ISR_REVALIDATE_SECONDS = 60 * 30;
@@ -57,7 +57,7 @@ export async function withStaticFetchRetry<T>(resource: string, task: () => Prom
 
   for (let attempt = 0; attempt <= STATIC_FETCH_RETRY_ATTEMPTS; attempt += 1) {
     try {
-      return await Sentry.startSpan(
+      return await traceOperation(
         {
           name: `ISR fetch: ${resource}`,
           op: 'koin.isr.fetch',
@@ -93,7 +93,7 @@ export async function withStaticFetchRetry<T>(resource: string, task: () => Prom
       }
 
       const delay = STATIC_FETCH_RETRY_DELAY_MS * (attempt + 1);
-      await Sentry.startSpan(
+      await traceOperation(
         {
           name: `ISR retry wait: ${resource}`,
           op: 'koin.isr.retry_wait',

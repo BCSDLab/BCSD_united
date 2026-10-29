@@ -1,6 +1,6 @@
+import { useSuspenseQuery } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
 
-import { useSuspenseQuery } from '@tanstack/react-query';
 import type { CallvanParticipant } from 'api/callvan/entity';
 import { callvanQueries } from 'api/callvan/queries';
 import ArrowBackIcon from 'assets/svg/Callvan/arrow-back.svg';
@@ -86,11 +86,7 @@ function ParticipantRow({ participant, colorIndex, onReport }: ParticipantRowPro
           </button>
           {isMenuOpen && (
             <div className={styles['participant-row__dropdown']}>
-              <button
-                type="button"
-                className={styles['participant-row__dropdown-item']}
-                onClick={onReport}
-              >
+              <button type="button" className={styles['participant-row__dropdown-item']} onClick={onReport}>
                 <SirenIcon />
                 <span>신고하기</span>
               </button>
@@ -181,7 +177,9 @@ export default function ParticipantsList({ postId }: ParticipantsListProps) {
                 participant={participant}
                 colorIndex={colorIndexMap.get(participant.user_id) ?? 0}
                 onReport={() =>
-                  router.navigate({ href: ROUTES.CallvanReport({ postId: String(postId), userId: String(participant.user_id) }) })
+                  router.navigate({
+                    href: ROUTES.CallvanReport({ postId: String(postId), userId: String(participant.user_id) }),
+                  })
                 }
               />
             </div>

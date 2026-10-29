@@ -1,5 +1,4 @@
-import { Link } from '@tanstack/react-router';
-import { useLocation } from '@tanstack/react-router';
+import { Link, useLocation } from '@tanstack/react-router';
 
 import CategoryIcon from 'assets/svg/common/category-icon.svg';
 import ClipBoardIcon from 'assets/svg/common/clipboard-icon.svg';
@@ -63,15 +62,18 @@ function MobileBottomNavigation() {
               key={key}
               className={`${styles.navigation__item} ${isActive ? styles['navigation__item--active'] : ''}`}
             >
-              <Link  to={href} className={styles.navigation__link}
-              aria-current={isActive ? 'page' : undefined}
-              onClick={() =>
-                logger.actionEventClick({
-                  team: 'CAMPUS',
-                  event_label: event_label,
-                  value: label,
-                })
-              }>
+              <Link
+                to={href}
+                className={styles.navigation__link}
+                aria-current={isActive ? 'page' : undefined}
+                onClick={() =>
+                  logger.actionEventClick({
+                    team: 'CAMPUS',
+                    event_label: event_label,
+                    value: label,
+                  })
+                }
+              >
                 <Icon className={styles.navigation__icon} />
                 <span className={styles.navigation__label}>{label}</span>
               </Link>

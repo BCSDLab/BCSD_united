@@ -1,6 +1,6 @@
 import { useRef, type TouchEvent } from 'react';
-
 import { cn } from '@bcsdlab/utils';
+
 import StarIcon from 'assets/svg/Store/star-icon.svg';
 
 import styles from './StarList.module.scss';

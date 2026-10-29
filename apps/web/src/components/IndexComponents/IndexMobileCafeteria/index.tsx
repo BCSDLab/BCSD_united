@@ -1,8 +1,7 @@
 import { useRef, useState } from 'react';
-import { Link } from '@tanstack/react-router';
-import { parseSearch } from 'utils/routing/search';
-
 import { useSuspenseQuery } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
+
 import type { CoopShopDetailResponse } from 'api/coopshop/entity';
 import { coopshopQueries } from 'api/coopshop/queries';
 import type { Dining, DiningPlace, DiningType } from 'api/dinings/entity';
@@ -12,6 +11,7 @@ import { DiningTime } from 'components/cafeteria/utils/time';
 import { DINING_TYPE_MAP } from 'static/cafeteria';
 import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
+import { parseSearch } from 'utils/routing/search';
 import { getYyyyMmDd } from 'utils/ts/calendar';
 
 import styles from './IndexMobileCafeteria.module.scss';
@@ -33,7 +33,7 @@ function MealCard({ dining, diningLabel, href }: { dining: Dining; diningLabel: 
   const menu = dining.menu.map((menuItem) => menuItem.name).join(' · ');
 
   return (
-    <Link  to={href.split('?')[0]} search={parseSearch(href.split('?')[1] ?? '')} className={styles['meal-card']}>
+    <Link to={href.split('?')[0]} search={parseSearch(href.split('?')[1] ?? '')} className={styles['meal-card']}>
       <div className={styles['meal-card__meta']}>
         <span>{diningLabel}</span>
         <span>
@@ -114,7 +114,11 @@ function IndexMobileCafeteria() {
             <MealCard dining={dining} diningLabel={diningLabel} href={cafeteriaLink} key={dining.id} />
           ))
         ) : (
-          <Link  to={cafeteriaLink.split('?')[0]} search={parseSearch(cafeteriaLink.split('?')[1] ?? '')} className={`${styles['meal-card']} ${styles['meal-card--empty']}`}>
+          <Link
+            to={cafeteriaLink.split('?')[0]}
+            search={parseSearch(cafeteriaLink.split('?')[1] ?? '')}
+            className={`${styles['meal-card']} ${styles['meal-card--empty']}`}
+          >
             <p className={styles['meal-card__empty-text']}>오늘은 식단이 없어요</p>
           </Link>
         )}

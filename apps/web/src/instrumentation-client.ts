@@ -1,5 +1,5 @@
-import * as Sentry from '@sentry/react';
 import { maskSensitive } from '@koin/telemetry';
+import * as Sentry from '@sentry/react';
 
 const environment = process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT;
 const isProduction = environment === 'production';

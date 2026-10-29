@@ -1,10 +1,8 @@
+import { Suspense, useState } from 'react';
+import { dehydrate, QueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
-import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
-import PageLayout from 'components/layout';
-import { Suspense, useState } from 'react';
 
-import { dehydrate, QueryClient } from '@tanstack/react-query';
 import type { Arrival, BusTypeRequest, Depart } from 'api/bus/entity';
 import { busQueries } from 'api/bus/queries';
 import BusNotice from 'components/Bus/BusNotice';
@@ -14,9 +12,11 @@ import DirectionSelect from 'components/Bus/BusRoutePage/components/DirectionSel
 import RouteList from 'components/Bus/BusRoutePage/components/RouteList';
 import { useTimeSelect } from 'components/Bus/BusRoutePage/hooks/useTimeSelect';
 import { useBusLogger } from 'components/Bus/hooks/useBusLogger';
+import PageLayout from 'components/layout';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
 import useScrollToTop from 'utils/hooks/ui/useScrollToTop';
+import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 
 import styles from 'pages/bus/route/BusRoutePage.module.scss';
 
@@ -30,7 +30,6 @@ const BUS_NOTICE_REVALIDATE_SECONDS = 60 * 60;
  * 하이드레이션 중 하나라도 서스펜드하면 서버가 그린 DOM 전체가 버려지고 빈 화면을 거쳐
  * 다시 그려진다(실측 파괴율 33%). 하나라도 빠지면 효과가 없으므로 전부 덮어야 한다.
  */
-
 
 export default function BusRoutePage() {
   const isMobile = useMediaQuery();
@@ -86,15 +85,19 @@ export default function BusRoutePage() {
   );
 }
 
-const getPageData = createServerFn({ method: 'GET', strict: { output: false } }).validator(validatePageInput)
-  .handler(({ data }) => loadPageData(data, async ({ params }, cacheControl) => {
-  const queryClient = new QueryClient();
+const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
+  .validator(validatePageInput)
+  .handler(({ data }) =>
+    loadPageData(data, async (_context, cacheControl) => {
+      const queryClient = new QueryClient();
 
-  await queryClient.prefetchQuery(busQueries.notice());
+      await queryClient.prefetchQuery(busQueries.notice());
 
-  cacheControl.enablePublicCache(`public, s-maxage=${BUS_NOTICE_REVALIDATE_SECONDS}, stale-while-revalidate=300`);
-return { dehydratedState: dehydrate(queryClient) };
-}));
+      cacheControl.enablePublicCache(`public, s-maxage=${BUS_NOTICE_REVALIDATE_SECONDS}, stale-while-revalidate=300`);
+
+      return { dehydratedState: dehydrate(queryClient) };
+    }),
+  );
 
 export const Route = createFileRoute('/bus/route/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
@@ -105,5 +108,6 @@ export const Route = createFileRoute('/bus/route/')({
 
 function RouteComponent() {
   const page = <BusRoutePage />;
+
   return <PageLayout>{page}</PageLayout>;
 }

@@ -1,10 +1,7 @@
-import Seo from 'components/seo/Seo';
 import { createFileRoute } from '@tanstack/react-router';
 
-
-
-
 import Layout from 'components/layout';
+import Seo from 'components/seo/Seo';
 import RecruitmentApplyPage from 'components/Team/RecruitmentApplyPage';
 
 function TeamRecruitmentApplyPage() {
@@ -17,8 +14,6 @@ function TeamRecruitmentApplyPage() {
   );
 }
 
-
-
 export default TeamRecruitmentApplyPage;
 
 export const Route = createFileRoute('/team/recruitment/$postId/apply/')({
@@ -29,5 +24,6 @@ export const Route = createFileRoute('/team/recruitment/$postId/apply/')({
 
 function RouteComponent() {
   const page = <TeamRecruitmentApplyPage />;
+
   return <Layout mobileHeader="page">{page}</Layout>;
 }

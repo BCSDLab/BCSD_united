@@ -1,0 +1,36 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "bcsd-error-automation",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-26",
+  "workers_dev": true,
+  "preview_urls": false,
+  "upload_source_maps": true,
+  "durable_objects": {
+    "bindings": [{ "name": "ERROR_ISSUES", "class_name": "ErrorIssueDispatch" }],
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ErrorIssueDispatch"] }],
+  "vars": {
+    "ENVIRONMENT": "production",
+    "SENTRY_ORGANIZATION": "",
+    "SENTRY_PROJECT_APPS": "{}",
+    "CLOUDFLARE_SOURCES": "[]",
+    "GITHUB_OWNER": "BCSDLab",
+    "GITHUB_REPOSITORY": "BCSD_united",
+  },
+  "previews": {
+    "durable_objects": {
+      "bindings": [{ "name": "ERROR_ISSUES", "class_name": "ErrorIssueDispatch" }],
+    },
+    "vars": {
+      "ENVIRONMENT": "preview",
+      "SENTRY_ORGANIZATION": "",
+      "SENTRY_PROJECT_APPS": "{}",
+      "CLOUDFLARE_SOURCES": "[]",
+      "GITHUB_OWNER": "BCSDLab",
+      "GITHUB_REPOSITORY": "BCSD_united",
+      "PREVIEW_GITHUB_OWNER": "",
+      "PREVIEW_GITHUB_REPOSITORY": "",
+    },
+  },
+}

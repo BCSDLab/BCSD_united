@@ -1,5 +1,4 @@
-import { Link } from '@tanstack/react-router';
-import { useSearch } from '@tanstack/react-router';
+import { Link, useSearch } from '@tanstack/react-router';
 
 import NavigateStoreIcon from 'assets/svg/Store/navigate-store-icon.svg';
 import MenuIcon from 'assets/svg/Store/search-menu-icon.svg';
@@ -20,7 +19,7 @@ interface RelateSearchItemProps {
 
 // KOIN_ORDER_WEBVIEW pages/Search/components/RelateSearchItem 이전. 누르면 상점 상세로 이동한다
 export default function RelateSearchItem({ tag, shopId, shopName, menuName }: RelateSearchItemProps) {
-  const routeSearch = useSearch({ strict: false }) as Record<string, string | string[] | undefined>;
+  const routeSearch = useSearch({ strict: false });
   const logger = useLogger();
 
   const handleSearchItemClick = () => {
@@ -35,7 +34,7 @@ export default function RelateSearchItem({ tag, shopId, shopName, menuName }: Re
   };
 
   return (
-    <Link  to={ROUTES.StoreDetail({ id: String(shopId) })} className={styles.item} onClick={handleSearchItemClick}>
+    <Link to={ROUTES.StoreDetail({ id: String(shopId) })} className={styles.item} onClick={handleSearchItemClick}>
       <div className={styles.item__content}>
         {tag === 'store' ? <StoresIcon className={styles.item__icon} /> : <MenuIcon className={styles.item__icon} />}
         <p className={styles.item__text}>

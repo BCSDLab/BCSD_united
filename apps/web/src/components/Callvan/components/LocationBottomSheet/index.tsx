@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-
 import { cn } from '@bcsdlab/utils';
+
 import { CALLVAN_POST_LOCATION_LABEL, type CallvanPostLocationType } from 'api/callvan/entity';
 import CloseIcon from 'assets/svg/close-icon-black.svg';
 import useLogger from 'utils/hooks/analytics/useLogger';

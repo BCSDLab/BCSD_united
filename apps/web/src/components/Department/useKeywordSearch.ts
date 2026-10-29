@@ -11,7 +11,7 @@ const getKeyword = (value: string | string[] | undefined) => (typeof value === '
 export default function useKeywordSearch() {
   const router = useRouter();
   const routeLocation = useLocation();
-  const routeSearch = useSearch({ strict: false }) as Record<string, string | string[] | undefined>;
+  const routeSearch = useSearch({ strict: false });
   const keyword = getKeyword(routeSearch.keyword);
   const [searchValue, setSearchValue] = useState(keyword);
 

@@ -14,7 +14,7 @@ function MobileHomeRedesignHeader() {
 
   return (
     <div className={styles.header}>
-      <Link  to={ROUTES.Main()} className={styles.header__brand}>
+      <Link to={ROUTES.Main()} className={styles.header__brand}>
         <BbicoIcon aria-hidden />
         <KoinTitleIcon aria-label="KOIN" />
       </Link>

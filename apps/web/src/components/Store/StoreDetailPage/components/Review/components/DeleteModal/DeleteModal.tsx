@@ -1,4 +1,5 @@
 import type { UseMutateFunction } from '@tanstack/react-query';
+
 import type { StoreDetailResponse } from 'api/store/entity';
 import useLogger from 'utils/hooks/analytics/useLogger';
 

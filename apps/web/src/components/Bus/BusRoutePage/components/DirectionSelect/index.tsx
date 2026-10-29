@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
-
 import { cn } from '@bcsdlab/utils';
+
 import type { Arrival, Depart } from 'api/bus/entity';
 import ExchangeIconMobile from 'assets/svg/Bus/exchange-icon-mobile.svg';
 import ExchangeIcon from 'assets/svg/Bus/exchange-icon.svg';

@@ -1,12 +1,13 @@
 import { useMemo, useCallback } from 'react';
 import { useLocation, useRouter, useParams, useSearch } from '@tanstack/react-router';
+
 import { stringifySearch } from 'utils/routing/search';
 
 const useParamsHandler = () => {
   const router = useRouter();
   const pathname = useLocation({ select: (location) => location.pathname });
   const routeParams = useParams({ strict: false });
-  const search = useSearch({ strict: false }) as Record<string, string | string[] | undefined>;
+  const search = useSearch({ strict: false });
   const searchParams = useMemo(() => {
     const values = new URLSearchParams();
     Object.entries(search).forEach(([key, value]) => {

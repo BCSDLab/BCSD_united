@@ -1,7 +1,5 @@
-import { createFileRoute, useSearch, useParams } from '@tanstack/react-router';
-import PageLayout from 'components/layout';
 import { useState } from 'react';
-
+import { createFileRoute, useSearch, useParams } from '@tanstack/react-router';
 
 import type { ClubEventRequest } from 'api/club/entity';
 import useClubDetail from 'components/Club/ClubDetailPage/hooks/useClubdetail';
@@ -12,6 +10,7 @@ import TimePicker from 'components/Club/NewClubEvent/components/TimePicker';
 import TimeSelector from 'components/Club/NewClubEvent/components/TimeSelector';
 import ConfirmModal from 'components/Club/NewClubRecruitment/components/ConfirmModal';
 import DetailDescription from 'components/Club/NewClubRecruitment/components/DetailDescription';
+import PageLayout from 'components/layout';
 import DatePicker from 'components/ui/DatePicker';
 import DatePickerModal from 'components/ui/DatePickerModal';
 import useLogger from 'utils/hooks/analytics/useLogger';
@@ -269,10 +268,11 @@ function ClubEventEditPage({ id, eventId }: { id: string; eventId: string }) {
 }
 
 export default function ClubEventEditPageWrapper() {
-  
-  
-  const routeQuery: Record<string, string | string[] | undefined> = { ...useSearch({ strict: false }), ...useParams({ strict: false }) };
-  
+  const routeQuery: Record<string, string | string[] | undefined> = {
+    ...useSearch({ strict: false }),
+    ...useParams({ strict: false }),
+  };
+
   const { id, eventId } = routeQuery;
   if (!id || Array.isArray(id) || !eventId || Array.isArray(eventId)) return null;
 
@@ -286,5 +286,6 @@ export const Route = createFileRoute('/clubs/$id/event/edit/$eventId/')({
 
 function RouteComponent() {
   const page = <ClubEventEditPageWrapper />;
+
   return <PageLayout>{page}</PageLayout>;
 }

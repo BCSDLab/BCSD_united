@@ -15,7 +15,7 @@ export default function LostItemPageLayout({ children }: { children: React.React
 
   const router = useRouter();
   const routeLocation = useLocation();
-  const routeSearch = useSearch({ strict: false }) as Record<string, string | string[] | undefined>;
+  const routeSearch = useSearch({ strict: false });
   const isMobile = useMediaQuery();
 
   const keywordFromQuery = (Array.isArray(routeSearch.keyword) ? routeSearch.keyword[0] : routeSearch.keyword) ?? '';
@@ -24,18 +24,21 @@ export default function LostItemPageLayout({ children }: { children: React.React
   const applySearch = () => {
     const next = keyword.trim();
 
-    router.navigate({ to: routeLocation.pathname, search: {
-      ...routeSearch,
-      keyword: next || undefined,
-      page: '1',
-    } });
+    router.navigate({
+      to: routeLocation.pathname,
+      search: {
+        ...routeSearch,
+        keyword: next || undefined,
+        page: '1',
+      },
+    });
   };
 
   return (
     <div className={styles['lost-item-template']}>
       <div className={styles['lost-item-content']}>
         <div className={styles.header}>
-          <Link  to={ROUTES.LostItems()} >
+          <Link to={ROUTES.LostItems()}>
             <h1 className={styles.header__title}>분실물</h1>
           </Link>
         </div>

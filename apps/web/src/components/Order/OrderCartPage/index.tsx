@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
-import { useRouter } from '@tanstack/react-router';
-
 import { cn } from '@bcsdlab/utils';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from '@tanstack/react-router';
+
 import type { AddCartRequest } from 'api/order/entity';
 import { orderMutations } from 'api/order/mutations';
 import RightArrowIcon from 'assets/svg/Order/Cart/arrow-go-icon.svg';
@@ -124,7 +124,7 @@ export default function OrderCartPage() {
         </div>
 
         <button type="button" className={styles.shop} onClick={goToShop}>
-              {/* eslint-disable-next-line jsx-a11y/alt-text -- 상점 이름이 바로 옆에 있어 이미지 설명을 버튼 이름에 중복하지 않는다. */}
+          {/* eslint-disable-next-line jsx-a11y/alt-text -- 상점 이름이 바로 옆에 있어 이미지 설명을 버튼 이름에 중복하지 않는다. */}
           <img src={cartInfo.shop_thumbnail_image_url} className={styles.shop__image} />
           <div className={styles.shop__name}>{cartInfo.shop_name}</div>
           <RightArrowIcon />

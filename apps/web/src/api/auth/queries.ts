@@ -1,5 +1,6 @@
 import { isKoinError } from '@bcsdlab/koin';
 import { queryOptions } from '@tanstack/react-query';
+
 import fetchSession from 'utils/auth/fetchSession';
 import { SESSION_QUERY_KEY, type Session } from 'utils/auth/session';
 import { getViewerScope } from 'utils/ts/getViewerScope';

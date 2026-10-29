@@ -1,25 +1,53 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  buildSummaryPrompt, classifySummaryFailure, extractSummaryDocumentUrls, generateSummary,
-  isAllowedSummaryUrl, isSummaryRetryWindow, nextSummaryAttempt, refineSummaryPrompt, renderSummary,
-  sanitizeSummaryFailure, summaryDto, summaryFailureTransition, summaryFingerprint,
-  summaryHtmlText, summaryRetryDelay, SummaryValidationError, validateSummary,
-  type SummaryResult, type SummarySource,
+  buildSummaryPrompt,
+  classifySummaryFailure,
+  extractSummaryDocumentUrls,
+  generateSummary,
+  isAllowedSummaryUrl,
+  isSummaryRetryWindow,
+  nextSummaryAttempt,
+  refineSummaryPrompt,
+  renderSummary,
+  sanitizeSummaryFailure,
+  summaryDto,
+  summaryFailureTransition,
+  summaryFingerprint,
+  summaryHtmlText,
+  summaryRetryDelay,
+  SummaryValidationError,
+  validateSummary,
+  type SummaryResult,
+  type SummarySource,
 } from '@api/domains/community/summary';
 
 const source: SummarySource = {
-  articleId: 1, title: '장학금 신청 안내', content: '<p>재학생은 5월 20일까지 신청합니다.</p>',
-  contentText: '재학생은 5월 20일까지 신청합니다. 10명을 선발합니다.', author: '학생처',
-  registeredAt: '2026-05-01', updatedAt: '2026-05-01T10:00:00', attachments: [],
-  attachmentTexts: [], hasTemporaryAttachmentFailure: false, fingerprint: 'source-fingerprint',
+  articleId: 1,
+  title: '장학금 신청 안내',
+  content: '<p>재학생은 5월 20일까지 신청합니다.</p>',
+  contentText: '재학생은 5월 20일까지 신청합니다. 10명을 선발합니다.',
+  author: '학생처',
+  registeredAt: '2026-05-01',
+  updatedAt: '2026-05-01T10:00:00',
+  attachments: [],
+  attachmentTexts: [],
+  hasTemporaryAttachmentFailure: false,
+  fingerprint: 'source-fingerprint',
 };
-const result = (...texts: string[]): SummaryResult => ({ items: texts.map((text) => ({ icon_key: 'CALENDAR', text })) });
+const result = (...texts: string[]): SummaryResult => ({
+  items: texts.map((text) => ({ icon_key: 'CALENDAR', text })),
+});
 
 test('HTML source extraction uses DOM order within selector groups, entities, and ignores scripts', () => {
-  const html = '<script>https://evil.test/a.pdf</script><p>신청&nbsp;안내</p><a href="https://portal.koreatech.ac.kr/a.pdf?q=1&amp;x=2">신청서</a><img src="https://static.koreatech.in/a.png"><p>https://static.koreatech.in/b.pdf.</p>';
+  const html =
+    '<script>https://evil.test/a.pdf</script><p>신청&nbsp;안내</p><a href="https://portal.koreatech.ac.kr/a.pdf?q=1&amp;x=2">신청서</a><img src="https://static.koreatech.in/a.png"><p>https://static.koreatech.in/b.pdf.</p>';
   assert.equal(summaryHtmlText('<div>가<span>나</span></div><p>다&nbsp;라</p><script>secret</script>'), '가나 다 라');
-  assert.deepEqual(extractSummaryDocumentUrls(html), ['https://static.koreatech.in/a.png', 'https://portal.koreatech.ac.kr/a.pdf?q=1&x=2', 'https://static.koreatech.in/b.pdf']);
+  assert.deepEqual(extractSummaryDocumentUrls(html), [
+    'https://static.koreatech.in/a.png',
+    'https://portal.koreatech.ac.kr/a.pdf?q=1&x=2',
+    'https://static.koreatech.in/b.pdf',
+  ]);
 });
 
 test('source URL wildcard includes apex and subdomains but excludes suffix impersonation', () => {
@@ -39,13 +67,32 @@ test('fingerprint sorts attachments, includes their metadata and excludes unrela
   ];
   const first = await summaryFingerprint({ ...source, attachments: files }, source.content!);
   assert.equal(first.length, 64);
-  assert.equal(first, await summaryFingerprint({ ...source, author: '다른 작성자', attachments: [...files].reverse() }, source.content!));
-  assert.notEqual(first, await summaryFingerprint({ ...source, attachments: files.map((file) => ({ ...file, hash: 'changed' })) }, source.content!));
-  assert.equal(first, await summaryFingerprint({ ...source, attachments: files.map((file) => ({ ...file, updatedAt: '2026-05-01 01:00:00' })) }, source.content!));
+  assert.equal(
+    first,
+    await summaryFingerprint({ ...source, author: '다른 작성자', attachments: [...files].reverse() }, source.content!),
+  );
+  assert.notEqual(
+    first,
+    await summaryFingerprint(
+      { ...source, attachments: files.map((file) => ({ ...file, hash: 'changed' })) },
+      source.content!,
+    ),
+  );
+  assert.equal(
+    first,
+    await summaryFingerprint(
+      { ...source, attachments: files.map((file) => ({ ...file, updatedAt: '2026-05-01 01:00:00' })) },
+      source.content!,
+    ),
+  );
 });
 
 test('prompt retains attachment budget after a long body and uses original metadata guard', () => {
-  const prompt = buildSummaryPrompt({ ...source, contentText: '본문'.repeat(8000), attachmentTexts: ['첨부 핵심: 신청서는 학사팀에 제출합니다.'] });
+  const prompt = buildSummaryPrompt({
+    ...source,
+    contentText: '본문'.repeat(8000),
+    attachmentTexts: ['첨부 핵심: 신청서는 학사팀에 제출합니다.'],
+  });
   assert.equal(prompt.maxItems, 5);
   assert.match(prompt.sourceText, /첨부 핵심/);
   assert.match(prompt.systemMessage, /작성자와 등록일은 메타데이터/);
@@ -64,7 +111,10 @@ test('refinement caps previous items and text and substitutes data without inter
 });
 
 test('validation preserves valid items, rejects invented dates, and removes model emoji', () => {
-  const validated = validateSummary(result('신청은 5월 21일까지입니다.', '재학생은 5월 20일까지 신청합니다.', '\u{1f525} 10명을 선발합니다.'), source.contentText);
+  const validated = validateSummary(
+    result('신청은 5월 21일까지입니다.', '재학생은 5월 20일까지 신청합니다.', '\u{1f525} 10명을 선발합니다.'),
+    source.contentText,
+  );
   assert.equal(validated.validLines.length, 2);
   assert.match(validated.failureReasons[0]!, /출처에 없는/);
   assert.equal(validated.validLines[1], '\u{1f4c5} 10명을 선발합니다.');
@@ -85,7 +135,10 @@ test('validation rejects duplicates, meaningless attachment directions, and over
   assert.throws(() => validateSummary(result('가', '나', '다', '라'), ''), SummaryValidationError);
   assert.equal(validateSummary(result('가'.repeat(200)), '').validLines.length, 1);
   assert.equal(validateSummary(result('가'.repeat(201)), '').failureReasons[0], '요약 문장이 200자를 초과했습니다.');
-  assert.equal(validateSummary(result('재학생을 대상으로 모집합니다.', '재학생을 대상으로 모집합니다.'), '').validLines.length, 1);
+  assert.equal(
+    validateSummary(result('재학생을 대상으로 모집합니다.', '재학생을 대상으로 모집합니다.'), '').validLines.length,
+    1,
+  );
   for (const text of ['첨부 문서 확인 필수', '신청 방법은 첨부 파일에 안내되어 있습니다.']) {
     assert.equal(validateSummary(result(text), text).validLines.length, 0);
   }
@@ -93,8 +146,15 @@ test('validation rejects duplicates, meaningless attachment directions, and over
 
 test('worker refines too many candidates then corrects remaining invalid values', async () => {
   const calls: number[] = [];
-  const replies = [result('가', '나', '다', '라'), result('신청은 5월 21일까지입니다.'), result('신청은 5월 20일까지입니다.')];
-  const generated = await generateSummary(source, 1, async (prompt) => { calls.push(prompt.maxItems); return replies.shift()!; });
+  const replies = [
+    result('가', '나', '다', '라'),
+    result('신청은 5월 21일까지입니다.'),
+    result('신청은 5월 20일까지입니다.'),
+  ];
+  const generated = await generateSummary(source, 1, async (prompt) => {
+    calls.push(prompt.maxItems);
+    return replies.shift()!;
+  });
   assert.deepEqual(calls, [5, 3, 3]);
   assert.equal(generated.lines.length, 1);
   assert.equal(generated.skipped, null);
@@ -110,14 +170,22 @@ test('worker keeps initial valid lines when correction loses all valid informati
 test('empty initial model result skips, but empty reselection fails for retry', async () => {
   assert.equal((await generateSummary(source, 1, async () => result())).skipped, '요약할 핵심 정보가 없습니다.');
   const replies = [result('가', '나', '다', '라'), result()];
-  await assert.rejects(generateSummary(source, 1, async () => replies.shift()!), /재선별 결과가 비어/);
+  await assert.rejects(
+    generateSummary(source, 1, async () => replies.shift()!),
+    /재선별 결과가 비어/,
+  );
 });
 
 test('attachment-only posts skip permanent absence and retry temporary parsing failures without inference', async () => {
-  const infer = async (): Promise<SummaryResult> => { assert.fail('inference must not run'); };
+  const infer = async (): Promise<SummaryResult> => {
+    throw new Error('inference must not run');
+  };
   const attachmentOnly = { ...source, contentText: '첨부 문서를 확인하세요.' };
   assert.match((await generateSummary(attachmentOnly, 1, infer)).skipped!, /첨부 중심 게시글/);
-  await assert.rejects(generateSummary({ ...attachmentOnly, hasTemporaryAttachmentFailure: true }, 1, infer), /문서 파싱이 일시 실패/);
+  await assert.rejects(
+    generateSummary({ ...attachmentOnly, hasTemporaryAttachmentFailure: true }, 1, infer),
+    /문서 파싱이 일시 실패/,
+  );
   assert.match((await generateSummary({ ...source, contentText: '' }, 1, infer)).skipped!, /요약에 사용할 본문/);
 });
 
@@ -153,7 +221,9 @@ test('retry delay is exponential and capped; failed retry window is evaluated in
 });
 
 test('failure redaction and classification never expose provider body or credentials', () => {
-  const sanitized = sanitizeSummaryFailure('status=429 Authorization: Bearer abc.def up_TESTKEY https://host.test/a?token=secret, body={"secret":123}');
+  const sanitized = sanitizeSummaryFailure(
+    'status=429 Authorization: Bearer abc.def up_TESTKEY https://host.test/a?token=secret, body={"secret":123}',
+  );
   assert.equal(classifySummaryFailure(sanitized), 'RATE_LIMIT');
   assert.ok(!sanitized!.includes('abc.def'));
   assert.ok(!sanitized!.includes('TESTKEY'));
@@ -168,7 +238,13 @@ test('failure redaction and classification never expose provider body or credent
 test('summary DTO and legacy renderer cap lines, preserve unavailable state, and escape generated markup', () => {
   assert.deepEqual(summaryDto('SUCCESS', ['unsupported prefix']), { status: 'UNAVAILABLE', items: [] });
   assert.equal(summaryDto('PENDING', []).status, 'PENDING');
-  assert.equal(summaryDto('SUCCESS', Array.from({ length: 4 }, () => '\u{1f4cc} 내용')).items.length, 3);
+  assert.equal(
+    summaryDto(
+      'SUCCESS',
+      Array.from({ length: 4 }, () => '\u{1f4cc} 내용'),
+    ).items.length,
+    3,
+  );
   const rendered = renderSummary('<p>원문</p>', ['\u{1f4cc} <script>alert(1)</script>'])!;
   assert.match(rendered, /&lt;script&gt;/);
   assert.ok(rendered.endsWith('<p>원문</p>'));

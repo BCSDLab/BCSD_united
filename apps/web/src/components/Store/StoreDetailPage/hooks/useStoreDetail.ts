@@ -1,4 +1,5 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
+
 import { storeQueries } from 'api/store/queries';
 
 const useStoreDetail = (id: string) => {

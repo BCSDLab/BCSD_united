@@ -1,6 +1,6 @@
 import { startTransition, useEffect } from 'react';
-
 import { useQuery } from '@tanstack/react-query';
+
 import type { GeneralEducationArea } from 'api/graduationCalculator/entity';
 import { graduationCalculatorQueries } from 'api/graduationCalculator/queries';
 import BubbleTailBottom from 'assets/svg/bubble-tail-bottom.svg';

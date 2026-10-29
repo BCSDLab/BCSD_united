@@ -1,11 +1,8 @@
+import { dehydrate, QueryClient, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate, useSearch, useParams } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
-import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
+import dayjs from 'dayjs';
 
-
-
-
-import { dehydrate, QueryClient, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { busQueries } from 'api/bus/queries';
 import InformationIcon from 'assets/svg/Bus/info-gray.svg';
 import RightArrow from 'assets/svg/right-arrow.svg';
@@ -14,12 +11,12 @@ import InfoFooter from 'components/Bus/BusCoursePage/components/InfoFooter';
 import { ShuttleCategoryTabs } from 'components/Bus/BusCoursePage/components/ShuttleCategoryTabs';
 import useBusPrefetch from 'components/Bus/BusCoursePage/hooks/useBusPrefetch';
 import { SSRLayout } from 'components/layout';
-import dayjs from 'dayjs';
 import { BUS_FEEDBACK_FORM, SHUTTLE_COURSES, SHUTTLE_ROUTE_TYPE_CLASS } from 'static/bus';
 import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useMount from 'utils/hooks/state/useMount';
+import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { BUS_SHUTTLE_ISR_REVALIDATE_SECONDS, withStaticFetchRetry } from 'utils/ts/isr';
 
 import styles from 'pages/bus/shuttle/ShuttleBusTimetable.module.scss';
@@ -39,13 +36,13 @@ function asString(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
-
-
 export default function ShuttleBusTimetable() {
-  
   const routeNavigate = useNavigate();
-  const routeQuery: Record<string, string | string[] | undefined> = { ...useSearch({ strict: false }), ...useParams({ strict: false }) };
-  
+  const routeQuery: Record<string, string | string[] | undefined> = {
+    ...useSearch({ strict: false }),
+    ...useParams({ strict: false }),
+  };
+
   const categoryFromURL = asString(routeQuery.category);
   const category = categoryFromURL ?? '전체';
 
@@ -148,10 +145,8 @@ export default function ShuttleBusTimetable() {
 }
 
 function TemplateShuttleVersion({ region, routes, category }: TemplateShuttleVersionProps) {
-  
   const routeNavigate = useNavigate();
-  
-  
+
   const isMobile = useMediaQuery();
   const logger = useLogger();
 
@@ -226,24 +221,28 @@ function TemplateShuttleVersion({ region, routes, category }: TemplateShuttleVer
   );
 }
 
+const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
+  .validator(validatePageInput)
+  .handler(({ data }) =>
+    loadPageData(data, async (_context, cacheControl) => {
+      const queryClient = new QueryClient();
 
+      await withStaticFetchRetry('bus.shuttle-course', () =>
+        queryClient.fetchQuery({
+          ...busQueries.shuttleCourse(),
+          staleTime: 1000 * 60 * 10,
+        }),
+      );
 
-const getPageData = createServerFn({ method: 'GET', strict: { output: false } }).validator(validatePageInput)
-  .handler(({ data }) => loadPageData(data, async ({ params }, cacheControl) => {
-  const queryClient = new QueryClient();
+      cacheControl.enablePublicCache(
+        `public, s-maxage=${BUS_SHUTTLE_ISR_REVALIDATE_SECONDS}, stale-while-revalidate=300`,
+      );
 
-  await withStaticFetchRetry('bus.shuttle-course', () =>
-    queryClient.fetchQuery({
-      ...busQueries.shuttleCourse(),
-      staleTime: 1000 * 60 * 10,
+      return {
+        dehydratedState: dehydrate(queryClient),
+      };
     }),
   );
-
-  cacheControl.enablePublicCache(`public, s-maxage=${BUS_SHUTTLE_ISR_REVALIDATE_SECONDS}, stale-while-revalidate=300`);
-return {
-      dehydratedState: dehydrate(queryClient),
-    };
-}));
 
 export const Route = createFileRoute('/bus/shuttle/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
@@ -254,5 +253,6 @@ export const Route = createFileRoute('/bus/shuttle/')({
 
 function RouteComponent() {
   const page = <ShuttleBusTimetable />;
+
   return <SSRLayout mobileHeader="page">{page}</SSRLayout>;
 }

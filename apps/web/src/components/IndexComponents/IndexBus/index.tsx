@@ -39,7 +39,7 @@ function IndexBus() {
           버스
         </Link>
         {isMobile && (
-          <a  href={unibus.link} className={styles.unibus} onClick={logShuttleTicket}>
+          <a href={unibus.link} className={styles.unibus} onClick={logShuttleTicket}>
             <QRCode />
             <span className={styles.unibus__title}>셔틀 탑승권</span>
           </a>
@@ -47,45 +47,53 @@ function IndexBus() {
       </div>
       {isMobile ? (
         <div className={styles.cards}>
-          {BUS_LINKS.slice(0, 2).map(({ key, title, subtitle, link }) => (
-            (/^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(link) ? <a  href={link} key={key} className={styles.card} onClick={() => logMainBusButton(key)}>
-              <div className={styles.card__guide}>
-                <span className={styles.card__title}>{title}</span>
-                <span className={styles.card__subtitle}>{subtitle}</span>
-              </div>
-              <ChevronRight />
-            </a> : <Link  to={link} key={key} className={styles.card} onClick={() => logMainBusButton(key)}>
-              <div className={styles.card__guide}>
-                <span className={styles.card__title}>{title}</span>
-                <span className={styles.card__subtitle}>{subtitle}</span>
-              </div>
-              <ChevronRight />
-            </Link>)
-          ))}
+          {BUS_LINKS.slice(0, 2).map(({ key, title, subtitle, link }) =>
+            /^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(link) ? (
+              <a href={link} key={key} className={styles.card} onClick={() => logMainBusButton(key)}>
+                <div className={styles.card__guide}>
+                  <span className={styles.card__title}>{title}</span>
+                  <span className={styles.card__subtitle}>{subtitle}</span>
+                </div>
+                <ChevronRight />
+              </a>
+            ) : (
+              <Link to={link} key={key} className={styles.card} onClick={() => logMainBusButton(key)}>
+                <div className={styles.card__guide}>
+                  <span className={styles.card__title}>{title}</span>
+                  <span className={styles.card__subtitle}>{subtitle}</span>
+                </div>
+                <ChevronRight />
+              </Link>
+            ),
+          )}
         </div>
       ) : (
         <div className={styles.cards}>
-          {BUS_LINKS.map(({ key, title, subtitle, link, SvgIcon }) => (
-            (/^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(link) ? <a  href={link} key={key} className={styles.card} onClick={() => logMainBusButton(key)}>
-              <div className={styles.card__segment}>
-                <SvgIcon />
-                <div className={styles.card__guide}>
-                  <span className={styles.card__title}>{title}</span>
-                  <span className={styles.card__subtitle}>{subtitle}</span>
+          {BUS_LINKS.map(({ key, title, subtitle, link, SvgIcon }) =>
+            /^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(link) ? (
+              <a href={link} key={key} className={styles.card} onClick={() => logMainBusButton(key)}>
+                <div className={styles.card__segment}>
+                  <SvgIcon />
+                  <div className={styles.card__guide}>
+                    <span className={styles.card__title}>{title}</span>
+                    <span className={styles.card__subtitle}>{subtitle}</span>
+                  </div>
                 </div>
-              </div>
-              <ChevronRight />
-            </a> : <Link  to={link} key={key} className={styles.card} onClick={() => logMainBusButton(key)}>
-              <div className={styles.card__segment}>
-                <SvgIcon />
-                <div className={styles.card__guide}>
-                  <span className={styles.card__title}>{title}</span>
-                  <span className={styles.card__subtitle}>{subtitle}</span>
+                <ChevronRight />
+              </a>
+            ) : (
+              <Link to={link} key={key} className={styles.card} onClick={() => logMainBusButton(key)}>
+                <div className={styles.card__segment}>
+                  <SvgIcon />
+                  <div className={styles.card__guide}>
+                    <span className={styles.card__title}>{title}</span>
+                    <span className={styles.card__subtitle}>{subtitle}</span>
+                  </div>
                 </div>
-              </div>
-              <ChevronRight />
-            </Link>)
-          ))}
+                <ChevronRight />
+              </Link>
+            ),
+          )}
         </div>
       )}
     </section>

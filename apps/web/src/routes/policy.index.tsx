@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
+
 import PageLayout from 'components/layout';
 import { PRIVACY_POLICY, TERMS_OF_SERVICE } from 'static/policy';
 import useScrollToTop from 'utils/hooks/ui/useScrollToTop';
@@ -82,5 +83,6 @@ export const Route = createFileRoute('/policy/')({
 
 function RouteComponent() {
   const page = <PolicyPage />;
+
   return <PageLayout>{page}</PageLayout>;
 }

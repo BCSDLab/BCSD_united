@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-
 import { cn } from '@bcsdlab/utils';
+
 import type { TimetableFrameInfo } from 'api/timetable/entity';
 import AddIcon from 'assets/svg/add-icon.svg';
 import BookMarkIcon from 'assets/svg/book-mark.svg';

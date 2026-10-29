@@ -1,6 +1,7 @@
 import { type ComponentPropsWithoutRef, forwardRef } from 'react';
-
 import { cn } from '@bcsdlab/utils';
+import { useFormContext } from 'react-hook-form';
+
 import CloseIcon from 'assets/svg/Login/close.svg';
 import CorrectIcon from 'assets/svg/Login/correct.svg';
 import ErrorIcon from 'assets/svg/Login/error.svg';
@@ -10,7 +11,6 @@ import WarningIcon from 'assets/svg/Login/warning.svg';
 import MobileWarningIcon from 'assets/svg/mobile-warning-icon.svg';
 import FormatTime from 'components/Auth/SignupPage/hooks/useFormatTime';
 import type { InputMessage } from 'interfaces/InputMessage';
-import { useFormContext } from 'react-hook-form';
 import type { UserType } from 'static/auth';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useBooleanState from 'utils/hooks/state/useBooleanState';

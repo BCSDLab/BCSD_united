@@ -1,8 +1,8 @@
 import { lazy, Suspense, useEffect, useRef } from 'react';
-import { ClientOnly, useRouter } from '@tanstack/react-router';
-
 import { isKoinError } from '@bcsdlab/koin';
 import { useMutation } from '@tanstack/react-query';
+import { ClientOnly, useRouter } from '@tanstack/react-router';
+
 import { orderMutations } from 'api/order/mutations';
 import PayingLottie from 'assets/lottie/paying.json';
 import ROUTES from 'static/routes';
@@ -39,7 +39,10 @@ function PaymentConfirm({ orderType, orderId, paymentKey, amount }: PaymentRetur
     onSuccess: (response) => {
       // order: 승인되면 저장된 주문 정보(연락처·요청사항·배달지)를 비우고 결과 화면으로 바꾼다
       useOrderStore.persist.clearStorage();
-      router.navigate({ href: `${ROUTES.OrderResult({ paymentId: String(response.id) })}?paymentKey=${paymentKey}`, replace: true });
+      router.navigate({
+        href: `${ROUTES.OrderResult({ paymentId: String(response.id) })}?paymentKey=${paymentKey}`,
+        replace: true,
+      });
     },
     onError: (error) => {
       if (!isKoinError(error)) {
@@ -50,7 +53,9 @@ function PaymentConfirm({ orderType, orderId, paymentKey, amount }: PaymentRetur
 
       // 서버는 code를 문자열로 내린다(타입 선언은 number)
       if (String(error.code) === PROVIDER_ERROR) return;
-      router.navigate({ href: `${ROUTES.OrderCheckout()}?orderType=${orderType}&message=${encodeURIComponent(error.message)}` });
+      router.navigate({
+        href: `${ROUTES.OrderCheckout()}?orderType=${orderType}&message=${encodeURIComponent(error.message)}`,
+      });
     },
   });
 

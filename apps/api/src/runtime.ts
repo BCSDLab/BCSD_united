@@ -13,7 +13,7 @@ export interface Bindings {
   COORDINATOR: DurableObjectNamespace;
   COMMUNITY_CHAT: DurableObjectNamespace;
   JOBS: Queue<Job>;
-  ENVIRONMENT: 'development' | 'stage' | 'production';
+  ENVIRONMENT: 'development' | 'preview' | 'production';
   SERIALIZED?: boolean;
   JWT_SECRET?: string;
   WEB_CSRF_SECRET?: string;

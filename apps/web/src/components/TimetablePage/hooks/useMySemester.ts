@@ -1,4 +1,5 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
+
 import { timetableQueries } from 'api/timetable/queries';
 import useUserType from 'utils/hooks/auth/useUserType';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';

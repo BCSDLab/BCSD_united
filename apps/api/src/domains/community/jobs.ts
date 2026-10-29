@@ -7,31 +7,52 @@ import { sendSlack } from '@api/integrations';
 import { deliverNotification, type NotificationDelivery } from '@api/domains/misc/notifications';
 import { first, rows } from '@api/domains/community/store';
 
-interface CommunityOutbox {id: string; kind: string; payload: string; lease_until: number | null; attempts: number}
+interface CommunityOutbox {
+  id: string;
+  kind: string;
+  payload: string;
+  lease_until: number | null;
+  attempts: number;
+}
 export async function handleCommunityOutboxJob(env: Bindings, job: Job): Promise<boolean> {
   if (!['community.push', 'community.lost-report'].includes(job.kind)) return false;
   const db = createDatabase(env.DB);
   const now = Date.now();
   const lease = now + 120000;
-  const claimed = await rows<CommunityOutbox>(db, sql`UPDATE native_community_outbox SET lease_until=${lease},attempts=attempts+1 WHERE id=${job.key} AND kind=${job.kind} AND delivered_at IS NULL AND (lease_until IS NULL OR lease_until<=${now}) RETURNING *`);
+  const claimed = await rows<CommunityOutbox>(
+    db,
+    sql`UPDATE native_community_outbox SET lease_until=${lease},attempts=attempts+1 WHERE id=${job.key} AND kind=${job.kind} AND delivered_at IS NULL AND (lease_until IS NULL OR lease_until<=${now}) RETURNING *`,
+  );
   const event = claimed[0];
   if (!event) {
-    if (await first(db, sql`SELECT id FROM native_community_outbox WHERE id=${job.key} AND delivered_at IS NULL`)) throw new ApiError(409, 'OUTBOX_LEASE_BUSY', '알림 전송을 재시도합니다.');
+    if (await first(db, sql`SELECT id FROM native_community_outbox WHERE id=${job.key} AND delivered_at IS NULL`))
+      throw new ApiError(409, 'OUTBOX_LEASE_BUSY', '알림 전송을 재시도합니다.');
     return true;
   }
   try {
     if (event.kind === 'community.push') {
       const delivery = JSON.parse(event.payload) as NotificationDelivery;
-      const live = await first<{device_token: string | null}>(db, sql`SELECT device_token FROM users WHERE id=${delivery.userId} AND is_deleted=0`);
+      const live = await first<{ device_token: string | null }>(
+        db,
+        sql`SELECT device_token FROM users WHERE id=${delivery.userId} AND is_deleted=0`,
+      );
       if (live?.device_token !== null && live !== undefined) await deliverNotification(env, delivery);
     } else {
-      if (!env.SLACK_LOST_ITEM_WEBHOOK || !env.ADMIN_SHOP_URL) throw new ApiError(503, 'INTEGRATION_CONFIGURATION_ERROR', '분실물 신고 Slack 설정이 없습니다.');
-      const payload = JSON.parse(event.payload) as {articleId: number};
-      await sendSlack(env, {webhook: env.SLACK_LOST_ITEM_WEBHOOK, message: `\`${payload.articleId}번 분실물 게시글이 신고되었습니다.\`\n\`신고를 처리해주세요!!\`\n<${env.ADMIN_SHOP_URL}|Admin page 바로가기>\n`});
+      if (!env.SLACK_LOST_ITEM_WEBHOOK || !env.ADMIN_SHOP_URL)
+        throw new ApiError(503, 'INTEGRATION_CONFIGURATION_ERROR', '분실물 신고 Slack 설정이 없습니다.');
+      const payload = JSON.parse(event.payload) as { articleId: number };
+      await sendSlack(env, {
+        webhook: env.SLACK_LOST_ITEM_WEBHOOK,
+        message: `\`${payload.articleId}번 분실물 게시글이 신고되었습니다.\`\n\`신고를 처리해주세요!!\`\n<${env.ADMIN_SHOP_URL}|Admin page 바로가기>\n`,
+      });
     }
-    await db.run(sql`UPDATE native_community_outbox SET delivered_at=${Date.now()},lease_until=NULL WHERE id=${event.id} AND lease_until=${lease}`);
+    await db.run(
+      sql`UPDATE native_community_outbox SET delivered_at=${Date.now()},lease_until=NULL WHERE id=${event.id} AND lease_until=${lease}`,
+    );
   } catch (error) {
-    await db.run(sql`UPDATE native_community_outbox SET lease_until=${Date.now() + Math.min(3600000, 1000 * 2 ** Math.min(event.attempts, 12))} WHERE id=${event.id} AND lease_until=${lease}`);
+    await db.run(
+      sql`UPDATE native_community_outbox SET lease_until=${Date.now() + Math.min(3600000, 1000 * 2 ** Math.min(event.attempts, 12))} WHERE id=${event.id} AND lease_until=${lease}`,
+    );
     throw error;
   }
   return true;
@@ -48,10 +69,16 @@ async function refreshHourly(db: Database, time: number) {
   const writes: SQL[] = [sql`DELETE FROM native_article_keyword_suggestion WHERE ${guard}`];
   for (const category of ['KOREATECH', 'LOST_ITEM'] as const) {
     const recent = sql`SELECT k.id keyword_id,k.keyword,k.category,count(m.id) count FROM article_keywords k JOIN article_keyword_user_map m ON m.keyword_id=k.id AND m.is_deleted=0 WHERE k.is_deleted=0 AND k.is_filtered=0 AND k.category=${category} AND k.last_used_at>=datetime('now','-7 days') GROUP BY k.id ORDER BY count(m.id) DESC LIMIT 15`;
-    writes.push(sql`INSERT INTO native_article_keyword_suggestion(keyword_id,keyword,category,count) SELECT keyword_id,keyword,category,count FROM (${recent}) WHERE ${guard} AND (SELECT count(*) FROM (${recent}))>=15`);
-    writes.push(sql`INSERT INTO native_article_keyword_suggestion(keyword_id,keyword,category,count) SELECT k.id,k.keyword,k.category,count(m.id) FROM article_keywords k LEFT JOIN article_keyword_user_map m ON m.keyword_id=k.id AND m.is_deleted=0 WHERE k.is_deleted=0 AND k.is_filtered=0 AND k.category=${category} AND ${guard} AND (SELECT count(*) FROM (${recent}))<15 GROUP BY k.id ORDER BY k.created_at DESC LIMIT 15`);
+    writes.push(
+      sql`INSERT INTO native_article_keyword_suggestion(keyword_id,keyword,category,count) SELECT keyword_id,keyword,category,count FROM (${recent}) WHERE ${guard} AND (SELECT count(*) FROM (${recent}))>=15`,
+    );
+    writes.push(
+      sql`INSERT INTO native_article_keyword_suggestion(keyword_id,keyword,category,count) SELECT k.id,k.keyword,k.category,count(m.id) FROM article_keywords k LEFT JOIN article_keyword_user_map m ON m.keyword_id=k.id AND m.is_deleted=0 WHERE k.is_deleted=0 AND k.is_filtered=0 AND k.category=${category} AND ${guard} AND (SELECT count(*) FROM (${recent}))<15 GROUP BY k.id ORDER BY k.created_at DESC LIMIT 15`,
+    );
   }
-  writes.push(sql`INSERT INTO native_transport_cache(id,payload,expires_at,updated_at) SELECT 'busNoticeArticle',json_object('id',id,'title',title),NULL,${time} FROM (SELECT id,title,created_at FROM new_articles WHERE is_deleted=0 AND is_notice=1 AND (title LIKE '%통학버스%' OR title LIKE '%등교버스%' OR title LIKE '%셔틀버스%' OR title LIKE '%하교버스%') ORDER BY created_at DESC LIMIT 5) WHERE ${guard} AND date(created_at)=date((SELECT max(created_at) FROM new_articles WHERE is_deleted=0 AND is_notice=1 AND (title LIKE '%통학버스%' OR title LIKE '%등교버스%' OR title LIKE '%셔틀버스%' OR title LIKE '%하교버스%'))) ORDER BY (instr(title,'사과')>0)-(instr(title,'긴급')>0),created_at DESC LIMIT 1 ON CONFLICT(id) DO UPDATE SET payload=excluded.payload,updated_at=excluded.updated_at,expires_at=NULL`);
+  writes.push(
+    sql`INSERT INTO native_transport_cache(id,payload,expires_at,updated_at) SELECT 'busNoticeArticle',json_object('id',id,'title',title),NULL,${time} FROM (SELECT id,title,created_at FROM new_articles WHERE is_deleted=0 AND is_notice=1 AND (title LIKE '%통학버스%' OR title LIKE '%등교버스%' OR title LIKE '%셔틀버스%' OR title LIKE '%하교버스%') ORDER BY created_at DESC LIMIT 5) WHERE ${guard} AND date(created_at)=date((SELECT max(created_at) FROM new_articles WHERE is_deleted=0 AND is_notice=1 AND (title LIKE '%통학버스%' OR title LIKE '%등교버스%' OR title LIKE '%셔틀버스%' OR title LIKE '%하교버스%'))) ORDER BY (instr(title,'사과')>0)-(instr(title,'긴급')>0),created_at DESC LIMIT 1 ON CONFLICT(id) DO UPDATE SET payload=excluded.payload,updated_at=excluded.updated_at,expires_at=NULL`,
+  );
   writes.push(mark('hourly', period));
   await executeAtomic(db, writes);
 }
@@ -90,6 +117,10 @@ export async function runCommunityMaintenanceCron(env: Bindings, scheduledTime: 
     if (clock.getUTCHours() % 6 === 0) await syncSearchCounts(db, scheduledTime);
     await db.run(sql`DELETE FROM native_article_hit_user WHERE expires_at<=${scheduledTime}`);
   }
-  const pending = await rows<CommunityOutbox>(db, sql`SELECT * FROM native_community_outbox WHERE delivered_at IS NULL AND (lease_until IS NULL OR lease_until<=${scheduledTime}) ORDER BY created_at,id LIMIT 100`);
-  if (pending.length) await env.JOBS.sendBatch(pending.map((event) => ({body: {kind: event.kind, key: event.id, payload: {}}})));
+  const pending = await rows<CommunityOutbox>(
+    db,
+    sql`SELECT * FROM native_community_outbox WHERE delivered_at IS NULL AND (lease_until IS NULL OR lease_until<=${scheduledTime}) ORDER BY created_at,id LIMIT 100`,
+  );
+  if (pending.length)
+    await env.JOBS.sendBatch(pending.map((event) => ({ body: { kind: event.kind, key: event.id, payload: {} } })));
 }

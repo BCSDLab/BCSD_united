@@ -1,7 +1,6 @@
-import Image from 'components/ui/Image';
-
 import ViewIcon from 'assets/svg/Login/eye-open.svg';
 import { convertArticlesTag } from 'components/Articles/utils/convertArticlesTag';
+import Image from 'components/ui/Image';
 
 import styles from './ArticleHeader.module.scss';
 

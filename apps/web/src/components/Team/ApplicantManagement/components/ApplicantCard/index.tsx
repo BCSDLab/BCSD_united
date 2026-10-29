@@ -1,8 +1,7 @@
-import { Link } from '@tanstack/react-router';
-import { useRouter } from '@tanstack/react-router';
-
 import { cn } from '@bcsdlab/utils';
 import { useMutation } from '@tanstack/react-query';
+import { Link, useRouter } from '@tanstack/react-router';
+
 import type { TeamRecruitmentApplicant } from 'api/team/entity';
 import { teamMutations } from 'api/team/mutations';
 import ChatBubbleIcon from 'assets/svg/Team/chat-bubble.svg';
@@ -87,12 +86,15 @@ export default function ApplicantCard({ applicant, recruitmentId }: ApplicantCar
 
   return (
     <div className={styles.card}>
-      <Link  to={ROUTES.TeamRecruitmentApplicantDetail({
-        postId: recruitmentId,
-        applicantId: String(applicant.application_id),
-      })} className={styles.card__overlayLink}
-      onClick={handleCardClick}
-      aria-label={`${nickname}님 지원자 상세 보기`} />
+      <Link
+        to={ROUTES.TeamRecruitmentApplicantDetail({
+          postId: recruitmentId,
+          applicantId: String(applicant.application_id),
+        })}
+        className={styles.card__overlayLink}
+        onClick={handleCardClick}
+        aria-label={`${nickname}님 지원자 상세 보기`}
+      />
 
       <div className={styles.card__avatar}>
         <ProfileAvatarIcon />

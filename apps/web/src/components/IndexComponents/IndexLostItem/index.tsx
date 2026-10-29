@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
+import { useSuspenseQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 
-import { useSuspenseQuery } from '@tanstack/react-query';
 import { articleQueries } from 'api/articles/queries';
 import ChevronRightIcon from 'assets/svg/IndexPage/Bus/chevron-right.svg';
 import ROUTES from 'static/routes';
@@ -48,13 +48,19 @@ function IndexLostItem() {
   return (
     <section className={styles.template}>
       <div className={styles.template__header}>
-        <Link  to={ROUTES.LostItemRedirect()} className={styles.template__title}
-        onClick={() => logger.actionEventClick({ team: 'CAMPUS', event_label: 'lost_item_entry', value: '분실물' })}>
+        <Link
+          to={ROUTES.LostItemRedirect()}
+          className={styles.template__title}
+          onClick={() => logger.actionEventClick({ team: 'CAMPUS', event_label: 'lost_item_entry', value: '분실물' })}
+        >
           분실물
         </Link>
       </div>
-      <Link  to={ROUTES.LostItemRedirect()} className={styles.card}
-      onClick={() => logger.actionEventClick({ team: 'CAMPUS', event_label: 'lost_item_entry', value: '분실물' })}>
+      <Link
+        to={ROUTES.LostItemRedirect()}
+        className={styles.card}
+        onClick={() => logger.actionEventClick({ team: 'CAMPUS', event_label: 'lost_item_entry', value: '분실물' })}
+      >
         <div className={styles.card__info}>
           {shouldAnimate ? (
             <div className={styles['card__info-slider']}>

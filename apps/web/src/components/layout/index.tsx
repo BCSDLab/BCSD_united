@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
-
 import { cn } from '@bcsdlab/utils';
+
 import Footer from 'components/layout/Footer';
 import Header from 'components/layout/Header';
 import type { MobileHeaderVariant } from 'components/layout/Header';

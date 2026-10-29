@@ -2,22 +2,23 @@
   "name": "koin",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@10.32.1",
-  "engines": {
-    "node": "24.22.1",
-    "pnpm": "10.32.1"
-  },
   "scripts": {
     "prepare": "husky",
     "dev": "pnpm --parallel --filter @koin/web --filter @koin/api dev",
     "dev:web": "pnpm --filter @koin/web dev",
     "dev:api": "pnpm --filter @koin/api dev",
+    "dev:b-bot": "pnpm --filter @koin/b-bot dev",
+    "deploy:b-bot": "pnpm --filter @koin/b-bot run deploy",
+    "deploy:api": "pnpm --filter @koin/api run deploy",
+    "deploy:api:preview": "pnpm --filter @koin/api run deploy:preview",
+    "deploy:error-automation": "pnpm --filter @koin/error-automation run deploy",
+    "deploy:error-automation:preview": "pnpm --filter @koin/error-automation run deploy:preview",
     "preview": "pnpm --filter @koin/web preview",
     "build": "pnpm -r --if-present build",
     "typecheck": "pnpm -r --if-present typecheck",
     "lint": "pnpm lint:oxlint && pnpm --filter @koin/web lint",
     "lint:oxlint": "oxlint apps scripts --deny-warnings",
-    "test": "pnpm -r --if-present test && node --test scripts/sentry/security.test.mjs",
+    "test": "pnpm -r --if-present test && node --test scripts/autofix/security.test.mjs",
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check ."
   },
@@ -34,6 +35,11 @@
     "typescript": "^5.9.3",
     "wrangler": "4.152.0"
   },
+  "engines": {
+    "node": "24.22.1",
+    "pnpm": "10.32.1"
+  },
+  "packageManager": "pnpm@10.32.1",
   "pnpm": {
     "overrides": {
       "tar": "7.5.21",

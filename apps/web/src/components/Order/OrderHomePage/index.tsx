@@ -1,7 +1,7 @@
 import { Suspense, useState, type ComponentType, type SVGProps } from 'react';
-
 import { cn } from '@bcsdlab/utils';
 import { useSuspenseQuery } from '@tanstack/react-query';
+
 import type { OrderableShopsFilter } from 'api/order/entity';
 import { orderQueries } from 'api/order/queries';
 import { storeMobileQueries } from 'api/storeMobile/queries';

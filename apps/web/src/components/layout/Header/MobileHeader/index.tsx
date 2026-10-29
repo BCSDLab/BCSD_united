@@ -1,7 +1,7 @@
 import { createPortal } from 'react-dom';
+import { cn } from '@bcsdlab/utils';
 import { useRouter, useLocation, useParams } from '@tanstack/react-router';
 
-import { cn } from '@bcsdlab/utils';
 import { getStoreDetailInfo } from 'api/store';
 import BlackArrowBackIcon from 'assets/svg/black-arrow-back-icon.svg';
 import HamburgerIcon from 'assets/svg/hamburger-icon.svg';
@@ -31,7 +31,7 @@ export default function MobileHeader({ openModal, route }: MobileHeaderProps) {
   const mounted = useMount();
   const router = useRouter();
   const routeLocation = useLocation();
-  const routeParams = useParams({ strict: false }) as Record<string, string | string[] | undefined>;
+  const routeParams = useParams({ strict: false });
   const goBack = useGoBack();
   const { pathname } = routeLocation;
   const { openSidebar } = useMobileSidebar();

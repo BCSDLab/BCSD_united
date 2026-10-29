@@ -6,8 +6,8 @@ interface Props {
 }
 
 export default function StarList({ average_rating }: Props) {
-  const emptyStarList = new Array(5 - Math.floor(average_rating)).fill(false);
-  const starList = new Array(Math.floor(average_rating)).fill(true);
+  const emptyStarList = Array.from({ length: 5 - Math.floor(average_rating) }, () => false);
+  const starList = Array.from({ length: Math.floor(average_rating) }, () => true);
 
   const rating = [...starList, ...emptyStarList];
 

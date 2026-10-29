@@ -1,6 +1,6 @@
-import Image from 'components/ui/Image';
-
 import { cn } from '@bcsdlab/utils';
+
+import Image from 'components/ui/Image';
 import OPTION_CATEGORY from 'static/optionCategory';
 
 import styles from './RoomDetailOption.module.scss';

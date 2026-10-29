@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useRouter, useLocation, useSearch } from '@tanstack/react-router';
 
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { articleQueries } from 'api/articles/queries';
 import ArrowBackIcon from 'assets/svg/arrow-back.svg';
 import SearchIcon from 'assets/svg/common/purple-search.svg';
@@ -19,7 +19,7 @@ const SEARCH_RESULT_LIMIT = 5;
 export default function ArticlesSearchPage() {
   const router = useRouter();
   const routeLocation = useLocation();
-  const routeSearch = useSearch({ strict: false }) as Record<string, string | string[] | undefined>;
+  const routeSearch = useSearch({ strict: false });
   const inputRef = useRef<HTMLInputElement>(null);
   const initialQuery = typeof routeSearch.query === 'string' ? routeSearch.query : '';
 

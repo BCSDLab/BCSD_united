@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { useRouter } from '@tanstack/react-router';
-
 import { cn } from '@bcsdlab/utils';
 import { useSuspenseQuery } from '@tanstack/react-query';
+import { useRouter } from '@tanstack/react-router';
+
 import { busQueries } from 'api/bus/queries';
 import InformationIcon from 'assets/svg/Bus/info.svg';
 import CloseIcon from 'assets/svg/common/close/close-icon-32x32.svg';

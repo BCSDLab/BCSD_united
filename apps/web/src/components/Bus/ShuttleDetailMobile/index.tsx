@@ -1,4 +1,5 @@
 import { cn } from '@bcsdlab/utils';
+
 import type { ShuttleTimetableDetailInfoResponse } from 'api/bus/entity';
 import InformationIcon from 'assets/svg/Bus/info-gray.svg';
 import { BUS_FEEDBACK_FORM, SHUTTLE_ROUTE_TYPE_CLASS } from 'static/bus';

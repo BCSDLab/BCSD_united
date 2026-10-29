@@ -34,7 +34,13 @@ const errors = {
 } as const;
 
 export function commerceError(code: keyof typeof errors): never {
-  const status = code.startsWith('NOT_FOUND') ? 404 : code.includes('ACCESS_DENIED') || code.startsWith('FORBIDDEN') ? 403 : code.endsWith('_ERROR') ? 500 : 400;
+  const status = code.startsWith('NOT_FOUND')
+    ? 404
+    : code.includes('ACCESS_DENIED') || code.startsWith('FORBIDDEN')
+      ? 403
+      : code.endsWith('_ERROR')
+        ? 500
+        : 400;
   throw new ApiError(status, code, errors[code]);
 }
 
@@ -42,17 +48,34 @@ export type OrderType = 'DELIVERY' | 'TAKE_OUT';
 export type OrderStatus = 'CONFIRMING' | 'COOKING' | 'PACKAGED' | 'PICKED_UP' | 'DELIVERING' | 'DELIVERED' | 'CANCELED';
 export const inProgressStatuses: OrderStatus[] = ['CONFIRMING', 'COOKING', 'PACKAGED', 'DELIVERING'];
 export const ownerStatusGroups: Record<string, OrderStatus[]> = {
-  NEW: ['CONFIRMING'], COOKING: ['COOKING'], DELIVERING: ['DELIVERING', 'PACKAGED'], COMPLETED: ['PICKED_UP', 'DELIVERED', 'CANCELED'],
+  NEW: ['CONFIRMING'],
+  COOKING: ['COOKING'],
+  DELIVERING: ['DELIVERING', 'PACKAGED'],
+  COMPLETED: ['PICKED_UP', 'DELIVERED', 'CANCELED'],
 };
 
 export function requireTransition(from: string, to: string, type: string): asserts to is OrderStatus {
-  const transitions: Record<string, readonly string[]> = { CONFIRMING: ['COOKING', 'CANCELED'], COOKING: ['DELIVERING', 'PACKAGED'], PACKAGED: ['PICKED_UP'], DELIVERING: ['DELIVERED'] };
-  const supported = type === 'DELIVERY' ? ['CONFIRMING', 'COOKING', 'DELIVERING', 'DELIVERED', 'CANCELED'] : ['CONFIRMING', 'COOKING', 'PACKAGED', 'PICKED_UP', 'CANCELED'];
+  const transitions: Record<string, readonly string[]> = {
+    CONFIRMING: ['COOKING', 'CANCELED'],
+    COOKING: ['DELIVERING', 'PACKAGED'],
+    PACKAGED: ['PICKED_UP'],
+    DELIVERING: ['DELIVERED'],
+  };
+  const supported =
+    type === 'DELIVERY'
+      ? ['CONFIRMING', 'COOKING', 'DELIVERING', 'DELIVERED', 'CANCELED']
+      : ['CONFIRMING', 'COOKING', 'PACKAGED', 'PICKED_UP', 'CANCELED'];
   if (!transitions[from]?.includes(to) || !supported.includes(to)) commerceError('INVALID_ORDER_STATUS_CHANGE');
 }
 
 export function quantity(value: unknown, maximum?: number): number {
-  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1 || (maximum !== undefined && value > maximum)) commerceError('INVALID_CART_ITEM_QUANTITY');
+  if (
+    typeof value !== 'number' ||
+    !Number.isSafeInteger(value) ||
+    value < 1 ||
+    (maximum !== undefined && value > maximum)
+  )
+    commerceError('INVALID_CART_ITEM_QUANTITY');
   return value;
 }
 
@@ -65,15 +88,31 @@ export function itemAmount(price: number, options: readonly { option_price: numb
   return money((money(price) + options.reduce((sum, option) => sum + money(option.option_price), 0)) * quantity(count));
 }
 
-export interface OptionSelection { option_group_id: number; option_id: number }
-export interface OptionRule { id: number; is_required: boolean; min_select: number; max_select: number | null }
-export interface AvailableOption { id: number; orderable_shop_menu_option_group_id: number }
+export interface OptionSelection {
+  option_group_id: number;
+  option_id: number;
+}
+export interface OptionRule {
+  id: number;
+  is_required: boolean;
+  min_select: number;
+  max_select: number | null;
+}
+export interface AvailableOption {
+  id: number;
+  orderable_shop_menu_option_group_id: number;
+}
 
-export function resolveOptions<T extends AvailableOption>(groups: readonly OptionRule[], options: readonly T[], selected: readonly OptionSelection[]): T[] {
+export function resolveOptions<T extends AvailableOption>(
+  groups: readonly OptionRule[],
+  options: readonly T[],
+  selected: readonly OptionSelection[],
+): T[] {
   const result = selected.map((selection) => {
     const option = options.find((candidate) => candidate.id === selection.option_id);
     if (!option) commerceError('NOT_FOUND_ORDERABLE_SHOP_MENU_OPTION');
-    if (option.orderable_shop_menu_option_group_id !== selection.option_group_id) commerceError('INVALID_OPTION_IN_GROUP');
+    if (option.orderable_shop_menu_option_group_id !== selection.option_group_id)
+      commerceError('INVALID_OPTION_IN_GROUP');
     return option;
   });
   for (const group of groups) {
@@ -85,15 +124,26 @@ export function resolveOptions<T extends AvailableOption>(groups: readonly Optio
   return result;
 }
 
-export function sameConfiguration(menuId: number, priceId: number, optionIds: readonly number[], otherMenuId: number, otherPriceId: number, otherOptionIds: readonly number[]): boolean {
+export function sameConfiguration(
+  menuId: number,
+  priceId: number,
+  optionIds: readonly number[],
+  otherMenuId: number,
+  otherPriceId: number,
+  otherOptionIds: readonly number[],
+): boolean {
   if (menuId !== otherMenuId || priceId !== otherPriceId || optionIds.length !== otherOptionIds.length) return false;
   const left = [...optionIds].sort((a, b) => a - b);
   const right = [...otherOptionIds].sort((a, b) => a - b);
   return left.every((value, index) => value === right[index]);
 }
 
-export function sqlNow(time = Date.now()): string { return new Date(time).toISOString().replace('T', ' ').replace('Z', ''); }
-export function asInstant(value: string): Date { return new Date(/(?:Z|[+-]\d\d:\d\d)$/.test(value) ? value : `${value.replace(' ', 'T')}Z`); }
+export function sqlNow(time = Date.now()): string {
+  return new Date(time).toISOString().replace('T', ' ').replace('Z', '');
+}
+export function asInstant(value: string): Date {
+  return new Date(/(?:Z|[+-]\d\d:\d\d)$/.test(value) ? value : `${value.replace(' ', 'T')}Z`);
+}
 export function kstDate(value: string, pattern: 'date' | 'minute' | 'time' | 'iso' = 'minute'): string {
   const text = new Date(asInstant(value).getTime() + 9 * 3_600_000).toISOString();
   if (pattern === 'time') return text.slice(11, 16);
@@ -103,6 +153,7 @@ export function kstDate(value: string, pattern: 'date' | 'minute' | 'time' | 'is
 }
 
 export function orderType(value: unknown): OrderType {
-  if (value !== 'DELIVERY' && value !== 'TAKE_OUT') throw new ApiError(400, 'INVALID_REQUEST', '주문 방법이 올바르지 않습니다.');
+  if (value !== 'DELIVERY' && value !== 'TAKE_OUT')
+    throw new ApiError(400, 'INVALID_REQUEST', '주문 방법이 올바르지 않습니다.');
   return value;
 }

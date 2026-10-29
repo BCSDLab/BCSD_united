@@ -1,4 +1,5 @@
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
+
 import { getViewerScope } from 'utils/ts/getViewerScope';
 import { isUnauthorizedError } from 'utils/ts/httpError';
 

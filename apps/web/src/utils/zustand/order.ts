@@ -1,7 +1,8 @@
-import type { CampusDeliveryAddress, OffCampusDeliveryAddressRequest, OrderType } from 'api/order/entity';
-import { isomorphicSessionStorage } from 'utils/ts/env';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+
+import type { CampusDeliveryAddress, OffCampusDeliveryAddressRequest, OrderType } from 'api/order/entity';
+import { isomorphicSessionStorage } from 'utils/ts/env';
 
 // KOIN_ORDER_WEBVIEW stores/useOrderStore 이전(주문 유형·배달지).
 // order는 sessionStorage에 영속하지만, 서버는 그 값을 모르므로 영속하면 장바구니 쿼리 키가 SSR과 하이드레이션에서 갈린다.

@@ -1,5 +1,6 @@
 import { isKoinError, sendClientError } from '@bcsdlab/koin';
 import { useMutation } from '@tanstack/react-query';
+
 import type {
   AddTimetableCustomLecture,
   Lecture,

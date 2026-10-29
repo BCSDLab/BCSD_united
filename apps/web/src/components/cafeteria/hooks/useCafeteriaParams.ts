@@ -11,7 +11,7 @@ const TYPE_KEY = 'type';
 export const useCafeteriaParams = () => {
   const router = useRouter();
   const routeLocation = useLocation();
-  const query = useSearch({ strict: false }) as Record<string, string | string[] | undefined>;
+  const query = useSearch({ strict: false });
 
   const renderToday = useCafeteriaLiveNow();
   const renderTomorrow = new Date(renderToday);
@@ -33,7 +33,7 @@ export const useCafeteriaParams = () => {
   };
 
   const shiftDate = (days: number) => {
-    const base = dateParam() ?? new Date();
+    const base = dateParam() ?? new Date(renderToday);
     base.setDate(base.getDate() + days);
     updateDateQuery(base.toISOString().slice(0, 10));
   };
@@ -53,7 +53,7 @@ export const useCafeteriaParams = () => {
       const formatted = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       updateDateQuery(formatted);
     },
-    setToday: () => updateDateQuery(new Date().toISOString().slice(0, 10)),
+    setToday: () => updateDateQuery(renderToday.toISOString().slice(0, 10)),
   };
 
   const diningType = DINING_TYPES.find((t) => t === query[TYPE_KEY]) ?? new DiningTime(renderToday).getType();

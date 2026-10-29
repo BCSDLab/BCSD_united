@@ -1,6 +1,6 @@
+import { useSuspenseInfiniteQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 
-import { useSuspenseInfiniteQuery } from '@tanstack/react-query';
 import { articleQueries } from 'api/articles/queries';
 import CategoryBadge from 'components/Articles/components/CategoryBadge';
 import FoundChip from 'components/Articles/LostItemDetailPage/components/FoundChip';

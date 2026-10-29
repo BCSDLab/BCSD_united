@@ -1,14 +1,10 @@
-import Seo from 'components/seo/Seo';
-import { createFileRoute, useNavigate, useSearch, useParams } from '@tanstack/react-router';
-
 import { Suspense, useEffect } from 'react';
-
-
-
+import { createFileRoute, useNavigate, useSearch, useParams } from '@tanstack/react-router';
 
 import ErrorBoundary from 'components/boundary/ErrorBoundary';
 import LoadingSpinner from 'components/feedback/LoadingSpinner';
 import Layout from 'components/layout';
+import Seo from 'components/seo/Seo';
 import TeamChatRoom from 'components/Team/components/TeamChatRoom';
 import ROUTES from 'static/routes';
 import { parseQueryId } from 'utils/ts/parseServerSideParams';
@@ -17,7 +13,10 @@ import styles from 'pages/team/chat/TeamChatPage.module.scss';
 
 export default function TeamChatPage() {
   const routeNavigate = useNavigate();
-  const routeQuery: Record<string, string | string[] | undefined> = { ...useSearch({ strict: false }), ...useParams({ strict: false }) };
+  const routeQuery: Record<string, string | string[] | undefined> = {
+    ...useSearch({ strict: false }),
+    ...useParams({ strict: false }),
+  };
 
   const recruitmentId = parseQueryId(routeQuery.recruitmentId);
   const chatRoomId = parseQueryId(routeQuery.chatRoomId);
@@ -58,8 +57,6 @@ export default function TeamChatPage() {
   );
 }
 
-
-
 export const Route = createFileRoute('/team/chat/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   staticData: { hasPageSeo: true },
@@ -68,9 +65,10 @@ export const Route = createFileRoute('/team/chat/')({
 
 function RouteComponent() {
   const page = <TeamChatPage />;
+
   return (
-  <Layout mobileHeader="page" fitViewport>
-    {page}
-  </Layout>
-);
+    <Layout mobileHeader="page" fitViewport>
+      {page}
+    </Layout>
+  );
 }

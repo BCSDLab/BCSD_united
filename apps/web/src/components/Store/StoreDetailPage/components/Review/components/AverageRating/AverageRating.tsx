@@ -1,4 +1,5 @@
 import { useSuspenseInfiniteQuery } from '@tanstack/react-query';
+
 import { storeQueries } from 'api/store/queries';
 import Rating from 'components/Store/StoreDetailPage/components/Review/components/Rating/Rating';
 import StarList from 'components/Store/StoreDetailPage/components/Review/components/StarList/StarList';

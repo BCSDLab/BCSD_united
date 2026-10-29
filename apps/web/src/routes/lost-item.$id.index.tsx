@@ -1,11 +1,8 @@
+import { useEffect } from 'react';
+import { dehydrate, QueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate, useRouter, notFound } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
-import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
-import { useEffect } from 'react';
 
-
-
-import { dehydrate, QueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { articleQueries } from 'api/articles/queries';
 import ChatIcon from 'assets/svg/Articles/chat.svg';
 import ReportIcon from 'assets/svg/Articles/report.svg';
@@ -30,11 +27,9 @@ import useModalPortal from 'utils/hooks/layout/useModalPortal';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import useScrollToTop from 'utils/hooks/ui/useScrollToTop';
-
+import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 
 import styles from 'pages/lost-item/[id]/LostItemDetailPage.module.scss';
-
-
 
 interface LostItemDetailPageProps {
   articleId: number;
@@ -44,7 +39,6 @@ export default function LostItemDetailPage({ articleId }: LostItemDetailPageProp
   useScrollToTop();
   const router = useRouter();
   const routeNavigate = useNavigate();
-  const navigate = (href: string) => routeNavigate({ href });
   const isMobile = useMediaQuery();
   const portalManager = useModalPortal();
   const isLoggedIn = useIsLoggedIn();
@@ -70,9 +64,9 @@ export default function LostItemDetailPage({ articleId }: LostItemDetailPageProp
   useEffect(() => {
     if (isReportModalOpen && isMobile) {
       closeReportModal();
-      navigate(ROUTES.LostItemReport({ id: String(articleId) }));
+      routeNavigate({ href: ROUTES.LostItemReport({ id: String(articleId) }) });
     }
-  }, [isReportModalOpen, isMobile, closeReportModal, navigate, articleId]);
+  }, [isReportModalOpen, isMobile, closeReportModal, routeNavigate, articleId]);
 
   const {
     category,
@@ -124,7 +118,7 @@ export default function LostItemDetailPage({ articleId }: LostItemDetailPageProp
 
   const handleModifyButtonClick = () => {
     logLostItemModify(type === 'FOUND' ? '습득물' : '분실물');
-    navigate(ROUTES.LostItemEdit({ id: String(articleId) }));
+    routeNavigate({ href: ROUTES.LostItemEdit({ id: String(articleId) }) });
   };
 
   const handleDeleteButtonClick = () => {
@@ -136,7 +130,7 @@ export default function LostItemDetailPage({ articleId }: LostItemDetailPageProp
     requireLogin('게시글을 신고 하려면', () => {
       logItemPostReportClick();
       if (isMobile) {
-        navigate(ROUTES.LostItemReport({ id: String(articleId) }));
+        routeNavigate({ href: ROUTES.LostItemReport({ id: String(articleId) }) });
 
         return;
       }
@@ -150,7 +144,9 @@ export default function LostItemDetailPage({ articleId }: LostItemDetailPageProp
       '쪽지를 보내려면',
       async () => {
         const chatroomInfo = await searchChatroom(articleId);
-        navigate(ROUTES.LostItemChat({ articleId: String(articleId), chatRoomId: String(chatroomInfo.chat_room_id) }));
+        routeNavigate({
+          href: ROUTES.LostItemChat({ articleId: String(articleId), chatRoomId: String(chatroomInfo.chat_room_id) }),
+        });
       },
       {
         onLogin: () => logLostItemMessageLoginRequest('로그인하기'),
@@ -249,36 +245,37 @@ export default function LostItemDetailPage({ articleId }: LostItemDetailPageProp
   );
 }
 
+const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
+  .validator(validatePageInput)
+  .handler(({ data }) =>
+    loadPageData(data, async (context, cacheControl, serverRequest) => {
+      const id = context.params.id;
+      if (typeof id !== 'string') {
+        throw notFound();
+      }
+      const articleId = Number(id);
 
+      const queryClient = new QueryClient();
 
-const getPageData = createServerFn({ method: 'GET', strict: { output: false } }).validator(validatePageInput)
-  .handler(({ data }) => loadPageData(data, async (context, cacheControl, serverRequest) => {
-    const id = context.params.id;
-    if (typeof id !== 'string') {
-      throw notFound();
-    }
-    const articleId = Number(id);
+      const latestLostItemParams = { limit: 10, sort: 'LATEST' as const };
 
-    const queryClient = new QueryClient();
+      await Promise.all([
+        queryClient.prefetchQuery(articleQueries.lostItemDetail(serverRequest.isLoggedIn, articleId)),
+        queryClient.prefetchInfiniteQuery(
+          articleQueries.lostItemInfiniteList(serverRequest.isLoggedIn, latestLostItemParams),
+        ),
+      ]);
 
-    const latestLostItemParams = { limit: 10, sort: 'LATEST' as const };
+      if (!serverRequest.isLoggedIn) {
+        cacheControl.enablePublicCache();
+      }
 
-    await Promise.all([
-      queryClient.prefetchQuery(articleQueries.lostItemDetail(serverRequest.isLoggedIn, articleId)),
-      queryClient.prefetchInfiniteQuery(
-        articleQueries.lostItemInfiniteList(serverRequest.isLoggedIn, latestLostItemParams),
-      ),
-    ]);
-
-    if (!serverRequest.isLoggedIn) {
-      cacheControl.enablePublicCache();
-    }
-
-    return {
+      return {
         dehydratedState: dehydrate(queryClient),
         articleId,
       };
-  }));
+    }),
+  );
 
 export const Route = createFileRoute('/lost-item/$id/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
@@ -291,5 +288,6 @@ export const Route = createFileRoute('/lost-item/$id/')({
 function RouteComponent() {
   const props = Route.useLoaderData();
   const page = <LostItemDetailPage {...props} />;
+
   return <SSRLayout>{page}</SSRLayout>;
 }

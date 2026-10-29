@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { useRouter } from '@tanstack/react-router';
-
 import { cn } from '@bcsdlab/utils';
+import { useRouter } from '@tanstack/react-router';
+import { Controller, useFormContext, useFormState, useWatch } from 'react-hook-form';
+
 import BackIcon from 'assets/svg/arrow-back.svg';
 import PCCustomInput from 'components/Auth/SignupPage/components/PCCustomInput';
-import { Controller, useFormContext, useFormState, useWatch } from 'react-hook-form';
 import { type UserType, GENDER_OPTIONS, REGEX, MESSAGES, INQUIRY_URL } from 'static/auth';
 import ROUTES from 'static/routes';
 import { useSessionLogger } from 'utils/hooks/analytics/useSessionLogger';

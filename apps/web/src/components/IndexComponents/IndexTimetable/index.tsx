@@ -48,24 +48,30 @@ export default function IndexTimeTable({ serverSemester }: IndexTimeTableProps) 
 
   return (
     <div className={styles.template}>
-      <Link  to={ROUTES.Timetable()} className={styles.title}
-      onClick={() => {
-        logger.actionEventClick({
-          team: 'USER',
-          event_label: 'main_timetable',
-          value: 'text',
-        });
-      }}>
-        시간표
-      </Link>
-      <ErrorBoundary fallbackClassName="loading">
-        <Link  to={ROUTES.Timetable()} onClick={() => {
+      <Link
+        to={ROUTES.Timetable()}
+        className={styles.title}
+        onClick={() => {
           logger.actionEventClick({
             team: 'USER',
             event_label: 'main_timetable',
-            value: 'table',
+            value: 'text',
           });
-        }}>
+        }}
+      >
+        시간표
+      </Link>
+      <ErrorBoundary fallbackClassName="loading">
+        <Link
+          to={ROUTES.Timetable()}
+          onClick={() => {
+            logger.actionEventClick({
+              team: 'USER',
+              event_label: 'main_timetable',
+              value: 'table',
+            });
+          }}
+        >
           {renderTimetable}
         </Link>
       </ErrorBoundary>

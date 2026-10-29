@@ -1,7 +1,7 @@
 import { type ChangeEvent, useState } from 'react';
+import { cn } from '@bcsdlab/utils';
 import { useRouter } from '@tanstack/react-router';
 
-import { cn } from '@bcsdlab/utils';
 import { searchClub } from 'api/club';
 import type { ClubSearchResponse } from 'api/club/entity';
 import CloseIcon from 'assets/svg/close-icon-grey.svg';
@@ -77,9 +77,11 @@ export default function ClubSearchContainer() {
         replacePage: true,
       },
     );
-    router.navigate({ href: ROUTES.ClubDetail({
-      id: String(item.club_id),
-    }) });
+    router.navigate({
+      href: ROUTES.ClubDetail({
+        id: String(item.club_id),
+      }),
+    });
   };
 
   const isResultExist = !!relateSearchItems?.keywords?.length;

@@ -147,9 +147,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "abtest_variable",
@@ -268,9 +266,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "academic_program_year",
@@ -348,9 +344,7 @@
           "expression": "ifnull(`major_id`,0)"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "access_history",
@@ -427,9 +421,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "access_history_abtest_variable",
@@ -506,9 +498,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "activities",
@@ -627,9 +617,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "admins",
@@ -734,9 +722,7 @@
           "columnType": "varchar(255)"
         }
       ],
-      "primaryKey": [
-        "user_id"
-      ]
+      "primaryKey": ["user_id"]
     },
     {
       "name": "admins_activity_history",
@@ -855,9 +841,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "article_ai_summaries",
@@ -1102,9 +1086,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "article_ai_summary_logs",
@@ -1293,9 +1275,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "article_attachments",
@@ -1414,9 +1394,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "article_keyword_user_map",
@@ -1507,9 +1485,7 @@
           "columnType": "tinyint(1)"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "article_keywords",
@@ -1628,9 +1604,7 @@
           "columnType": "tinyint(1)"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "article_search_keyword_ip_map",
@@ -1721,9 +1695,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "article_search_keywords",
@@ -1828,9 +1800,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "article_view_logs",
@@ -1907,9 +1877,7 @@
           "columnType": "varchar(45)"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "banner_categories",
@@ -1986,9 +1954,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "banners",
@@ -2219,9 +2185,7 @@
           "columnType": "tinyint(1)"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "boards",
@@ -2354,9 +2318,7 @@
           "columnType": "int unsigned"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "callvan_chat_message",
@@ -2517,9 +2479,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "callvan_chat_room",
@@ -2610,9 +2570,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "callvan_notification",
@@ -2899,9 +2857,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "callvan_participant",
@@ -3020,9 +2976,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "callvan_post",
@@ -3253,9 +3207,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "callvan_report",
@@ -3444,9 +3396,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "callvan_report_attachment",
@@ -3551,9 +3501,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "callvan_report_process",
@@ -3672,9 +3620,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "callvan_report_reason",
@@ -3779,9 +3725,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "campus_delivery_address",
@@ -3914,9 +3858,7 @@
           "columnType": "text"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "campus_delivery_address_type",
@@ -3979,9 +3921,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "cart",
@@ -4058,9 +3998,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "cart_menu_item",
@@ -4179,9 +4117,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "cart_menu_item_option",
@@ -4314,9 +4250,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "catalog",
@@ -4477,9 +4411,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "club",
@@ -4696,9 +4628,7 @@
           "columnType": "varchar(50)"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "club_category",
@@ -4733,9 +4663,7 @@
           "columnType": "varchar(255)"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "club_event",
@@ -4882,9 +4810,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "club_event_image",
@@ -4961,9 +4887,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "club_event_subscription",
@@ -5040,9 +4964,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "club_hot",
@@ -5161,9 +5083,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "club_like",
@@ -5240,9 +5160,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "club_manager",
@@ -5291,9 +5209,7 @@
           "columnType": "int unsigned"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "club_qna",
@@ -5426,9 +5342,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "club_recruitment",
@@ -5561,9 +5475,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "club_recruitment_subscription",
@@ -5640,9 +5552,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "club_sns",
@@ -5705,9 +5615,7 @@
           "columnType": "varchar(255)"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "comments",
@@ -5826,9 +5734,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "coop",
@@ -5863,9 +5769,7 @@
           "columnType": "varchar(255)"
         }
       ],
-      "primaryKey": [
-        "user_id"
-      ]
+      "primaryKey": ["user_id"]
     },
     {
       "name": "coop_names",
@@ -5914,9 +5818,7 @@
           "columnType": "varchar(500)"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "coop_opens",
@@ -6035,9 +5937,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "coop_semester",
@@ -6142,9 +6042,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "coop_shop",
@@ -6263,9 +6161,7 @@
           "columnType": "int unsigned"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "course_type",
@@ -6342,9 +6238,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "courses",
@@ -6407,9 +6301,7 @@
           "columnType": "tinyint(1)"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "department",
@@ -6528,9 +6420,7 @@
           "columnType": "int"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "department_contact_departments",
@@ -6621,9 +6511,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "department_contacts",
@@ -6728,9 +6616,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "detect_graduation_calculation",
@@ -6779,9 +6665,7 @@
           "columnType": "tinyint(1)"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "device",
@@ -6872,9 +6756,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "dining_likes",
@@ -6923,9 +6805,7 @@
           "columnType": "int"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "dining_menus",
@@ -7156,9 +7036,7 @@
           "columnType": "varchar(16)"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "dining_soldout_report",
@@ -7375,9 +7253,7 @@
           "columnType": "datetime"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "dining_soldout_report_change",
@@ -7580,9 +7456,7 @@
           "columnType": "varchar(16)"
         }
       ],
-      "primaryKey": [
-        "sequence"
-      ]
+      "primaryKey": ["sequence"]
     },
     {
       "name": "dining_soldout_report_delivery",
@@ -7799,9 +7673,7 @@
           "columnType": "datetime(6)"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "dining_soldout_report_delivery_attempt",
@@ -7990,9 +7862,7 @@
           "columnType": "datetime(6)"
         }
       ],
-      "primaryKey": [
-        "token"
-      ]
+      "primaryKey": ["token"]
     },
     {
       "name": "dining_soldout_report_delivery_target",
@@ -8153,9 +8023,7 @@
           "columnType": "datetime(6)"
         }
       ],
-      "primaryKey": [
-        "report_id"
-      ]
+      "primaryKey": ["report_id"]
     },
     {
       "name": "dining_soldout_report_sequence",
@@ -8204,9 +8072,7 @@
           "columnType": "datetime(6)"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "event_article_thumbnail_images",
@@ -8283,9 +8149,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "event_articles",
@@ -8460,9 +8324,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "event_articles_view_logs",
@@ -8539,9 +8401,7 @@
           "columnType": "varchar(45)"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "general_education_area",
@@ -8576,9 +8436,7 @@
           "columnType": "varchar(20)"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "koin_notice",
@@ -8669,9 +8527,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "lands",
@@ -9168,9 +9024,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "lectures",
@@ -9401,9 +9255,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "lost_item_articles",
@@ -9592,9 +9444,7 @@
           "columnType": "tinyint(1)"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "lost_item_images",
@@ -9685,9 +9535,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "lost_item_reports",
@@ -9806,9 +9654,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "major",
@@ -9885,9 +9731,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "members",
@@ -10034,9 +9878,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "migrations",
@@ -10085,9 +9927,7 @@
           "columnType": "int"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "new_articles",
@@ -10220,9 +10060,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "new_koin_articles",
@@ -10313,9 +10151,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "new_koreatech_articles",
@@ -10462,9 +10298,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "notification",
@@ -10667,9 +10501,7 @@
           "columnType": "varchar(100)"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "notification_subscribe",
@@ -10760,9 +10592,7 @@
           "columnType": "varchar(255)"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "order",
@@ -10909,9 +10739,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "order_delivery",
@@ -11002,9 +10830,7 @@
           "columnType": "tinyint(1)"
         }
       ],
-      "primaryKey": [
-        "order_id"
-      ]
+      "primaryKey": ["order_id"]
     },
     {
       "name": "order_delivery_v2",
@@ -11207,9 +11033,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "order_id"
-      ]
+      "primaryKey": ["order_id"]
     },
     {
       "name": "order_menu",
@@ -11314,9 +11138,7 @@
           "columnType": "varchar(255)"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "order_menu_option",
@@ -11407,9 +11229,7 @@
           "columnType": "varchar(255)"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "order_menu_option_v2",
@@ -11570,9 +11390,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "order_menu_v2",
@@ -11733,9 +11551,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "order_takeout",
@@ -11784,9 +11600,7 @@
           "columnType": "tinyint(1)"
         }
       ],
-      "primaryKey": [
-        "order_id"
-      ]
+      "primaryKey": ["order_id"]
     },
     {
       "name": "order_takeout_v2",
@@ -11891,9 +11705,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "order_id"
-      ]
+      "primaryKey": ["order_id"]
     },
     {
       "name": "order_v2",
@@ -12166,9 +11978,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "orderable_shop",
@@ -12301,9 +12111,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "orderable_shop_delivery_option",
@@ -12394,9 +12202,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "orderable_shop_image",
@@ -12501,9 +12307,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "orderable_shop_menu",
@@ -12622,9 +12426,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "orderable_shop_menu_group",
@@ -12715,9 +12517,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "orderable_shop_menu_group_map",
@@ -12808,9 +12608,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "orderable_shop_menu_images",
@@ -12915,9 +12713,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "orderable_shop_menu_option",
@@ -13022,9 +12818,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "orderable_shop_menu_option_group",
@@ -13171,9 +12965,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "orderable_shop_menu_option_group_map",
@@ -13264,9 +13056,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "orderable_shop_menu_price",
@@ -13371,9 +13161,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "organizations",
@@ -13478,9 +13266,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "owner_attachments",
@@ -13571,9 +13357,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "owners",
@@ -13650,9 +13434,7 @@
           "columnType": "varchar(11)"
         }
       ],
-      "primaryKey": [
-        "user_id"
-      ]
+      "primaryKey": ["user_id"]
     },
     {
       "name": "password_resets",
@@ -13820,9 +13602,7 @@
           "columnType": "varchar(64)"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "payment_cancel",
@@ -13913,9 +13693,7 @@
           "columnType": "int unsigned"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "payment_cancel_v2",
@@ -14048,9 +13826,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "payment_idempotency_key",
@@ -14127,9 +13903,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "payment_v2",
@@ -14332,9 +14106,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "rider_message",
@@ -14397,9 +14169,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "search_articles",
@@ -14546,9 +14316,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "semester",
@@ -14611,9 +14379,7 @@
           "columnType": "varchar(20)"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "shop_base_delivery_tip",
@@ -14718,9 +14484,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "shop_benefit_categories",
@@ -14825,9 +14589,7 @@
           "columnType": "varchar(255)"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "shop_benefit_category_map",
@@ -14918,9 +14680,7 @@
           "columnType": "varchar(20)"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "shop_categories",
@@ -15039,9 +14799,7 @@
           "columnType": "int"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "shop_category_map",
@@ -15118,9 +14876,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "shop_images",
@@ -15197,9 +14953,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "shop_menu_categories",
@@ -15290,9 +15044,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "shop_menu_category_map",
@@ -15369,9 +15121,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "shop_menu_details",
@@ -15462,9 +15212,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "shop_menu_images",
@@ -15541,9 +15289,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "shop_menu_origin",
@@ -15648,9 +15394,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "shop_menu_search_keywords",
@@ -15713,9 +15457,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "shop_menus",
@@ -15834,9 +15576,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "shop_notification_messages",
@@ -15913,9 +15653,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "shop_opens",
@@ -16048,9 +15786,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "shop_operation",
@@ -16141,9 +15877,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "shop_order_service_requests",
@@ -16374,9 +16108,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "shop_parent_categories",
@@ -16453,9 +16185,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "shop_review_images",
@@ -16532,9 +16262,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "shop_review_menus",
@@ -16611,9 +16339,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "shop_review_reports",
@@ -16732,9 +16458,7 @@
           "columnType": "varchar(25)"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "shop_review_reports_categories",
@@ -16811,9 +16535,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "shop_reviews",
@@ -16932,9 +16654,7 @@
           "columnType": "tinyint(1)"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "shops",
@@ -17277,9 +16997,7 @@
           "columnType": "int unsigned"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "standard_graduation_requirements",
@@ -17398,9 +17116,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "student_course_calculation",
@@ -17505,9 +17221,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "students",
@@ -17612,9 +17326,7 @@
           "columnType": "int unsigned"
         }
       ],
-      "primaryKey": [
-        "user_id"
-      ]
+      "primaryKey": ["user_id"]
     },
     {
       "name": "team_recruitment",
@@ -17873,9 +17585,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "team_recruitment_application",
@@ -18050,9 +17760,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "team_recruitment_chat_member",
@@ -18143,9 +17851,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "team_recruitment_chat_message",
@@ -18264,9 +17970,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "team_recruitment_chat_room",
@@ -18385,9 +18089,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "team_recruitment_notification",
@@ -18584,9 +18286,7 @@
           "columnType": "text"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "team_recruitment_outbox_event",
@@ -18803,9 +18503,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "team_recruitment_profile",
@@ -18896,9 +18594,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "user_id"
-      ]
+      "primaryKey": ["user_id"]
     },
     {
       "name": "team_recruitment_profile_activity",
@@ -19045,9 +18741,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "team_recruitment_profile_skill",
@@ -19138,9 +18832,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "team_recruitment_role",
@@ -19259,9 +18951,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "team_recruitment_user_lock",
@@ -19282,9 +18972,7 @@
           "columnType": "int unsigned"
         }
       ],
-      "primaryKey": [
-        "user_id"
-      ]
+      "primaryKey": ["user_id"]
     },
     {
       "name": "tech_stacks",
@@ -19403,9 +19091,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "timetable_frame",
@@ -19524,9 +19210,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "timetable_lecture",
@@ -19729,9 +19413,7 @@
           "columnType": "int unsigned"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "tracks",
@@ -19822,9 +19504,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "user_delivery_address",
@@ -20083,9 +19763,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "user_notification_status",
@@ -20162,9 +19840,7 @@
           "columnType": "timestamp"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "users",
@@ -20409,9 +20085,7 @@
           "columnType": "varchar(255)"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "versions",
@@ -20530,9 +20204,7 @@
           "columnType": "text"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "native_sequence",
@@ -20557,9 +20229,7 @@
           "columnType": "bigint"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "native_collation_key",
@@ -20593,10 +20263,7 @@
           "columnType": "text"
         }
       ],
-      "primaryKey": [
-        "scope",
-        "owner"
-      ]
+      "primaryKey": ["scope", "owner"]
     },
     {
       "name": "native_import_checkpoint",
@@ -20639,9 +20306,7 @@
           "columnType": "text"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "native_import_control",
@@ -20666,9 +20331,7 @@
           "columnType": "boolean"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "native_article_summary_execution",
@@ -20702,9 +20365,7 @@
           "columnType": "text"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "native_catalog_request_guard",
@@ -20738,9 +20399,7 @@
           "columnType": "int"
         }
       ],
-      "primaryKey": [
-        "key"
-      ]
+      "primaryKey": ["key"]
     },
     {
       "name": "native_legacy_redis",
@@ -20792,9 +20451,7 @@
           "columnType": "text"
         }
       ],
-      "primaryKey": [
-        "key"
-      ]
+      "primaryKey": ["key"]
     },
     {
       "name": "native_legacy_mongo",
@@ -20828,10 +20485,7 @@
           "columnType": "text"
         }
       ],
-      "primaryKey": [
-        "collection",
-        "source_id"
-      ]
+      "primaryKey": ["collection", "source_id"]
     },
     {
       "name": "identity_web_sessions",
@@ -20901,9 +20555,7 @@
           "columnType": "boolean"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "identity_native_sessions",
@@ -20955,9 +20607,7 @@
           "columnType": "int"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "identity_verifications",
@@ -21027,9 +20677,7 @@
           "columnType": "int"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "identity_verification_limits",
@@ -21072,9 +20720,7 @@
           "columnType": "int"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "identity_tokens",
@@ -21135,9 +20781,7 @@
           "columnType": "int"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "identity_atomic_guards",
@@ -21162,9 +20806,7 @@
           "columnType": "int"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "identity_outbox",
@@ -21234,9 +20876,7 @@
           "columnType": "int"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "native_integration_rate_limit",
@@ -21261,9 +20901,7 @@
           "columnType": "int"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "native_dining_guard",
@@ -21288,9 +20926,7 @@
           "columnType": "int"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "native_dining_assert",
@@ -21315,9 +20951,7 @@
           "columnType": "int"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "native_article_keyword_suggestion",
@@ -21360,9 +20994,7 @@
           "columnType": "int"
         }
       ],
-      "primaryKey": [
-        "keyword_id"
-      ]
+      "primaryKey": ["keyword_id"]
     },
     {
       "name": "native_community_outbox",
@@ -21432,9 +21064,7 @@
           "columnType": "int"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "native_team_request_guard",
@@ -21468,9 +21098,7 @@
           "columnType": "int"
         }
       ],
-      "primaryKey": [
-        "key"
-      ]
+      "primaryKey": ["key"]
     },
     {
       "name": "native_dining_rate_limit",
@@ -21495,9 +21123,7 @@
           "columnType": "text"
         }
       ],
-      "primaryKey": [
-        "key"
-      ]
+      "primaryKey": ["key"]
     },
     {
       "name": "native_dining_outbox",
@@ -21567,9 +21193,7 @@
           "columnType": "text"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "native_article_hit_user",
@@ -21603,10 +21227,7 @@
           "columnType": "int"
         }
       ],
-      "primaryKey": [
-        "article_id",
-        "public_ip"
-      ]
+      "primaryKey": ["article_id", "public_ip"]
     },
     {
       "name": "native_article_hit_snapshot",
@@ -21631,9 +21252,7 @@
           "columnType": "int"
         }
       ],
-      "primaryKey": [
-        "article_id"
-      ]
+      "primaryKey": ["article_id"]
     },
     {
       "name": "native_hot_article",
@@ -21658,9 +21277,7 @@
           "columnType": "int"
         }
       ],
-      "primaryKey": [
-        "article_id"
-      ]
+      "primaryKey": ["article_id"]
     },
     {
       "name": "native_article_search_count",
@@ -21694,10 +21311,7 @@
           "columnType": "int"
         }
       ],
-      "primaryKey": [
-        "public_ip",
-        "keyword"
-      ]
+      "primaryKey": ["public_ip", "keyword"]
     },
     {
       "name": "native_popular_keyword",
@@ -21722,9 +21336,7 @@
           "columnType": "real"
         }
       ],
-      "primaryKey": [
-        "keyword"
-      ]
+      "primaryKey": ["keyword"]
     },
     {
       "name": "native_article_ngram",
@@ -21758,10 +21370,7 @@
           "columnType": "text"
         }
       ],
-      "primaryKey": [
-        "article_id",
-        "position"
-      ]
+      "primaryKey": ["article_id", "position"]
     },
     {
       "name": "native_community_schedule",
@@ -21786,9 +21395,7 @@
           "columnType": "int"
         }
       ],
-      "primaryKey": [
-        "name"
-      ]
+      "primaryKey": ["name"]
     },
     {
       "name": "lost_item_chat_room",
@@ -21858,9 +21465,7 @@
           "columnType": "text"
         }
       ],
-      "primaryKey": [
-        "_id"
-      ]
+      "primaryKey": ["_id"]
     },
     {
       "name": "lost_item_chat_user_block",
@@ -21912,9 +21517,7 @@
           "columnType": "text"
         }
       ],
-      "primaryKey": [
-        "_id"
-      ]
+      "primaryKey": ["_id"]
     },
     {
       "name": "native_chat_message",
@@ -22011,9 +21614,7 @@
           "columnType": "text"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "native_chat_polling_session",
@@ -22056,11 +21657,7 @@
           "columnType": "int"
         }
       ],
-      "primaryKey": [
-        "article_id",
-        "chatroom_id",
-        "user_id"
-      ]
+      "primaryKey": ["article_id", "chatroom_id", "user_id"]
     },
     {
       "name": "native_chat_outbox",
@@ -22121,9 +21718,7 @@
           "columnType": "int"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "native_club_requests",
@@ -22175,9 +21770,7 @@
           "columnType": "text"
         }
       ],
-      "primaryKey": [
-        "name"
-      ]
+      "primaryKey": ["name"]
     },
     {
       "name": "native_club_hits",
@@ -22202,9 +21795,7 @@
           "columnType": "int"
         }
       ],
-      "primaryKey": [
-        "club_id"
-      ]
+      "primaryKey": ["club_id"]
     },
     {
       "name": "native_club_outbox",
@@ -22265,9 +21856,7 @@
           "columnType": "text"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "native_club_cron",
@@ -22292,9 +21881,7 @@
           "columnType": "text"
         }
       ],
-      "primaryKey": [
-        "key"
-      ]
+      "primaryKey": ["key"]
     },
     {
       "name": "native_club_hot",
@@ -22319,9 +21906,7 @@
           "columnType": "text"
         }
       ],
-      "primaryKey": [
-        "key"
-      ]
+      "primaryKey": ["key"]
     },
     {
       "name": "native_callvan_guard",
@@ -22346,9 +21931,7 @@
           "columnType": "int"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "native_callvan_event",
@@ -22418,9 +22001,7 @@
           "columnType": "text"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "native_callvan_delivery",
@@ -22508,9 +22089,7 @@
           "columnType": "text"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "native_commerce_revision",
@@ -22535,9 +22114,7 @@
           "columnType": "int"
         }
       ],
-      "primaryKey": [
-        "user_id"
-      ]
+      "primaryKey": ["user_id"]
     },
     {
       "name": "native_commerce_guard",
@@ -22562,9 +22139,7 @@
           "columnType": "int"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "temporary_payment",
@@ -22724,9 +22299,7 @@
           "columnType": "int"
         }
       ],
-      "primaryKey": [
-        "pg_order_id"
-      ]
+      "primaryKey": ["pg_order_id"]
     },
     {
       "name": "native_payment_cancel_attempt",
@@ -22832,9 +22405,7 @@
           "columnType": "text"
         }
       ],
-      "primaryKey": [
-        "payment_id"
-      ]
+      "primaryKey": ["payment_id"]
     },
     {
       "name": "native_commerce_outbox",
@@ -22913,9 +22484,7 @@
           "columnType": "int"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "native_cart_duplicate",
@@ -22949,9 +22518,7 @@
           "columnType": "int"
         }
       ],
-      "primaryKey": [
-        "key"
-      ]
+      "primaryKey": ["key"]
     },
     {
       "name": "native_catalog_outbox",
@@ -23003,9 +22570,7 @@
           "columnType": "int"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "address_byeongcheon",
@@ -23111,9 +22676,7 @@
           "columnType": "text"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "abtest_variable_count",
@@ -23138,9 +22701,7 @@
           "columnType": "int"
         }
       ],
-      "primaryKey": [
-        "variable_id"
-      ]
+      "primaryKey": ["variable_id"]
     },
     {
       "name": "abtest_variable_assign",
@@ -23174,10 +22735,7 @@
           "columnType": "int"
         }
       ],
-      "primaryKey": [
-        "variable_id",
-        "access_history_id"
-      ]
+      "primaryKey": ["variable_id", "access_history_id"]
     },
     {
       "name": "shuttlebus_timetables",
@@ -23256,9 +22814,7 @@
           "columnType": "json"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "citybus_timetables",
@@ -23301,9 +22857,7 @@
           "columnType": "text"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "native_transport_cache",
@@ -23346,9 +22900,7 @@
           "columnType": "int"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
     },
     {
       "name": "native_notification_outbox",
@@ -23436,9 +22988,102 @@
           "columnType": "text"
         }
       ],
-      "primaryKey": [
-        "id"
-      ]
+      "primaryKey": ["id"]
+    },
+    {
+      "name": "native_source_metadata_file",
+      "origin": "native",
+      "columns": [
+        {
+          "name": "id",
+          "type": "text",
+          "nullable": "NO",
+          "default": null,
+          "ref": null,
+          "native": true,
+          "columnType": "text"
+        },
+        {
+          "name": "source",
+          "type": "text",
+          "nullable": "NO",
+          "default": null,
+          "ref": null,
+          "native": true,
+          "columnType": "text"
+        },
+        {
+          "name": "row_count",
+          "type": "int",
+          "nullable": "NO",
+          "default": null,
+          "ref": null,
+          "native": true,
+          "columnType": "int"
+        },
+        {
+          "name": "byte_count",
+          "type": "int",
+          "nullable": "NO",
+          "default": null,
+          "ref": null,
+          "native": true,
+          "columnType": "int"
+        },
+        {
+          "name": "sha256",
+          "type": "text",
+          "nullable": "NO",
+          "default": null,
+          "ref": null,
+          "native": true,
+          "columnType": "text"
+        },
+        {
+          "name": "chunk_count",
+          "type": "int",
+          "nullable": "NO",
+          "default": null,
+          "ref": null,
+          "native": true,
+          "columnType": "int"
+        }
+      ],
+      "primaryKey": ["id"]
+    },
+    {
+      "name": "native_source_metadata_chunk",
+      "origin": "native",
+      "columns": [
+        {
+          "name": "file_id",
+          "type": "text",
+          "nullable": "NO",
+          "default": null,
+          "ref": "native_source_metadata_file",
+          "native": true,
+          "columnType": "text"
+        },
+        {
+          "name": "position",
+          "type": "int",
+          "nullable": "NO",
+          "default": null,
+          "ref": null,
+          "native": true,
+          "columnType": "int"
+        },
+        {
+          "name": "payload",
+          "type": "text",
+          "nullable": "NO",
+          "default": null,
+          "ref": null,
+          "native": true,
+          "columnType": "text"
+        }
+      ],
+      "primaryKey": ["file_id", "position"]
     }
   ],
   "conversions": {

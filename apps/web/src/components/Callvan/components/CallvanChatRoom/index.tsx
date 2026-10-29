@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from 'react';
+import { useSuspenseQuery } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
 
-import { useSuspenseQuery } from '@tanstack/react-query';
 import type { CallvanChatMessage } from 'api/callvan/entity';
 import { callvanQueries } from 'api/callvan/queries';
 import ArrowBackIcon from 'assets/svg/Callvan/arrow-back.svg';
@@ -173,7 +173,7 @@ export default function CallvanChatRoom({ postId }: CallvanChatRoomProps) {
                     )}
                     {msg.is_image ? (
                       <div className={styles['chat-room__bubble-image']}>
-                  {/* 채팅 이미지마다 크기가 달라 원본 비율로 표시한다. */}
+                        {/* 채팅 이미지마다 크기가 달라 원본 비율로 표시한다. */}
                         <img src={msg.content} alt="업로드 이미지" />
                       </div>
                     ) : (
@@ -208,7 +208,7 @@ export default function CallvanChatRoom({ postId }: CallvanChatRoomProps) {
                   <div className={styles['chat-room__message-row--others']}>
                     {msg.is_image ? (
                       <div className={styles['chat-room__bubble-image']}>
-                  {/* 채팅 이미지마다 크기가 달라 원본 비율로 표시한다. */}
+                        {/* 채팅 이미지마다 크기가 달라 원본 비율로 표시한다. */}
                         <img src={msg.content} alt="업로드 이미지" />
                       </div>
                     ) : (

@@ -1,11 +1,9 @@
-import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router';
-
 import React, { Suspense, useEffect, useImperativeHandle, useReducer, useState } from 'react';
-
-
 import { isKoinError } from '@bcsdlab/koin';
 import { cn, sha256 } from '@bcsdlab/utils';
 import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router';
+
 import type { UserUpdateRequest, UserResponse, GeneralUserUpdateRequest } from 'api/auth/entity';
 import { authQueryKeys } from 'api/auth/queries';
 import { deptQueries } from 'api/dept/queries';
@@ -1250,10 +1248,9 @@ const NameForm = React.forwardRef<ICustomFormInput | null, ICustomFormInputProps
 
 const useModifyInfoForm = () => {
   const queryClient = useQueryClient();
-  
+
   const routeNavigate = useNavigate();
-  
-  
+
   const isMobile = useMediaQuery();
   const onSuccess = () => {
     isomorphicLocalStorage.setItem(STORAGE_KEY.USER_INFO_COMPLETION, COMPLETION_STATUS.COMPLETED);
@@ -1449,9 +1446,6 @@ function ModifyInfoPage() {
   );
 }
 
-
-
-
 export default ModifyInfoPage;
 
 export const Route = createFileRoute('/auth/modifyinfo/')({
@@ -1462,5 +1456,6 @@ export const Route = createFileRoute('/auth/modifyinfo/')({
 
 function RouteComponent() {
   const page = <ModifyInfoPage />;
+
   return <Layout hideLayout>{page}</Layout>;
 }

@@ -17,8 +17,6 @@ function LoginPage() {
   );
 }
 
-
-
 export default LoginPage;
 
 export const Route = createFileRoute('/auth/')({
@@ -28,5 +26,6 @@ export const Route = createFileRoute('/auth/')({
 
 function RouteComponent() {
   const page = <LoginPage />;
+
   return <AuthLayout>{page}</AuthLayout>;
 }

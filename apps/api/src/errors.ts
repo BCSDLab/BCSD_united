@@ -17,10 +17,13 @@ export class ApiError extends Error {
 }
 
 export function errorResponse(error: ApiError): Response {
-  return Response.json({
-    code: error.code,
-    message: error.message,
-    errorTraceId: crypto.randomUUID(),
-    ...(error.fieldErrors.length ? { fieldErrors: error.fieldErrors } : {}),
-  }, { status: error.status, headers: { 'Cache-Control': 'no-store' } });
+  return Response.json(
+    {
+      code: error.code,
+      message: error.message,
+      errorTraceId: crypto.randomUUID(),
+      ...(error.fieldErrors.length ? { fieldErrors: error.fieldErrors } : {}),
+    },
+    { status: error.status, headers: { 'Cache-Control': 'no-store' } },
+  );
 }

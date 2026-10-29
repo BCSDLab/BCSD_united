@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+
 import { storeMobileQueries } from 'api/storeMobile/queries';
 import RelateSearchItem from 'components/Store/mobile/StoreSearchPage/components/RelateSearchItem';
 

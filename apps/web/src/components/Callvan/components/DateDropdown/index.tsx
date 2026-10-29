@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-
 import { cn } from '@bcsdlab/utils';
+
 import ChevronDownIcon from 'assets/svg/Callvan/chevron-down.svg';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
 import { useOutsideClick } from 'utils/hooks/ui/useOutsideClick';
+import { useServerCalendarDate } from 'utils/ssr/useServerNow';
 import { formatKoreanDate } from 'utils/ts/calendar';
 
 import styles from './DateDropdown.module.scss';
@@ -74,13 +75,6 @@ function getDaysInMonth(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate();
 }
 
-function buildYears(): number[] {
-  const today = new Date();
-  const currentYear = today.getFullYear();
-
-  return [currentYear, currentYear + 1];
-}
-
 interface DateDropdownProps {
   selectedDate: Date;
   onChange: (date: Date) => void;
@@ -90,7 +84,8 @@ export default function DateDropdown({ selectedDate, onChange }: DateDropdownPro
   const [isOpen, , close, toggle] = useBooleanState(false);
   const { containerRef } = useOutsideClick({ onOutsideClick: close });
 
-  const years = buildYears();
+  const currentYear = useServerCalendarDate().getFullYear();
+  const years = [currentYear, currentYear + 1];
 
   const [tempYear, setTempYear] = useState(selectedDate.getFullYear());
   const [tempMonth, setTempMonth] = useState(selectedDate.getMonth());

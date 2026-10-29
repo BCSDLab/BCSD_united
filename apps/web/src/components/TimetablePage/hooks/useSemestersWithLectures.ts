@@ -1,4 +1,5 @@
 import { useQueries } from '@tanstack/react-query';
+
 import type { Semester } from 'api/timetable/entity';
 import { isValidTimetableFrameId, timetableQueries } from 'api/timetable/queries';
 import useUserType from 'utils/hooks/auth/useUserType';

@@ -1,6 +1,6 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter, useParams } from '@tanstack/react-router';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { TeamRecruitmentDetailResponse, TeamRecruitmentMeetingType } from 'api/team/entity';
 import { teamMutations } from 'api/team/mutations';
 import { teamQueries } from 'api/team/queries';
@@ -48,7 +48,7 @@ const toFormValues = (recruitment: TeamRecruitmentDetailResponse): TeamRecruitme
 
 export default function EditTeamRecruitment() {
   const router = useRouter();
-  const routeParams = useParams({ strict: false }) as Record<string, string | string[] | undefined>;
+  const routeParams = useParams({ strict: false });
   const queryClient = useQueryClient();
   const isLoggedIn = useIsLoggedIn();
   const postId = Array.isArray(routeParams.postId) ? routeParams.postId[0] : routeParams.postId;

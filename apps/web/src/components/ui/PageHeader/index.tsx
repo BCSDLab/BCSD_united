@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
-
 import { cn } from '@bcsdlab/utils';
+
 import ArrowBackIcon from 'assets/svg/common/arrow-back-icon.svg';
 import useGoBack from 'utils/hooks/routing/useGoBack';
 
