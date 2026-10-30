@@ -727,11 +727,36 @@ export default {
                 )
                 .map(([key, child]) => [key, shape(child)])
             : [];
+        const issueValue =
+          data !== null && typeof data === 'object' && !Array.isArray(data) && 'issue' in data ? data.issue : null;
+        const services =
+          issueValue !== null &&
+          typeof issueValue === 'object' &&
+          !Array.isArray(issueValue) &&
+          'services' in issueValue &&
+          Array.isArray(issueValue.services)
+            ? issueValue.services.slice(0, 5)
+            : [];
+        const serviceShapes = services.map((service) => ({
+          type: Array.isArray(service) ? 'array' : typeof service,
+          fields: shape(service),
+          exact:
+            typeof service === 'string'
+              ? { web: service === 'koin-web', api: service === 'koin-api' }
+              : service !== null && typeof service === 'object' && !Array.isArray(service)
+                ? Object.entries(service)
+                    .filter(([key, value]) => /^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(key) && typeof value === 'string')
+                    .map(([key, value]) => ({ key, web: value === 'koin-web', api: value === 'koin-api' }))
+                : null,
+        }));
         console.info('Cloudflare native Issues envelope shape', {
           bodyBytes: body.byteLength,
           top: shape(json),
           data: shape(data),
           nested,
+          serviceShapes,
+          policyMatchesApproved: json.policy_id === '3bcbfa2a0c04416ca7e3da038f77ac37',
+          accountProvided: 'account_id' in json,
         });
       }
       const config = configuration(env);
