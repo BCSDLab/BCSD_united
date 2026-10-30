@@ -699,6 +699,41 @@ export default {
       ) {
         return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
       }
+      if (
+        url.pathname === '/webhooks/cloudflare' &&
+        json !== null &&
+        typeof json === 'object' &&
+        !Array.isArray(json) &&
+        'policy_id' in json
+      ) {
+        const shape = (value: unknown): [string, string][] =>
+          value !== null && typeof value === 'object' && !Array.isArray(value)
+            ? Object.entries(value)
+                .slice(0, 40)
+                .filter(([key]) => /^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(key))
+                .map(([key, child]) => [key, Array.isArray(child) ? 'array' : typeof child])
+            : [];
+        const data = 'data' in json ? json.data : null;
+        const nested =
+          data !== null && typeof data === 'object' && !Array.isArray(data)
+            ? Object.entries(data)
+                .slice(0, 20)
+                .filter(
+                  ([key, child]) =>
+                    /^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(key) &&
+                    child !== null &&
+                    typeof child === 'object' &&
+                    !Array.isArray(child),
+                )
+                .map(([key, child]) => [key, shape(child)])
+            : [];
+        console.info('Cloudflare native Issues envelope shape', {
+          bodyBytes: body.byteLength,
+          top: shape(json),
+          data: shape(data),
+          nested,
+        });
+      }
       const config = configuration(env);
       const capture =
         url.pathname === '/webhooks/sentry'
