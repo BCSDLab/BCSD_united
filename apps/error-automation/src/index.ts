@@ -757,6 +757,19 @@ export default {
           serviceShapes,
           policyMatchesApproved: json.policy_id === '3bcbfa2a0c04416ca7e3da038f77ac37',
           accountProvided: 'account_id' in json,
+          issueIdMatchesCanonical:
+            issueValue !== null &&
+            typeof issueValue === 'object' &&
+            !Array.isArray(issueValue) &&
+            'id' in issueValue &&
+            issueValue.id === '0087a4dd-dcd0-471f-9850-617dd3cccd37',
+          issueIdIsUuid:
+            issueValue !== null &&
+            typeof issueValue === 'object' &&
+            !Array.isArray(issueValue) &&
+            'id' in issueValue &&
+            typeof issueValue.id === 'string' &&
+            /^(?:[a-f0-9]{32}|[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12})$/.test(issueValue.id),
         });
       }
       const config = configuration(env);
