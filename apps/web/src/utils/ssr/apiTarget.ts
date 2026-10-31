@@ -7,8 +7,9 @@ interface ApiEnvironment {
   KOIN_API?: Fetcher;
 }
 
-const MAIN_API_ORIGIN = 'https://koin-api.bcsdlab.workers.dev';
-const PREVIEW_API_ORIGIN = 'https://preview-koin-api.bcsdlab.workers.dev';
+// 웹은 KOIN_API_V2(Java) 운영·stage 서버를 사용한다
+const MAIN_API_ORIGIN = 'https://api.koreatech.in';
+const PREVIEW_API_ORIGIN = 'https://api.stage.koreatech.in';
 
 function getApiEnvironment(): ApiEnvironment {
   const bindings: ApiEnvironment = env;
@@ -18,9 +19,6 @@ function getApiEnvironment(): ApiEnvironment {
 
   if (!expectedOrigin || bindings.KOIN_API_ORIGIN !== expectedOrigin) {
     throw new Error('API origin does not match the Worker environment.');
-  }
-  if (bindings.KOIN_ENVIRONMENT === 'main' && !bindings.KOIN_API) {
-    throw new Error('Main API service binding is not configured.');
   }
 
   return bindings;
@@ -36,7 +34,8 @@ export function fetchApiRequest(request: Request): Promise<Response> {
     throw new Error('API request does not match the Worker environment.');
   }
 
-  return bindings.KOIN_ENVIRONMENT === 'preview' ? fetch(request) : bindings.KOIN_API!.fetch(request);
+  // `KOIN_API`는 오프라인 검증 빌드에서만 붙는 로컬 API Worker다. 배포된 웹은 HTTP로 호출한다
+  return bindings.KOIN_API ? bindings.KOIN_API.fetch(request) : fetch(request);
 }
 
 export const apiRequestAdapter: AxiosAdapter = async (config) => {

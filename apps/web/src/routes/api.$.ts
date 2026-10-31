@@ -46,6 +46,9 @@ async function forward({ request }: { request: Request }): Promise<Response> {
   if (!origin && !referer && request.headers.get('sec-fetch-site') === 'same-origin') {
     headers.set('Origin', url.origin);
   }
+  // API는 사용자 IP를 `X-Forwarded-For`에서 읽는다. 브라우저가 보낸 값은 위조할 수 있으므로 Cloudflare가 확인한 IP만 넘긴다
+  const clientIp = request.headers.get('cf-connecting-ip');
+  if (clientIp) headers.set('X-Forwarded-For', clientIp);
   const upstreamRequest = new Request(base.replace(/\/$/, '') + suffix, {
     method: request.method,
     headers,
