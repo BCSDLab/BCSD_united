@@ -320,11 +320,11 @@ export default [
     },
   },
   {
-    // 저장소 루트의 Sentry 런타임 설정 파일. tsconfig.json의 include(src/**/*)에는
-    // 포함되지 않아 위 src/**/* 블록의 import/resolver 설정을 못 받고, 기본 node
-    // resolver로는 baseUrl 기반 절대경로 임포트(예: utils/ts/maskSensitive)를
-    // 못 찾아 import/no-unresolved 오탐이 난다. resolver 설정만 별도로 적용한다.
-    files: ['sentry.*.config.ts'],
+    // 앱 루트의 Sentry 런타임 설정 파일과 vite.config.ts. 위 src/**/* 블록의 import/resolver 설정을
+    // 못 받아 기본 node resolver를 쓰는데, 이 resolver는 baseUrl 기반 절대경로 임포트
+    // (예: utils/ts/maskSensitive)와 `main` 없이 package.json `exports`만 있는 패키지(vite 등)를
+    // 못 찾아 import/no-unresolved·import/named 오탐이 난다. resolver 설정만 별도로 적용한다.
+    files: ['sentry.*.config.ts', 'vite.config.ts'],
     settings: {
       'import/resolver': { typescript: {} },
     },
