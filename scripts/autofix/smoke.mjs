@@ -42,7 +42,7 @@ const auxiliary = deployment.auxiliaryWorkers;
 if (
   worker.name !== 'koin-web' ||
   worker.vars?.KOIN_ENVIRONMENT !== 'main' ||
-  worker.vars?.KOIN_API_ORIGIN !== 'https://koin-api.bcsdlab.workers.dev' ||
+  worker.vars?.KOIN_API_ORIGIN !== 'https://api.koreatech.in' ||
   !worker.services?.some(
     (binding) => binding.binding === 'KOIN_API' && binding.service === 'koin-api' && !binding.remote,
   ) ||

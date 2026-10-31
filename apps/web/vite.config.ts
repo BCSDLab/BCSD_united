@@ -36,7 +36,7 @@ function browserRequestContext(): Plugin {
   };
 }
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ command, mode, isPreview }) => {
   const env = loadEnv(mode, root, '');
   const branch = env.WORKERS_CI_BRANCH;
   const mainBranch = env.KOIN_MAIN_BRANCH || 'main';
@@ -45,6 +45,9 @@ export default defineConfig(({ mode }) => {
     throw new Error('The stable preview deployment only accepts KOIN_MAIN_BRANCH or KOIN_PREVIEW_BRANCH.');
   }
   env.NEXT_PUBLIC_API_PATH = '/api';
+  const offlineSmoke = env.AUTOFIX_OFFLINE_SMOKE === '1' && env.WORKERS_CI !== '1';
+  // 운영 API는 localhost Origin을 허용하지 않으므로 개발 서버는 Preview처럼 stage API를 쓴다
+  const devServer = command === 'serve' && !isPreview;
   env.NEXT_PUBLIC_SENTRY_ENVIRONMENT = branch === mainBranch ? 'production' : 'preview';
   env.NEXT_PUBLIC_SENTRY_RELEASE ||= env.WORKERS_CI_COMMIT_SHA;
 
@@ -60,12 +63,21 @@ export default defineConfig(({ mode }) => {
     plugins: [
       cloudflare({
         viteEnvironment: { name: 'ssr' },
-        // Only the isolated verifier builds an auxiliary API into this preview.
+        // Only the isolated verifier builds an auxiliary API into this preview and binds it as `KOIN_API`,
+        // so SSR and the `/api` gateway hit the local API instead of the deployed Java API.
         // Normal Workers Builds must never bundle a second deployable Worker.
-        auxiliaryWorkers:
-          env.AUTOFIX_OFFLINE_SMOKE === '1' && env.WORKERS_CI !== '1'
-            ? [{ configPath: '../api/.wrangler/autofix-api/wrangler.jsonc' }]
+        config: offlineSmoke
+          ? { services: [{ binding: 'KOIN_API', service: 'koin-api' }] }
+          : devServer
+            ? {
+                vars: {
+                  KOIN_ENVIRONMENT: 'preview',
+                  KOIN_API_ORIGIN: 'https://api.stage.koreatech.in',
+                  NEXT_PUBLIC_SENTRY_ENVIRONMENT: 'preview',
+                },
+              }
             : undefined,
+        auxiliaryWorkers: offlineSmoke ? [{ configPath: '../api/.wrangler/autofix-api/wrangler.jsonc' }] : undefined,
       }),
       browserRequestContext(),
       svgr({
