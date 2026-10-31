@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 export const D1_MAX_BYTES = 10_000_000_000;
 export const D1_MAX_ROW_BYTES = 2 * 1024 ** 2;
 export const D1_MAX_STATEMENT_BYTES = 100_000;
@@ -102,19 +104,88 @@ export function mysqlValue(column, value, datetimeOffset) {
   }
   return String(value);
 }
-export function rowInsert(table, row) {
+export const REDIS_ARCHIVE_THRESHOLD_BYTES = 32_000;
+const REDIS_ARCHIVE_CHUNK_UNITS = 12_000;
+
+export function assertRowSize(table, row) {
   const values = Object.values(row);
   const size = values.reduce(
     (sum, value) => sum + (value instanceof Uint8Array ? value.byteLength : Buffer.byteLength(String(value ?? ''))),
     values.length * 9 + 16,
   );
   if (size > D1_MAX_ROW_BYTES) throw new RangeError(`D1 row exceeds 2MiB: ${table}`);
-  const statement = `INSERT INTO ${quoteIdentifier(table)} (${Object.keys(row).map(quoteIdentifier).join(',')}) VALUES (${values.map(sqlLiteral).join(',')});`;
+}
+
+function assertStatementSize(table, statement) {
   if (Buffer.byteLength(statement) > D1_MAX_STATEMENT_BYTES)
     throw new RangeError(
       `D1 SQL statement exceeds 100KB: ${table}; parameterized/manual large-object migration required, no truncation performed`,
     );
   return statement;
+}
+
+export function rowInsert(table, row) {
+  assertRowSize(table, row);
+  const values = Object.values(row);
+  const statement = `INSERT INTO ${quoteIdentifier(table)} (${Object.keys(row).map(quoteIdentifier).join(',')}) VALUES (${values.map(sqlLiteral).join(',')});`;
+  return assertStatementSize(table, statement);
+}
+
+/** Archive-only large Redis payloads retain exact text while each D1 statement stays below 100KB. */
+export function* rowInsertStatements(table, row) {
+  if (
+    table !== 'native_legacy_redis' ||
+    typeof row.payload !== 'string' ||
+    Buffer.byteLength(row.payload) <= REDIS_ARCHIVE_THRESHOLD_BYTES
+  ) {
+    yield rowInsert(table, row);
+    return;
+  }
+  assertRowSize(table, row);
+  const key = sqlLiteral(row.key);
+  const prefix = `redis-archive:${createHash('sha256').update(row.key).digest('hex')}`;
+  const payload = row.payload;
+  const totalCharacters = Array.from(payload).length;
+  const inserted = rowInsert(table, { ...row, payload: '' });
+  yield assertStatementSize(table, inserted.slice(0, -1) + ' ON CONFLICT(key) DO NOTHING;');
+  function* guard(index, condition) {
+    const id = sqlLiteral(`${prefix}:${index}`);
+    yield assertStatementSize(
+      table,
+      `INSERT INTO identity_atomic_guards(id,allowed) VALUES(${id},CASE WHEN ${condition} THEN 1 ELSE 0 END) ON CONFLICT(id) DO UPDATE SET allowed=excluded.allowed;`,
+    );
+    yield `DELETE FROM identity_atomic_guards WHERE id=${id};`;
+  }
+  yield* guard(
+    'metadata',
+    `EXISTS(SELECT 1 FROM native_legacy_redis WHERE key=${key} AND type=${sqlLiteral(row.type)} AND disposition=${sqlLiteral(row.disposition)} AND expires_at IS ${sqlLiteral(row.expires_at)} AND length(payload)<=${totalCharacters})`,
+  );
+  let start = 0;
+  let offset = 0;
+  let index = 0;
+  while (start < payload.length) {
+    let end = Math.min(start + REDIS_ARCHIVE_CHUNK_UNITS, payload.length);
+    if (end < payload.length && /[\uD800-\uDBFF]/.test(payload[end - 1]) && /[\uDC00-\uDFFF]/.test(payload[end]))
+      end -= 1;
+    const chunk = payload.slice(start, end);
+    const length = Array.from(chunk).length;
+    const literal = sqlLiteral(chunk);
+    yield assertStatementSize(
+      table,
+      `UPDATE native_legacy_redis SET payload=payload||${literal} WHERE key=${key} AND length(payload)=${offset};`,
+    );
+    yield* guard(
+      index,
+      `EXISTS(SELECT 1 FROM native_legacy_redis WHERE key=${key} AND length(payload)>=${offset + length} AND substr(payload,${offset + 1},${length})=${literal})`,
+    );
+    start = end;
+    offset += length;
+    index += 1;
+  }
+  yield* guard(
+    'complete',
+    `EXISTS(SELECT 1 FROM native_legacy_redis WHERE key=${key} AND length(payload)=${totalCharacters})`,
+  );
 }
 export function decodeExtendedJson(value) {
   if (Array.isArray(value)) return value.map(decodeExtendedJson);

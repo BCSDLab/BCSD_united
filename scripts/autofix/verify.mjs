@@ -1,6 +1,17 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { rmSync } from 'node:fs';
-import { copyFile, lstat, mkdir, mkdtemp, readFile, readlink, symlink, writeFile } from 'node:fs/promises';
+import { lstatSync, realpathSync, rmSync } from 'node:fs';
+import {
+  chmod,
+  copyFile,
+  lstat,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readlink,
+  realpath,
+  symlink,
+  writeFile,
+} from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createHash, randomUUID } from 'node:crypto';
@@ -31,7 +42,16 @@ if (context.app === 'api' && context.requestMethod !== 'GET')
   );
 if (!context.route) throw new Error('No safe canonical event URL maps to a route; manual reproduction is required');
 const root = await mkdtemp(resolve(process.env.RUNNER_TEMP ?? tmpdir(), 'error-verification-'));
-process.once('exit', () => rmSync(root, { recursive: true, force: true }));
+process.once('exit', () => {
+  try {
+    cleanupSnapshot();
+  } catch (error) {
+    process.stderr.write(
+      `Verifier snapshot cleanup failed: ${error instanceof Error ? error.message : String(error)}\n`,
+    );
+    process.exitCode = 1;
+  }
+});
 if (offlineSmoke) {
   // Snapshot only git-tracked paths from the current worktree. No .env, PEM,
   // untracked secrets, host node_modules or user Docker mounts enter the image.
@@ -83,8 +103,61 @@ const runtimeScratch = [
   'apps/api/.wrangler',
 ];
 const scratch = [...runtimeScratch, 'apps/web/dist', 'apps/web/.tanstack', 'apps/api/dist'];
+function cleanupSnapshot() {
+  if (process.getuid() === 0) {
+    const scoped = [];
+    for (const directory of scratch) {
+      const source = `${root}/${directory}`;
+      let stat;
+      try {
+        stat = lstatSync(source);
+      } catch (error) {
+        if (error.code === 'ENOENT') continue;
+        throw error;
+      }
+      if (!stat.isDirectory() || stat.isSymbolicLink() || realpathSync(source) !== resolve(root, directory))
+        throw new Error(`Unsafe scratch cleanup path: ${directory}`);
+      scoped.push(source);
+    }
+    if (scoped.length) {
+      const mounts = scoped.flatMap((source, index) => ['-v', `${source}:/scratch/${index}`]);
+      const program =
+        'const fs=require("node:fs");for(const dir of process.argv.slice(1))for(const entry of fs.readdirSync(dir))fs.rmSync(dir+"/"+entry,{recursive:true,force:true});';
+      const cleaned = spawnSync(
+        'docker',
+        [
+          'run',
+          '--rm',
+          '--network',
+          'none',
+          '--read-only',
+          '--cap-drop=ALL',
+          '--security-opt=no-new-privileges',
+          '--pids-limit=32',
+          '--memory=128m',
+          '--cpus=.25',
+          '--user',
+          '1000:1000',
+          ...mounts,
+          'koin-error-verifier',
+          'node',
+          '-e',
+          program,
+          ...scoped.map((_, index) => `/scratch/${index}`),
+        ],
+        { encoding: 'utf8', timeout: 30_000, maxBuffer: 100_000 },
+      );
+      requireSuccess(cleaned, 'Unprivileged scratch cleanup');
+    }
+  }
+  rmSync(root, { recursive: true, force: true });
+}
 const limits = ['--cap-drop=ALL', '--security-opt=no-new-privileges', '--pids-limit=512', '--memory=6g', '--cpus=2'];
-const user = `${process.getuid()}:${process.getgid()}`;
+const user = process.getuid() === 0 ? '1000:1000' : `${process.getuid()}:${process.getgid()}`;
+const installerUser = `${process.getuid()}:${process.getgid()}`;
+const executorRun = process.env.AUTOFIX_EXECUTOR_RUN_ID;
+if (executorRun && !/^autofix-[a-f0-9]{64}$/.test(executorRun))
+  throw new Error('Invalid isolated executor run identifier');
 const environment = [
   '-e',
   'CI=true',
@@ -124,8 +197,7 @@ function docker(
   const mounts = [
     '-v',
     `${root}:/work${sourceReadonly ? ':ro' : ''}`,
-    '-v',
-    `${automation}:/automation:ro`,
+    ...(executorRun ? [] : ['-v', `${automation}:/automation:ro`]),
     '-v',
     `${input}:/input:ro`,
     '-v',
@@ -140,6 +212,9 @@ function docker(
       '--init',
       '--name',
       name,
+      ...(executorRun
+        ? ['--label', 'koin.autofix.executor=koin-rocky-umpc', '--label', `koin.autofix.run=${executorRun}`]
+        : []),
       '--user',
       user,
       ...limits,
@@ -170,17 +245,162 @@ function requireSuccess(result, label) {
     throw new Error(`${label} failed; see this job's log (no PR published)`);
   }
 }
-requireSuccess(
-  docker(['pnpm', 'install', '--frozen-lockfile'], { network: true, sourceReadonly: false }),
-  'Frozen dependency installation',
-);
-for (const directory of scratch) await mkdir(`${root}/${directory}`, { recursive: true });
+function installDependencies() {
+  const name = `koin-error-install-${randomUUID()}`;
+  const mounts = [
+    '-v',
+    `${root}:/work`,
+    ...(executorRun ? [] : ['-v', `${automation}:/automation:ro`]),
+    '-v',
+    `${input}:/input:ro`,
+    '-v',
+    `${patchDirectory}:/patch:ro`,
+  ];
+  const invoke = (args, timeout = 30_000) =>
+    spawnSync('docker', args, { encoding: 'utf8', timeout, maxBuffer: 8_000_000 });
+  let failure;
+  try {
+    requireSuccess(
+      invoke([
+        'run',
+        '--rm',
+        '-d',
+        '--init',
+        '--name',
+        name,
+        ...(executorRun
+          ? ['--label', 'koin.autofix.executor=koin-rocky-umpc', '--label', `koin.autofix.run=${executorRun}`]
+          : []),
+        '--user',
+        installerUser,
+        ...limits,
+        '--network',
+        'bridge',
+        ...environment,
+        '-e',
+        'PNPM_CONFIG_CHILD_CONCURRENCY=1',
+        '-e',
+        'RAYON_NUM_THREADS=2',
+        '-e',
+        'UV_THREADPOOL_SIZE=2',
+        ...mounts,
+        'koin-error-verifier',
+        'sleep',
+        'infinity',
+      ]),
+      'Frozen installer container startup',
+    );
+    requireSuccess(
+      invoke(['exec', '-w', '/work', name, 'pnpm', 'install', '--frozen-lockfile', '--ignore-scripts'], 600_000),
+      'Frozen dependency acquisition',
+    );
+    requireSuccess(invoke(['network', 'disconnect', 'bridge', name]), 'Trusted installer network cutoff');
+    const routes = invoke(['exec', name, 'cat', '/proc/net/route']);
+    requireSuccess(routes, 'Offline installer route inspection');
+    if (
+      routes.stdout
+        .split('\n')
+        .slice(1)
+        .some((line) => line.trim().split(/\s+/)[1] === '00000000')
+    )
+      throw new Error('Installer still has a default network route');
+    requireSuccess(
+      invoke(['exec', '-w', '/work', name, 'pnpm', 'rebuild', '--pending'], 180_000),
+      'Approved offline dependency lifecycle builds',
+    );
+  } catch (error) {
+    failure = error;
+  }
+  const cleanup = invoke(['rm', '--force', name]);
+  if (cleanup.error || cleanup.status !== 0) {
+    if (failure) process.stderr.write(`${failure.message}\n`);
+    throw new Error(`Unable to remove trusted installer container ${name}`);
+  }
+  if (failure) throw failure;
+}
+installDependencies();
+await chmod(root, 0o755);
+if (!offlineSmoke) {
+  await chmod(input, 0o755);
+  await chmod(patchDirectory, 0o755);
+  await chmod(`${input}/context.json`, 0o644);
+  await chmod(`${patchDirectory}/patch.json`, 0o644);
+}
+for (const directory of scratch) {
+  const parts = directory.split('/');
+  let relative = '';
+  for (const part of parts) {
+    relative = relative ? `${relative}/${part}` : part;
+    try {
+      const stat = await lstat(`${root}/${relative}`);
+      if (stat.isSymbolicLink() || !stat.isDirectory()) throw new Error(`Unsafe scratch path: ${relative}`);
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+    }
+  }
+  await mkdir(`${root}/${directory}`, { recursive: true });
+  if ((await realpath(`${root}/${directory}`)) !== resolve(root, directory))
+    throw new Error(`Scratch path escaped the trusted snapshot: ${directory}`);
+}
+if (process.getuid() === 0) {
+  const mounts = scratch.flatMap((directory, index) => ['-v', `${root}/${directory}:/scratch/${index}`]);
+  const result = spawnSync(
+    'docker',
+    [
+      'run',
+      '--rm',
+      '--network',
+      'none',
+      '--read-only',
+      '--cap-drop=ALL',
+      '--cap-add=CHOWN',
+      '--security-opt=no-new-privileges',
+      '--pids-limit=32',
+      '--memory=128m',
+      '--cpus=.25',
+      ...(executorRun
+        ? ['--label', 'koin.autofix.executor=koin-rocky-umpc', '--label', `koin.autofix.run=${executorRun}`]
+        : []),
+      '--user',
+      '0:0',
+      ...mounts,
+      'koin-error-verifier',
+      'chown',
+      '--no-dereference',
+      '-R',
+      '1000:1000',
+      ...scratch.map((_, index) => `/scratch/${index}`),
+    ],
+    { encoding: 'utf8', timeout: 30_000, maxBuffer: 100_000 },
+  );
+  requireSuccess(result, 'Scoped scratch ownership');
+}
+const identity = docker(['id', '-u']);
+requireSuccess(identity, 'Non-root candidate identity');
+if (identity.stdout.trim() !== user.split(':')[0] || identity.stdout.trim() === '0')
+  throw new Error('Candidate checks must run under an observed unprivileged UID');
+async function readablePatch(files) {
+  for (const file of files) {
+    if (file.content === null) continue;
+    let directory = dirname(file.path);
+    while (directory !== '.') {
+      const path = `${root}/${directory}`;
+      const stat = await lstat(path);
+      if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error(`Unsafe patch directory: ${directory}`);
+      await chmod(path, 0o755);
+      directory = dirname(directory);
+    }
+    await chmod(`${root}/${file.path}`, 0o644);
+  }
+}
 if (!offlineSmoke) {
   await applyManifest({ version: 1, files: tests }, root);
+  await readablePatch(tests);
   const before = docker(['node', '--test', ...tests.map((file) => file.path)]);
   if (before.error || before.status !== 1 || !`${before.stdout}${before.stderr}`.includes('ERR_ASSERTION'))
     throw new Error('Regression must fail with an assertion against the untouched base, not a loader/setup failure');
   await applyManifest({ version: 1, files: manifest.files.filter((file) => isSourcePath(file.path)) }, root);
+  await readablePatch(manifest.files.filter((file) => isSourcePath(file.path)));
 }
 const testCommand = ['node', '--test', ...tests.map((file) => file.path)];
 if (context.app === 'web')
@@ -256,6 +476,7 @@ for (const [label, command] of checks) {
   }
 }
 if (offlineSmoke) {
+  cleanupSnapshot();
   process.stdout.write(
     'Offline local API/D1 + SSR + Chromium smoke passed; isolated containers and snapshot removed\n',
   );
@@ -292,3 +513,4 @@ await writeFile(
     2,
   ),
 );
+cleanupSnapshot();

@@ -29,3 +29,6 @@ apps/b-bot/.data/
 apps/b-bot/.secret/
 apps/b-bot/webhook-secret.txt
 apps/b-bot/google-auth-secret.txt
+apps/api/scripts/source-sync-uploader.py
+apps/api/scripts/source-sync-cron.sh
+apps/api/scripts/source-sync-mysql-prep.py

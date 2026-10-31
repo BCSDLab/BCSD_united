@@ -725,14 +725,12 @@ export function registerTimetable(app: Hono<ApiEnv>): void {
     const frame = await ownedFrame(db, request.timetable_frame_id, userId);
     const lecture = await findLecture(db, request.lecture_id);
     await db.batch([
-      db
-        .insert(timetable)
-        .values({
-          frame_id: frame.id,
-          lectures_id: lecture.id,
-          grades: '0',
-          ...(await classification(db, lecture, userId)),
-        }),
+      db.insert(timetable).values({
+        frame_id: frame.id,
+        lectures_id: lecture.id,
+        grades: '0',
+        ...(await classification(db, lecture, userId)),
+      }),
       graduationChangedStatement(db, userId),
     ]);
     return c.json(await timetableResponse(db, frame, userId, 3));

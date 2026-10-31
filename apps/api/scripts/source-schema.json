@@ -22307,6 +22307,26 @@
       "expression": null
     },
     {
+      "name": "idx_lecture_code_semester",
+      "type": "BTREE",
+      "table": "lectures",
+      "column": "code",
+      "prefix": null,
+      "unique": false,
+      "position": 1,
+      "expression": null
+    },
+    {
+      "name": "idx_lecture_code_semester",
+      "type": "BTREE",
+      "table": "lectures",
+      "column": "semester_date",
+      "prefix": null,
+      "unique": false,
+      "position": 2,
+      "expression": null
+    },
+    {
       "name": "idx_lecture_semester_code",
       "type": "BTREE",
       "table": "lectures",

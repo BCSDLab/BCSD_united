@@ -86,6 +86,10 @@ pnpm build
 
 `pnpm format`은 oxfmt로 코드를 정렬합니다. 위 명령은 검증 진입점이며, 현재 브랜치의 통과 여부는 실제 실행 결과와 CI를 확인해야 합니다.
 
+커밋 훅은 웹뿐 아니라 API·자동화·공용 패키지의 staged JavaScript/TypeScript와 JSON/JSONC·문서 파일도 포맷합니다. 웹 소스의 포맷·ESLint는 같은 작업 안에서 순서대로 실행해 동시 파일 수정을 피합니다. `Quality` Actions는 저장소 전체의 포맷·린트·타입을 검사하며, 오류 자동 수정 작업의 실행기는 아닙니다.
+
+Zustand 5의 선택자는 상태가 변하지 않으면 같은 참조를 반환해야 합니다. 객체·배열을 새로 조합하는 선택자는 `useShallow` 등으로 결과를 안정화하고, 웹 변경은 데스크톱뿐 아니라 모바일 뷰포트에서도 실제 렌더와 브라우저 오류를 확인합니다. 타입 검사·빌드 또는 데스크톱만의 smoke 결과로 모바일 렌더 성공을 대신하지 않습니다.
+
 `pnpm --filter @koin/api test`는 TypeScript API 회귀 테스트와 `scripts/*.test.mjs`의 D1 데이터·파일 이관 동작 테스트를 함께 실행합니다. 이관 도구만 확인하려면 다음 명령을 사용합니다.
 
 ```sh
@@ -105,7 +109,17 @@ API 회귀 테스트는 SQLite의 실제 제약조건·원자 배치와 HTTP 계
 - bigint·UUID·TTL·채팅 이력을 손실 없이 옮기도록 검사합니다.
 - SQLite와 MySQL의 Unicode collation은 완전히 같지 않습니다. 제공된 정규화·충돌 검증을 통과시키고 실제 데이터의 차이를 확인해야 합니다.
 
-이관 절차와 제한은 `apps/api/scripts/migration-contract.json` 및 같은 디렉터리의 실행 도구를 따릅니다. 실제 원본 접속 정보와 일관된 MySQL/MongoDB/Redis 스냅샷 없이 운영 이관을 실행하지 않습니다. 적용한 마이그레이션은 수정하지 않고 새 순번으로 변경합니다.
+이관 절차와 제한은 `apps/api/scripts/migration-contract.json` 및 같은 디렉터리의 실행 도구를 따릅니다. 기본 경로는 쓰기가 중단된 스냅샷이며, 저장소별 온라인 스냅샷은 명시적인 운영자 승인과 `--allow-online-bootstrap`으로만 허용합니다. 온라인 캡처를 저장소 전체의 동일 시점 스냅샷으로 간주하지 않습니다. 적용한 마이그레이션은 수정하지 않고 새 순번으로 변경합니다.
+
+### 원본 DB 호스트의 임시 배치 필드 동기화
+
+원본 DB 호스트용 `source-sync-uploader.py`, `source-sync-cron.sh`, `source-sync-mysql-prep.py`는 비공개 운영 도구이며 공개 Git에 포함하지 않습니다. 로컬에서 준비·검증한 배포본과 저장소의 `source-schema.json`을 원본 DB 호스트의 `$HOME/.local/share/koin-d1-sync/`(0700)에 복사합니다. 운영 동기화는 별도 `production/` 상태 디렉터리(0700)를 사용해 로컬 검증용 체크포인트와 분리합니다. 독립적인 `SOURCE_SYNC_SECRET`과 동일한 비밀을 호스트의 `production/config.json`(0600)에 저장하며, 실제 설정·출력 데이터·비밀번호는 커밋하거나 명령행 인자로 전달하지 않습니다. 호스트에는 Python 3, Docker, `flock`, `timeout`이 필요합니다. 읽기는 지정된 KOIN 컨테이너에 한정하고, 전송 대상은 고정된 `https://koin-api.bcsdlab.workers.dev/internal/source-sync`입니다. 직접 실행할 때도 `--state-dir "$HOME/.local/share/koin-d1-sync/production"`을 지정합니다.
+
+`python3 source-sync-uploader.py sync --dry-run`은 원본을 읽기만 하고 private `pending/`에 일곱 데이터셋(식단·공지·학기·강의·시간표 버전·시내버스 시간표·날씨)을 완전한 파일로 내보냅니다. 날씨는 지정된 Redis 키만 읽고 원본의 만료 시각을 보존하며, 더 최신인 대상 캐시를 덮어쓰지 않습니다. 성공 시 `python3 source-sync-uploader.py sync`가 같은 파일을 페이지·체크포인트·HMAC으로 전송하고 완료 응답 뒤에만 다음 체크포인트로 넘어갑니다. 실패한 실행은 동일한 `pending/`을 재개하며, 불완전하거나 데이터셋 구성이 다른 내보내기는 자동으로 전송하지 않습니다. `source-sync-cron.sh`는 겹침을 `flock`으로 막고 30분 종료·1MiB 제한 로그를 적용합니다. **회원 포함 전체 초기 이관·검증이 완료되고 대상·명령을 승인한 뒤에만** `0 * * * * /home/ubuntu/.local/share/koin-d1-sync/source-sync-cron.sh`를 ubuntu 사용자 Cron에 등록합니다. 야간에만 실행하는 것이 아니라 매일 24시간 매시 정각 실행합니다. 읽기 전용 내보내기, 전송 테스트, 실제 Cron 설치는 각각 구분합니다.
+
+`full-snapshot`은 회원·원본 ID·비밀번호 해시·계정 상태·주문·게시글을 포함한 **전체 원본**과 Mongo/Redis를 비공개 스냅샷으로 보존하는 별도 경로입니다. 기본 경로는 `--quiescence-attestation`으로 모든 원본 쓰기의 중단 증빙을 요구합니다. 승인된 온라인 초기 이관에서는 저장소별 캡처 시각과 비일관성 한계를 기록하고, MySQL DATETIME은 운영자가 지정한 `+09:00`으로 해석합니다. 실제 JVM/JDBC 시간대가 확인된 것으로 주장하지 않습니다. 원본 로그인·재설정·인증 증명과 포털 로그인 쿠키는 비공개 스냅샷에만 보존하고 D1의 활성 상태 및 원본 보관 테이블에서 제외합니다. 회원·비밀번호 해시는 유지하고 운영·프리뷰에서 각각 새 로그인 권한을 발급합니다. Cron 경로는 초기 전체 이관의 대체물이 아니며 회원·인증·주문 같은 대상 소유 필드를 재동기화하지 않습니다.
+
+원격 반입은 검증된 동일 스냅샷을 비어 있는 운영·프리뷰 D1에 각각 적용합니다. 대상별 `import-remote-<database>.json`의 `verified:true`는 모든 체크포인트·테이블 행 수·메타데이터 해시·외래키·대용량 Redis 바이트 해시와 D1 용량 검증을 통과했음을 뜻합니다. 가져온 스키마 해시와 일치하는 SQL 파일만 `d1_migrations`에 기준 이력으로 등록해 이후 마이그레이션이 기존 테이블을 다시 생성하지 않도록 합니다. 두 대상의 검증이 끝난 뒤 Worker 바인딩을 전환하고 실제 API·화면을 확인합니다. 읽기 전용 추출이나 로컬 검증만으로 운영 이관 또는 Cron 활성화가 완료됐다고 판단하지 않습니다.
 
 ## 배포
 

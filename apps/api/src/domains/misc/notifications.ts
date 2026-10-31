@@ -85,21 +85,19 @@ export async function deliverNotification(env: Bindings, input: NotificationDeli
   if (!user) throw new ApiError(404, 'NOT_FOUND', '사용자를 찾을 수 없습니다.');
   const id = await allocateBigintId(db, 'notification');
   const now = sqlNow();
-  await db
-    .insert(schema.notification)
-    .values({
-      id,
-      users_id: input.userId,
-      title: input.title,
-      message: input.message,
-      image_url: input.imageUrl ?? null,
-      app_path: input.mobileAppPath ?? null,
-      scheme_uri: input.schemeUri ?? null,
-      type: (input.type ?? 'MESSAGE').toUpperCase(),
-      is_read: false,
-      created_at: now,
-      updated_at: now,
-    });
+  await db.insert(schema.notification).values({
+    id,
+    users_id: input.userId,
+    title: input.title,
+    message: input.message,
+    image_url: input.imageUrl ?? null,
+    app_path: input.mobileAppPath ?? null,
+    scheme_uri: input.schemeUri ?? null,
+    type: (input.type ?? 'MESSAGE').toUpperCase(),
+    is_read: false,
+    created_at: now,
+    updated_at: now,
+  });
   try {
     if (!user.token?.trim()) throw new ApiError(422, 'NOTIFICATION_NOT_PERMITTED', '푸쉬알림을 동의하지 않았습니다.');
     const data: Record<string, string> = { type: (input.type ?? 'MESSAGE').toLowerCase() };

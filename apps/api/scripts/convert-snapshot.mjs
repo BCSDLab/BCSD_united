@@ -10,10 +10,14 @@ import {
   parseLossless,
   quoteIdentifier,
   rowInsert,
+  rowInsertStatements,
+  assertRowSize,
+  REDIS_ARCHIVE_THRESHOLD_BYTES,
   sqlLiteral,
   normalizeUnicodeKey,
   mergeChatMessage,
   D1_MAX_BYTES,
+  D1_MAX_STATEMENT_BYTES,
 } from './transform.mjs';
 import { MONGO_COLLECTIONS, mongoRows, redisRows } from './state-adapters.mjs';
 import {
@@ -22,13 +26,20 @@ import {
   assertMetadataManifest,
   metadataSources,
   metadataVerifier,
+  assertSnapshotCapture,
 } from './source-metadata.mjs';
 
 process.umask(0o077);
-const [input, output, offset] = process.argv.slice(2);
-if (!input || !output || !/^[+-]\d{2}:\d{2}$/.test(offset ?? ''))
+const [input, output, offset, ...options] = process.argv.slice(2);
+if (
+  !input ||
+  !output ||
+  !/^[+-]\d{2}:\d{2}$/.test(offset ?? '') ||
+  options.some((option) => option !== '--allow-online-bootstrap') ||
+  new Set(options).size !== options.length
+)
   throw new Error(
-    'Usage: node convert-snapshot.mjs SNAPSHOT_DIR NEW_OUTPUT_DIR SOURCE_DATETIME_OFFSET (for example +09:00). Source DATETIME offset must be established from the live Java/JDBC timezone, never guessed.',
+    'Usage: node convert-snapshot.mjs SNAPSHOT_DIR NEW_OUTPUT_DIR SOURCE_DATETIME_OFFSET [--allow-online-bootstrap]. The declared DATETIME offset must be explicitly approved; never infer it from MySQL server timezone.',
   );
 const [offsetHours, offsetMinutes] = offset.slice(1).split(':').map(Number);
 if (offsetHours > 14 || offsetMinutes > 59 || (offsetHours === 14 && offsetMinutes !== 0))
@@ -37,8 +48,10 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const source = JSON.parse(await readFile(resolve(root, 'scripts/source-schema.json'), 'utf8'));
 const schema = JSON.parse(await readFile(resolve(root, 'scripts/schema-manifest.json'), 'utf8'));
 const snapshot = JSON.parse(await readFile(resolve(input, 'manifest.json'), 'utf8'));
-if (snapshot.format !== 1 || !snapshot.complete || !snapshot.quiesced || snapshot.sourceCommit !== source.sourceCommit)
-  throw new Error('Incomplete/unquiesced/foreign-version snapshot cannot be imported');
+if (snapshot.sourceCommit !== source.sourceCommit) throw new Error('Foreign-version snapshot cannot be imported');
+const captureMode = assertSnapshotCapture(snapshot, options.includes('--allow-online-bootstrap'), MONGO_COLLECTIONS);
+if (captureMode === 'per-store-online' && offset !== '+09:00')
+  throw new Error('Online bootstrap requires the explicitly approved +09:00 source DATETIME interpretation');
 if (snapshot.mysqlSessionTimezone !== '+00:00') throw new Error('MySQL TIMESTAMP export must use UTC');
 if (!Number.isFinite(Date.parse(snapshot.redisCompletedAt)))
   throw new Error('Snapshot must record Redis server TIME, not the exporter workstation clock');
@@ -78,14 +91,30 @@ const checkpoint = {
     .digest('hex'),
   complete: false,
   datetimeOffset: offset,
+  captureMode,
+  consistency: snapshot.consistency ?? 'cross-store-writer-quiesced',
+  sourceQuiesced: snapshot.quiesced,
+  sourceStartedAt: snapshot.startedAt ?? null,
+  sourceCompletedAt: snapshot.completedAt ?? null,
+  storeCaptures: snapshot.storeCaptures ?? null,
+  datetimeOffsetEvidence:
+    captureMode === 'per-store-online'
+      ? 'operator-declared +09:00 from source Dockerfile Asia/Seoul; running JVM/JDBC unverified'
+      : 'operator-supplied runtime offset',
   sourceCounts: {},
   destinationCounts: {},
+  largeRedisArchive: [],
+  excludedOperationalCredentials: [],
+  excludedSourceAuthAuthority: [],
+  reviewedArchiveOnlyRedis: [],
   files: [],
   limitations: [
     'Unicode registry uses NFKD/casefold approximation, not exact MySQL UCA4/UCA9/general_ci. Validate actual source WEIGHT_STRING equality before cutover; SQL NOCASE queries remain ASCII-only.',
     'Date/time calendar values are preserved; new_koreatech_articles.registered_at and citybus_timetables.updated_at are explicitly calendar semantics.',
     'D1 TEXT bigint must use CAST(... AS INTEGER) for numerical sorting; lexical sorting is not a numeric-order substitute.',
-    'Mongo/Redis capture requires all source writes stopped; exported TTLs are absolute and expired records are retained in native_legacy_redis only.',
+    captureMode === 'per-store-online'
+      ? 'Online bootstrap uses a MySQL consistent transaction, Mongo sequential collection cursors and Redis SCAN/per-key reads. Writes can change Mongo/Redis during capture and cross-store relationships may differ. Preserve source/provenance and reconcile any conversion conflict; this is not writer quiescence.'
+      : 'Mongo/Redis capture requires all source writes stopped; exported TTLs are absolute and expired records are retained in native_legacy_redis only.',
   ],
 };
 await writeFile(resolve(output, 'manifest.json'), JSON.stringify(checkpoint, null, 2));
@@ -110,7 +139,9 @@ function insert(tableName, row) {
   for (const name of Object.keys(row))
     if (!table.columns.some((c) => c.name === name && !c.expression))
       throw new Error(`Unknown/generated target column ${tableName}.${name}`);
-  rowInsert(tableName, row);
+  if (tableName === 'native_legacy_redis' && Buffer.byteLength(row.payload) > REDIS_ARCHIVE_THRESHOLD_BYTES)
+    assertRowSize(tableName, row);
+  else rowInsert(tableName, row);
   if (tableName === 'native_chat_message') {
     const previous = db.prepare('SELECT * FROM native_chat_message WHERE id=?').get(row.id);
     if (previous) {
@@ -261,6 +292,27 @@ try {
   const dispositions = {};
   await lines(redis, (record) => {
     const result = redisRows(record, { db, offset, now: Date.parse(snapshot.redisCompletedAt) });
+    if (result.disposition === 'operational-credential-excluded')
+      checkpoint.excludedOperationalCredentials.push({
+        keySha256: createHash('sha256').update(record.key).digest('hex'),
+        sourceClass: 'koin-batch-portal-sso-cookie',
+        count: 1,
+        reason: 'Isolate operational portal credentials from D1 environments',
+      });
+    if (result.disposition === 'source-auth-authority-excluded')
+      checkpoint.excludedSourceAuthAuthority.push({
+        keySha256: createHash('sha256').update(record.key).digest('hex'),
+        sourceClass: result.sourceClass,
+        count: 1,
+        reason: 'Isolate source auth sessions and verification authority from new D1 environments',
+      });
+    if (result.disposition === 'unattributed-archive-only-user-approved')
+      checkpoint.reviewedArchiveOnlyRedis.push({
+        keySha256: createHash('sha256').update(record.key).digest('hex'),
+        sourceClass: 'unattributed-string-key',
+        count: 1,
+        reason: 'User approved archive-only preservation; producer semantics unknown',
+      });
     for (const entry of result.rows) insert(entry.table, entry.row);
     dispositions[result.disposition] = (dispositions[result.disposition] ?? 0) + 1;
   });
@@ -395,6 +447,8 @@ try {
     const hash = createHash('sha256');
     let bytes = 0;
     let rows = 0;
+    const abtestCycle = names.length === 2 && names[0] === 'abtest' && names[1] === 'abtest_variable';
+    const deferredWinners = [];
     const append = async (text) => {
       const line = text + '\n';
       bytes += Buffer.byteLength(line);
@@ -402,6 +456,24 @@ try {
         throw new RangeError(`Strongly connected FK component exceeds D1 5GiB import file limit: ${names.join(',')}`);
       hash.update(line);
       await handle.write(line);
+    };
+    const guardRow = async (name, row, phase, omitted = []) => {
+      const condition = Object.entries(row)
+        .filter(([column]) => !omitted.includes(column))
+        .map(([column, value]) => {
+          const field = quoteIdentifier(column);
+          const literal = sqlLiteral(value);
+          return typeof value === 'string'
+            ? `hex(CAST(${field} AS BLOB))=hex(CAST(${literal} AS BLOB))`
+            : `${field} IS ${literal}`;
+        })
+        .join(' AND ');
+      const id = sqlLiteral(`import-cycle:${name}:${row.id}:${phase}`);
+      const statement = `INSERT INTO identity_atomic_guards(id,allowed) VALUES(${id},CASE WHEN EXISTS(SELECT 1 FROM ${quoteIdentifier(name)} WHERE ${condition}) THEN 1 ELSE 0 END) ON CONFLICT(id) DO UPDATE SET allowed=excluded.allowed;`;
+      if (Buffer.byteLength(statement) > D1_MAX_STATEMENT_BYTES)
+        throw new RangeError('Cyclic import guard exceeds D1 statement limit');
+      await append(statement);
+      await append(`DELETE FROM identity_atomic_guards WHERE id=${id};`);
     };
     try {
       await append("PRAGMA defer_foreign_keys=ON; UPDATE native_import_control SET active=1 WHERE id='import';");
@@ -414,9 +486,35 @@ try {
         for (const row of db
           .prepare(`SELECT ${columns.map(quoteIdentifier).join(',')} FROM ${quoteIdentifier(name)} ORDER BY ${order}`)
           .iterate()) {
-          await append(rowInsert(name, row));
+          if (abtestCycle) {
+            const initial = name === 'abtest' ? { ...row, winner_id: null } : row;
+            const statement = rowInsert(name, initial);
+            await append(statement.slice(0, -1) + ' ON CONFLICT(id) DO NOTHING;');
+            if (name === 'abtest') {
+              deferredWinners.push(row);
+              await guardRow(name, row, 'initial', ['winner_id', 'updated_at']);
+            } else await guardRow(name, row, 'final');
+          } else {
+            if (name === 'native_legacy_redis' && Buffer.byteLength(row.payload) > REDIS_ARCHIVE_THRESHOLD_BYTES)
+              checkpoint.largeRedisArchive.push({
+                payloadBytes: Buffer.byteLength(row.payload),
+                payloadSha256: createHash('sha256').update(row.payload).digest('hex'),
+              });
+            for (const statement of rowInsertStatements(name, row)) await append(statement);
+          }
           rows += 1;
         }
+      }
+      for (const row of deferredWinners) {
+        if (row.winner_id !== null) {
+          await append(
+            `UPDATE abtest SET winner_id=${sqlLiteral(row.winner_id)} WHERE id=${sqlLiteral(row.id)} AND (winner_id IS NULL OR winner_id IS ${sqlLiteral(row.winner_id)});`,
+          );
+          await append(
+            `UPDATE abtest SET updated_at=${sqlLiteral(row.updated_at)} WHERE id=${sqlLiteral(row.id)} AND updated_at IS NOT ${sqlLiteral(row.updated_at)};`,
+          );
+        }
+        await guardRow('abtest', row, 'final');
       }
       const dataHash = hash.copy().digest('hex');
       await append(

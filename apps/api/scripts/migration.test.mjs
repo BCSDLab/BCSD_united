@@ -12,12 +12,22 @@ import {
   signed64,
   utcTimestamp,
   rowInsert,
+  rowInsertStatements,
   parseLossless,
   normalizeUnicodeKey,
   mergeChatMessage,
   D1_MAX_ROW_BYTES,
+  D1_MAX_STATEMENT_BYTES,
+  REDIS_ARCHIVE_THRESHOLD_BYTES,
 } from './transform.mjs';
-import { MONGO_COLLECTIONS, ARCHIVED_MONGO_COLLECTIONS, mongoRows, redisRows } from './state-adapters.mjs';
+import {
+  MONGO_COLLECTIONS,
+  ARCHIVED_MONGO_COLLECTIONS,
+  REVIEWED_ARCHIVE_ONLY_REDIS_KEY_SHA256,
+  reviewedArchiveOnlyRedisKey,
+  mongoRows,
+  redisRows,
+} from './state-adapters.mjs';
 import {
   MYSQL_METADATA_TABLES,
   ARCHIVE_CHUNK_BYTES,
@@ -25,6 +35,8 @@ import {
   assertSourceColumns,
   assertMetadataManifest,
   metadataVerifier,
+  assertSnapshotCapture,
+  assertImportCapture,
 } from './source-metadata.mjs';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const source = JSON.parse(readFileSync(resolve(root, 'scripts/source-schema.json'), 'utf8'));
@@ -37,6 +49,78 @@ function database() {
     db.exec(readFileSync(resolve(root, 'drizzle', file), 'utf8'));
   return db;
 }
+
+test('online snapshot acceptance is explicit and preserves per-store provenance', () => {
+  const snapshot = {
+    format: 1,
+    complete: true,
+    quiesced: false,
+    captureMode: 'per-store-online',
+    consistency: 'per-store-online',
+    startedAt: '2026-10-28T00:00:00.000Z',
+    completedAt: '2026-10-28T00:00:03.000Z',
+    storeCaptures: {
+      mysql: {
+        startedAt: '2026-10-28T00:00:00.000001Z',
+        completedAt: '2026-10-28T00:00:01.000Z',
+        consistency: 'repeatable-read-transaction',
+      },
+      mongo: {
+        startedAt: '2026-10-28T00:00:01.000Z',
+        completedAt: '2026-10-28T00:00:02.000Z',
+        consistency: 'sequential-collection-cursors-not-atomic',
+      },
+      redis: {
+        startedAt: '2026-10-28T00:00:02.000Z',
+        completedAt: '2026-10-28T00:00:03.000Z',
+        consistency: 'scan-per-key-atomic-not-global',
+      },
+    },
+    mongoInventory: [],
+    mongoInventoryAfter: [],
+  };
+  assert.throws(() => assertSnapshotCapture(snapshot, false, MONGO_COLLECTIONS), /--allow-online-bootstrap/);
+  assert.equal(assertSnapshotCapture(snapshot, true, MONGO_COLLECTIONS), 'per-store-online');
+  for (const change of [
+    { complete: false },
+    { quiesced: true },
+    { captureMode: 'unknown' },
+    { consistency: 'cross-store-writer-quiesced' },
+    {
+      storeCaptures: {
+        ...snapshot.storeCaptures,
+        mongo: { ...snapshot.storeCaptures.mongo, startedAt: '2026-10-27T23:59:59.000Z' },
+      },
+    },
+    {
+      storeCaptures: {
+        ...snapshot.storeCaptures,
+        redis: { ...snapshot.storeCaptures.redis, consistency: 'atomic-global' },
+      },
+    },
+    { mongoInventoryAfter: [{ name: 'unknown', type: 'collection', count: 1 }] },
+  ])
+    assert.throws(() => assertSnapshotCapture({ ...snapshot, ...change }, true, MONGO_COLLECTIONS));
+  assert.equal(
+    assertSnapshotCapture({ format: 1, complete: true, quiesced: true }, false, MONGO_COLLECTIONS),
+    'writer-quiesced',
+  );
+  const converted = {
+    captureMode: 'per-store-online',
+    consistency: 'per-store-online',
+    sourceQuiesced: false,
+    snapshotHash: 'a'.repeat(64),
+    storeCaptures: snapshot.storeCaptures,
+    sourceStartedAt: snapshot.startedAt,
+    sourceCompletedAt: snapshot.completedAt,
+  };
+  assert.throws(() => assertImportCapture(converted, false), /--allow-online-bootstrap/);
+  assert.doesNotThrow(() => assertImportCapture(converted, true));
+  assert.throws(() => assertImportCapture({ ...converted, storeCaptures: null }, true));
+  assert.throws(() => assertImportCapture({ ...converted, sourceQuiesced: true }, true));
+  assert.doesNotThrow(() => assertImportCapture({ captureMode: 'writer-quiesced', sourceQuiesced: true }, false));
+  assert.throws(() => assertImportCapture({ captureMode: 'writer-quiesced', sourceQuiesced: false }, false));
+});
 
 test('all 165 source tables execute and preserve exact table names', () => {
   const db = database();
@@ -237,7 +321,178 @@ test('TTL expiry is explicit and unknown live Redis keys stop conversion', () =>
   assert.throws(() => rowInsert('large', { content: 'x'.repeat(100001) }), /100KB/);
 });
 
-test('complete snapshot conversion reconciles chat, preserves sessions and emits resumable FK-ordered data', () => {
+test('Spring Redis indexed lists and numeric-key weather maps retain their distinct shapes', () => {
+  const binary = (value) => ({ base64: Buffer.from(String(value)).toString('base64') });
+  const record = (key, fields) => ({
+    key,
+    type: 'hash',
+    capturedAt: 1000,
+    expiresAt: null,
+    value: fields.flatMap(([name, value]) => [binary(name), binary(value)]),
+  });
+  const bus = record('expressBus:fixture', [
+    ['busInfos.[1].depart', '12:00'],
+    ['busInfos.[1].arrival', '12:30'],
+    ['busInfos.[1].charge', '1500'],
+    ['busInfos.[0].depart', '11:00'],
+    ['busInfos.[0].arrival', '11:30'],
+    ['busInfos.[0].charge', '1200'],
+  ]);
+  const cache = redisRows(bus, { now: 1000, offset: '+09:00' }).rows.find(
+    (row) => row.table === 'native_transport_cache',
+  );
+  assert.deepEqual(JSON.parse(cache.row.payload), [
+    { depart: '11:00', arrival: '11:30', charge: 1200 },
+    { depart: '12:00', arrival: '12:30', charge: 1500 },
+  ]);
+  const direct = record('expressBus:direct', [
+    ['busInfos[0].depart', '10:00'],
+    ['busInfos[0].arrival', '10:30'],
+    ['busInfos[0].charge', '900'],
+  ]);
+  assert.equal(JSON.parse(redisRows(direct, { now: 1000, offset: '+09:00' }).rows[0].row.payload)[0].charge, 900);
+  const weather = record('Weather:fixture', [
+    ['hourlyWeathers.[202610292000].temperature', '12'],
+    ['hourlyWeathers.[202610292000].weather', '맑음'],
+    ['hourlyWeathers.[202610292000].weatherId', '1'],
+    ['hourlyWeathers.[202610292000].weatherIconUrl', 'https://example.invalid/sun.webp'],
+  ]);
+  const forecast = JSON.parse(redisRows(weather, { now: 1000, offset: '+09:00' }).rows[0].row.payload);
+  assert.deepEqual(forecast['202610292000'], {
+    temperature: 12,
+    weather: '맑음',
+    weather_id: 1,
+    weather_icon_url: 'https://example.invalid/sun.webp',
+  });
+  for (const path of [
+    'busInfos.[1].depart',
+    'busInfos..[0].depart',
+    'busInfos.[0].__proto__',
+    'busInfos.[10001].depart',
+  ])
+    assert.throws(() => redisRows(record('expressBus:invalid', [[path, '11:00']]), { now: 1000, offset: '+09:00' }));
+});
+
+test('portal SSO cookies stay out of D1 while exact bus notice hash remains mapped', () => {
+  for (const key of ['JSESSIONID', '__KSMSID__', 'KHANUSER']) {
+    const result = redisRows(
+      { key, type: 'string', value: { base64: Buffer.from('synthetic-cookie').toString('base64') }, expiresAt: null },
+      { now: 1000, offset: '+09:00' },
+    );
+    assert.equal(result.disposition, 'operational-credential-excluded');
+    assert.deepEqual(result.rows, []);
+    assert.throws(() => redisRows({ key, type: 'hash', value: [], expiresAt: null }, { now: 1000, offset: '+09:00' }));
+  }
+  const binary = (value) => ({ base64: Buffer.from(String(value)).toString('base64') });
+  const notice = redisRows(
+    {
+      key: 'busNoticeArticle',
+      type: 'hash',
+      value: [binary('id'), binary('42'), binary('title'), binary('공고')],
+      capturedAt: 1000,
+      expiresAt: null,
+    },
+    { now: 1000, offset: '+09:00' },
+  );
+  const cache = notice.rows.find((entry) => entry.table === 'native_transport_cache');
+  assert.deepEqual(JSON.parse(cache.row.payload), { id: 42, title: '공고' });
+  assert.ok(notice.rows.some((entry) => entry.table === 'native_legacy_redis'));
+  assert.throws(() =>
+    redisRows(
+      { key: 'unreviewed-live-key', type: 'string', value: binary('x'), expiresAt: null },
+      { now: 1000, offset: '+09:00' },
+    ),
+  );
+});
+
+test('source session, reset and verification proofs never become D1 authority or raw archive rows', () => {
+  for (const [key, type] of [
+    ['refreshToken:fixture-user', 'hash'],
+    ['webAuthSession:fixture-session', 'string'],
+    ['passwordResetToken:fixture-user', 'hash'],
+    ['userVerificationStatus:fixture-phone', 'hash'],
+    ['verificationStatus@:fixture-phone', 'hash'],
+    ['StudentTemporaryStatus:fixture-email', 'hash'],
+    ['StudentTemporaryStatus:fixture-index', 'set'],
+  ]) {
+    const record = { key, type, value: [], expiresAt: null };
+    const excluded = redisRows(record, { now: 1000, offset: '+09:00' });
+    assert.equal(excluded.disposition, 'source-auth-authority-excluded');
+    assert.deepEqual(excluded.rows, []);
+    assert.ok(excluded.sourceClass);
+    assert.throws(() => redisRows({ ...record, type: 'list' }, { now: 1000, offset: '+09:00' }));
+  }
+  const binary = (value) => ({ base64: Buffer.from(String(value)).toString('base64') });
+  const counter = redisRows(
+    {
+      key: 'userDailyVerificationCount:fixture',
+      type: 'hash',
+      value: [binary('id'), binary('fixture'), binary('verificationCount'), binary('2')],
+      expiresAt: 5000,
+    },
+    { now: 1000, offset: '+09:00' },
+  );
+  assert.equal(counter.disposition, 'mapped');
+  assert.ok(counter.rows.some((entry) => entry.table === 'identity_verification_limits'));
+});
+
+test('one reviewed unattributed Redis string is archive-only by exact SHA and shape', () => {
+  assert.equal(reviewedArchiveOnlyRedisKey(REVIEWED_ARCHIVE_ONLY_REDIS_KEY_SHA256, 'string', 3, null), true);
+  assert.equal(reviewedArchiveOnlyRedisKey(REVIEWED_ARCHIVE_ONLY_REDIS_KEY_SHA256, 'hash', 3, null), false);
+  assert.equal(reviewedArchiveOnlyRedisKey(REVIEWED_ARCHIVE_ONLY_REDIS_KEY_SHA256, 'string', 4, null), false);
+  assert.equal(reviewedArchiveOnlyRedisKey(REVIEWED_ARCHIVE_ONLY_REDIS_KEY_SHA256, 'string', 3, 1000), false);
+  assert.equal(reviewedArchiveOnlyRedisKey('0'.repeat(64), 'string', 3, null), false);
+});
+
+test('large Redis archive SQL preserves exact UTF-8 bytes across partial replay', () => {
+  const payload = JSON.stringify({ text: "한글'😀".repeat(9000), quote: '"\\u0000' });
+  assert.ok(Buffer.byteLength(payload) > REDIS_ARCHIVE_THRESHOLD_BYTES);
+  const row = {
+    key: 'AbtestVariableAssign:fixture',
+    type: 'set',
+    payload,
+    expires_at: null,
+    disposition: 'spring-secondary-index-archived',
+  };
+  const statements = [...rowInsertStatements('native_legacy_redis', row)];
+  assert.ok(statements.length > 10);
+  assert.ok(statements.every((statement) => Buffer.byteLength(statement) <= D1_MAX_STATEMENT_BYTES));
+  const expectedHash = createHash('sha256').update(payload).digest('hex');
+  const apply = (db, sqlStatements) => {
+    for (const statement of sqlStatements) db.exec(statement);
+  };
+  const complete = database();
+  const interrupted = database();
+  try {
+    apply(complete, statements);
+    apply(complete, statements);
+    const fromComplete = complete.prepare('SELECT payload FROM native_legacy_redis WHERE key=?').get(row.key).payload;
+    assert.equal(fromComplete, payload);
+    assert.equal(createHash('sha256').update(fromComplete).digest('hex'), expectedHash);
+    assert.equal(complete.prepare('SELECT count(*) AS count FROM identity_atomic_guards').get().count, 0);
+    apply(interrupted, statements.slice(0, 4));
+    apply(interrupted, statements);
+    const fromReplay = interrupted.prepare('SELECT payload FROM native_legacy_redis WHERE key=?').get(row.key).payload;
+    assert.equal(fromReplay, payload);
+    assert.equal(Buffer.byteLength(fromReplay), Buffer.byteLength(payload));
+    assert.equal(createHash('sha256').update(fromReplay).digest('hex'), expectedHash);
+    interrupted.prepare('UPDATE native_legacy_redis SET payload=? WHERE key=?').run('corrupt', row.key);
+    assert.throws(() => apply(interrupted, statements));
+    assert.notEqual(
+      interrupted.prepare('SELECT payload FROM native_legacy_redis WHERE key=?').get(row.key).payload,
+      payload,
+    );
+  } finally {
+    complete.close();
+    interrupted.close();
+  }
+  assert.throws(
+    () => [...rowInsertStatements('native_legacy_redis', { ...row, payload: 'x'.repeat(D1_MAX_ROW_BYTES + 1) })],
+    /2MiB/,
+  );
+});
+
+test('complete snapshot conversion reconciles chat, isolates source sessions and emits resumable FK-ordered data', () => {
   const directory = mkdtempSync(resolve(tmpdir(), 'koin-d1-migration-'));
   const input = resolve(directory, 'snapshot');
   const output = resolve(directory, 'converted');
@@ -337,6 +592,30 @@ test('complete snapshot conversion reconciles chat, preserves sessions and emits
         });
         records.push(row);
       }
+      if (table.name === 'abtest')
+        records.push({
+          id: 10,
+          title: '순환 FK 실험',
+          display_title: '순환 FK',
+          description: null,
+          creator: null,
+          team: null,
+          winner_id: 20,
+          status: 'IN_PROGRESS',
+          created_at: '2025-01-01 01:02:03',
+          updated_at: '2025-01-02 03:04:05',
+        });
+      if (table.name === 'abtest_variable')
+        records.push({
+          id: 20,
+          abtest_id: 10,
+          name: 'A',
+          display_name: 'A',
+          rate: 100,
+          count: 0,
+          created_at: '2025-01-01 01:02:03',
+          updated_at: '2025-01-02 03:04:05',
+        });
       if (table.name === 'dining_soldout_report_sequence')
         records.push({ id: 1, last_sequence: '9007199254740993', delivery_cooldown_until: null });
       if (table.name === 'password_resets')
@@ -421,6 +700,8 @@ test('complete snapshot conversion reconciles chat, preserves sessions and emits
     assert.equal(result.status, 0, result.stderr);
     const converted = JSON.parse(readFileSync(resolve(output, 'manifest.json'), 'utf8'));
     assert.equal(converted.complete, true);
+    assert.equal(converted.excludedSourceAuthAuthority.length, 1);
+    assert.equal(converted.redisDispositions['source-auth-authority-excluded'], 1);
     assert.equal(converted.foreignKeyViolations, 0);
     const db = new DatabaseSync(resolve(output, 'validated.sqlite'));
     try {
@@ -428,7 +709,16 @@ test('complete snapshot conversion reconciles chat, preserves sessions and emits
         db.prepare('SELECT last_sequence FROM dining_soldout_report_sequence').get().last_sequence,
         '9007199254740993',
       );
-      assert.equal(db.prepare('SELECT auto_login FROM identity_web_sessions').get().auto_login, 1);
+      assert.equal(db.prepare('SELECT count(*) AS count FROM identity_web_sessions').get().count, 0);
+      assert.equal(db.prepare('SELECT count(*) AS count FROM identity_native_sessions').get().count, 0);
+      assert.equal(
+        db
+          .prepare(
+            "SELECT count(*) AS count FROM native_legacy_redis WHERE key LIKE 'webAuthSession:%' OR key LIKE 'refreshToken:%'",
+          )
+          .get().count,
+        0,
+      );
       assert.equal(db.prepare('SELECT count(*) AS count FROM password_resets').get().count, 2);
       const chat = db.prepare('SELECT * FROM native_chat_message').get();
       assert.equal(chat.contents, 'null');
@@ -436,16 +726,25 @@ test('complete snapshot conversion reconciles chat, preserves sessions and emits
       assert.equal(chat.is_read, 1);
       assert.equal(chat.created_at, '2026-10-27T15:00:00.123456Z');
       assert.equal(db.prepare('SELECT count(*) AS count FROM native_legacy_mongo').get().count, 1);
-      assert.equal(db.prepare('SELECT count(*) AS count FROM native_legacy_redis').get().count, 2);
+      assert.equal(db.prepare('SELECT count(*) AS count FROM native_legacy_redis').get().count, 1);
     } finally {
       db.close();
     }
     assert.ok(converted.files.some((file) => file.kind === 'schema' && file.schemaHash));
     assert.ok(converted.files.filter((file) => file.kind === 'data').every((file) => file.dataHash && file.sha256));
     assert.equal(converted.sourceMetadataFiles.length, 5);
+    const firstData = readFileSync(resolve(output, converted.files[1].name), 'utf8');
+    const firstTwoStatements = firstData.split('\n').slice(0, 2).join('\n');
     const imported = new DatabaseSync(':memory:');
     try {
-      for (const file of converted.files) imported.exec(readFileSync(resolve(output, file.name), 'utf8'));
+      imported.exec('PRAGMA foreign_keys=ON');
+      imported.exec(readFileSync(resolve(output, converted.files[0].name), 'utf8'));
+      imported.exec(firstTwoStatements);
+      for (const file of converted.files.slice(1)) imported.exec(readFileSync(resolve(output, file.name), 'utf8'));
+      const winner = imported.prepare('SELECT winner_id,updated_at FROM abtest WHERE id=10').get();
+      assert.equal(winner.winner_id, 20);
+      assert.equal(winner.updated_at, '2025-01-02 03:04:05');
+      assert.deepEqual(imported.prepare('PRAGMA foreign_key_check').all(), []);
       for (const file of converted.sourceMetadataFiles) {
         const descriptor = imported.prepare('SELECT * FROM native_source_metadata_file WHERE id=?').get(file.id);
         assert.deepEqual({ ...descriptor }, file);
@@ -471,6 +770,76 @@ test('complete snapshot conversion reconciles chat, preserves sessions and emits
     } finally {
       imported.close();
     }
+    const corrupted = new DatabaseSync(':memory:');
+    try {
+      corrupted.exec('PRAGMA foreign_keys=ON');
+      corrupted.exec(readFileSync(resolve(output, converted.files[0].name), 'utf8'));
+      corrupted.exec(firstTwoStatements);
+      corrupted.exec("UPDATE abtest SET title='tampered' WHERE id=10");
+      assert.throws(() => corrupted.exec(firstData));
+      assert.notEqual(corrupted.prepare('SELECT title FROM abtest WHERE id=10').get().title, '순환 FK 실험');
+    } finally {
+      corrupted.close();
+    }
+    const inventory = MONGO_COLLECTIONS.map((name) => ({
+      name,
+      type: 'collection',
+      count: manifest.files.find((file) => file.source === `mongo:${name}`).count,
+    }));
+    const onlineManifest = {
+      ...manifest,
+      quiesced: false,
+      captureMode: 'per-store-online',
+      consistency: 'per-store-online',
+      mongoInventory: inventory,
+      mongoInventoryAfter: inventory,
+      storeCaptures: {
+        mysql: {
+          startedAt: '2026-10-28T00:00:00.000Z',
+          completedAt: '2026-10-28T00:00:00.100Z',
+          consistency: 'repeatable-read-transaction',
+        },
+        mongo: {
+          startedAt: '2026-10-28T00:00:00.100Z',
+          completedAt: '2026-10-28T00:00:00.200Z',
+          consistency: 'sequential-collection-cursors-not-atomic',
+        },
+        redis: {
+          startedAt: '2026-10-28T00:00:00.200Z',
+          completedAt: '2026-10-28T00:00:00.300Z',
+          consistency: 'scan-per-key-atomic-not-global',
+        },
+      },
+    };
+    writeFileSync(resolve(input, 'manifest.json'), JSON.stringify(onlineManifest));
+    const onlineArgs = [
+      resolve(root, 'scripts/convert-snapshot.mjs'),
+      input,
+      resolve(directory, 'online-denied'),
+      '+09:00',
+    ];
+    const denied = spawnSync(process.execPath, onlineArgs, { encoding: 'utf8' });
+    assert.notEqual(denied.status, 0);
+    assert.match(denied.stderr, /--allow-online-bootstrap/);
+    const onlineResult = spawnSync(
+      process.execPath,
+      [
+        resolve(root, 'scripts/convert-snapshot.mjs'),
+        input,
+        resolve(directory, 'online-converted'),
+        '+09:00',
+        '--allow-online-bootstrap',
+      ],
+      { encoding: 'utf8' },
+    );
+    assert.equal(onlineResult.status, 0, onlineResult.stderr);
+    const onlineConverted = JSON.parse(readFileSync(resolve(directory, 'online-converted/manifest.json'), 'utf8'));
+    assert.equal(onlineConverted.captureMode, 'per-store-online');
+    assert.equal(onlineConverted.sourceQuiesced, false);
+    assert.equal(onlineConverted.foreignKeyViolations, 0);
+    assert.throws(() => assertImportCapture(onlineConverted, false), /--allow-online-bootstrap/);
+    assert.doesNotThrow(() => assertImportCapture(onlineConverted, true));
+    writeFileSync(resolve(input, 'manifest.json'), JSON.stringify(manifest));
     for (const [label, mutate, message] of [
       [
         'metadata-count',
