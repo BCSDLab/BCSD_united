@@ -145,7 +145,6 @@ const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
           queryClient.prefetchQuery(storeQueries.eventCount()),
           queryClient.prefetchQuery(articleQueries.list(isLoggedIn, '1')),
           queryClient.prefetchQuery(timetableQueries.semesterInfo()),
-          queryClient.prefetchQuery(articleQueries.lostItemStat()),
         ]);
         if (banners) {
           bannerCategoryId = banners.categoryId;
