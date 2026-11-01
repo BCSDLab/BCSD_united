@@ -10,7 +10,6 @@ import { bannerQueries } from 'api/banner/queries';
 import { cafeteriaQueries } from 'api/cafeteria/queries';
 import { callvanQueries } from 'api/callvan/queries';
 import { coopshopQueries } from 'api/coopshop/queries';
-import type { StoreCategoriesResponse } from 'api/store/entity';
 import { storeQueries } from 'api/store/queries';
 import { createDefaultTimetableFrameList, timetableQueries, timetableQueryKeys } from 'api/timetable/queries';
 import { weatherQueries } from 'api/weather/queries';
@@ -120,7 +119,6 @@ const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
 
       let bannerCategoryId = 0;
       let bannersList: BannersResponse = { count: 0, banners: [] };
-      let categories: StoreCategoriesResponse = { total_count: 0, shop_categories: [] };
 
       const prefetchDeviceContent = async () => {
         if (isMobile) {
@@ -137,9 +135,8 @@ const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
           return;
         }
 
-        const [banners, categoriesResponse] = await Promise.all([
+        const [banners] = await Promise.all([
           prefetchBanners(),
-          queryClient.fetchQuery(storeQueries.categories()),
           queryClient.prefetchQuery(storeQueries.counts()),
           queryClient.prefetchQuery(storeQueries.eventCount()),
           queryClient.prefetchQuery(articleQueries.list(isLoggedIn, '1')),
@@ -149,7 +146,6 @@ const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
           bannerCategoryId = banners.categoryId;
           bannersList = banners.list;
         }
-        categories = categoriesResponse;
       };
 
       const [userSemester] = await Promise.all([
@@ -168,7 +164,6 @@ const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
       return {
         bannerCategoryId,
         bannersList,
-        categories,
         serverDining,
         serverSemester,
         dehydratedState: dehydrate(queryClient),
