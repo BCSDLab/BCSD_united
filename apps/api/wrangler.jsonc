@@ -8,6 +8,7 @@
   "compatibility_flags": ["nodejs_compat"],
   "upload_source_maps": true,
   "observability": { "enabled": true, "issues": { "enabled": true }, "traces": { "enabled": true } },
+  "tail_consumers": [{ "service": "bcsd-error-automation" }],
   "d1_databases": [
     {
       "binding": "DB",
