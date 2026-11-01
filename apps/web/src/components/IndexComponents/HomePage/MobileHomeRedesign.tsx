@@ -1,10 +1,9 @@
 import type { ReactNode } from 'react';
-import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
+import { useSuspenseQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 
 import { callvanQueries } from 'api/callvan/queries';
 import { storeQueries } from 'api/store/queries';
-import { weatherQueries } from 'api/weather/queries';
 import ArrowRightIcon from 'assets/svg/common/arrow-right-icon.svg';
 import BusTimeIcon from 'assets/svg/common/bus-time-icon.svg';
 import ForkKnifeIcon from 'assets/svg/common/fork-knife-icon.svg';
@@ -13,24 +12,16 @@ import BusRouteIcon from 'assets/svg/common/route-icon.svg';
 import VanIcon from 'assets/svg/common/van-icon.svg';
 import IndexMobileCafeteria from 'components/IndexComponents/IndexMobileCafeteria';
 import IconBox from 'components/ui/IconBox';
-import Image from 'components/ui/Image';
 import { BUS_LINKS } from 'static/bus';
 import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
-import { useUser } from 'utils/hooks/state/useUser';
 import { parseSearch } from 'utils/routing/search';
-import { useServerNow } from 'utils/ssr/useServerNow';
 
+import HomeGreeting from './HomeGreeting';
 import styles from './MobileHomeRedesign.module.scss';
 
 const unibus = BUS_LINKS[2];
 const mobileStoreLink = `${ROUTES.Store()}?category=1`;
-const dateFormatter = new Intl.DateTimeFormat('ko-KR', {
-  month: 'long',
-  day: 'numeric',
-  weekday: 'long',
-  timeZone: 'Asia/Seoul',
-});
 
 const transportCards = [
   {
@@ -74,9 +65,6 @@ function SectionHeader({ titleId, title, children }: SectionHeaderProps) {
 
 function MobileHomeRedesign() {
   const logger = useLogger();
-  const serverNow = useServerNow();
-  const { data: userInfo } = useUser();
-  const weatherQuery = useQuery(weatherQueries.info());
   const { data: callvanData } = useSuspenseQuery({
     ...callvanQueries.list({
       statuses: ['RECRUITING'],
@@ -88,9 +76,6 @@ function MobileHomeRedesign() {
   const { data: storeCounts } = useSuspenseQuery(storeQueries.counts());
   const { data: storeEventCount } = useSuspenseQuery(storeQueries.eventCount());
 
-  const displayName = userInfo?.nickname?.trim() || userInfo?.name?.trim() || '코리';
-  const todayLabel = dateFormatter.format(serverNow);
-
   const logClick = (event_label: string, value: string) => {
     logger.actionEventClick({
       team: 'CAMPUS',
@@ -101,36 +86,7 @@ function MobileHomeRedesign() {
 
   return (
     <main className={styles.template}>
-      <section className={styles.hero} aria-labelledby="home-greeting-title">
-        <div className={styles.hero__meta}>
-          <span className={styles.hero__date}>{todayLabel}</span>
-          <span className={styles.weather}>
-            {weatherQuery.data ? (
-              <>
-                <Image
-                  className={styles.weather__icon}
-                  src={weatherQuery.data.weather_icon_url}
-                  alt=""
-                  width={16}
-                  height={16}
-                  aria-hidden
-                />
-                <span className={styles.weather__text}>
-                  {weatherQuery.data.weather} {weatherQuery.data.temperature}°
-                </span>
-              </>
-            ) : (
-              <span className={styles.weather__text}>
-                {weatherQuery.isPending ? '날씨 확인 중' : '날씨 정보 제공 불가'}
-              </span>
-            )}
-          </span>
-        </div>
-        <h1 id="home-greeting-title" className={styles.hero__title}>
-          <span>{displayName}님,</span>
-          <span>오늘도 잘 챙겨먹어요</span>
-        </h1>
-      </section>
+      <HomeGreeting />
 
       <section className={styles.section} aria-labelledby="today-menu-title">
         <SectionHeader titleId="today-menu-title" title="오늘의 식단">
