@@ -141,6 +141,8 @@ const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
         const [banners, categoriesResponse] = await Promise.all([
           prefetchBanners(),
           queryClient.fetchQuery(storeQueries.categories()),
+          queryClient.prefetchQuery(storeQueries.counts()),
+          queryClient.prefetchQuery(storeQueries.eventCount()),
           queryClient.prefetchQuery(articleQueries.list(isLoggedIn, '1')),
           queryClient.prefetchQuery(timetableQueries.semesterInfo()),
           queryClient.prefetchQuery(articleQueries.lostItemStat()),
