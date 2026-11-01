@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 
 import { articleQueries } from 'api/articles/queries';
-import RightArrow from 'assets/svg/right-arrow.svg';
+import ArrowRightIcon from 'assets/svg/common/arrow-right-icon.svg';
 import { convertArticlesTag } from 'components/Articles/utils/convertArticlesTag';
 import { createArticlesWithNewSelector } from 'components/Articles/utils/selectArticlesData';
 import ROUTES from 'static/routes';
@@ -41,13 +41,13 @@ export default function IndexArticles({ serverNow }: IndexArticlesProps) {
             logger.actionEventClick({ team: 'CAMPUS', event_label: 'main_notice_detail', value: '공지사항' })
           }
         >
-          더보기
-          <RightArrow aria-hidden />
+          전체보기
+          <ArrowRightIcon aria-hidden />
         </Link>
       </div>
 
       <ul className={styles.list}>
-        {articlesData?.articles.slice(0, 7).map((article) => (
+        {articlesData?.articles.slice(0, 5).map((article) => (
           <li key={article.id} className={styles.list__item}>
             <Link
               to={ROUTES.ArticlesDetail({ id: String(article.id) })}
@@ -56,15 +56,6 @@ export default function IndexArticles({ serverNow }: IndexArticlesProps) {
             >
               <span className={styles['list__item-type']}>{convertArticlesTag(article.board_id)}</span>
               <span className={styles['list__item-title']}>{article.title}</span>
-              {article.isNew && (
-                // 작은 정적 이미지는 크기를 조정하지 않는다.
-                <img
-                  className={styles['list__item-tag']}
-                  src="https://static.koreatech.in/upload/7f2af097aeeca368b0a491f9e00f80ca.png"
-                  alt="NEW"
-                  aria-hidden
-                />
-              )}
             </Link>
             <span className={styles['list__item-registered']}>{article.registered_at.replaceAll('-', '.')}</span>
           </li>
