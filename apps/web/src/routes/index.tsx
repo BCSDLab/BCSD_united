@@ -65,7 +65,6 @@ const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
         }
       };
 
-      const serverNow = new Date();
       const diningTime = new DiningTime();
       const diningDate = diningTime.generateDiningDate();
       const serverDining = {
@@ -172,7 +171,6 @@ const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
         categories,
         serverDining,
         serverSemester,
-        serverNow: serverNow.toISOString(),
         dehydratedState: dehydrate(queryClient),
       };
     }),
