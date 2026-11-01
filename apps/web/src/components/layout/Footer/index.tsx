@@ -1,7 +1,9 @@
 import { Link, useLocation } from '@tanstack/react-router';
 
+import HomeOutlineIcon from 'assets/svg/common/home-outline-icon.svg';
 import LoginRequiredModal from 'components/modal/LoginRequiredModal';
 import type { Portal } from 'components/modal/Modal/PortalProvider';
+import KoinLogo from 'components/ui/KoinLogo';
 import { CATEGORY } from 'static/category';
 import type { SubmenuTitle } from 'static/category';
 import ROUTES from 'static/routes';
@@ -93,14 +95,7 @@ function Footer() {
         </ul>
         <div className={styles.sitemap}>
           <Link className={styles.sitemap__logo} to={ROUTES.Main()}>
-            <img
-              src="https://static.koreatech.in/assets/img/logo_white.png"
-              alt="KOIN service logo"
-              width={72}
-              height={41}
-              loading="lazy"
-              decoding="async"
-            />
+            <KoinLogo muted />
           </Link>
 
           <ul className={styles.sitemap__content}>
@@ -147,15 +142,8 @@ function Footer() {
                 decoding="async"
               />
             </a>
-            <Link className={styles['sitemap__icon-link']} to={ROUTES.Main()}>
-              <img
-                src="https://static.koreatech.in/upload/1aae9a021f0338527c28e5c3d0518fa1.png"
-                alt="home"
-                width={25}
-                height={30}
-                loading="lazy"
-                decoding="async"
-              />
+            <Link className={styles['sitemap__icon-link']} to={ROUTES.Main()} aria-label="홈">
+              <HomeOutlineIcon aria-hidden />
             </Link>
           </div>
           <span className={styles.sitemap__copyright}>
