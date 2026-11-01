@@ -110,6 +110,8 @@ pnpm --dir apps/error-automation exec wrangler deploy --dry-run
 
 운영 증거 상태(2026-10-30): 두 Issues 발생 1회 규칙과 공통 Generic Webhook은 실제 대시보드에서 생성·활성화되었다. Rocky executor의 인증된 `POST /executor/claim`은 작업이 없을 때 실제 204로 반복 응답했다. 호스트 `MemAvailable`이 일시적으로 8 GiB 안전 기준 아래로 내려갔을 때 preflight는 claim을 중지했고, 8 GiB 이상 회복 후 nonce 갱신과 폴링이 다시 진행됐다. 6 GiB 검증 컨테이너와 2 GiB controller의 보호 기준을 낮추거나 Home Assistant를 중단하지 않았다. 기존 koin-web 이슈의 수동 발송은 provider 활동과 Worker 도착을 입증했지만, 당시 알림의 summary만으로는 소스 위치가 없어 큐·lease·모델/PR이 생성되지 않았다. 특정 과거 preview 발생은 스크립트 버전 조회가 404이며 현재 버전의 map을 대신 쓰지 않는다. 소스맵으로 매핑된 **새 실제 예외**의 Tail/Issues/telemetry 교차 검증 성공 전까지 자동 수정 완료나 PR 발행을 주장하지 않는다. Worker Previews의 PR 브랜치는 검사만 하고 배포하지 않으며, 운영/Preview 자동 merge는 없다.
 
+운영 연결 확인(2026-11-02): Git Build `332c364`의 Tail handler, `3cde7dd`의 koin-web/koin-api **production 전용** Tail consumer, `56d8077`의 두 정확한 source allowlist가 차례로 배포되었다. 두 생산 Worker 설정에 `bcsd-error-automation` 연결이 표시되고, 허용된 실제 버스 조회 `GET /bus?bus_type=city&depart=KOREATECH&arrival=STATION`은 200이었다. 같은 시각 자동화 Worker의 Cloudflare Observability `trace` 이벤트에 `consumedEvents.scriptName=koin-api`가 기록돼 정상 트래픽의 실제 Tail 전달을 확인했다. Rocky의 claim nonce도 최종 배포 뒤 계속 갱신됐다. 이는 **Tail 연결과 빈 큐 폴링** 증거일 뿐 매핑된 오류 프레임·lease·모델 검증·PR 증거가 아니다. 오류를 인위적으로 만들거나 기존 삭제 버전의 소스 위치를 추정하지 않았다.
+
 ## 공식 근거
 
 - [Cloudflare Issues automations](https://developers.cloudflare.com/workers/observability/issues/automations/)
