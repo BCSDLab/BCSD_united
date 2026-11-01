@@ -1,17 +1,12 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { cn } from '@bcsdlab/utils';
 import { Link } from '@tanstack/react-router';
-import { useSwipeable } from 'react-swipeable';
 
 import type { BannersResponse } from 'api/banner/entity';
 import ArrowRightIcon from 'assets/svg/common/arrow-right-icon.svg';
-import ArrowIcon from 'assets/svg/previous-arrow-icon.svg';
 import Image from 'components/ui/Image';
 import useLogger from 'utils/hooks/analytics/useLogger';
-import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
-import useBooleanState from 'utils/hooks/state/useBooleanState';
 import { parseSearch } from 'utils/routing/search';
-import { getCookie, setCookie } from 'utils/ts/cookie';
 
 import styles from './Banner.module.scss';
 
@@ -20,16 +15,9 @@ interface BannerCardProps {
   image_url: string;
   redirect_link: string | null;
   isFirst: boolean;
-  sizes?: string;
 }
 
-function BannerCard({
-  handleImageLinkClick,
-  image_url,
-  redirect_link,
-  isFirst,
-  sizes = '(max-width: 768px) 100vw, 400px',
-}: BannerCardProps) {
+function BannerCard({ handleImageLinkClick, image_url, redirect_link, isFirst }: BannerCardProps) {
   const imgWrapper = (
     <div className={styles['slider__image-wrapper']}>
       <Image
@@ -38,7 +26,7 @@ function BannerCard({
         fill
         priority={isFirst}
         fetchPriority={isFirst ? 'high' : 'auto'}
-        sizes={sizes}
+        sizes="357px"
         className={styles.slider__image}
         onError={(e) => {
           e.currentTarget.removeAttribute('srcset');
@@ -92,41 +80,14 @@ function BannerCard({
 
 interface BannerProps {
   bannersList: BannersResponse;
-  bannerCategoryId: number;
-  variant?: 'inline';
 }
 
-const HIDE_BANNER_DURATION_DAYS = 7;
-const HIDE_BANNER_COOKIE = 'HIDE_BANNER';
-
-function Banner({ bannersList, bannerCategoryId, variant }: BannerProps) {
-  const isMobile = useMediaQuery();
+function Banner({ bannersList }: BannerProps) {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const logger = useLogger();
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const currentBanner = bannersList.banners[currentPageIndex];
-  const [isModalOpen, openModal, closeModal] = useBooleanState(false);
-  const isVisible = variant === 'inline' ? bannersList.count > 0 : isModalOpen;
-
-  useEffect(() => {
-    if (variant === 'inline') return;
-
-    if (bannersList.count === 0) {
-      closeModal();
-
-      return;
-    }
-
-    // 배너 노출 여부를 SSR에서 분리해 페이지 HTML 캐시를 안전하게 유지
-    const isBannerHidden = getCookie(HIDE_BANNER_COOKIE) === `modal_category_${bannerCategoryId}`;
-    if (isBannerHidden) {
-      closeModal();
-
-      return;
-    }
-
-    openModal();
-  }, [bannerCategoryId, bannersList.count, closeModal, openModal, variant]);
+  const isVisible = bannersList.count > 0;
 
   const resetAutoSlide = useCallback(() => {
     if (intervalRef.current) clearTimeout(intervalRef.current);
@@ -174,33 +135,6 @@ function Banner({ bannersList, bannerCategoryId, variant }: BannerProps) {
     resetAutoSlide();
   };
 
-  const handleCloseBanner = () => {
-    logger.actionEventClick({
-      team: 'CAMPUS',
-      event_label: 'main_modal_close',
-      value: `${currentBanner.title}`,
-    });
-    closeModal();
-  };
-
-  const handleHideForWeek = () => {
-    logger.actionEventClick({
-      team: 'CAMPUS',
-      event_label: 'main_modal_hide_7d',
-      value: `${currentBanner.title}`,
-    });
-    if (bannerCategoryId === 1) {
-      setCookie(HIDE_BANNER_COOKIE, `modal_category_${bannerCategoryId}`, HIDE_BANNER_DURATION_DAYS);
-    }
-    closeModal();
-  };
-
-  const swipeHandlers = useSwipeable({
-    onSwipedLeft: handleNextButtonClick,
-    onSwipedRight: handlePrevButtonClick,
-    trackMouse: true,
-  });
-
   useEffect(() => {
     if (!isVisible || bannersList.count <= 1) return undefined;
 
@@ -225,101 +159,54 @@ function Banner({ bannersList, bannerCategoryId, variant }: BannerProps) {
 
   if (!isVisible) return null;
 
-  if (variant === 'inline') {
-    return (
-      <section className={styles.inline} aria-label="메인 배너">
-        <div className={styles.inline__slider}>
-          <BannerCard
-            handleImageLinkClick={handleImageLinkClick}
-            image_url={currentBanner.image_url}
-            redirect_link={currentBanner.redirect_link}
-            isFirst={currentPageIndex === 0}
-            sizes="357px"
-          />
-          {bannersList.count > 1 && (
-            <>
-              <button
-                type="button"
-                className={`${styles.inline__arrow} ${styles['inline__arrow--previous']}`}
-                aria-label="이전 슬라이드"
-                onClick={handlePrevButtonClick}
-              >
-                <ArrowRightIcon aria-hidden />
-              </button>
-              <button
-                type="button"
-                className={`${styles.inline__arrow} ${styles['inline__arrow--next']}`}
-                aria-label="다음 슬라이드"
-                onClick={handleNextButtonClick}
-              >
-                <ArrowRightIcon aria-hidden />
-              </button>
-            </>
-          )}
-        </div>
-        {bannersList.count > 1 && (
-          <div className={styles.inline__pagination}>
-            {bannersList.banners.map((banner, index) => (
-              <button
-                key={banner.id}
-                type="button"
-                className={cn({
-                  [styles.inline__indicator]: true,
-                  [styles['inline__indicator--active']]: index === currentPageIndex,
-                })}
-                aria-label={`${index + 1}번 배너 보기`}
-                aria-current={index === currentPageIndex ? 'true' : undefined}
-                onClick={() => handlePageButtonClick(index)}
-              />
-            ))}
-          </div>
-        )}
-      </section>
-    );
-  }
-
   return (
-    <div className={styles.background}>
-      <div className={styles.container}>
-        <div {...(isMobile ? swipeHandlers : {})} className={styles.slider}>
-          <BannerCard
-            handleImageLinkClick={handleImageLinkClick}
-            image_url={currentBanner.image_url}
-            redirect_link={currentBanner.redirect_link}
-            isFirst={currentPageIndex === 0}
-          />
-          <div className={styles.slider__pagination}>
-            <p className={styles['slider__pagination-label']}>
-              {currentPageIndex + 1}/{bannersList.count}
-            </p>
-          </div>
-          <button
-            type="button"
-            className={`${styles.slider__arrow} ${styles['slider__arrow--previous']}`}
-            aria-label="이전 슬라이드"
-            onClick={handlePrevButtonClick}
-          >
-            <ArrowIcon />
-          </button>
-          <button
-            type="button"
-            className={`${styles.slider__arrow} ${styles['slider__arrow--next']}`}
-            aria-label="다음 슬라이드"
-            onClick={handleNextButtonClick}
-          >
-            <ArrowIcon />
-          </button>
-        </div>
-        <div className={styles.footer}>
-          <button type="button" className={styles['footer__button--hide']} onClick={handleHideForWeek}>
-            일주일 동안 그만 보기
-          </button>
-          <button type="button" className={styles['footer__button--close']} onClick={handleCloseBanner}>
-            닫기
-          </button>
-        </div>
+    <section className={styles.inline} aria-label="메인 배너">
+      <div className={styles.inline__slider}>
+        <BannerCard
+          handleImageLinkClick={handleImageLinkClick}
+          image_url={currentBanner.image_url}
+          redirect_link={currentBanner.redirect_link}
+          isFirst={currentPageIndex === 0}
+        />
+        {bannersList.count > 1 && (
+          <>
+            <button
+              type="button"
+              className={`${styles.inline__arrow} ${styles['inline__arrow--previous']}`}
+              aria-label="이전 슬라이드"
+              onClick={handlePrevButtonClick}
+            >
+              <ArrowRightIcon aria-hidden />
+            </button>
+            <button
+              type="button"
+              className={`${styles.inline__arrow} ${styles['inline__arrow--next']}`}
+              aria-label="다음 슬라이드"
+              onClick={handleNextButtonClick}
+            >
+              <ArrowRightIcon aria-hidden />
+            </button>
+          </>
+        )}
       </div>
-    </div>
+      {bannersList.count > 1 && (
+        <div className={styles.inline__pagination}>
+          {bannersList.banners.map((banner, index) => (
+            <button
+              key={banner.id}
+              type="button"
+              className={cn({
+                [styles.inline__indicator]: true,
+                [styles['inline__indicator--active']]: index === currentPageIndex,
+              })}
+              aria-label={`${index + 1}번 배너 보기`}
+              aria-current={index === currentPageIndex ? 'true' : undefined}
+              onClick={() => handlePageButtonClick(index)}
+            />
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
