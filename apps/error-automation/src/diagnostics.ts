@@ -1,4 +1,5 @@
 import type { Diagnostic, Env, Identity } from './types';
+import { SOURCE_HOSTS, tailKey } from './tail';
 
 function object(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Expected provider object');
@@ -81,6 +82,173 @@ export interface TrustedEvidence {
   route: string;
   requestMethod: 'GET';
 }
+const CF_ACCOUNT = 'abe06b869950de952decf9df29c6f1a3';
+const VERSION_ID = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;
+const RAY_ID = /^[a-f0-9]{16}$/;
+const TRACE_ID = /^[a-f0-9]{32}$/;
+const EVIDENCE_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+
+async function cloudflareEvidence(
+  env: Env,
+  identity: Extract<Identity, { source: 'cloudflare' }>,
+  stored: Diagnostic,
+): Promise<TrustedEvidence> {
+  if (
+    identity.scope.accountId !== CF_ACCOUNT ||
+    !['koin-web', 'koin-api'].includes(identity.project) ||
+    identity.scope.workerName !== identity.project ||
+    (env.CLOUDFLARE_DIAGNOSTICS_TOKEN?.length ?? 0) < 30
+  ) {
+    throw new Error('CLOUDFLARE_EVIDENCE_UNAVAILABLE: fixed account, Worker or read credential missing');
+  }
+  const headers = { Authorization: `Bearer ${env.CLOUDFLARE_DIAGNOSTICS_TOKEN}` };
+  const api = `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT}`;
+  const issueId = `${identity.sourceId.slice(0, 8)}-${identity.sourceId.slice(8, 12)}-${identity.sourceId.slice(12, 16)}-${identity.sourceId.slice(16, 20)}-${identity.sourceId.slice(20)}`;
+  // This Issues occurrence GET is the exact read-only endpoint observed in the
+  // account dashboard. It is beta/undocumented: any contract drift fails closed.
+  const response = await fetch(`${api}/workers/observability/issues/${issueId}/occurrences?per_page=5`, {
+    headers,
+    redirect: 'error',
+    signal: AbortSignal.timeout(15_000),
+  });
+  const body = await boundedJson(response, 500_000);
+  if (body.success !== true || !Array.isArray(body.result))
+    throw new Error('CLOUDFLARE_EVIDENCE_UNAVAILABLE: occurrence response changed');
+
+  for (let index = 0; index < body.result.length && index < 5; index += 1) {
+    const occurrence = object(body.result[index]);
+    const worker = object(occurrence.worker);
+    const invocation = object(occurrence.invocation);
+    const scriptVersion = object(worker.scriptVersion).id;
+    const route = safeRoute(invocation.url, [SOURCE_HOSTS[identity.project]]);
+    const timestamp = occurrence.timestamp;
+    if (
+      worker.scriptName !== identity.project ||
+      typeof scriptVersion !== 'string' ||
+      !VERSION_ID.test(scriptVersion) ||
+      invocation.method !== 'GET' ||
+      route === null ||
+      route.includes('REDACTED') ||
+      invocation.path !== route ||
+      typeof invocation.rayId !== 'string' ||
+      !RAY_ID.test(invocation.rayId) ||
+      typeof invocation.traceId !== 'string' ||
+      !TRACE_ID.test(invocation.traceId) ||
+      !Number.isSafeInteger(timestamp) ||
+      (timestamp as number) < Date.now() - EVIDENCE_RETENTION_MS ||
+      (timestamp as number) > Date.now() + 60_000
+    )
+      continue;
+
+    const stub = env.ERROR_ISSUES.get(env.ERROR_ISSUES.idFromName(tailKey(identity.project, invocation.rayId)));
+    const storedTail = await stub.fetch('https://error-dispatch.internal/tail');
+    if (!storedTail.ok) {
+      await storedTail.body?.cancel();
+      continue;
+    }
+    const tail = object(await storedTail.json());
+    if (
+      tail.version !== 1 ||
+      tail.workerName !== identity.project ||
+      tail.rayId !== invocation.rayId ||
+      tail.scriptVersion !== scriptVersion ||
+      tail.route !== route ||
+      !Number.isSafeInteger(tail.eventTimestamp) ||
+      Math.abs((tail.eventTimestamp as number) - (timestamp as number)) > 120_000 ||
+      !Array.isArray(tail.frames) ||
+      tail.frames.length === 0 ||
+      tail.frames.length > 12
+    )
+      continue;
+    const frames = tail.frames.map((value) => object(value));
+    if (
+      frames.some(
+        (frame) =>
+          typeof frame.path !== 'string' ||
+          !frame.path.startsWith(`apps/${identity.app}/src/`) ||
+          frame.path.includes('..') ||
+          !Number.isSafeInteger(frame.line) ||
+          !Number.isSafeInteger(frame.column),
+      )
+    )
+      continue;
+
+    const version = await fetch(`${api}/workers/workers/${identity.project}/versions/${scriptVersion}`, {
+      headers,
+      redirect: 'error',
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (version.status === 404) {
+      await version.body?.cancel();
+      continue;
+    }
+    const versionBody = await boundedJson(version, 100_000);
+    if (versionBody.success !== true || object(versionBody.result).id !== scriptVersion)
+      throw new Error('CLOUDFLARE_EVIDENCE_UNAVAILABLE: source version mismatch');
+
+    const telemetryResponse = await fetch(`${api}/workers/observability/telemetry/query`, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        queryId: 'koin-autofix-trace-evidence',
+        view: 'events',
+        limit: 30,
+        timeframe: { from: (timestamp as number) - 60_000, to: (timestamp as number) + 60_000 },
+        parameters: {
+          datasets: ['cloudflare-workers'],
+          filterCombination: 'and',
+          filters: [
+            { key: '$metadata.service', operation: 'eq', type: 'string', value: identity.project },
+            { key: '$metadata.traceId', operation: 'eq', type: 'string', value: invocation.traceId },
+          ],
+        },
+      }),
+      redirect: 'error',
+      signal: AbortSignal.timeout(15_000),
+    });
+    const telemetry = await boundedJson(telemetryResponse, 500_000);
+    const events = object(object(telemetry.result).events).events;
+    if (
+      telemetry.success !== true ||
+      !Array.isArray(events) ||
+      !events.some((event) => {
+        try {
+          const item = object(event);
+          const metadata = object(item.$metadata);
+          const producer = object(item.$workers);
+          return (
+            metadata.account === CF_ACCOUNT &&
+            metadata.service === identity.project &&
+            metadata.traceId === invocation.traceId &&
+            metadata.rayId === invocation.rayId &&
+            producer.scriptName === identity.project &&
+            object(producer.scriptVersion).id === scriptVersion
+          );
+        } catch {
+          return false;
+        }
+      })
+    )
+      continue;
+
+    return {
+      route,
+      requestMethod: 'GET',
+      data: {
+        source: 'cloudflare',
+        issueId: identity.sourceId,
+        workerName: identity.project,
+        scriptVersion,
+        summary: stored.summary,
+        sourceFrames: frames.map((frame) => ({ path: frame.path, line: frame.line, column: frame.column })),
+      },
+    };
+  }
+  throw new Error(
+    'CLOUDFLARE_EVIDENCE_UNAVAILABLE: no matching mapped Tail frame, GET route and pinned source version',
+  );
+}
+
 export async function trustedDiagnostics(env: Env, identity: Identity, stored: Diagnostic): Promise<TrustedEvidence> {
   if (JSON.stringify(stored.identity) !== JSON.stringify(identity))
     throw new Error('Stored diagnostic identity mismatch');
@@ -93,11 +261,25 @@ export async function trustedDiagnostics(env: Env, identity: Identity, stored: D
       typeof details.data !== 'object'
     )
       throw new Error('Unsupported Cloudflare notification');
-    // The documented Issues notification envelope has no authenticated source frame/route proof.
-    // Only a real provider payload can establish an evidence contract; never synthesize one.
-    throw new Error(
-      'CLOUDFLARE_EVIDENCE_UNAVAILABLE: authenticated Issues payload with exception/source-frame/request-route evidence required',
-    );
+    if (details.verifiedEvidence !== undefined) {
+      const proof = object(details.verifiedEvidence);
+      const data = object(proof.data);
+      if (
+        proof.requestMethod !== 'GET' ||
+        typeof proof.route !== 'string' ||
+        !/^\/[A-Za-z0-9_/-]*$/.test(proof.route) ||
+        proof.route.startsWith('//') ||
+        data.source !== 'cloudflare' ||
+        data.issueId !== identity.sourceId ||
+        data.workerName !== identity.project ||
+        !Array.isArray(data.sourceFrames) ||
+        !data.sourceFrames.length ||
+        data.sourceFrames.length > 12
+      )
+        throw new Error('Persisted Cloudflare evidence mismatch');
+      return { route: proof.route, requestMethod: 'GET', data };
+    }
+    return cloudflareEvidence(env, identity, stored);
   }
   if (!env.SENTRY_READ_TOKEN) throw new Error('Missing Sentry read credential');
   const url = `https://sentry.io/api/0/organizations/${identity.scope.organization}/issues/${identity.sourceId}/`;
