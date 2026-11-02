@@ -3,12 +3,11 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import test from 'node:test';
 import { Hono } from 'hono';
-import { createDatabase } from '@api/db/client';
-import { getWeather } from '@api/domains/transport/weather';
 import type { ApiEnv, Bindings } from '@api/runtime';
 import { registerSourceSync } from '@api/source-sync';
 
 const secret = 'integration-source-sync-secret-at-least-32-random-bytes';
+const checkpoint = (offset: number) => String(1_770_000_000_000 + offset);
 class LocalStatement {
   constructor(
     readonly database: DatabaseSync,
@@ -31,16 +30,37 @@ class LocalStatement {
     return { success: true, results, meta: { changes: meta.changes } };
   }
 }
-function fixture() {
+function fixture(
+  syncEnabled: string | null = 'true',
+  beforeBatch?: (database: DatabaseSync, statements: LocalStatement[]) => void,
+) {
   const sqlite = new DatabaseSync(':memory:');
   sqlite.exec('PRAGMA foreign_keys=ON');
   for (const file of readdirSync(new URL('../drizzle/', import.meta.url))
     .filter((name) => name.endsWith('.sql'))
     .sort())
     sqlite.exec(readFileSync(new URL(`../drizzle/${file}`, import.meta.url), 'utf8'));
+  sqlite.exec(`CREATE TABLE sync_audit(name TEXT NOT NULL, action TEXT, hash TEXT);
+    CREATE TRIGGER audit_article_update AFTER UPDATE ON new_articles BEGIN INSERT INTO sync_audit(name) VALUES('article'); END;
+    CREATE TRIGGER audit_portal_update AFTER UPDATE ON new_koreatech_articles BEGIN INSERT INTO sync_audit(name) VALUES('portal'); END;
+    CREATE TRIGGER audit_attachment_update AFTER UPDATE ON article_attachments BEGIN
+      INSERT INTO sync_audit(name,action,hash) VALUES('attachment','UPDATE',lower(hex(NEW.hash))); END;
+    CREATE TRIGGER audit_attachment_insert AFTER INSERT ON article_attachments BEGIN
+      INSERT INTO sync_audit(name,action,hash) VALUES('attachment','INSERT',lower(hex(NEW.hash))); END;
+    CREATE TRIGGER audit_attachment_delete AFTER DELETE ON article_attachments BEGIN
+      INSERT INTO sync_audit(name,action,hash) VALUES('attachment','DELETE',lower(hex(OLD.hash))); END;
+    CREATE TRIGGER audit_gram_update AFTER UPDATE ON native_article_ngram BEGIN INSERT INTO sync_audit(name) VALUES('gram'); END;
+    CREATE TRIGGER audit_gram_insert AFTER INSERT ON native_article_ngram BEGIN INSERT INTO sync_audit(name) VALUES('gram'); END;
+    CREATE TRIGGER audit_gram_delete AFTER DELETE ON native_article_ngram BEGIN INSERT INTO sync_audit(name) VALUES('gram'); END;`);
+  let databaseAccess = 0;
   const binding = {
-    prepare: (query: string) => new LocalStatement(sqlite, query),
+    prepare: (query: string) => {
+      databaseAccess++;
+      return new LocalStatement(sqlite, query);
+    },
     batch: async (statements: LocalStatement[]) => {
+      databaseAccess++;
+      beforeBatch?.(sqlite, statements);
       sqlite.exec('BEGIN IMMEDIATE');
       try {
         const result = statements.map((statement) => statement.execute());
@@ -58,6 +78,7 @@ function fixture() {
     DB: binding,
     ENVIRONMENT: 'development',
     SOURCE_SYNC_SECRET: secret,
+    SOURCE_SYNC_ENABLED: syncEnabled ?? undefined,
     JOBS: { sendBatch: async () => {} },
   } as unknown as Bindings;
   async function send(payload: Record<string, unknown>, options: { signature?: string; timestamp?: string } = {}) {
@@ -88,16 +109,20 @@ function fixture() {
       env,
     );
   }
-  return { sqlite, binding, send, close: () => sqlite.close() };
+  function changes(name: string) {
+    return sqlite.prepare('SELECT count(*) count FROM sync_audit WHERE name=?').get(name)?.count as number;
+  }
+  return { sqlite, send, changes, databaseAccess: () => databaseAccess, close: () => sqlite.close() };
 }
-const envelope = (
+const delta = (
   dataset: string,
-  checkpoint: string,
-  page: number,
-  rows: unknown[],
+  offset: number,
+  upserts: unknown[] = [],
+  deletes: unknown[] = [],
+  page = 0,
   final = true,
-  totalRows = rows.length,
-) => ({ version: 1, dataset, checkpoint, page, rows, final, ...(final ? { totalRows } : {}) });
+) => ({ version: 2, dataset, checkpoint: checkpoint(offset), page, final, upserts, deletes });
+const baseline = (dataset: string, keys: unknown[]) => ({ version: 2, action: 'baseline', dataset, keys });
 const dining = (menu: string, place = 'A코너') => ({
   date: '2026-10-29',
   type: 'LUNCH',
@@ -124,32 +149,202 @@ const lecture = (name: string, classNumber = '01') => ({
   is_elearning: 'N',
   class_time: '월1',
 });
-const weather = (temperature: number, updatedAt: number, expiresAt: number | null) => ({
-  id: 'Weather:byeongcheon',
-  payload: {
-    '202610292000': {
-      temperature,
-      weather: '맑음',
-      weather_id: 1,
-      weather_icon_url: 'https://static.koreatech.in/upload/WEATHER/sun-03.webp',
-    },
-  },
-  expires_at: expiresAt,
-  updated_at: updatedAt,
+const article = (title = '학교 공지', portal_hit = 19, attachments: unknown[] = []) => ({
+  board_id: 1,
+  portal_num: 42,
+  title,
+  content: 'https://object/content',
+  is_notice: 1,
+  is_deleted: 0,
+  author: 'Source',
+  portal_hit,
+  url: 'https://portal/new',
+  registered_at: '2026-10-29 08:30:00.123456',
+  attachments,
+});
+const attachment = (hash: string, name: string) => ({
+  hash: hash.repeat(64),
+  url: 'https://object/attach',
+  name,
+  is_deleted: 0,
 });
 
-test('signed paged dining upload preserves local-owned fields; replay, ordering, stale and altered pages are rejected', async () => {
+test('sync remains paused by default or explicit false before any database access, even for valid signed requests', async () => {
+  for (const setting of [null, 'false', 'TRUE', '1']) {
+    const f = fixture(setting);
+    try {
+      const before = f.sqlite.prepare('SELECT total_changes() count').get()?.count;
+      for (const payload of [
+        baseline('dining', [['2026-10-29', 'LUNCH', 'A코너']]),
+        delta('dining', 0, [dining('would write')]),
+      ]) {
+        const response = await f.send(payload);
+        assert.equal(response.status, 503);
+        assert.deepEqual(await response.json(), { error: 'SOURCE_SYNC_DISABLED' });
+      }
+      assert.equal(f.databaseAccess(), 0);
+      assert.equal(f.sqlite.prepare('SELECT total_changes() count').get()?.count, before);
+    } finally {
+      f.close();
+    }
+  }
+});
+
+test('read-only authenticated keyed baseline and strict v2 allowlist/key limits', async () => {
+  const f = fixture();
+  try {
+    f.sqlite.exec(
+      `INSERT INTO dining_menus(id,date,type,place,menu,likes) VALUES(17,'2026-10-29','LUNCH','A코너','old',43)`,
+    );
+    const before = f.sqlite.prepare('SELECT total_changes() count').get()?.count;
+    const read = await f.send(
+      baseline('dining', [
+        ['2026-10-29', 'lunch', 'A코너'],
+        ['2026-10-29', 'LUNCH', 'B코너'],
+      ]),
+    );
+    assert.equal(read.status, 200);
+    assert.deepEqual(((await read.json()) as { rows: unknown[] }).rows, [{ ...dining('old'), price_card: null }]);
+    assert.equal(f.sqlite.prepare('SELECT total_changes() count').get()?.count, before);
+    assert.equal(
+      (
+        await f.send(
+          baseline('dining', [
+            ['2026-10-29', 'LUNCH', 'A코너'],
+            ['2026-10-29', 'lunch', 'A코너'],
+          ]),
+        )
+      ).status,
+      400,
+    );
+    assert.equal((await f.send(baseline('dining', [['2026-10-29', 'LUNCH']]))).status, 400);
+    assert.equal((await f.send(delta('dining', 0, [{ ...dining('x'), likes: 0 }]))).status, 400);
+    assert.equal((await f.send(delta('articles', 0, [{ ...article(), hit: 8 }]))).status, 400);
+    assert.equal(
+      (
+        await f.send({
+          version: 1,
+          dataset: 'dining',
+          checkpoint: checkpoint(0),
+          page: 0,
+          final: true,
+          rows: [dining('x')],
+        })
+      ).status,
+      400,
+    );
+    assert.equal((await f.send(delta('dining', 0, [dining('x'), dining('y')]))).status, 400);
+    assert.equal((await f.send(delta('dining', 0, [dining('x')], [['2026-10-29', 'LUNCH', 'A코너']]))).status, 400);
+    assert.equal((await f.send(delta('dining', 0))).status, 400);
+    const manyKeys = Array.from({ length: 101 }, (_, i) => ['2026-10-29', 'LUNCH', String(i)]);
+    assert.equal(
+      (
+        await f.send(
+          delta(
+            'dining',
+            0,
+            manyKeys.map((key) => dining('x', key[2]!)),
+          ),
+        )
+      ).status,
+      400,
+    );
+    assert.equal((await f.send(baseline('dining', manyKeys))).status, 400);
+    assert.equal(
+      (
+        await f.send(
+          delta('articles', 0, [
+            {
+              ...article(),
+              content: 'a'.repeat(200_000),
+              attachments: [{ ...attachment('c', 'file'), url: 'b'.repeat(100_000) }],
+            },
+          ]),
+        )
+      ).status,
+      413,
+    );
+    assert.equal(
+      (await f.send(delta('weather', 0, [{ id: 'session:key', payload: {}, expires_at: null, updated_at: 1 }]))).status,
+      400,
+    );
+    assert.equal((await f.send(delta('dining', 0, [dining('x')]), { signature: '0'.repeat(64) })).status, 401);
+    assert.equal((await f.send(delta('dining', 0, [dining('x')]), { timestamp: '1000000000' })).status, 401);
+    assert.equal(f.sqlite.prepare('SELECT total_changes() count').get()?.count, before);
+  } finally {
+    f.close();
+  }
+});
+
+test('keyed article baseline uses one indexed D1 read and bounds the entire response to 1 MiB', async () => {
+  const f = fixture();
+  try {
+    f.sqlite.exec(`INSERT INTO boards(id,name) VALUES(1,'공지')`);
+    const newArticle = f.sqlite.prepare('INSERT INTO new_articles(id,board_id,title,content) VALUES(?,1,?,?)');
+    const portal = f.sqlite.prepare(
+      'INSERT INTO new_koreatech_articles(article_id,author,portal_num,url) VALUES(?,?,?,?)',
+    );
+    const keys = [];
+    for (let number = 1; number <= 100; number++) {
+      newArticle.run(number, `Title ${number}`, 'short');
+      portal.run(number, 'Source', number, 'https://portal/notice');
+      keys.push([1, number]);
+    }
+    const initialWrites = f.sqlite.prepare('SELECT total_changes() count').get()?.count;
+    const read = await f.send(baseline('articles', keys));
+    assert.equal(read.status, 200);
+    assert.equal(((await read.json()) as { rows: unknown[] }).rows.length, 100);
+    assert.equal(f.databaseAccess(), 1);
+    assert.equal(f.sqlite.prepare('SELECT total_changes() count').get()?.count, initialWrites);
+
+    const enlarge = f.sqlite.prepare('UPDATE new_articles SET content=? WHERE id=?');
+    for (let number = 1; number <= 6; number++) enlarge.run('x'.repeat(200_000), number);
+    const before = f.sqlite.prepare('SELECT total_changes() count').get()?.count;
+    const oversized = await f.send(baseline('articles', keys.slice(0, 6)));
+    assert.equal(oversized.status, 413);
+    assert.deepEqual(await oversized.json(), { error: 'BASELINE_TOO_LARGE' });
+    assert.equal(f.databaseAccess(), 2);
+    assert.equal(f.sqlite.prepare('SELECT total_changes() count').get()?.count, before);
+    const split = await f.send(baseline('articles', keys.slice(0, 3)));
+    assert.equal(split.status, 200);
+    assert.equal(((await split.json()) as { rows: unknown[] }).rows.length, 3);
+    assert.equal(f.databaseAccess(), 3);
+    assert.equal(f.sqlite.prepare('SELECT total_changes() count').get()?.count, before);
+  } finally {
+    f.close();
+  }
+});
+
+test('each page commits atomically; replay zero writes, ordered checkpoints, failed page rolls back', async () => {
   const f = fixture();
   try {
     f.sqlite.exec(`INSERT INTO dining_menus(id,date,type,place,menu,likes,sold_out,sold_out_source,image_url)
       VALUES(17,'2026-10-29','LUNCH','A코너','old',43,'SOLD_OUT','REPORT','original.jpg')`);
-    const first = envelope('dining', '1770000000000', 0, [dining('new')], false);
-    assert.equal((await f.send(first)).status, 200);
-    assert.equal(f.sqlite.prepare('SELECT menu FROM dining_menus WHERE id=17').get()?.menu, 'old');
-    assert.equal((await f.send(envelope('dining', '1770000000000', 2, [], true, 2))).status, 409);
-    assert.equal((await f.send({ ...first, rows: [dining('changed')] })).status, 409);
+    const p0 = delta('dining', 0, [dining('new')], [], 0, false);
+    assert.equal((await f.send(p0)).status, 200);
+    assert.equal(f.sqlite.prepare('SELECT menu FROM dining_menus WHERE id=17').get()?.menu, 'new');
+    const before = f.sqlite.prepare('SELECT total_changes() count').get()?.count;
+    const replay = await f.send(p0);
+    assert.deepEqual(await replay.json(), {
+      version: 2,
+      dataset: 'dining',
+      checkpoint: checkpoint(0),
+      page: 0,
+      appliedRows: 1,
+      completed: true,
+    });
+    assert.equal(f.sqlite.prepare('SELECT total_changes() count').get()?.count, before);
+    assert.equal((await f.send({ ...p0, upserts: [dining('altered')] })).status, 409);
+    assert.equal((await f.send(delta('dining', 0, [dining('reordered')], [], 2))).status, 409);
+    assert.equal((await f.send(delta('dining', 1, [dining('too soon')]))).status, 409);
+    const p1 = delta('dining', 0, [dining('new', 'B코너')], [], 1);
+    assert.equal((await f.send(p1)).status, 200);
     assert.equal(
-      (await f.send(envelope('dining', '1770000000000', 1, [dining('fresh', 'B코너')], true, 2))).status,
+      (await f.send(delta('dining', 1, [dining('failing', 'C코너')], [['2026-10-29', 'LUNCH', 'C코너']]))).status,
+      400,
+    );
+    assert.equal(
+      (await f.send(delta('dining', 1, [dining('one', 'C코너')], [['2026-10-29', 'LUNCH', 'Z코너']]))).status,
       200,
     );
     assert.deepEqual(
@@ -160,144 +355,156 @@ test('signed paged dining upload preserves local-owned fields; replay, ordering,
       },
       { id: 17, menu: 'new', likes: 43, sold_out: 'SOLD_OUT', sold_out_source: 'REPORT', image_url: 'original.jpg' },
     );
+    assert.equal((await f.send(delta('dining', 0, [dining('stale')]))).status, 409);
+    const failed = delta('articles', 0, [article()]);
+    assert.equal((await f.send(failed)).status, 409);
     assert.equal(
-      (await f.send(envelope('dining', '1770000000000', 1, [dining('fresh', 'B코너')], true, 2))).status,
-      200,
-    );
-    assert.equal((await f.send(envelope('dining', '1769999999999', 0, [dining('stale')], true))).status, 409);
-    assert.equal(
-      (await f.send(envelope('dining', '1770000000001', 0, [dining('forged')], true), { signature: '0'.repeat(64) }))
-        .status,
-      401,
-    );
-    assert.equal(
-      (await f.send(envelope('dining', '1770000000001', 0, [dining('old-time')], true), { timestamp: '1000000000' }))
-        .status,
-      401,
-    );
-  } finally {
-    f.close();
-  }
-});
-
-test('interrupted multi-page upload replays each signed prefix exactly, including after commit', async () => {
-  const f = fixture();
-  try {
-    const p0 = envelope('dining', '1770000000000', 0, [dining('one', 'A코너')], false);
-    const p1 = envelope('dining', '1770000000000', 1, [dining('two', 'B코너'), dining('three', 'C코너')], false);
-    const p2 = envelope('dining', '1770000000000', 2, [dining('four', 'D코너')], true, 4);
-    assert.equal((await f.send(p0)).status, 200);
-    assert.equal((await f.send(p1)).status, 200);
-    assert.equal(f.sqlite.prepare('SELECT count(*) count FROM dining_menus').get()?.count, 0);
-    const replay0 = await f.send(p0);
-    assert.equal(replay0.status, 200);
-    assert.deepEqual(await replay0.json(), {
-      version: 1,
-      dataset: 'dining',
-      checkpoint: '1770000000000',
-      page: 0,
-      stagedRows: 1,
-      appliedRows: 0,
-      completed: false,
-    });
-    const replay1 = await f.send(p1);
-    assert.equal(replay1.status, 200);
-    assert.deepEqual(await replay1.json(), {
-      version: 1,
-      dataset: 'dining',
-      checkpoint: '1770000000000',
-      page: 1,
-      stagedRows: 3,
-      appliedRows: 0,
-      completed: false,
-    });
-    assert.equal((await f.send({ ...p0, rows: [dining('altered', 'A코너')] })).status, 409);
-    assert.equal((await f.send(p2)).status, 200);
-    assert.equal(f.sqlite.prepare('SELECT count(*) count FROM dining_menus').get()?.count, 4);
-    const committedReplay = await f.send(p0);
-    assert.equal(committedReplay.status, 200);
-    assert.deepEqual(await committedReplay.json(), {
-      version: 1,
-      dataset: 'dining',
-      checkpoint: '1770000000000',
-      page: 0,
-      stagedRows: 1,
-      appliedRows: 4,
-      completed: true,
-    });
-    assert.equal((await f.send({ ...p1, rows: [dining('altered', 'B코너')] })).status, 409);
-  } finally {
-    f.close();
-  }
-});
-
-test('failed final page never partly applies, and a corrected newer checkpoint supersedes incomplete staging', async () => {
-  const f = fixture();
-  try {
-    const a = envelope('dining', '1770000000000', 0, [dining('A')], false);
-    assert.equal((await f.send(a)).status, 200);
-    assert.equal((await f.send(envelope('dining', '1770000000000', 1, [dining('duplicate')], true, 2))).status, 409);
-    assert.equal(f.sqlite.prepare('SELECT count(*) count FROM dining_menus').get()?.count, 0);
-    assert.equal((await f.send(envelope('dining', '1770000000001', 0, [dining('fixed')], true))).status, 200);
-    assert.equal(f.sqlite.prepare('SELECT menu FROM dining_menus').get()?.menu, 'fixed');
-  } finally {
-    f.close();
-  }
-});
-
-test('portal identity maps existing migrated article and attachment without touching native hits', async () => {
-  const f = fixture();
-  try {
-    f.sqlite.exec(`INSERT INTO boards(id,name) VALUES(1,'공지');
-      INSERT INTO new_articles(id,board_id,title,hit) VALUES(9,1,'기존공지',11);
-      INSERT INTO new_koreatech_articles(article_id,author,portal_num,portal_hit,url) VALUES(9,'Old',42,7,'https://portal/old');
-      INSERT INTO native_article_ngram(article_id,position,token) VALUES(9,0,'기존')`);
-    const row = {
-      board_id: 1,
-      portal_num: 42,
-      title: '수정공지',
-      content: 'https://object/content',
-      is_notice: 1,
-      is_deleted: 0,
-      author: 'Source',
-      portal_hit: 19,
-      url: 'https://portal/new',
-      registered_at: '2026-10-29 08:30:00.123456',
-      attachments: [{ hash: 'a'.repeat(64), url: 'https://object/attach', name: 'file', is_deleted: 0 }],
-    };
-    assert.equal((await f.send(envelope('articles', '1770000000000', 0, [row]))).status, 200);
-    assert.deepEqual(
-      {
-        ...f.sqlite
-          .prepare(
-            'SELECT a.id,a.title,a.hit,k.portal_hit,k.registered_at FROM new_articles a JOIN new_koreatech_articles k ON k.article_id=a.id',
-          )
-          .get(),
-      },
-      { id: 9, title: '수정공지', hit: 11, portal_hit: 19, registered_at: '2026-10-29 08:30:00.123456' },
-    );
-    assert.equal(f.sqlite.prepare('SELECT count(*) count FROM article_attachments WHERE article_id=9').get()?.count, 1);
-    assert.equal(
-      f.sqlite.prepare(`SELECT count(*) count FROM native_article_ngram WHERE article_id=9 AND token='수정'`).get()
-        ?.count,
-      1,
-    );
-    assert.equal(
-      f.sqlite.prepare(`SELECT count(*) count FROM native_article_ngram WHERE article_id=9 AND token='기존'`).get()
+      f.sqlite.prepare('SELECT count(*) count FROM native_source_sync_v2_receipt WHERE dataset=?').get('articles')
         ?.count,
       0,
     );
+    f.sqlite.exec(`INSERT INTO boards(id,name) VALUES(1,'공지')`);
+    assert.equal((await f.send(failed)).status, 200);
+    const atomic = delta('articles', 1, [
+      { ...article('Should rollback'), portal_num: 43 },
+      { ...article('Missing board'), board_id: 2, portal_num: 44 },
+    ]);
+    assert.equal((await f.send(atomic)).status, 409);
     assert.equal(
-      (await f.send(envelope('articles', '1770000000001', 0, [{ ...row, registered_at: '2026-10-29T08:30:00Z' }])))
-        .status,
-      400,
+      f.sqlite.prepare('SELECT count(*) count FROM native_source_article_identity WHERE portal_num=43').get()?.count,
+      0,
     );
+    assert.equal(
+      f.sqlite.prepare('SELECT count(*) count FROM native_source_sync_v2_receipt WHERE dataset=?').get('articles')
+        ?.count,
+      1,
+    );
+    assert.equal((await f.send(delta('articles', 1, [{ ...article('Recovered'), portal_num: 43 }]))).status, 200);
   } finally {
     f.close();
   }
 });
 
-test('duplicate lecture fingerprints retain original timetable-linked identities; ambiguous changed duplicates reject atomically', async () => {
+test('article portal hit-only, token position and attachment diffs leave untouched subtables with native hits', async () => {
+  const f = fixture();
+  try {
+    f.sqlite.exec(`INSERT INTO boards(id,name) VALUES(1,'공지');
+      INSERT INTO new_articles(id,board_id,title,hit) VALUES(9,1,'학교 공지',11);
+      INSERT INTO new_koreatech_articles(article_id,author,portal_num,portal_hit,url) VALUES(9,'Source',42,7,'https://portal/new');
+      INSERT INTO native_article_ngram(article_id,position,token) VALUES(9,0,'학교'),(9,1,'공지')`);
+    const first = article('학교 공지', 19, [attachment('a', 'one'), attachment('b', 'two')]);
+    assert.equal((await f.send(delta('articles', 0, [first]))).status, 200);
+    const grams = f.changes('gram');
+    const attachments = f.changes('attachment');
+    const articles = f.changes('article');
+    assert.equal((await f.send(delta('articles', 1, [{ ...first, portal_hit: 20 }]))).status, 200);
+    assert.equal(f.changes('gram'), grams);
+    assert.equal(f.changes('attachment'), attachments);
+    assert.equal(f.changes('article'), articles);
+    assert.ok(f.changes('portal') > 0);
+    assert.equal(f.sqlite.prepare('SELECT hit FROM new_articles WHERE id=9').get()?.hit, 11);
+    assert.equal((await f.send(delta('articles', 2, [{ ...first, portal_hit: 20, title: '학교 안내' }]))).status, 200);
+    assert.equal(f.changes('gram'), grams + 1);
+    assert.deepEqual(
+      f.sqlite
+        .prepare('SELECT position,token FROM native_article_ngram WHERE article_id=9 ORDER BY position')
+        .all()
+        .map((row) => ({ ...row })),
+      [
+        { position: 0, token: '학교' },
+        { position: 1, token: '안내' },
+      ],
+    );
+    const tokensAfter = f.changes('gram');
+    assert.equal(
+      (
+        await f.send(
+          delta('articles', 3, [
+            {
+              ...first,
+              portal_hit: 20,
+              title: '학교 안내',
+              attachments: [attachment('a', 'renamed'), attachment('b', 'two')],
+            },
+          ]),
+        )
+      ).status,
+      200,
+    );
+    assert.equal(f.changes('gram'), tokensAfter);
+    const renamed = f.sqlite
+      .prepare(`SELECT action,hash FROM sync_audit WHERE name='attachment'
+      ORDER BY rowid LIMIT -1 OFFSET ?`)
+      .all(attachments)
+      .map((row) => ({ ...row }));
+    assert.ok(renamed.length <= 2, 'one changed attachment must not amplify writes beyond its timestamp update');
+    assert.deepEqual(new Set(renamed.map((row) => `${row.action}:${row.hash}`)), new Set([`UPDATE:${'a'.repeat(64)}`]));
+    assert.deepEqual(
+      f.sqlite
+        .prepare('SELECT lower(hex(hash)) hash,name FROM article_attachments WHERE article_id=9 ORDER BY hash')
+        .all()
+        .map((row) => ({ ...row })),
+      [
+        { hash: 'a'.repeat(64), name: 'renamed' },
+        { hash: 'b'.repeat(64), name: 'two' },
+      ],
+    );
+    assert.deepEqual(
+      { ...f.sqlite.prepare('SELECT id,title,hit FROM new_articles WHERE id=9').get() },
+      { id: 9, title: '학교 안내', hit: 11 },
+    );
+    const total = f.sqlite.prepare('SELECT total_changes() count').get()?.count;
+    const exact = delta('articles', 3, [
+      {
+        ...first,
+        portal_hit: 20,
+        title: '학교 안내',
+        attachments: [attachment('a', 'renamed'), attachment('b', 'two')],
+      },
+    ]);
+    assert.equal((await f.send(exact)).status, 200);
+    assert.equal(f.sqlite.prepare('SELECT total_changes() count').get()?.count, total);
+    const afterRename = f.changes('attachment');
+    assert.equal(
+      (
+        await f.send(
+          delta('articles', 4, [
+            { ...first, portal_hit: 20, title: '학교 안내', attachments: [attachment('a', 'renamed')] },
+          ]),
+        )
+      ).status,
+      200,
+    );
+    const removed = f.sqlite
+      .prepare(`SELECT action,hash FROM sync_audit WHERE name='attachment'
+      ORDER BY rowid LIMIT -1 OFFSET ?`)
+      .all(afterRename)
+      .map((row) => ({ ...row }));
+    assert.deepEqual(removed, [{ action: 'DELETE', hash: 'b'.repeat(64) }]);
+    assert.equal(f.changes('gram'), tokensAfter);
+    assert.equal(f.sqlite.prepare('SELECT count(*) count FROM article_attachments WHERE article_id=9').get()?.count, 1);
+    assert.equal((await f.send(delta('articles', 5, [], [[1, 42]]))).status, 200);
+    const disappeared = await f.send(baseline('articles', [[1, 42]]));
+    assert.deepEqual(((await disappeared.json()) as { rows: unknown[] }).rows, []);
+    assert.equal(f.sqlite.prepare('SELECT hit FROM new_articles WHERE id=9').get()?.hit, 11);
+    assert.equal(
+      (
+        await f.send(
+          delta('articles', 6, [
+            { ...first, portal_hit: 20, title: '학교 안내', attachments: [attachment('a', 'renamed')] },
+          ]),
+        )
+      ).status,
+      200,
+    );
+    assert.equal(f.sqlite.prepare('SELECT count(*) count FROM new_articles WHERE board_id=1').get()?.count, 1);
+    assert.equal(f.sqlite.prepare('SELECT is_deleted FROM new_articles WHERE id=9').get()?.is_deleted, 0);
+  } finally {
+    f.close();
+  }
+});
+
+test('duplicate lecture group preserves timetable IDs and rejects ambiguous edits or linked removals', async () => {
   const f = fixture();
   try {
     const row = lecture('Original');
@@ -308,56 +515,156 @@ test('duplicate lecture fingerprints retain original timetable-linked identities
     f.sqlite.exec(`INSERT INTO users(id,password,user_type,anonymous_nickname) VALUES(1,'hash','STUDENT','a');
       INSERT INTO timetable_frame(id,user_id,semester_id,name) VALUES(1,1,1,'2026-2');
       INSERT INTO timetable_lecture(id,frame_id,lectures_id) VALUES(1,1,11)`);
-    assert.equal((await f.send(envelope('lectures', '1770000000000', 0, [row, row]))).status, 200);
-    assert.equal(f.sqlite.prepare('SELECT lectures_id FROM timetable_lecture WHERE id=1').get()?.lectures_id, 11);
-    assert.equal((await f.send(envelope('lectures', '1770000000001', 0, [row, lecture('Changed 2')]))).status, 200);
+    const unchanged = await f.send(baseline('lectures', [['2026-2', 'abc100', '01']]));
+    assert.equal(((await unchanged.json()) as { rows: unknown[] }).rows.length, 2);
+    assert.equal((await f.send(delta('lectures', 0, [row, row]))).status, 200);
+    assert.equal((await f.send(delta('lectures', 1, [row, lecture('Changed 2')]))).status, 200);
     assert.equal(f.sqlite.prepare('SELECT name FROM lectures WHERE id=11').get()?.name, 'Changed 2');
-    assert.equal(
-      (await f.send(envelope('lectures', '1770000000002', 0, [lecture('Changed 1'), lecture('Changed 3')]))).status,
-      409,
-    );
+    assert.equal((await f.send(delta('lectures', 2, [lecture('Changed 1'), lecture('Changed 3')]))).status, 409);
+    assert.equal((await f.send(delta('lectures', 2, [], [['2026-2', 'ABC100', '01']]))).status, 409);
     assert.deepEqual(
       f.sqlite
         .prepare('SELECT id,name FROM lectures ORDER BY id')
         .all()
-        .map((entry) => ({ ...entry })),
+        .map((row) => ({ ...row })),
       [
         { id: 10, name: 'Original' },
         { id: 11, name: 'Changed 2' },
       ],
     );
+    assert.equal(f.sqlite.prepare('SELECT lectures_id FROM timetable_lecture WHERE id=1').get()?.lectures_id, 11);
   } finally {
     f.close();
   }
 });
 
-test('source semester/version and citybus updates do not alter unrelated native versions or prune unseen routes', async () => {
+test('shrinking an exact duplicate lecture group keeps the timetable-linked ID', async () => {
+  const f = fixture();
+  try {
+    const row = lecture('Same');
+    const insert = f.sqlite.prepare(
+      'INSERT INTO lectures(id,semester_date,code,name,grades,class,regular_number,department,target,professor,is_english,design_score,is_elearning,class_time) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+    );
+    for (const id of [10, 11]) insert.run(id, ...Object.values(row));
+    f.sqlite.exec(`INSERT INTO users(id,password,user_type,anonymous_nickname) VALUES(1,'hash','STUDENT','a');
+      INSERT INTO timetable_frame(id,user_id,semester_id,name) VALUES(1,1,1,'2026-2');
+      INSERT INTO timetable_lecture(id,frame_id,lectures_id) VALUES(1,1,11)`);
+    assert.equal((await f.send(delta('lectures', 0, [row]))).status, 200);
+    assert.deepEqual(
+      f.sqlite
+        .prepare('SELECT id FROM lectures')
+        .all()
+        .map((entry) => entry.id),
+      [11],
+    );
+    assert.equal(f.sqlite.prepare('SELECT lectures_id FROM timetable_lecture WHERE id=1').get()?.lectures_id, 11);
+  } finally {
+    f.close();
+  }
+});
+
+test('concurrent timetable link before atomic page prevents lecture deletion and receipt ACK', async () => {
+  let injected = false;
+  const f = fixture('true', (sqlite, statements) => {
+    if (injected || !statements.some((entry) => entry.query === 'DELETE FROM lectures WHERE id=?')) return;
+    sqlite.exec('INSERT INTO timetable_lecture(id,frame_id,lectures_id) VALUES(1,1,10)');
+    injected = true;
+  });
+  try {
+    f.sqlite
+      .prepare(
+        'INSERT INTO lectures(id,semester_date,code,name,grades,class,regular_number,department,target,professor,is_english,design_score,is_elearning,class_time) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+      )
+      .run(10, ...Object.values(lecture('Original')));
+    f.sqlite.exec(`INSERT INTO users(id,password,user_type,anonymous_nickname) VALUES(1,'hash','STUDENT','a');
+      INSERT INTO timetable_frame(id,user_id,semester_id,name) VALUES(1,1,1,'2026-2')`);
+    const removal = delta('lectures', 0, [], [['2026-2', 'ABC100', '01']]);
+    assert.equal((await f.send(removal)).status, 409);
+    assert.equal(injected, true);
+    assert.equal(f.sqlite.prepare('SELECT count(*) count FROM lectures WHERE id=10').get()?.count, 1);
+    assert.equal(f.sqlite.prepare('SELECT count(*) count FROM native_source_sync_v2_receipt').get()?.count, 0);
+    assert.equal(f.sqlite.prepare('SELECT count(*) count FROM native_source_sync_v2_state').get()?.count, 0);
+    f.sqlite.exec('DELETE FROM timetable_lecture WHERE id=1');
+    assert.equal((await f.send(removal)).status, 200);
+    assert.equal(f.sqlite.prepare('SELECT count(*) count FROM lectures WHERE id=10').get()?.count, 0);
+  } finally {
+    f.close();
+  }
+});
+
+test('target lecture drift over 1000 rows per group or page refuses before any writes', async () => {
+  const f = fixture();
+  try {
+    const insert = f.sqlite.prepare(
+      'INSERT INTO lectures(id,semester_date,code,name,grades,class,regular_number,department,target,professor,is_english,design_score,is_elearning,class_time) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+    );
+    for (let id = 1; id <= 1001; id++) insert.run(id, ...Object.values(lecture('Original')));
+    const before = f.sqlite.prepare('SELECT total_changes() count').get()?.count;
+    assert.equal((await f.send(delta('lectures', 0, [lecture('Original')]))).status, 409);
+    assert.equal(f.sqlite.prepare('SELECT total_changes() count').get()?.count, before);
+    f.sqlite.exec("UPDATE lectures SET class='02' WHERE id>501");
+    const splitBefore = f.sqlite.prepare('SELECT total_changes() count').get()?.count;
+    assert.equal((await f.send(delta('lectures', 0, [lecture('Original'), lecture('Original', '02')]))).status, 409);
+    assert.equal(
+      (
+        await f.send(
+          delta(
+            'lectures',
+            0,
+            [],
+            [
+              ['2026-2', 'ABC100', '01'],
+              ['2026-2', 'ABC100', '02'],
+            ],
+          ),
+        )
+      ).status,
+      409,
+    );
+    assert.equal(f.sqlite.prepare('SELECT total_changes() count').get()?.count, splitBefore);
+    assert.equal(f.sqlite.prepare('SELECT count(*) count FROM native_source_sync_v2_receipt').get()?.count, 0);
+  } finally {
+    f.close();
+  }
+});
+
+test('target article attachment drift over 1000 refuses upsert and removal without metadata writes', async () => {
+  const f = fixture();
+  try {
+    f.sqlite.exec(`INSERT INTO boards(id,name) VALUES(1,'공지');
+      INSERT INTO new_articles(id,board_id,title) VALUES(9,1,'공지');
+      INSERT INTO new_koreatech_articles(article_id,author,portal_num,url) VALUES(9,'Source',42,'https://portal/new')`);
+    const insert = f.sqlite.prepare('INSERT INTO article_attachments(article_id,hash,url,name) VALUES(9,unhex(?),?,?)');
+    for (let id = 1; id <= 1001; id++)
+      insert.run(id.toString(16).padStart(64, '0'), 'https://object/attach', `file-${id}`);
+    const before = f.sqlite.prepare('SELECT total_changes() count').get()?.count;
+    assert.equal((await f.send(delta('articles', 0, [article()]))).status, 409);
+    assert.equal((await f.send(delta('articles', 0, [], [[1, 42]]))).status, 409);
+    assert.equal(f.sqlite.prepare('SELECT total_changes() count').get()?.count, before);
+    assert.equal(
+      f.sqlite.prepare('SELECT count(*) count FROM article_attachments WHERE article_id=9').get()?.count,
+      1001,
+    );
+    assert.equal(f.sqlite.prepare('SELECT count(*) count FROM native_source_sync_v2_receipt').get()?.count, 0);
+  } finally {
+    f.close();
+  }
+});
+
+test('complete timetable version group changes only its rows, and other entity tombstones are keyed', async () => {
   const f = fixture();
   try {
     f.sqlite
       .exec(`INSERT INTO versions(id,version,type,title) VALUES(1,'1.0','app','Native'),(2,'2026-1','timetable','Old');
       INSERT INTO citybus_timetables(id,bus_info,bus_timetables,updated_at) VALUES('retain','{}','[]','2026-10-01 00:00:00')`);
-    assert.equal(
-      (await f.send(envelope('semesters', '1770000000000', 0, [{ semester: '2026-2', year: 2026, term: 'FALL' }])))
-        .status,
-      200,
-    );
-    assert.equal(
-      (
-        await f.send(
-          envelope('versions', '1770000000000', 0, [
-            { version: '2026-1', type: 'timetable', title: 'New', is_previous: 0, content: null },
-          ]),
-        )
-      ).status,
-      200,
-    );
+    const version = { version: '2026-1', type: 'timetable', title: 'New', is_previous: 0, content: null };
+    assert.equal((await f.send(delta('versions', 0, [version]))).status, 200);
     assert.equal(f.sqlite.prepare('SELECT title FROM versions WHERE id=1').get()?.title, 'Native');
     assert.equal(f.sqlite.prepare('SELECT title FROM versions WHERE id=2').get()?.title, 'New');
     assert.equal(
       (
         await f.send(
-          envelope('citybus', '1770000000000', 0, [
+          delta('citybus', 0, [
             { id: 'route', bus_info: { route: '1' }, bus_timetables: [], updated_at: '2026-10-29 12:00:00' },
           ]),
         )
@@ -365,82 +672,67 @@ test('source semester/version and citybus updates do not alter unrelated native 
       200,
     );
     assert.equal(f.sqlite.prepare('SELECT count(*) count FROM citybus_timetables').get()?.count, 2);
+    assert.equal((await f.send(delta('citybus', 1, [], [['route']]))).status, 200);
+    assert.equal(f.sqlite.prepare('SELECT id FROM citybus_timetables WHERE id=?').get('retain')?.id, 'retain');
+    assert.equal((await f.send(delta('versions', 1, [], [['timetable']]))).status, 200);
+    assert.equal(f.sqlite.prepare('SELECT count(*) count FROM versions').get()?.count, 1);
   } finally {
     f.close();
   }
 });
 
-test('signed weather upload populates the consumer cache without replacing a newer native refresh', async () => {
+test('weather updates only changed forecast or expiry and does not overwrite a newer native refresh', async () => {
   const f = fixture();
   try {
-    const now = Date.UTC(2026, 9, 29, 11, 12);
-    const initial = weather(13, now - 1_000, now + 86_400_000);
-    assert.equal((await f.send(envelope('weather', '1770000000000', 0, [initial]))).status, 200);
-    const row = () =>
-      f.sqlite
-        .prepare('SELECT payload,expires_at,updated_at FROM native_transport_cache WHERE id=?')
-        .get('Weather:byeongcheon')!;
-    assert.deepEqual(JSON.parse(row().payload as string), initial.payload);
-    assert.equal(row().expires_at, initial.expires_at);
-    assert.equal(row().updated_at, initial.updated_at);
-    assert.deepEqual(
-      await getWeather(createDatabase(f.binding), { OPEN_API_KEY_PUBLIC: undefined } as Bindings, now),
-      initial.payload['202610292000'],
-    );
-    f.sqlite
-      .prepare('UPDATE native_transport_cache SET payload=?,expires_at=?,updated_at=? WHERE id=?')
-      .run(JSON.stringify(weather(21, now + 200, null).payload), null, now + 200, 'Weather:byeongcheon');
+    const forecast = {
+      '202610292000': {
+        temperature: 13,
+        weather: '맑음',
+        weather_id: 1,
+        weather_icon_url: 'https://static.koreatech.in/upload/WEATHER/sun-03.webp',
+      },
+    };
+    const row = {
+      id: 'Weather:byeongcheon',
+      payload: forecast,
+      expires_at: 1_770_086_400_000,
+      updated_at: 1_770_000_000_000,
+    };
+    assert.equal((await f.send(delta('weather', 0, [row]))).status, 200);
+    const before = f.sqlite.prepare('SELECT total_changes() count').get()?.count;
+    const read = await f.send(baseline('weather', [['Weather:byeongcheon']]));
+    assert.deepEqual(((await read.json()) as { rows: unknown[] }).rows, [row]);
+    assert.equal(f.sqlite.prepare('SELECT total_changes() count').get()?.count, before);
+    assert.equal((await f.send(delta('weather', 1, [{ ...row, updated_at: row.updated_at + 100 }]))).status, 200);
     assert.equal(
-      (await f.send(envelope('weather', '1770000000001', 0, [weather(8, now + 100, now + 86_400_100)]))).status,
+      f.sqlite.prepare('SELECT updated_at FROM native_transport_cache WHERE id=?').get(row.id)?.updated_at,
+      row.updated_at,
+    );
+    f.sqlite.prepare('UPDATE native_transport_cache SET updated_at=? WHERE id=?').run(row.updated_at + 300, row.id);
+    assert.equal(
+      (
+        await f.send(
+          delta('weather', 2, [{ ...row, expires_at: row.expires_at + 100, updated_at: row.updated_at + 200 }]),
+        )
+      ).status,
       200,
     );
-    assert.equal(JSON.parse(row().payload as string)['202610292000'].temperature, 21);
-    assert.equal(row().expires_at, null);
-    assert.equal(row().updated_at, now + 200);
-    const newest = weather(25, now + 300, now + 86_400_300);
-    assert.equal((await f.send(envelope('weather', '1770000000002', 0, [newest]))).status, 200);
-    assert.deepEqual(JSON.parse(row().payload as string), newest.payload);
-    assert.equal(row().expires_at, newest.expires_at);
-    assert.equal(row().updated_at, newest.updated_at);
-    assert.equal((await f.send(envelope('weather', '1770000000003', 0, []))).status, 200);
-    assert.deepEqual(JSON.parse(row().payload as string), newest.payload);
-    assert.equal(row().expires_at, newest.expires_at);
-  } finally {
-    f.close();
-  }
-});
-
-test('weather sync rejects arbitrary cache identities, credentials, malformed forecasts and duplicate rows', async () => {
-  const f = fixture();
-  try {
-    const valid = weather(13, 1_770_000_000_000, null);
-    const forbidden = [
-      { ...valid, id: 'auth:session' },
-      { ...valid, token: 'private-credential' },
-      {
-        ...valid,
-        payload: {
-          ...valid.payload,
-          '202610292100': { ...valid.payload['202610292000'], apiKey: 'private-credential' },
-        },
-      },
-      { ...valid, payload: { token: 'private-credential' } },
-      { ...valid, updated_at: 1.5 },
-      {
-        ...valid,
-        payload: {
-          '202610292000': { ...valid.payload['202610292000'], weather_icon_url: 'http://example.invalid/token' },
-        },
-      },
-      { ...valid, payload: { '202610292030': valid.payload['202610292000'] } },
-      { ...valid, payload: {} },
-    ];
-    for (const row of forbidden)
-      assert.equal((await f.send(envelope('weather', '1770000000000', 0, [row]))).status, 400);
-    assert.equal((await f.send(envelope('weather', '1770000000000', 0, [valid, valid]))).status, 409);
-    assert.equal(f.sqlite.prepare('SELECT count(*) count FROM native_transport_cache').get()?.count, 0);
-    assert.equal((await f.send(envelope('weather', '1770000000001', 0, [valid]))).status, 200);
-    assert.equal(f.sqlite.prepare('SELECT count(*) count FROM native_transport_cache').get()?.count, 1);
+    assert.equal(
+      f.sqlite.prepare('SELECT expires_at FROM native_transport_cache WHERE id=?').get(row.id)?.expires_at,
+      row.expires_at,
+    );
+    assert.equal(
+      (
+        await f.send(
+          delta('weather', 3, [{ ...row, expires_at: row.expires_at + 100, updated_at: row.updated_at + 400 }]),
+        )
+      ).status,
+      200,
+    );
+    assert.equal(
+      f.sqlite.prepare('SELECT expires_at FROM native_transport_cache WHERE id=?').get(row.id)?.expires_at,
+      row.expires_at + 100,
+    );
   } finally {
     f.close();
   }
