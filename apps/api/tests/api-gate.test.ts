@@ -108,6 +108,8 @@ test('disabled queue consumer retries the whole batch with maximum delay without
   await worker.queue!(batch, env, context);
   assert.deepEqual(calls, [`retryAll:${API_DISABLED_QUEUE_RETRY_DELAY_SECONDS}`]);
   assert.deepEqual(touched, []);
+  // Queues의 메시지 지연 상한은 12시간(43,200초)이며 기존 도메인 코드도 같은 값으로 clamp한다.
+  assert.equal(API_DISABLED_QUEUE_RETRY_DELAY_SECONDS, 43_200);
 });
 
 test('enabled queue consumer keeps per-message handling instead of the disabled batch retry', async () => {

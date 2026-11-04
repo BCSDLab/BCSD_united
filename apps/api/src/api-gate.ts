@@ -15,10 +15,11 @@ export const API_DISABLED_RETRY_AFTER_SECONDS = 3_600;
 
 /**
  * 비활성 중 큐 메시지를 재시도로 되돌릴 때 적용하는 지연(초).
- * ack/drop 없이 메시지를 보존하기 위해 Queues가 허용하는 최대 지연(24시간)을 쓴다.
+ * ack/drop 없이 메시지를 보존하기 위해 Queues가 허용하는 최대 지연(12시간 = 43,200초)을 쓴다.
+ * 기존 도메인 코드(callvan/core.ts, team/jobs.ts, clubs/schedules.ts, community/summary.ts)와 같은 상한이다.
  * 재시도 횟수는 소비자 `max_retries`에 누적되므로 장기 중단 시 원격 큐 일시정지는 별도 운영 작업이다.
  */
-export const API_DISABLED_QUEUE_RETRY_DELAY_SECONDS = 86_400;
+export const API_DISABLED_QUEUE_RETRY_DELAY_SECONDS = 43_200;
 
 /** 비활성 응답: 503, 캐시 금지, Retry-After. 업무 코드가 실행되기 전에 반환한다. */
 export function apiDisabledResponse(): Response {
