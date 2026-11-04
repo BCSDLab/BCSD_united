@@ -4,7 +4,6 @@ const text = z.string().max(200_000);
 const uint = z.number().int().min(0).max(4_294_967_295);
 const flag = z.union([z.literal(0), z.literal(1)]);
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
-const optionalText = text.nullable();
 const dining = z
   .object({
     date,
@@ -14,7 +13,7 @@ const dining = z
     price_cash: uint.nullable(),
     kcal: uint.nullable(),
     menu: text.max(65_535),
-    is_changed: optionalText,
+    is_changed: text.nullable(),
     image_url: text.max(255).nullable(),
   })
   .strict();
@@ -26,7 +25,7 @@ const article = z
     board_id: uint,
     portal_num: uint,
     title: text.max(255),
-    content: optionalText,
+    content: text.nullable(),
     is_notice: flag,
     is_deleted: flag,
     author: text.max(50),
@@ -38,7 +37,11 @@ const article = z
       .nullable(),
     attachments: z.array(attachment).max(1_000),
   })
-  .strict();
+  .strict()
+  .superRefine((row, ctx) => {
+    if (new Set(row.attachments.map((item) => item.hash)).size !== row.attachments.length)
+      ctx.addIssue({ code: 'custom', message: 'Duplicate attachment hash' });
+  });
 const lecture = z
   .object({
     semester_date: text.max(10),
@@ -63,14 +66,14 @@ const version = z
     type: z.literal('timetable'),
     title: text.max(255).nullable(),
     is_previous: flag.nullable(),
-    content: optionalText,
+    content: text.nullable(),
   })
   .strict();
 const citybus = z
   .object({
     id: z.string().min(1).max(255),
-    bus_info: z.unknown(),
-    bus_timetables: z.unknown(),
+    bus_info: z.unknown().refine((value) => value !== undefined),
+    bus_timetables: z.unknown().refine((value) => value !== undefined),
     updated_at: z.string().min(10).max(40),
   })
   .strict();
@@ -103,26 +106,106 @@ export const sourceRows = {
   weather,
 } as const;
 export type Dataset = keyof typeof sourceRows;
-export const datasets = Object.keys(sourceRows) as Dataset[];
-export const envelope = z
+const dataset = z.enum(['dining', 'articles', 'lectures', 'semesters', 'versions', 'citybus', 'weather']);
+const keys = {
+  dining: z.tuple([date, text.max(9), text.max(9)]),
+  articles: z.tuple([uint, uint]),
+  lectures: z.tuple([text.max(10), text.max(10), text.max(3)]),
+  semesters: z.tuple([text.max(10)]),
+  versions: z.tuple([z.literal('timetable')]),
+  citybus: z.tuple([z.string().min(1).max(255)]),
+  weather: z.tuple([z.literal('Weather:byeongcheon')]),
+} as const;
+export type Key = (string | number)[];
+export function parseKey(name: Dataset, value: unknown): Key {
+  return keys[name].parse(value) as Key;
+}
+export function rowKey(name: Dataset, row: Record<string, unknown>): Key {
+  switch (name) {
+    case 'dining':
+      return [row.date as string, row.type as string, row.place as string];
+    case 'articles':
+      return [row.board_id as number, row.portal_num as number];
+    case 'lectures':
+      return [row.semester_date as string, row.code as string, row.class as string];
+    case 'semesters':
+      return [row.semester as string];
+    case 'versions':
+      return ['timetable'];
+    case 'citybus':
+    case 'weather':
+      return [row.id as string];
+  }
+}
+/** SQLite NOCASE folds ASCII A-Z only; do not Unicode-normalize source identifiers. */
+export function canonicalKey(name: Dataset, key: Key): string {
+  return JSON.stringify(
+    key.map((value, index) =>
+      typeof value === 'string' && (name === 'lectures' || name === 'versions' || (name === 'dining' && index > 0))
+        ? value.replace(/[A-Z]/g, (letter) => letter.toLowerCase())
+        : value,
+    ),
+  );
+}
+const baseline = z
+  .object({ version: z.literal(2), action: z.literal('baseline'), dataset, keys: z.array(z.unknown()).min(1).max(100) })
+  .strict();
+const delta = z
   .object({
-    version: z.literal(1),
-    dataset: z.enum(['dining', 'articles', 'lectures', 'semesters', 'versions', 'citybus', 'weather']),
+    version: z.literal(2),
+    dataset,
     checkpoint: z.string().regex(/^[1-9]\d{12,14}$/),
     page: z.number().int().min(0).max(100_000),
     final: z.boolean(),
-    rows: z.array(z.unknown()).max(100),
-    totalRows: z.number().int().min(0).max(2_000_000).optional(),
+    upserts: z.array(z.unknown()).max(1_000),
+    deletes: z.array(z.unknown()).max(100),
   })
-  .strict()
-  .superRefine((value, ctx) => {
-    if (value.final !== (value.totalRows !== undefined))
-      ctx.addIssue({ code: 'custom', message: 'totalRows is required only on final page' });
-  });
-export type SourceEnvelope = z.infer<typeof envelope>;
+  .strict();
+export type Baseline = { version: 2; action: 'baseline'; dataset: Dataset; keys: Key[] };
+export type Delta = {
+  version: 2;
+  dataset: Dataset;
+  checkpoint: string;
+  page: number;
+  final: boolean;
+  upserts: Record<string, unknown>[];
+  deletes: Key[];
+};
+export type SourceEnvelope = Baseline | Delta;
 export function parseEnvelope(raw: string): SourceEnvelope {
-  const payload = envelope.parse(JSON.parse(raw));
+  const object: unknown = JSON.parse(raw);
+  if (typeof object !== 'object' || !object || !('version' in object) || object.version !== 2)
+    throw new TypeError('Only source sync v2 is accepted');
+  if ('action' in object) {
+    const payload = baseline.parse(object);
+    const parsed = payload.keys.map((value) => parseKey(payload.dataset, value));
+    if (new Set(parsed.map((key) => canonicalKey(payload.dataset, key))).size !== parsed.length)
+      throw new TypeError('Duplicate baseline keys');
+    return { ...payload, keys: parsed };
+  }
+  const payload = delta.parse(object);
   const schema: z.ZodType = sourceRows[payload.dataset];
-  payload.rows.forEach((row) => schema.parse(row));
-  return payload;
+  const upserts = payload.upserts.map((row) => schema.parse(row) as Record<string, unknown>);
+  const deletes = payload.deletes.map((value) => parseKey(payload.dataset, value));
+  const upsertKeys = upserts.map((row) => canonicalKey(payload.dataset, rowKey(payload.dataset, row)));
+  const deleteKeys = deletes.map((key) => canonicalKey(payload.dataset, key));
+  if (new Set(deleteKeys).size !== deleteKeys.length || deleteKeys.some((key) => upsertKeys.includes(key)))
+    throw new TypeError('Duplicate or contradictory operations');
+  if (
+    payload.dataset !== 'lectures' &&
+    payload.dataset !== 'versions' &&
+    new Set(upsertKeys).size !== upsertKeys.length
+  )
+    throw new TypeError('Duplicate entity operations');
+  if (payload.dataset === 'versions') {
+    const versions = upserts.map((row) => (row.version as string).replace(/[A-Z]/g, (letter) => letter.toLowerCase()));
+    if (new Set(versions).size !== versions.length) throw new TypeError('Duplicate version rows');
+  }
+  if (
+    new Set(upsertKeys).size + deletes.length > 100 ||
+    (!upserts.length && !deletes.length) ||
+    (payload.dataset !== 'lectures' && payload.dataset !== 'versions' && upserts.length > 100)
+  )
+    throw new TypeError('Empty or oversized delta');
+  return { ...payload, upserts, deletes };
 }

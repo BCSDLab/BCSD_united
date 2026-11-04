@@ -7,7 +7,9 @@
   "compatibility_date": "2026-10-26",
   "compatibility_flags": ["nodejs_compat"],
   "upload_source_maps": true,
+  "secrets": { "required": ["JWT_SECRET", "WEB_CSRF_SECRET", "SOURCE_SYNC_SECRET"] },
   "observability": { "enabled": true, "issues": { "enabled": true }, "traces": { "enabled": true } },
+  "tail_consumers": [{ "service": "bcsd-error-automation" }],
   "d1_databases": [
     {
       "binding": "DB",
@@ -30,9 +32,10 @@
       { "queue": "koin-api-jobs", "max_batch_size": 20, "max_retries": 5, "dead_letter_queue": "koin-api-jobs-dlq" },
     ],
   },
-  "triggers": { "crons": ["*/5 * * * *"] },
+  "triggers": { "crons": [] },
   "vars": {
     "ENVIRONMENT": "production",
+    "SOURCE_SYNC_ENABLED": "false",
     "WEB_COOKIE_PREFIX": "koin-web",
     "WEB_COOKIE_DOMAIN": "",
     "WEB_COOKIE_SECURE": "true",
@@ -43,6 +46,7 @@
   "previews": {
     "vars": {
       "ENVIRONMENT": "preview",
+      "SOURCE_SYNC_ENABLED": "false",
       "WEB_COOKIE_PREFIX": "koin-web",
       "WEB_COOKIE_DOMAIN": "",
       "WEB_COOKIE_SECURE": "true",
