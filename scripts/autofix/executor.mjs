@@ -53,7 +53,15 @@ export function parseAssistantBlocks(content) {
   for (const block of content) {
     if (!block || typeof block !== 'object' || Array.isArray(block)) throw new Error('Unexpected model content type');
     const keys = Object.keys(block).sort().join(',');
-    if (block.type === 'text' && keys === 'text,type' && typeof block.text === 'string' && block.text.length <= 64000) {
+    if (
+      block.type === 'text' &&
+      (keys === 'text,type' || keys === 'citations,text,type') &&
+      (!('citations' in block) ||
+        block.citations === null ||
+        (Array.isArray(block.citations) && block.citations.length === 0)) &&
+      typeof block.text === 'string' &&
+      block.text.length <= 64000
+    ) {
       text.push(block.text);
     } else if (
       block.type === 'thinking' &&

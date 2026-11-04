@@ -125,7 +125,10 @@ test('signed Fable thinking is accepted only in bounded assistant history withou
   };
   const messages = [
     { role: 'user', content: 'Read source' },
-    { role: 'assistant', content: [signed, redacted, { type: 'text', text: 'Inspection complete' }, directCall] },
+    {
+      role: 'assistant',
+      content: [signed, redacted, { type: 'text', text: 'Inspection complete', citations: null }, directCall],
+    },
     { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'toolu_1', content: 'source' }] },
   ];
   assert.equal(JSON.stringify(parseModelRequest({ ...base, messages }).messages), JSON.stringify(messages));
@@ -137,6 +140,7 @@ test('signed Fable thinking is accepted only in bounded assistant history withou
     { ...redacted, data: 'x'.repeat(64001) },
     { ...directCall, caller: { type: 'code_execution_20260120', tool_id: 'srvtoolu_1' } },
     { ...directCall, toolset_name: 'undeclared' },
+    { type: 'text', text: 'Unsupported citation', citations: [{ type: 'web_search_result_location' }] },
   ]) {
     assert.throws(() => parseModelRequest({ ...base, messages: [{ role: 'assistant', content: [block] }] }));
   }

@@ -123,7 +123,10 @@ export function parseModelRequest(value: Record<string, unknown>): ModelRequest 
       const block = record(rawBlock);
       if (
         block.type === 'text' &&
-        exact(block, ['type', 'text']) &&
+        (exact(block, ['type', 'text']) || exact(block, ['type', 'text', 'citations'])) &&
+        (!('citations' in block) ||
+          block.citations === null ||
+          (Array.isArray(block.citations) && block.citations.length === 0)) &&
         typeof block.text === 'string' &&
         block.text.length <= 64000
       )

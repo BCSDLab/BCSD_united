@@ -49,7 +49,7 @@ test('Fable signed thinking stays opaque while only declared file tools are exec
     caller: { type: 'direct' },
     toolset_name: null,
   };
-  const blocks = [thinking, redacted, { type: 'text', text: 'Public result' }, call];
+  const blocks = [thinking, redacted, { type: 'text', text: 'Public result', citations: null }, call];
   const parsed = parseAssistantBlocks(blocks);
   assert.equal(parsed.text, 'Public result');
   assert.deepEqual(parsed.calls, [call]);
@@ -61,6 +61,7 @@ test('Fable signed thinking stays opaque while only declared file tools are exec
     { ...call, name: 'Bash' },
     { ...call, caller: { type: 'code_execution_20260120', tool_id: 'srvtoolu_1' } },
     { ...call, toolset_name: 'undeclared' },
+    { type: 'text', text: 'Unsupported citation', citations: [{ type: 'web_search_result_location' }] },
     { type: 'server_tool_use', id: 'x', name: 'web_search', input: {} },
   ])
     assert.throws(() => parseAssistantBlocks([bad]));
