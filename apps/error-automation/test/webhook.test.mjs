@@ -21,6 +21,7 @@ registerHooks({
   },
 });
 const { default: worker, ErrorIssueDispatch } = await import('../src/index.ts');
+const nativeFetch = globalThis.fetch;
 const sentrySecret = 'local-test-only-sentry-secret';
 const cfAccount = 'abe06b869950de952decf9df29c6f1a3';
 const cfPolicy = '3bcbfa2a0c04416ca7e3da038f77ac37';
@@ -139,9 +140,11 @@ function harness(t) {
       },
     },
   };
-  const nativeFetch = globalThis.fetch;
+  // Module-level nativeFetch: several harnesses in one test must not chain or leak mocks.
   let mocked = false;
-  async function seedTail(workerName = 'koin-api') {
+  const occurrenceHost = {};
+  async function seedTail(workerName = 'koin-api', host = `${workerName}.bcsdlab.workers.dev`) {
+    occurrenceHost[workerName] = host;
     if (!mocked) {
       mocked = true;
       globalThis.fetch = async (input, init) => {
@@ -161,7 +164,7 @@ function harness(t) {
                 timestamp: Date.now(),
                 worker: { scriptName: project, scriptVersion: { id: cfVersion } },
                 invocation: {
-                  url: `https://${project}.bcsdlab.workers.dev/campus`,
+                  url: `https://${occurrenceHost[project] ?? `${project}.bcsdlab.workers.dev`}/campus`,
                   method: 'GET',
                   path: '/campus',
                   rayId,
@@ -212,7 +215,7 @@ function harness(t) {
           event: {
             request: {
               method: 'GET',
-              url: `https://${workerName}.bcsdlab.workers.dev/campus?private=sensitive`,
+              url: `https://${host}/campus?private=sensitive`,
               headers: { 'cf-ray': `${rayId}-ICN`, cookie: 'sensitive' },
             },
           },
@@ -226,10 +229,11 @@ function harness(t) {
     );
     const stub = env.ERROR_ISSUES.get(env.ERROR_ISSUES.idFromName(`tail/${workerName}/${rayId}`));
     const storedTail = await stub.fetch('https://error-dispatch.internal/tail');
-    assert.equal(storedTail.status, 200);
+    if (storedTail.status !== 200) return false;
     const persisted = await storedTail.text();
     assert.equal(persisted.includes('sensitive'), false);
     assert.equal(JSON.parse(persisted).frames[0].path, `apps/${app}/src/handler.ts`);
+    return true;
   }
   t.after(() => {
     if (mocked) globalThis.fetch = nativeFetch;
@@ -242,6 +246,7 @@ function harness(t) {
     instances,
     databases,
     queue,
+    occurrenceHost,
     seedTail,
     send: (request) => worker.fetch(request, env),
     restartObjects: () => instances.clear(),
@@ -606,6 +611,35 @@ test('one provider policy keeps web and API issue identities separate', async (t
   sources.push({ accountId: 'e'.repeat(32), policyId: cfPolicy, workerName: 'koin-api', app: 'api' });
   ambiguous.env.CLOUDFLARE_SOURCES = JSON.stringify(sources);
   assert.equal((await ambiguous.send(cloudflareRequest(ambiguous))).status, 503);
+});
+
+test('koin-web custom domain koreatech.in is accepted exactly; unrelated hosts never admit a job', async (t) => {
+  const web = cloudflare({
+    data: { issue: { id: 'e'.repeat(32), services: [{ name: 'koin-web', type: 'worker' }] } },
+  });
+  const accepted = harness(t);
+  assert.equal(await accepted.seedTail('koin-web', 'koreatech.in'), true);
+  assert.equal((await accepted.send(cloudflareRequest(accepted, web))).status, 200);
+  assert.equal(accepted.queue.size, 1);
+
+  for (const host of ['www.koreatech.in', 'stage.koreatech.in', 'api.koreatech.in', 'koreatech.in.attacker.example']) {
+    const rejected = harness(t);
+    assert.equal(await rejected.seedTail('koin-web', host), false, host);
+    assert.equal((await rejected.send(cloudflareRequest(rejected, web))).status, 503, host);
+    assert.equal(rejected.queue.size, 0, host);
+  }
+
+  // Genuine Tail on the custom domain but canonical occurrence on another host: evidence disagrees.
+  const mismatch = harness(t);
+  assert.equal(await mismatch.seedTail('koin-web', 'koreatech.in'), true);
+  mismatch.occurrenceHost['koin-web'] = 'www.koreatech.in';
+  assert.equal((await mismatch.send(cloudflareRequest(mismatch, web))).status, 503);
+  assert.equal(mismatch.queue.size, 0);
+
+  // The API Worker never gains the web custom domain.
+  const api = harness(t);
+  assert.equal(await api.seedTail('koin-api', 'koreatech.in'), false);
+  assert.equal((await api.send(cloudflareRequest(api))).status, 503);
 });
 
 test('missing mapped Tail context does not admit a job or create a failed tombstone', async (t) => {

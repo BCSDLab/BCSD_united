@@ -1,13 +1,55 @@
 import { lstat, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, relative, resolve, sep } from 'node:path';
-import { allowedPath, isSourcePath } from './common.mjs';
+import { allowedPath, allowedPullRequestPath, isSourcePath, relatedDirectories } from './common.mjs';
 
 const TOOL_NAMES = ['Read', 'Edit', 'Write', 'Glob', 'Grep'];
 const MAX_TEXT_BYTES = 256_000;
 const MAX_RESULT = 10_000;
 const MAX_FILES = 24;
 
-function relativeFile(root, input, mode, app) {
+/** Error mode: redacted diagnostics plus the two application src trees; writes only in the observed app. */
+export function errorToolScope(app) {
+  if (!['web', 'api'].includes(app)) throw new Error('Unknown application scope');
+  return {
+    mode: 'error',
+    readable: (name) =>
+      name === 'error-input/diagnostics.json' ||
+      /^apps\/(?:web|api)\/src(?:\/|$)/.test(name) ||
+      /^tests\/autofix(?:\/|$)/.test(name),
+    writable: (name) => allowedPath(name) && (!isSourcePath(name) || name.startsWith(`apps/${app}/src/`)),
+  };
+}
+
+const PR_UNREADABLE =
+  /(?:^|\/)(?:\.env[^/]*|\.dev\.vars[^/]*|[^/]*\.(?:pem|p12|key)|webhook-secret\.txt|google-auth-secret\.txt)$/;
+
+const PR_PUBLIC_ROOT =
+  /^(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|tsconfig[^/]*\.json|README\.md|CONTRIBUTING\.md)$/;
+
+/**
+ * PR mode: trusted review inputs, every related app/package tree, the public
+ * root dependency/config files and every canonical changed file are readable
+ * (bounded by the Read tool); writes follow the PR correction policy only.
+ */
+export function pullRequestToolScope(changedFiles) {
+  const related = relatedDirectories(changedFiles);
+  const changed = new Set(changedFiles);
+  const inside = (name) => {
+    const match = /^(apps|packages)\/([A-Za-z0-9_-]+)(?:\/|$)/.exec(name);
+    return Boolean(match) && related.has(`${match[1]}/${match[2]}`);
+  };
+  return {
+    mode: 'pull-request',
+    readable: (name) =>
+      name === 'pr-input/review.json' ||
+      name === 'pr-input/diff.patch' ||
+      name === 'pr-input' ||
+      (!PR_UNREADABLE.test(name) && (inside(name) || PR_PUBLIC_ROOT.test(name) || changed.has(name))),
+    writable: (name) => allowedPullRequestPath(name, related),
+  };
+}
+
+function relativeFile(root, input, mode, scope) {
   if (typeof input !== 'string' || !input || input.includes('\0') || input.includes('://'))
     throw new Error('An explicit local source path is required');
   const lineRange = mode === 'read' ? /:(\d+)(?:-(\d+))?$/.exec(input) : null;
@@ -19,12 +61,8 @@ function relativeFile(root, input, mode, app) {
     throw new Error('Unsafe source path');
   const path = resolve(root, name);
   if (!path.startsWith(`${root}${sep}`) || relative(root, path) !== name) throw new Error('Path escaped workspace');
-  const readable =
-    name === 'error-input/diagnostics.json' ||
-    /^apps\/(?:web|api)\/src(?:\/|$)/.test(name) ||
-    /^tests\/autofix(?:\/|$)/.test(name);
-  const writable = allowedPath(name) && (!isSourcePath(name) || name.startsWith(`apps/${app}/src/`));
-  if (mode === 'write' ? !writable : !readable) throw new Error('Path is outside allowed application source');
+  if (mode === 'write' ? !scope.writable(name) : !scope.readable(name))
+    throw new Error('Path is outside allowed application source');
   return { name, path, lineRange };
 }
 
@@ -65,8 +103,11 @@ function exact(input, keys) {
   );
 }
 
-/** No model-provided command, URL, secret path or JS callback enters this dispatcher. */
-export function sourceTools(root, app, tracked) {
+/**
+ * No model-provided command, URL, secret path or JS callback enters this dispatcher.
+ * `scope` is a trusted {@link errorToolScope} or {@link pullRequestToolScope}.
+ */
+export function sourceTools(root, scope, tracked) {
   const changed = new Set();
   async function apply(name, input) {
     if (!TOOL_NAMES.includes(name)) throw new Error('Tool unavailable');
@@ -79,7 +120,7 @@ export function sourceTools(root, app, tracked) {
     };
     if (!exact(input, fields[name])) throw new Error('Unexpected tool input fields');
     const mode = name === 'Write' || name === 'Edit' ? 'write' : 'read';
-    const { name: file, path, lineRange } = relativeFile(root, input.path, mode, app);
+    const { name: file, path, lineRange } = relativeFile(root, input.path, mode, scope);
     await noSymlinks(root, path);
     if (name === 'Read') {
       const stat = await lstat(path);
@@ -106,11 +147,7 @@ export function sourceTools(root, app, tracked) {
       const files = stat.isFile() ? [path] : await listFiles(root, path);
       const scoped = files.filter((candidate) => {
         const rel = relative(root, candidate);
-        return (
-          rel === 'error-input/diagnostics.json' ||
-          /^apps\/(?:web|api)\/src\//.test(rel) ||
-          rel.startsWith('tests/autofix/')
-        );
+        return rel.split('/').every((part) => !part.startsWith('.')) && scope.readable(rel);
       });
       if (name === 'Glob')
         return scoped
