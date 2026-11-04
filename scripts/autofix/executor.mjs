@@ -38,6 +38,7 @@ const TRUSTED_FILES = [
   'crawler-smoke.mjs',
   'security.test.mjs',
   'source-graph.mjs',
+  'workspace-typecheck.mjs',
 ];
 const PR_REF = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$/;
 const RUN_ID = /^autofix-[a-f0-9]{64}$/;
@@ -425,11 +426,12 @@ async function generate(cfg, claim, modelRoot, signal) {
     : '';
   const messages = [{ role: 'user', content: [{ type: 'text', text: modelMessage(job) + reviewGuidance }] }];
   const maxFileCalls = pullRequest ? 256 : 40;
+  const maxTurns = pullRequest ? 80 : 40;
   const started = Date.now();
   let calls = 0;
   let answer = '';
   let finished = false;
-  for (let turn = 0; turn < 40; turn += 1) {
+  for (let turn = 0; turn < maxTurns; turn += 1) {
     signal.throwIfAborted();
     if (Date.now() - started >= 19 * 60_000) throw new Error('Model stage exceeded 19 minutes');
     const response = await post(
@@ -442,10 +444,10 @@ async function generate(cfg, claim, modelRoot, signal) {
         model: MODEL,
         messages,
         tools: TOOLS,
-        maxTokens: 4096,
+        maxTokens: pullRequest ? 16384 : 4096,
       },
       AbortSignal.timeout(100_000),
-      256_000,
+      pullRequest ? 1_000_000 : 256_000,
     );
     const result = await boundedJson(response, 256_000);
     signal.throwIfAborted();
@@ -458,7 +460,8 @@ async function generate(cfg, claim, modelRoot, signal) {
       finished = true;
       break;
     }
-    if (result.stop_reason !== 'tool_use') throw new Error('Model did not complete a bounded source-edit turn');
+    if (result.stop_reason !== 'tool_use')
+      throw new Error(`Model did not complete a bounded source-edit turn: ${result.stop_reason.slice(0, 64)}`);
     if (!callsNow.length) throw new Error('Model requested no callable file tools');
     if (calls + callsNow.length > maxFileCalls) throw new Error(`Model exceeded ${maxFileCalls} file tool calls`);
     calls += callsNow.length;
@@ -477,7 +480,7 @@ async function generate(cfg, claim, modelRoot, signal) {
     }
     messages.push({ role: 'user', content: results });
   }
-  if (!finished) throw new Error('Model exceeded forty turns without a final answer');
+  if (!finished) throw new Error(`Model exceeded ${maxTurns} turns without a final answer`);
   // The collector is a trusted image script, not a model-edited repository script.
   await command('node', ['/opt/autofix/patch.mjs', 'collect'], modelRoot, signal, 60_000, {
     ...safeEnv(),

@@ -100,13 +100,13 @@ export function parseModelRequest(value: Record<string, unknown>): ModelRequest 
     value.model !== 'claude-fable-5-1' ||
     !Number.isInteger(value.maxTokens) ||
     (value.maxTokens as number) < 1 ||
-    (value.maxTokens as number) > 4096 ||
+    (value.maxTokens as number) > 16384 ||
     !Array.isArray(value.tools) ||
     value.tools.length !== 5 ||
     value.tools.some((tool, i) => tool !== names[i]) ||
     !Array.isArray(value.messages) ||
     !value.messages.length ||
-    value.messages.length > 80
+    value.messages.length > 160
   )
     throw new Error('Invalid fixed model request');
   const messages: ModelRequest['messages'] = value.messages.map((raw): ModelRequest['messages'][number] => {

@@ -607,7 +607,7 @@ async function executorRequest(request: Request, env: Env, url: URL): Promise<Re
     url.pathname,
   );
   if (url.pathname !== '/executor/claim' && !path) throw new RequestError(404, 'Not found.');
-  const maxBytes = path?.[2] === 'result' ? 4_000_000 : path?.[2] === 'model' ? 256_000 : 4096;
+  const maxBytes = path?.[2] === 'result' ? 4_000_000 : path?.[2] === 'model' ? 1_000_000 : 4096;
   const bytes = await boundedBody(request, maxBytes);
   let data: Record<string, unknown>;
   try {

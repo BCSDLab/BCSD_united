@@ -5,5 +5,5 @@ RUN corepack enable && corepack prepare pnpm@12.16.1 --activate \
     && apt-get update && apt-get install -y --no-install-recommends chromium ca-certificates git \
     && rm -rf /var/lib/apt/lists/*
 ENV CI=true HUSKY=0 CHROME_BIN=/usr/bin/chromium
-COPY verify.mjs patch.mjs common.mjs local-api.mjs smoke.mjs api-smoke.mjs bbot-smoke.mjs crawler-smoke.mjs security.test.mjs source-graph.mjs /automation/
+COPY verify.mjs patch.mjs common.mjs local-api.mjs smoke.mjs api-smoke.mjs bbot-smoke.mjs crawler-smoke.mjs security.test.mjs source-graph.mjs workspace-typecheck.mjs /automation/
 WORKDIR /work
