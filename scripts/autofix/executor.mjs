@@ -407,7 +407,11 @@ async function generate(cfg, claim, modelRoot, signal) {
     });
     tools = sourceTools(modelRoot, errorToolScope(job.context.app), await trackedTests(modelRoot, signal));
   }
-  const messages = [{ role: 'user', content: [{ type: 'text', text: modelMessage(claim.job) }] }];
+  const reviewGuidance = pullRequest
+    ? '\nUse diff hunks as the review index. Request focused line ranges and batch independent reads. For mechanical import-only edits, verify changed references in the diff against the shared contract instead of rereading entire consumers. Do not repeat unchanged file output.'
+    : '';
+  const messages = [{ role: 'user', content: [{ type: 'text', text: modelMessage(job) + reviewGuidance }] }];
+  const maxFileCalls = pullRequest ? 256 : 40;
   const started = Date.now();
   let calls = 0;
   let answer = '';
@@ -443,7 +447,7 @@ async function generate(cfg, claim, modelRoot, signal) {
     }
     if (result.stop_reason !== 'tool_use') throw new Error('Model did not complete a bounded source-edit turn');
     if (!callsNow.length) throw new Error('Model requested no callable file tools');
-    if (calls + callsNow.length > 40) throw new Error('Model exceeded forty file tool calls');
+    if (calls + callsNow.length > maxFileCalls) throw new Error(`Model exceeded ${maxFileCalls} file tool calls`);
     calls += callsNow.length;
     messages.push({ role: 'assistant', content: blocks });
     const results = [];

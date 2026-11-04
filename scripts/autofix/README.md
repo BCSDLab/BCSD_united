@@ -55,7 +55,7 @@ Worker secret은 웹훅별 `SENTRY_CLIENT_SECRET`/`CLOUDFLARE_WEBHOOK_SECRET`, c
 
 `AUTOFIX_EXECUTOR_ID=koin-rocky-umpc`로 고정한다. 실행기는 고정 HTTPS Worker origin에만 `Authorization: Bearer <AUTOFIX_EXECUTOR_TOKEN>` 및 `X-Executor-Id: koin-rocky-umpc`를 보내며 호스트 인바운드 네트워크 포트를 열지 않는다. `/executor/claim`의 `claimNonce` 64자리 hex를 비밀 파일과 분리해 먼저 영속하고, 응답 유실 때 같은 nonce로 동일 lease를 재요청한다. 204는 대기 작업 없음, 200은 고정 repo/base SHA/diagnostics/context/issue/lease. 2분 rolling heartbeat·90분 절대 기한·동시 한 작업을 적용한다.
 
-`/executor/jobs/<runId>/model`은 살아 있는 generation lease에서만 요청한다. Worker가 정적 system prompt/고정 Fable 모델/Read·Edit·Write·Glob·Grep JSON schema만 Anthropic `/v1/messages`로 전송하고 API key를 Worker 밖에 내보내지 않는다. 모델 메시지의 파일 요청은 실행기에서 허용 경로·symlink·앱 경계를 다시 검사한다. 40회 모델 호출·40회 파일 도구 호출·generation 20분을 넘기면 닫는다. 후보 workspace는 이슈 진단을 **자료**로만 다루며 shell/network/MCP/GitHub credential을 사용할 수 없다.
+`/executor/jobs/<runId>/model`은 살아 있는 generation lease에서만 요청한다. Worker가 정적 system prompt/고정 Fable 모델/Read·Edit·Write·Glob·Grep JSON schema만 Anthropic `/v1/messages`로 전송하고 API key를 Worker 밖에 내보내지 않는다. 모델 메시지의 파일 요청은 실행기에서 허용 경로·symlink·앱 경계를 다시 검사한다. 모델 호출 40회·generation 20분·본문 256 KB 제한은 두 모드에 공통이다. 파일 도구는 단일 오류 수정에서 40회, 여러 파일의 diff와 관련 코드를 검토하는 PR에서 256회까지 허용한다. PR 검토는 diff 중심의 좁은 줄 범위와 독립 읽기 묶음을 사용한다. 후보 workspace는 이슈 진단을 **자료**로만 다루며 shell/network/MCP/GitHub credential을 사용할 수 없다.
 
 실행기는 공개 저장소의 검증된 고정 SHA를 각 작업의 별도 model/verifier git worktree로 준비한다. verifier image는 미리 빌드해 재사용하되, 후보 소스는 독립적인 새 검증 작업공간/매번 disposable Docker 실행으로 검증한다. `/verification-start` 이후 모델 프록시는 닫힌다. source-only 모델이 낸 manifest는 최대 24 text 파일, 파일당 256 KB, 합계 1 MB이며 수정 앱 src와 새 `tests/autofix/*.test.mjs`로만 제한한다. 기존 테스트/설정/lockfile/schema/generated 변경과 다른 앱 변경은 거부한다.
 
