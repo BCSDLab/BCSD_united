@@ -10,9 +10,10 @@ export interface TailEvidence {
   frames: { path: string; line: number; column: number }[];
 }
 
-export const SOURCE_HOSTS: Record<string, string> = {
-  'koin-web': 'koin-web.bcsdlab.workers.dev',
-  'koin-api': 'koin-api.bcsdlab.workers.dev',
+/** Exact production hostnames per Worker: workers.dev plus the koin-web custom domain only. */
+export const SOURCE_HOSTS: Record<string, readonly string[]> = {
+  'koin-web': ['koin-web.bcsdlab.workers.dev', 'koreatech.in'],
+  'koin-api': ['koin-api.bcsdlab.workers.dev'],
 };
 const UUID = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;
 const FRAME = /\bapps\/(web|api)\/src\/([A-Za-z0-9_./-]+\.(?:ts|tsx|js|jsx)):(\d+):(\d+)/g;
@@ -41,7 +42,7 @@ export function extractTailEvidence(item: TraceItem, workerName: string, app: Ap
     const url = new URL(item.event.request.url);
     if (
       url.protocol !== 'https:' ||
-      url.hostname !== SOURCE_HOSTS[workerName] ||
+      !SOURCE_HOSTS[workerName].includes(url.hostname) ||
       url.username ||
       url.password ||
       url.port ||

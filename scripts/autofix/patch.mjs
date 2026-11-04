@@ -2,16 +2,17 @@ import { execFileSync } from 'node:child_process';
 import { lstat, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
-import { allowedPath, jsonFile } from './common.mjs';
+import { allowedPath, jsonFile, pullRequestPolicy } from './common.mjs';
 
 const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
-export function validateManifest(manifest) {
+/** `allowed` is the trusted path policy: error mode (default) or a pull-request policy. */
+export function validateManifest(manifest, allowed = allowedPath) {
   if (!manifest || manifest.version !== 1 || !Array.isArray(manifest.files) || manifest.files.length > 24)
     throw new Error('Patch permits at most 24 files');
   let size = 0;
   const paths = new Set();
   for (const file of manifest.files) {
-    if (!allowedPath(file.path) || paths.has(file.path)) throw new Error('Patch contains forbidden or duplicate path');
+    if (!allowed(file.path) || paths.has(file.path)) throw new Error('Patch contains forbidden or duplicate path');
     paths.add(file.path);
     if (file.before !== null && !/^[a-f0-9]{64}$/.test(file.before)) throw new Error('Invalid baseline hash');
     if (
@@ -37,8 +38,8 @@ async function assertRegular(root, path) {
   }
 }
 
-export async function applyManifest(manifest, root, testsOnly = false, checkBefore = true) {
-  validateManifest(manifest);
+export async function applyManifest(manifest, root, testsOnly = false, checkBefore = true, allowed = allowedPath) {
+  validateManifest(manifest, allowed);
   for (const file of manifest.files) {
     if (testsOnly && !file.path.startsWith('tests/autofix/')) continue;
     await assertRegular(root, file.path);
@@ -64,23 +65,26 @@ export async function applyManifest(manifest, root, testsOnly = false, checkBefo
 async function collect() {
   const base = process.env.BASE_SHA;
   if (!/^[a-f0-9]{40}$/.test(base ?? '')) throw new Error('Missing trusted base SHA');
+  // PR mode: the executor passes the canonical changed-file list; corrections stay
+  // inside those related app/package directories and never touch tests/autofix.
+  const related = process.env.PR_CHANGED_FILES ? JSON.parse(process.env.PR_CHANGED_FILES) : null;
+  const allowed = related ? pullRequestPolicy(related) : allowedPath;
   const git = (args) => execFileSync('git', args, { maxBuffer: 2_000_000 });
   const tracked = git(['diff', '--name-only', '-z', base]).toString().split('\0');
-  const untracked = git([
-    'ls-files',
-    '--others',
-    '--exclude-standard',
-    '-z',
-    '--',
-    'apps/web/src',
-    'apps/api/src',
-    'tests/autofix',
-  ])
+  const scope = related ? ['apps', 'packages'] : ['apps/web/src', 'apps/api/src', 'tests/autofix'];
+  const untracked = git(['ls-files', '--others', '--exclude-standard', '-z', '--', ...scope])
     .toString()
     .split('\0');
+  // A fresh worktree holds no ignored files, so any ignored path here was written
+  // by the model and would otherwise vanish from the manifest silently.
+  const ignored = git(['ls-files', '--others', '--ignored', '--exclude-standard', '-z', '--', ...scope])
+    .toString()
+    .split('\0')
+    .filter(Boolean);
+  if (ignored.length) throw new Error(`Agent wrote an ignored path: ${ignored[0]}`);
   const files = [];
   for (const path of new Set([...tracked, ...untracked].filter(Boolean))) {
-    if (!allowedPath(path)) throw new Error(`Agent changed forbidden path: ${path}`);
+    if (!allowed(path)) throw new Error(`Agent changed forbidden path: ${path}`);
     await assertRegular('.', path);
     let before = null;
     try {
@@ -96,7 +100,7 @@ async function collect() {
     }
     files.push({ path, before, content });
   }
-  const manifest = validateManifest({ version: 1, files });
+  const manifest = validateManifest({ version: 1, files }, allowed);
   await mkdir('error-patch', { recursive: true });
   await writeFile('error-patch/patch.json', JSON.stringify(manifest));
 }

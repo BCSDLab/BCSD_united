@@ -193,6 +193,44 @@ test('Tail keeps only mapped source positions from the two approved production W
   );
 });
 
+test('Tail accepts the exact koreatech.in custom domain for koin-web only and rejects unrelated hosts', () => {
+  const web = {
+    scriptName: 'koin-web',
+    scriptVersion: { id: '11111111-1111-1111-1111-111111111111' },
+    eventTimestamp: Date.now(),
+    truncated: false,
+    outcome: 'exception',
+    event: { request: { method: 'GET', url: 'https://koreatech.in/campus', headers: { 'cf-ray': 'a'.repeat(16) } } },
+    exceptions: [{ stack: 'Error: x\\n    at handler (apps/web/src/handler.ts:12:3)', name: 'Error' }],
+    logs: [],
+  };
+  const withUrl = (url) => ({ ...web, event: { request: { ...web.event.request, url } } });
+  assert.equal(extractTailEvidence(web, 'koin-web', 'web')?.route, '/campus');
+  assert.equal(
+    extractTailEvidence(withUrl('https://koin-web.bcsdlab.workers.dev/campus'), 'koin-web', 'web')?.route,
+    '/campus',
+  );
+  for (const url of [
+    'https://www.koreatech.in/campus',
+    'https://stage.koreatech.in/campus',
+    'https://api.koreatech.in/campus',
+    'https://koreatech.in:8443/campus',
+    'https://user:pw@koreatech.in/campus',
+    'http://koreatech.in/campus',
+    'https://koreatech.in.attacker.example/campus',
+  ])
+    assert.equal(extractTailEvidence(withUrl(url), 'koin-web', 'web'), null, url);
+  // The API Worker never serves the web custom domain.
+  assert.equal(
+    extractTailEvidence(
+      { ...web, scriptName: 'koin-api', exceptions: [{ stack: 'at handler (apps/api/src/handler.ts:12:3)' }] },
+      'koin-api',
+      'api',
+    ),
+    null,
+  );
+});
+
 test('trusted Sentry evidence requires browser SDK, safe host route, and real in-app source frame', async (t) => {
   const env = {
     SENTRY_READ_TOKEN: 'local-read-only-token',

@@ -58,7 +58,7 @@ async function boundedJson(response: Response, max = 2_000_000): Promise<Record<
   }
   return object(JSON.parse(new TextDecoder('utf-8', { fatal: true, ignoreBOM: false }).decode(bytes)));
 }
-function safeRoute(value: unknown, hosts: string[]): string | null {
+function safeRoute(value: unknown, hosts: readonly string[]): string | null {
   try {
     if (typeof value !== 'string') return null;
     const url = new URL(value);
@@ -120,7 +120,7 @@ async function cloudflareEvidence(
     const worker = object(occurrence.worker);
     const invocation = object(occurrence.invocation);
     const scriptVersion = object(worker.scriptVersion).id;
-    const route = safeRoute(invocation.url, [SOURCE_HOSTS[identity.project]]);
+    const route = safeRoute(invocation.url, SOURCE_HOSTS[identity.project] ?? []);
     const timestamp = occurrence.timestamp;
     if (
       worker.scriptName !== identity.project ||

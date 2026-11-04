@@ -5,7 +5,15 @@ import { extractTailEvidence, tailKey } from './tail';
 import type { App, Diagnostic, Env, Identity, PatchManifest } from './types';
 export type { Env } from './types';
 export { AutofixQueue } from './queue';
-import type { ExecutorResult } from './queue';
+import { PolicyRejection, type AutofixQueue, type ExecutorResult } from './queue';
+import { installationToken } from './github';
+import {
+  PullRequestRejected,
+  assertPinned,
+  inspectPullRequest,
+  parsePullRequestIdentity,
+  pullRequestPolicy,
+} from './pull-request';
 
 interface CloudflareSource {
   accountId: string;
@@ -516,6 +524,50 @@ function retrievalIdentity(url: URL, config: Configuration): Identity {
   );
 }
 
+async function pullRequestIntake(request: Request, env: Env, url: URL): Promise<Response> {
+  const bytes = await boundedBody(request, 4096);
+  let data: Record<string, unknown>;
+  try {
+    data = record(JSON.parse(new TextDecoder('utf-8', { fatal: true, ignoreBOM: false }).decode(bytes)));
+  } catch {
+    throw new RequestError(400, 'Invalid executor JSON.');
+  }
+  const keys = Object.keys(data).sort().join(',');
+  if (data.version !== 1 || data.executorId !== env.AUTOFIX_EXECUTOR_ID)
+    throw new RequestError(400, 'Invalid executor contract.');
+  const stub = env.AUTOFIX_QUEUE.getByName('bcsdlab/bcsd_united');
+  try {
+    if (url.pathname === '/executor/pull-requests/status') {
+      if (
+        keys !== 'executorId,runId,version' ||
+        typeof data.runId !== 'string' ||
+        !/^autofix-[a-f0-9]{64}$/.test(data.runId)
+      )
+        throw new RequestError(400, 'Invalid status fields.');
+      const receipt = await stub.status(data.runId);
+      if (!receipt) throw new RequestError(404, 'Unknown pull request run.');
+      return Response.json(receipt, { headers: { 'Cache-Control': 'no-store' } });
+    }
+    if (keys !== 'baseSha,executorId,headSha,pullNumber,version')
+      throw new RequestError(400, 'Invalid enqueue fields.');
+    const identity = parsePullRequestIdentity(data);
+    const policy = pullRequestPolicy(env);
+    if (!policy.enabled) throw new RequestError(503, 'Pull request review is not enabled.');
+    if (!policy.allowed.has(identity.pullNumber)) throw new RequestError(403, 'Pull request is not allowlisted.');
+    // Canonical GitHub facts decide admission; the request only names a pinned PR of the fixed repository.
+    const token = await installationToken(env, 'read');
+    assertPinned(await inspectPullRequest(env, token, identity.pullNumber, policy), identity);
+    const admitted = await stub.enqueuePullRequest(identity);
+    return Response.json(
+      { status: admitted.status, runId: admitted.runId },
+      { headers: { 'Cache-Control': 'no-store' } },
+    );
+  } catch (error) {
+    if (error instanceof PullRequestRejected) throw new RequestError(error.status, error.message);
+    throw error;
+  }
+}
+
 async function executorRequest(request: Request, env: Env, url: URL): Promise<Response> {
   if (request.method !== 'POST') return new Response('Use POST.', { status: 405, headers: { Allow: 'POST' } });
   if (url.search || url.hash) throw new RequestError(400, 'Executor query parameters are not supported.');
@@ -527,6 +579,8 @@ async function executorRequest(request: Request, env: Env, url: URL): Promise<Re
   await verifySecret(authorization?.startsWith('Bearer ') ? authorization.slice(7) : null, env.AUTOFIX_EXECUTOR_TOKEN);
   if (request.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase() !== 'application/json')
     throw new RequestError(415, 'Content-Type must be application/json.');
+  if (url.pathname === '/executor/pull-requests/enqueue' || url.pathname === '/executor/pull-requests/status')
+    return pullRequestIntake(request, env, url);
   const path = /^\/executor\/jobs\/(autofix-[a-f0-9]{64})\/(heartbeat|verification-start|model|result)$/.exec(
     url.pathname,
   );
@@ -599,25 +653,8 @@ async function executorRequest(request: Request, env: Env, url: URL): Promise<Re
   if (data.outcome === 'verified') {
     if (keys !== 'executorId,leaseToken,manifest,outcome,verification,version')
       throw new RequestError(400, 'Invalid verified-result fields.');
-    const manifest = record(data.manifest),
+    const manifest = parseManifest(data.manifest),
       proof = record(data.verification);
-    if (
-      Object.keys(manifest).sort().join(',') !== 'files,version' ||
-      manifest.version !== 1 ||
-      !Array.isArray(manifest.files) ||
-      manifest.files.length > 24 ||
-      manifest.files.some((file) => {
-        if (!file || typeof file !== 'object' || Array.isArray(file)) return true;
-        const entry = file as Record<string, unknown>;
-        return (
-          Object.keys(entry).sort().join(',') !== 'before,content,path' ||
-          typeof entry.path !== 'string' ||
-          (entry.before !== null && typeof entry.before !== 'string') ||
-          (entry.content !== null && typeof entry.content !== 'string')
-        );
-      })
-    )
-      throw new RequestError(400, 'Invalid manifest structure.');
     if (
       Object.keys(proof).sort().join(',') !== 'baseSha,manifestSha256,passedChecks' ||
       typeof proof.baseSha !== 'string' ||
@@ -626,26 +663,49 @@ async function executorRequest(request: Request, env: Env, url: URL): Promise<Re
       proof.passedChecks.some((check) => typeof check !== 'string')
     )
       throw new RequestError(400, 'Invalid verification proof.');
-    const files = manifest.files as PatchManifest['files'];
-    const result: ExecutorResult = {
+    return submitResult(stub, path![1], {
       version: 1,
       executorId: 'koin-rocky-umpc',
       leaseToken: data.leaseToken,
       outcome: 'verified',
-      manifest: { version: 1, files },
+      manifest,
       verification: {
         baseSha: proof.baseSha,
         manifestSha256: proof.manifestSha256,
         passedChecks: proof.passedChecks as string[],
       },
-    };
-    try {
-      return Response.json(await stub.result(path![1], result), { headers: { 'Cache-Control': 'no-store' } });
-    } catch (error) {
-      if (error instanceof Error && error.message === 'Expired or invalid executor lease')
-        throw new RequestError(409, 'Expired or invalid lease.');
-      throw error;
-    }
+    });
+  }
+  if (data.outcome === 'pr-reviewed') {
+    if (keys !== 'executorId,leaseToken,manifest,outcome,review,verification,version')
+      throw new RequestError(400, 'Invalid reviewed-result fields.');
+    const manifest = parseManifest(data.manifest),
+      proof = record(data.verification);
+    if (
+      Object.keys(proof).sort().join(',') !== 'baseSha,headSha,manifestSha256,passedChecks' ||
+      typeof proof.headSha !== 'string' ||
+      typeof proof.baseSha !== 'string' ||
+      typeof proof.manifestSha256 !== 'string' ||
+      !Array.isArray(proof.passedChecks) ||
+      proof.passedChecks.length > 20 ||
+      proof.passedChecks.some((check) => typeof check !== 'string' || check.length > 60)
+    )
+      throw new RequestError(400, 'Invalid pull request verification proof.');
+    // Review structure and policy are validated by the queue against the leased job.
+    return submitResult(stub, path![1], {
+      version: 1,
+      executorId: 'koin-rocky-umpc',
+      leaseToken: data.leaseToken,
+      outcome: 'pr-reviewed',
+      manifest,
+      review: record(data.review),
+      verification: {
+        headSha: proof.headSha,
+        baseSha: proof.baseSha,
+        manifestSha256: proof.manifestSha256,
+        passedChecks: proof.passedChecks as string[],
+      },
+    });
   }
   if (data.outcome !== 'failed' && data.outcome !== 'no-fix') throw new RequestError(400, 'Invalid executor outcome.');
   if (
@@ -655,18 +715,48 @@ async function executorRequest(request: Request, env: Env, url: URL): Promise<Re
     !data.reason
   )
     throw new RequestError(400, 'Invalid failure fields.');
-  const result: ExecutorResult = {
+  return submitResult(stub, path![1], {
     version: 1,
     executorId: 'koin-rocky-umpc',
     leaseToken: data.leaseToken,
     outcome: data.outcome,
     reason: data.reason,
-  };
+  });
+}
+
+function parseManifest(value: unknown): PatchManifest {
+  const manifest = record(value);
+  if (
+    Object.keys(manifest).sort().join(',') !== 'files,version' ||
+    manifest.version !== 1 ||
+    !Array.isArray(manifest.files) ||
+    manifest.files.length > 24 ||
+    manifest.files.some((file) => {
+      if (!file || typeof file !== 'object' || Array.isArray(file)) return true;
+      const entry = file as Record<string, unknown>;
+      return (
+        Object.keys(entry).sort().join(',') !== 'before,content,path' ||
+        typeof entry.path !== 'string' ||
+        (entry.before !== null && typeof entry.before !== 'string') ||
+        (entry.content !== null && typeof entry.content !== 'string')
+      );
+    })
+  )
+    throw new RequestError(400, 'Invalid manifest structure.');
+  return { version: 1, files: manifest.files as PatchManifest['files'] };
+}
+
+async function submitResult(
+  stub: DurableObjectStub<AutofixQueue>,
+  runId: string,
+  result: ExecutorResult,
+): Promise<Response> {
   try {
-    return Response.json(await stub.result(path![1], result), { headers: { 'Cache-Control': 'no-store' } });
+    return Response.json(await stub.result(runId, result), { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     if (error instanceof Error && error.message === 'Expired or invalid executor lease')
       throw new RequestError(409, 'Expired or invalid lease.');
+    if (error instanceof PolicyRejection) throw new RequestError(422, error.message);
     throw error;
   }
 }

@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { jsonFile } from './common.mjs';
-import { API_ORIGIN, delay, readJsonResponse, startLocalApi } from './local-api.mjs';
+import { API_ORIGIN, declaresApiGate, delay, readJsonResponse, startLocalApi } from './local-api.mjs';
 import { applicationGraph, matchesRoute, sourceFiles } from './source-graph.mjs';
 
 const context = await jsonFile('/input/context.json');
@@ -54,4 +54,30 @@ try {
   process.stdout.write(`Real local API/D1 smoke passed: GET ${route}\n`);
 } finally {
   await api.cleanup();
+}
+// Standalone (pull-request) verification also proves the disabled-by-default gate
+// when the head config declares it: without the local opt-in every route answers
+// the uncached 503 API_DISABLED before any business binding is touched.
+if (
+  process.env.AUTOFIX_OFFLINE_STANDALONE === '1' &&
+  declaresApiGate(await readFile(resolve('apps/api/wrangler.jsonc'), 'utf8'))
+) {
+  const disabled = await startLocalApi({ gate: 'disabled' });
+  try {
+    const response = await fetch(`${API_ORIGIN}${route}`, { signal: AbortSignal.timeout(15000), redirect: 'error' });
+    const body = response.headers.get('content-type')?.includes('application/json') ? await response.json() : null;
+    if (
+      response.status !== 503 ||
+      body?.code !== 'API_DISABLED' ||
+      response.headers.get('cache-control') !== 'no-store' ||
+      !/^\d+$/.test(response.headers.get('retry-after') ?? '')
+    )
+      throw new Error(`Disabled API gate did not answer 503 API_DISABLED for GET ${route}`);
+    for (let attempt = 0; attempt < 20 && disabled.requestCount(route) === 0; attempt += 1) await delay(100);
+    if (disabled.requestCount(route) === 0) throw new Error('Disabled API gate request evidence is unavailable');
+    disabled.assertHealthy();
+    process.stdout.write(`Disabled API gate smoke passed: GET ${route} -> 503 API_DISABLED\n`);
+  } finally {
+    await disabled.cleanup();
+  }
 }

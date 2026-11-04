@@ -1,9 +1,9 @@
 import type { Env, Identity, PatchManifest, PreparedJob, Verification } from './types';
 
 const encoder = new TextEncoder();
-const HEX = /^[a-f0-9]{40}$/;
-const SHA256 = /^[a-f0-9]{64}$/;
-const BRANCH_NAME = new RegExp('^[A-Za-z0-9_./-]{1,100}$');
+export const HEX = /^[a-f0-9]{40}$/;
+export const SHA256 = /^[a-f0-9]{64}$/;
+export const BRANCH_NAME = new RegExp('^[A-Za-z0-9_./-]{1,100}$');
 const CHECKS = [
   'regression-fails-on-base',
   'regression-passes-on-fix',
@@ -17,7 +17,7 @@ const CHECKS = [
 
 type Permission = 'read' | 'publish';
 
-function base64(bytes: Uint8Array): string {
+export function base64(bytes: Uint8Array): string {
   let encoded = '';
   // Fixed multiples of three avoid both call-stack exhaustion and intermediate padding.
   for (let i = 0; i < bytes.length; i += 12288) {
