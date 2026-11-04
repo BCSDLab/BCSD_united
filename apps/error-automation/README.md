@@ -81,6 +81,8 @@ Rocky/UMPC의 전용 실행기는 고정 HTTPS Worker origin으로 `X-Executor-I
 
 `POST /executor/jobs/<runId>/model`은 살아 있는 generation lease에서만 가능하다. Worker가 `ANTHROPIC_API_KEY`를 보관하고 고정된 `claude-fable-5-1`/정적 source-only system/Read·Edit·Write·Glob·Grep JSON schema로만 Anthropic `/v1/messages`에 요청한다. 실행기 요청은 정확한 model/messages/다섯 tool 이름/maxTokens/lease만 담는다. 임의 provider URL·헤더·system·서버 도구는 받지 않는다. 인증된 HTTP 본문은 최대 1 MB이며, 저장된 job mode에 따라 모델 context를 다시 제한한다: 오류 수정은 256 KB·80개 메시지·40회 호출, PR 검토는 1 MB·160개 메시지·80회 호출. 응답 256 KB·generation 20분 한도는 공통이다. 후보 환경에는 GitHub/Anthropic 키가 없다.
 
+요청당 출력 한도도 저장된 job mode로 강제한다(오류 수정 4,096 tokens, PR 검토 16,384 tokens). 호출자가 다른 mode의 한도를 선택할 수 없다.
+
 `POST /executor/jobs/<runId>/verification-start`는 generation을 원자적으로 닫고 별도 검증 단계로 전환한다. 이후 모델 요청은 거부한다. 실행기는 독립적인 새 검증 작업공간과 격리된 disposable Docker 실행으로 실제 수정 전 assertion 실패/수정 후 통과, 필수 native/security suites, 타입/lint/build, API+D1/SSR/Chromium(390px 포함)을 확인한다. `POST /executor/jobs/<runId>/result`의 성공은 lease+base SHA+manifest SHA256+정확한 필수 check 목록과 verified manifest bytes가 일치할 때만 PR 발행으로 이어진다. 모델 발언이나 빈 patch를 검증 완료로 처리하지 않는다. 고정 기본 브랜치가 전진하면 발행하지 않고, 기존 브랜치/PR을 덮어쓰거나 자동 merge/배포하지 않는다. 증거가 없는 제공자 이벤트는 공개 이슈 자체를 만들지 않고, 증거를 통과한 뒤 실행 중 실패한 작업만 기존 이슈에 사실을 남긴다.
 
 진단 읽기는 `Authorization: Bearer <DIAGNOSTICS_READ_TOKEN>`을 요구한다. query token, 쿠키, CORS 공개 읽기, 목록 조회는 지원하지 않는다.

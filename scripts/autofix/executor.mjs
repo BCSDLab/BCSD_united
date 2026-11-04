@@ -443,7 +443,7 @@ async function generate(cfg, claim, modelRoot, signal) {
         model: MODEL,
         messages,
         tools: TOOLS,
-        maxTokens: 4096,
+        maxTokens: pullRequest ? 16384 : 4096,
       },
       AbortSignal.timeout(100_000),
       pullRequest ? 1_000_000 : 256_000,
@@ -459,7 +459,8 @@ async function generate(cfg, claim, modelRoot, signal) {
       finished = true;
       break;
     }
-    if (result.stop_reason !== 'tool_use') throw new Error('Model did not complete a bounded source-edit turn');
+    if (result.stop_reason !== 'tool_use')
+      throw new Error(`Model did not complete a bounded source-edit turn: ${result.stop_reason.slice(0, 64)}`);
     if (!callsNow.length) throw new Error('Model requested no callable file tools');
     if (calls + callsNow.length > maxFileCalls) throw new Error(`Model exceeded ${maxFileCalls} file tool calls`);
     calls += callsNow.length;

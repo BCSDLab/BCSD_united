@@ -441,6 +441,7 @@ export class AutofixQueue extends DurableObject<Env> {
     const maxCalls = mode === 'pull-request' ? 80 : 40;
     const maxMessages = mode === 'pull-request' ? 160 : 80;
     const maxBytes = mode === 'pull-request' ? 1_000_000 : 256_000;
+    if (request.maxTokens > (mode === 'pull-request' ? 16384 : 4096)) throw new Error('Model output limit exceeded');
     if (request.messages.length > maxMessages || encoder.encode(JSON.stringify(request)).length > maxBytes)
       throw new Error('Model context limit exceeded');
     const now = Date.now();

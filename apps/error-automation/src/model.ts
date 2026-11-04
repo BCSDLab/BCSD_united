@@ -100,7 +100,7 @@ export function parseModelRequest(value: Record<string, unknown>): ModelRequest 
     value.model !== 'claude-fable-5-1' ||
     !Number.isInteger(value.maxTokens) ||
     (value.maxTokens as number) < 1 ||
-    (value.maxTokens as number) > 4096 ||
+    (value.maxTokens as number) > 16384 ||
     !Array.isArray(value.tools) ||
     value.tools.length !== 5 ||
     value.tools.some((tool, i) => tool !== names[i]) ||

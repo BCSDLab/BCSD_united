@@ -59,6 +59,8 @@ Worker secret은 웹훅별 `SENTRY_CLIENT_SECRET`/`CLOUDFLARE_WEBHOOK_SECRET`, c
 
 `/executor/jobs/<runId>/model`은 살아 있는 generation lease에서만 요청한다. Worker가 정적 system prompt/고정 Fable 모델/Read·Edit·Write·Glob·Grep JSON schema만 Anthropic `/v1/messages`로 전송하고 API key를 Worker 밖에 내보내지 않는다. 모델 메시지의 파일 요청은 실행기에서 허용 경로·symlink·앱 경계를 다시 검사한다. 단일 오류 수정은 모델 40회·80개 메시지·256 KB context, PR 검토는 모델 80회·160개 메시지·1 MB context로 제한한다. generation 20분과 응답 256 KB 한도는 공통이다. 파일 도구는 단일 오류 수정에서 40회, 여러 파일의 diff와 관련 코드를 검토하는 PR에서 256회까지 허용한다. PR 검토는 diff 중심의 좁은 줄 범위와 독립 읽기 묶음을 사용한다. 후보 workspace는 이슈 진단을 **자료**로만 다루며 shell/network/MCP/GitHub credential을 사용할 수 없다.
 
+요청당 출력 토큰은 오류 수정 4,096개, PR 검토 16,384개까지 허용한다. 큰 수정 응답이 중단되면 제공자의 `stop_reason`만 제한된 진단에 남기며, 거절·중단을 승인으로 취급하지 않는다.
+
 실행기는 공개 저장소의 검증된 고정 SHA를 각 작업의 별도 model/verifier git worktree로 준비한다. verifier image는 미리 빌드해 재사용하되, 후보 소스는 독립적인 새 검증 작업공간/매번 disposable Docker 실행으로 검증한다. `/verification-start` 이후 모델 프록시는 닫힌다. source-only 모델이 낸 manifest는 최대 24 text 파일, 파일당 256 KB, 합계 1 MB이며 수정 앱 src와 새 `tests/autofix/*.test.mjs`로만 제한한다. 기존 테스트/설정/lockfile/schema/generated 변경과 다른 앱 변경은 거부한다.
 
 독립 검증은 수정 전 새 assertion 실패/수정 후 통과, 기존 native fixtures와 autofix 보안 테스트, 타입/lint/build, 실제 로컬 API+D1+SSR+Chromium/390px 모바일 smoke를 수행한다. 네트워크 없는 Docker, 비루트/capability 제거, read-only source/dependencies와 제한된 scratch를 사용한다. proof는 base SHA·검증된 manifest SHA256·정확한 필수 check 목록에 결속한다. Worker는 원본 기본 브랜치 SHA가 전진하지 않았는지 재조회하고 verified bytes만 Git tree/commit/PR로 발행한다. force push, 자동 merge/배포는 없다. 실행·검증 실패나 무변경은 verified PR로 표시하지 않고 이슈에 원문 비밀 없이 사실만 남긴다.

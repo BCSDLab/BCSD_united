@@ -722,8 +722,13 @@ test('whole-PR model limits do not widen error-job context or turn limits', asyn
       if (mode === 'pull-request') await h.queue.enqueuePullRequest(identity3);
       else await h.queue.enqueue(errorIdentity, 'sentry/bcsd/koin-united-prod/123');
       const claim = await h.queue.claim('f'.repeat(64));
+      await assert.rejects(
+        h.queue.model(claim.runId, claim.leaseToken, { ...request, maxTokens: mode === 'pull-request' ? 16385 : 4097 }),
+        /output limit/,
+      );
       const expanded = {
         ...request,
+        maxTokens: mode === 'pull-request' ? 16384 : 4096,
         messages: Array.from({ length: 90 }, () => ({ role: 'user', content: 'x'.repeat(4000) })),
       };
       const exhausted = {
