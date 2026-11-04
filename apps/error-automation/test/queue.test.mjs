@@ -156,12 +156,27 @@ test('queue persists immutable fixed job, issues one random lease, and prevents 
   assert.equal(claim.job.baseSha, base);
   assert.equal(claim.job.issueNumber, 9);
   assert.equal(claim.job.context.route, '/campus');
+  assert.equal(Number.isSafeInteger(claim.leaseExpiresAt), true);
+  assert.ok(claim.leaseExpiresAt > Date.now());
+  assert.ok(claim.leaseExpiresAt <= claim.deadlineAt);
+  assert.equal(claim.leaseExpiresAt, h.db.prepare('SELECT lease_expires FROM jobs').get().lease_expires);
   assert.deepEqual(await h.queue.claim('f'.repeat(64)), claim);
   assert.equal(await h.queue.claim('e'.repeat(64)), null);
   assert.equal(h.db.prepare('SELECT lease_hash FROM jobs').get().lease_hash === claim.leaseToken, false);
+  // Resumed claim reports the actual stored expiry, even after the lease was shortened server-side.
+  const shortened = Date.now() + 30_000;
+  h.db.prepare('UPDATE jobs SET lease_expires = ?').run(shortened);
+  assert.deepEqual(await h.queue.claim('f'.repeat(64)), { ...claim, leaseExpiresAt: shortened });
   const heartbeat = await h.queue.heartbeat(claim.runId, claim.leaseToken);
   assert.equal(heartbeat.deadlineAt, claim.deadlineAt);
+  assert.ok(heartbeat.leaseExpiresAt > shortened);
   assert.ok(heartbeat.leaseExpiresAt <= claim.deadlineAt);
+  assert.equal(heartbeat.leaseExpiresAt, h.db.prepare('SELECT lease_expires FROM jobs').get().lease_expires);
+  // Heartbeat never extends an expired lease, and the resume handshake reports nothing for it.
+  h.db.prepare('UPDATE jobs SET lease_expires = ?').run(Date.now() - 1);
+  await assert.rejects(h.queue.heartbeat(claim.runId, claim.leaseToken), /lease/);
+  assert.equal(h.db.prepare('SELECT lease_expires FROM jobs').get().lease_expires < Date.now(), true);
+  assert.equal(await h.queue.claim('f'.repeat(64)), null);
   await assert.rejects(h.queue.heartbeat(claim.runId, '0'.repeat(64)), /lease/);
   assert.equal(
     h.writes.some((url) => url.includes('/git/')),
