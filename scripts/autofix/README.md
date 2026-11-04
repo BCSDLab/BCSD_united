@@ -102,6 +102,8 @@ PR 모드의 온라인 설치에는 `--ignore-pnpmfile`도 강제합니다. `--i
 
 웹 smoke는 production `KOIN_API_ORIGIN`으로 기존 Worker API 또는 Java `https://api.koreatech.in`(#9) 둘 중 하나만 허용하고, 오프라인에서는 여전히 로컬 `koin-api` auxiliary service binding이 묶여 있어야 한다. 새 synthetic 회귀 테스트는 PR 모드의 요구사항이 아니다(오류 모드만 요구).
 
+모든 변경 파일은 읽을 수 있지만 설정·의존성·파이프라인은 계속 읽기 전용이다. 허용된 앱/패키지 소스·테스트·문서는 최소 수정할 수 있다. 최종 `findings`에는 수정 후에도 남은 결함만 넣으며, 미해결 P1/P2가 없을 때만 `approved`를 반환한다.
+
 proof는 `{headSha, baseSha, sha256(manifest), checks:['pr-head-pinned','native-fixture-tests','typecheck','autofix-security-tests','lint','build','runtime-route-smoke'], profiles}`이며 실행기가 headSha/baseSha/sha256/check 목록을 대조한 뒤 `{outcome:'pr-reviewed', manifest, review, verification:{headSha, baseSha, manifestSha256, passedChecks}}`를 제출한다. 어떤 check라도 실패하면 `failed` + 사유다. **PR 모드에 한해** Worker가 `pr-reviewed` 결과를 422/409/400으로 거부하면 같은 bytes를 무한 재시도하지 않고 한 번 `failed` 기록으로 낮춘 뒤 nonce를 돌린다(오류 모드의 durable receipt 재전송 의미는 그대로다). 발행(원본 head 부모의 correction commit, 비-force head 갱신, 리뷰 COMMENT, 영수증)과 merge 판단은 Worker/운영자 몫이며 실행기는 GitHub 자격 증명을 갖지 않는다.
 
 결정적 로컬 검사: `node --test scripts/autofix/security.test.mjs scripts/autofix/executor.test.mjs scripts/autofix/executor-model.test.mjs scripts/autofix/pr-review.test.mjs` (경로 정책, 프로필 도출, reviewContext 경계, 구조화 리뷰 파서, B-BOT smoke 설정, API 게이트 감지, claim union 검증).
