@@ -1,9 +1,9 @@
-import { isKoinError } from '@bcsdlab/koin';
 import { captureError } from '@koin/telemetry/runtime';
 import { useMutation } from '@tanstack/react-query';
 
 import { cafeteriaMutations } from 'api/cafeteria/mutations';
 import showMobileToast from 'components/feedback/Toast/showMobileToast';
+import { isKoinError } from 'interfaces/APIError';
 
 const useCreateSoldoutReport = () => {
   const mutation = cafeteriaMutations.createSoldoutReport();

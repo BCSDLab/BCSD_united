@@ -1,5 +1,4 @@
 import { lazy, useEffect, useState } from 'react';
-import { isKoinError } from '@bcsdlab/koin';
 import { dehydrate, QueryClient } from '@tanstack/react-query';
 import { createFileRoute, useSearch, useParams } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
@@ -17,6 +16,7 @@ import MobilePageHeader from 'components/layout/MobilePageHeader';
 import { TimetableEditButton } from 'components/TimetablePage/components/MobileHeaderActions';
 import useTimetableFrameList from 'components/TimetablePage/hooks/useTimetableFrameList';
 import DefaultPage from 'components/TimetablePage/MainTimetablePage/DefaultPage';
+import { isKoinError } from 'interfaces/APIError';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useGoBack from 'utils/hooks/routing/useGoBack';

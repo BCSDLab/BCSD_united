@@ -1,5 +1,4 @@
 import { type ChangeEvent, useState } from 'react';
-import { isKoinError } from '@bcsdlab/koin';
 import { cn } from '@bcsdlab/utils';
 import { useMutation } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
@@ -8,6 +7,7 @@ import { orderMutations } from 'api/order/mutations';
 import CheckIcon from 'assets/svg/Order/Result/check-icon.svg';
 import CenterModal from 'components/Store/mobile/common/CenterModal';
 import Button from 'components/ui/Button';
+import { isKoinError } from 'interfaces/APIError';
 import ROUTES from 'static/routes';
 import showToast from 'utils/ts/showToast';
 

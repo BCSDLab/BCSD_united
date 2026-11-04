@@ -1,9 +1,9 @@
-import { isKoinError } from '@bcsdlab/koin';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { orderMutations } from 'api/order/mutations';
 import AlertModal from 'components/Store/mobile/common/AlertModal';
 import ConfirmModal from 'components/Store/mobile/common/ConfirmModal';
+import { isKoinError } from 'interfaces/APIError';
 import showToast from 'utils/ts/showToast';
 
 // KOIN_ORDER_WEBVIEW pages/Cart/components/ValidateModal 이전.

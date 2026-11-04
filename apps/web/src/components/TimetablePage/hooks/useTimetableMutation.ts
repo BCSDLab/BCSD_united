@@ -1,4 +1,3 @@
-import { isKoinError } from '@bcsdlab/koin';
 import { captureError } from '@koin/telemetry/runtime';
 import { useMutation } from '@tanstack/react-query';
 
@@ -11,6 +10,7 @@ import type {
   TimetableRegularLecture,
 } from 'api/timetable/entity';
 import useToast from 'components/feedback/Toast/useToast';
+import { isKoinError } from 'interfaces/APIError';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import { isomorphicSessionStorage } from 'utils/ts/env';
 import showToast from 'utils/ts/showToast';

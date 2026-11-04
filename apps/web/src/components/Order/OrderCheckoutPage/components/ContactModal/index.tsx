@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { isKoinError } from '@bcsdlab/koin';
 import { cn } from '@bcsdlab/utils';
 import { useMutation } from '@tanstack/react-query';
 
@@ -14,6 +13,7 @@ import BottomModal, {
   BottomModalHeader,
 } from 'components/Store/mobile/common/BottomModal';
 import Button from 'components/ui/Button';
+import { isKoinError } from 'interfaces/APIError';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
 import showToast from 'utils/ts/showToast';
 

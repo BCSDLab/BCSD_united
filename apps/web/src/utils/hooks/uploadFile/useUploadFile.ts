@@ -1,9 +1,9 @@
-import { isKoinError } from '@bcsdlab/koin';
 import { captureError } from '@koin/telemetry/runtime';
 import { useMutation } from '@tanstack/react-query';
 
 import { getPresignedUrl, uploadToS3 } from 'api/uploadFile';
 import type { FileData, UploadDomain } from 'api/uploadFile/entity';
+import { isKoinError } from 'interfaces/APIError';
 import showToast from 'utils/ts/showToast';
 
 interface UploadFileParams {

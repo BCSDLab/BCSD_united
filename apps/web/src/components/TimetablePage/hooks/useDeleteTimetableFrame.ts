@@ -1,10 +1,10 @@
-import { isKoinError } from '@bcsdlab/koin';
 import { captureError } from '@koin/telemetry/runtime';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import type { Semester, TimetableFrameInfo } from 'api/timetable/entity';
 import { timetableMutations } from 'api/timetable/mutations';
 import useToast from 'components/feedback/Toast/useToast';
+import { isKoinError } from 'interfaces/APIError';
 import showToast from 'utils/ts/showToast';
 import { useSemester } from 'utils/zustand/semester';
 

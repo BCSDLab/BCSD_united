@@ -1,10 +1,10 @@
 import { lazy, Suspense, useEffect, useRef } from 'react';
-import { isKoinError } from '@bcsdlab/koin';
 import { useMutation } from '@tanstack/react-query';
 import { ClientOnly, useRouter } from '@tanstack/react-router';
 
 import { orderMutations } from 'api/order/mutations';
 import PayingLottie from 'assets/lottie/paying.json';
+import { isKoinError } from 'interfaces/APIError';
 import ROUTES from 'static/routes';
 import showToast from 'utils/ts/showToast';
 import { useOrderStore } from 'utils/zustand/order';

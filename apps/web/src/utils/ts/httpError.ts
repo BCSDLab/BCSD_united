@@ -1,13 +1,8 @@
-import { isKoinError } from '@bcsdlab/koin';
+import { isHttpError, isKoinError } from 'interfaces/APIError';
 
-// apiClient는 본문이 KoinError 모양이면 KoinError로, 아니면(빈 본문 401·503 등) axios 오류를 펼친 객체로 reject한다.
-// 두 경우 모두에서 HTTP 상태 코드를 꺼낸다
+// KoinError 또는 HttpError에 담긴 HTTP 상태 코드를 꺼낸다.
 export function getErrorStatus(error: unknown): number | undefined {
-  if (isKoinError(error)) return error.status;
-  if (typeof error === 'object' && error !== null && 'response' in error) {
-    const { response } = error as { response?: { status?: unknown } };
-    if (typeof response?.status === 'number') return response.status;
-  }
+  if (isKoinError(error) || isHttpError(error)) return error.status;
 
   return undefined;
 }

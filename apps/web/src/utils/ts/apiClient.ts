@@ -1,15 +1,13 @@
-// reference: https://github.com/16Yongjin/tutoring-app/tree/main/src/api
 import { traceOperation } from '@koin/telemetry/runtime';
-import axios, { type AxiosError, type AxiosResponse } from 'axios';
 
 import { WebRefresh, WebSession } from 'api/auth/APIDetail';
-import type { CustomAxiosError, KoinError } from 'interfaces/APIError';
-import { type APIRequest, HTTP_METHOD } from 'interfaces/APIRequest';
+import { HttpError, isHttpError, type KoinError } from 'interfaces/APIError';
+import { type APIRequest, type APIResult, HTTP_METHOD } from 'interfaces/APIRequest';
 import type { APIResponse } from 'interfaces/APIResponse';
 import { WEB_AUTH_CSRF_COOKIE_KEY } from 'static/url';
 import { hasSessionCookie } from 'utils/auth/session';
 import { markSessionAuthenticated, markSessionExpired } from 'utils/auth/sessionControl';
-import { apiRequestAdapter, getApiBaseUrl } from 'utils/ssr/apiTarget';
+import { fetchApiRequest, getApiBaseUrl } from 'utils/ssr/apiTarget';
 import { getServerRequestHeaders } from 'utils/ssr/cookieForwarding';
 import qsStringify from 'utils/ts/qsStringfy';
 
@@ -27,30 +25,36 @@ function normalizeApiPath(path: string | undefined): string {
 }
 
 // 새 헤더 관심사가 생기면 createHeaders 본문을 늘리는 대신 이 파이프라인에 추가
-type HeaderContributor = (request: APIRequest<APIResponse>, headers: Record<string, string>) => void;
+type HeaderContributor = <R extends APIResponse>(request: APIRequest<R>, headers: Record<string, string>) => void;
 
-const withSSRCookieForwarding: HeaderContributor = (_request, headers) => {
-  if (isBrowser) return;
+const withSSRCookieForwarding: HeaderContributor = (request, headers) => {
+  if (isBrowser || request.withCredentials === false) return;
   const serverRequestHeaders = getServerRequestHeaders();
   if (serverRequestHeaders?.cookie) headers.Cookie = serverRequestHeaders.cookie;
   if (serverRequestHeaders?.origin) headers.Origin = serverRequestHeaders.origin;
 };
 
 const withCsrfToken: HeaderContributor = (request, headers) => {
-  if (request.method === HTTP_METHOD.GET) return;
+  if (request.method === HTTP_METHOD.GET || request.withCredentials === false) return;
   const csrfToken = getCookie(WEB_AUTH_CSRF_COOKIE_KEY);
   if (csrfToken) headers['X-CSRF-Token'] = csrfToken;
 };
 
 const withJsonContentType: HeaderContributor = (request, headers) => {
-  const isJsonBodyMethod = request.method === HTTP_METHOD.POST || request.method === HTTP_METHOD.PUT;
-  if (isJsonBodyMethod && !(request.data instanceof FormData)) {
+  if (
+    request.data !== undefined &&
+    !(request.data instanceof FormData) &&
+    !(request.data instanceof Blob) &&
+    (request.method === HTTP_METHOD.POST || request.method === HTTP_METHOD.PUT || request.method === HTTP_METHOD.PATCH)
+  ) {
     headers['Content-Type'] = 'application/json';
   }
 };
 
 const withCustomHeaders: HeaderContributor = (request, headers) => {
-  if (request.headers) Object.assign(headers, request.headers);
+  if (request.headers) {
+    for (const [name, value] of Object.entries(request.headers)) headers[name] = String(value);
+  }
 };
 
 // withCustomHeaders가 마지막에 와야 호출부가 위 기본값을 덮어쓸 수 있음
@@ -60,8 +64,6 @@ const HEADER_CONTRIBUTORS: HeaderContributor[] = [
   withJsonContentType,
   withCustomHeaders,
 ];
-
-type AuthFlags = Pick<APIRequest<APIResponse>, 'authOptional' | 'skipAuthRefresh'>;
 
 type Constructor<T> = new (...args: never[]) => T;
 
@@ -89,74 +91,131 @@ export default class APIClient {
 
   timeout: number = 20 * 1000;
 
-  request<U extends APIResponse>(request: APIRequest<U>): Promise<U> {
+  async request<U extends APIResponse>(request: APIRequest<U>): Promise<U> {
     const route = normalizeApiPath(request.path);
+    let response: APIResult<U>;
 
-    return new Promise<U>((resolve, reject) => {
-      axios
-        .request({
-          adapter: apiRequestAdapter,
-          url: request.path,
-          method: request.method,
-          params: request.params,
-          data:
-            request.data instanceof FormData ? request.data : (request.convertBody || this.convertBody)(request.data),
-          paramsSerializer: (params) => qsStringify(params),
-          timeout: this.timeout,
-          baseURL: request.baseURL || this.baseURL,
-          headers: this.createHeaders(request),
-          responseType: 'json',
-          withCredentials: request.withCredentials ?? true,
-        })
-        .then((data: AxiosResponse<U>) => {
-          const response = traceOperation(
-            {
-              name: `Parse API response: ${route}`,
-              op: 'koin.api.parse',
-              onlyIfParent: true,
-              attributes: {
-                'api.route': route,
-                'http.response.status_code': data.status,
-                'koin.response_shape': data.data == null ? 'null' : 'value',
-              },
-            },
-            () => (request.parse ? request.parse(data) : this.parse<U>(data)),
-          );
-          resolve(response);
-        })
-        .catch(async (err: unknown) => {
+    try {
+      response = await this.sendRequest(request);
+    } catch (error) {
+      if (!isHttpError(error)) throw error;
+      try {
+        const retried = await this.errorMiddleware(error, request);
+        if (retried) return this.parseResponse(request, retried, route, true);
+      } catch {
+        // 갱신이나 한 번의 재시도가 실패하면 원래 HTTP 오류를 유지한다.
+      }
+
+      throw this.createTracedKoinError(error, route);
+    }
+
+    return this.parseResponse(request, response, route);
+  }
+
+  private parseResponse<U extends APIResponse>(
+    request: APIRequest<U>,
+    response: APIResult<U>,
+    route: string,
+    retried = false,
+  ): U {
+    return traceOperation(
+      {
+        name: `${retried ? 'Parse retried' : 'Parse'} API response: ${route}`,
+        op: 'koin.api.parse',
+        onlyIfParent: true,
+        attributes: {
+          'api.route': route,
+          ...(retried ? { 'api.retry': true } : { 'koin.response_shape': response.data == null ? 'null' : 'value' }),
+          'http.response.status_code': response.status,
+        },
+      },
+      () => (request.parse ? request.parse(response) : response.data),
+    );
+  }
+
+  private resolveUrl<U extends APIResponse>(request: APIRequest<U>): URL {
+    const { path } = request;
+    const browserOrigin = isBrowser ? window.location.origin : undefined;
+    const base = request.baseURL ?? this.baseURL;
+    const url =
+      /^[a-z][a-z\d+.-]*:/i.test(path) || path.startsWith('//')
+        ? new URL(path, browserOrigin ?? (base || this.baseURL))
+        : new URL(`${base.replace(/\/$/, '')}/${path.replace(/^\/+/, '')}`, browserOrigin);
+    if (request.params) {
+      const query = qsStringify(request.params);
+      if (query) url.search += `${url.search ? '&' : '?'}${query}`;
+    }
+
+    return url;
+  }
+
+  private body<U extends APIResponse>(request: APIRequest<U>): BodyInit | undefined {
+    if (request.data === undefined) return undefined;
+    if (request.data instanceof FormData || request.data instanceof Blob) return request.data;
+
+    return request.convertBody ? request.convertBody(request.data) : JSON.stringify(request.data);
+  }
+
+  private async sendRequest<U extends APIResponse>(request: APIRequest<U>): Promise<APIResult<U>> {
+    const controller = new AbortController();
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const { promise: cancellation, reject } = Promise.withResolvers<never>();
+    const cancel = () => {
+      reject(new HttpError('Request aborted', { code: 'ABORTED', cause: request.signal?.reason }));
+      controller.abort();
+    };
+    request.signal?.addEventListener('abort', cancel, { once: true });
+    if (request.signal?.aborted) cancel();
+    if (this.timeout > 0) {
+      timeout = setTimeout(() => {
+        // 본문 읽기의 AbortError가 시간 초과를 덮지 않도록 먼저 실패시킨다.
+        reject(new HttpError(`timeout of ${this.timeout}ms exceeded`, { code: 'TIMEOUT' }));
+        controller.abort();
+      }, this.timeout);
+    }
+
+    try {
+      const send = async (): Promise<APIResult<U>> => {
+        if (controller.signal.aborted) return cancellation;
+        const response = await fetchApiRequest(
+          new Request(this.resolveUrl(request), {
+            method: request.method,
+            headers: this.createHeaders(request),
+            body: this.body(request),
+            signal: controller.signal,
+            credentials: request.withCredentials === false ? 'omit' : 'include',
+          }),
+        );
+        const text = await response.text();
+        let data: unknown = text;
+        if (text) {
           try {
-            if (axios.isAxiosError(err)) {
-              const handledResponse = await this.errorMiddleware(err, request);
-
-              if (handledResponse) {
-                const response = traceOperation(
-                  {
-                    name: `Parse retried API response: ${route}`,
-                    op: 'koin.api.parse',
-                    onlyIfParent: true,
-                    attributes: {
-                      'api.route': route,
-                      'api.retry': true,
-                      'http.response.status_code': handledResponse.status,
-                    },
-                  },
-                  () => (request.parse ? request.parse(handledResponse) : this.parse<U>(handledResponse)),
-                );
-                resolve(response);
-
-                return;
-              }
-            }
-
-            const apiError = this.createTracedKoinError(err as AxiosError<KoinError>, route);
-            reject(apiError);
+            data = JSON.parse(text);
           } catch {
-            const apiError = this.createTracedKoinError(err as AxiosError<KoinError>, route);
-            reject(apiError);
+            // JSON이 아닌 응답은 원문 문자열로 유지한다.
           }
-        });
-    });
+        }
+        if (!response.ok) {
+          throw new HttpError(`Request failed with status code ${response.status}`, {
+            status: response.status,
+            data,
+          });
+        }
+
+        return { data: data as U, status: response.status, statusText: response.statusText, headers: response.headers };
+      };
+
+      return await Promise.race([send(), cancellation]);
+    } catch (error) {
+      if (isHttpError(error)) throw error;
+      throw new HttpError(error instanceof Error ? error.message : String(error), {
+        code: request.signal?.aborted ? 'ABORTED' : 'NETWORK_ERROR',
+        cause: error,
+      });
+    } finally {
+      clearTimeout(timeout);
+      request.signal?.removeEventListener('abort', cancel);
+    }
   }
 
   static webRefresh = this.of(WebRefresh);
@@ -187,41 +246,27 @@ export default class APIClient {
     }
   }
 
-  private convertBody(data: unknown) {
-    return JSON.stringify(data);
+  private retryRequest<U extends APIResponse>(request: APIRequest<U>): Promise<APIResult<U>> {
+    const route = normalizeApiPath(request.path);
+
+    return traceOperation(
+      {
+        name: `Retry API request: ${route}`,
+        op: 'koin.api.retry',
+        onlyIfParent: true,
+        attributes: { 'api.route': route },
+      },
+      () => this.sendRequest(request),
+    );
   }
 
-  private parse<U extends APIResponse>(data: AxiosResponse<U>): U {
-    return data.data;
-  }
-
-  private async retryRequest(error: AxiosError) {
-    try {
-      const originalRequest = error.config;
-
-      const route = normalizeApiPath(originalRequest?.url);
-
-      return await traceOperation(
-        {
-          name: `Retry API request: ${route}`,
-          op: 'koin.api.retry',
-          onlyIfParent: true,
-          attributes: { 'api.route': route },
-        },
-        () => axios(originalRequest!),
-      );
-    } catch (retryError) {
-      return Promise.reject(retryError instanceof Error ? retryError : new Error(String(retryError)));
-    }
-  }
-
-  private handleUnauthorized = async (error: AxiosError, request: AuthFlags) => {
+  private async handleUnauthorized<U extends APIResponse>(request: APIRequest<U>): Promise<APIResult<U> | null> {
     const refreshed = await traceOperation(
       {
         name: 'Refresh API access token',
         op: 'koin.api.auth_refresh',
         onlyIfParent: true,
-        attributes: { 'api.route': normalizeApiPath(error.config?.url) },
+        attributes: { 'api.route': normalizeApiPath(request.path) },
       },
       () => this.refreshAccessToken(),
     );
@@ -233,21 +278,21 @@ export default class APIClient {
     }
 
     try {
-      return await this.retryRequest(error);
+      return await this.retryRequest(request);
     } catch (retryError) {
       // 갱신 직후에도 401이면 세션이 끝난 것이다. 5xx 등은 세션과 무관하다.
-      if (axios.isAxiosError(retryError) && retryError.response?.status === 401) markSessionExpired(request);
+      if (isHttpError(retryError) && retryError.status === 401) markSessionExpired(request);
 
       return null;
     }
-  };
+  }
 
   // SSR은 refresh를 할 수 없어 그대로 401을 던지는 게 정상 흐름이지만, Cookie 컨텍스트 자체가
   // 없어서 401이 난 경우(loadPageData로 감싸지 않은 loader 등)는 원인을 바로 알 수 있어야 한다.
-  private handleServerSideError(error: AxiosError): null {
-    if (error.response?.status === 401 && !getServerRequestHeaders()?.cookie) {
+  private handleServerSideError(error: HttpError, route: string): null {
+    if (error.status === 401 && !getServerRequestHeaders()?.cookie) {
       console.warn(
-        `[apiClient] SSR 요청 헤더 컨텍스트 없이 401 발생: ${normalizeApiPath(error.config?.url)}. ` +
+        `[apiClient] SSR 요청 헤더 컨텍스트 없이 401 발생: ${route}. ` +
           '라우트 loader가 loadPageData로 감싸져 있는지 확인하세요.',
       );
     }
@@ -255,47 +300,38 @@ export default class APIClient {
     return null;
   }
 
-  private async errorMiddleware(error: AxiosError, request: AuthFlags): Promise<AxiosResponse | null> {
-    if (typeof window === 'undefined') return this.handleServerSideError(error);
+  private async errorMiddleware<U extends APIResponse>(
+    error: HttpError,
+    request: APIRequest<U>,
+  ): Promise<APIResult<U> | null> {
+    if (!isBrowser) return this.handleServerSideError(error, normalizeApiPath(request.path));
+    if (request.skipAuthRefresh || error.status !== 401) return null;
 
-    if (request.skipAuthRefresh) return null;
-
-    return error.response?.status === 401 ? this.handleUnauthorized(error, request) : null;
+    return this.handleUnauthorized(request);
   }
 
-  private isAxiosErrorWithResponseData(error: AxiosError<KoinError>) {
-    const { response } = error;
-
-    return (
-      response?.status !== undefined &&
-      response?.data !== undefined &&
-      response.data.code !== undefined &&
-      response.data.message !== undefined
-    );
-  }
-
-  // error 를 경우에 따라 KoinError와 AxiosError로 반환한다.
-  // isKoinError()는 type 필드만으로 판별하므로, reject()가 실제 Error 인스턴스를 넘기도록
-  // Object.assign으로 필드를 얹어도 isKoinError()/기존 소비 코드와 호환된다.
-  private createKoinErrorFromAxiosError(error: AxiosError<KoinError>): Error & (KoinError | CustomAxiosError) {
-    if (this.isAxiosErrorWithResponseData(error)) {
-      const koinError = error.response!;
-
-      return Object.assign(new Error(koinError.data.message), {
+  private createKoinError(error: HttpError): HttpError | (Error & KoinError) {
+    const data = error.data;
+    if (
+      error.status !== undefined &&
+      typeof data === 'object' &&
+      data !== null &&
+      'code' in data &&
+      (typeof data.code === 'number' || typeof data.code === 'string') &&
+      'message' in data &&
+      typeof data.message === 'string'
+    ) {
+      return Object.assign(new Error(data.message), {
         type: 'KOIN_ERROR' as const,
-        status: koinError.status,
-        code: koinError.data.code,
-        message: koinError.data.message,
+        status: error.status,
+        code: data.code,
       });
     }
 
-    return Object.assign(new Error(error.message), {
-      type: 'AXIOS_ERROR' as const,
-      ...error,
-    });
+    return error;
   }
 
-  private createTracedKoinError(error: AxiosError<KoinError>, route: string): Error & (KoinError | CustomAxiosError) {
+  private createTracedKoinError(error: HttpError, route: string): HttpError | (Error & KoinError) {
     return traceOperation(
       {
         name: `Convert API error: ${route}`,
@@ -303,18 +339,18 @@ export default class APIClient {
         onlyIfParent: true,
         attributes: {
           'api.route': route,
-          'http.response.status_code': error.response?.status ?? 'network',
-          'koin.response_shape': error.response?.data == null ? 'null' : 'value',
+          'http.response.status_code': error.status ?? 'network',
+          'koin.response_shape': error.data == null ? 'null' : 'value',
         },
       },
-      () => this.createKoinErrorFromAxiosError(error),
+      () => this.createKoinError(error),
     );
   }
 
-  private createHeaders<U extends APIResponse>(request: APIRequest<U>): Record<string, string> {
-    const headers: Record<string, string> = {};
-    HEADER_CONTRIBUTORS.forEach((contribute) => contribute(request as unknown as APIRequest<APIResponse>, headers));
+  private createHeaders<U extends APIResponse>(request: APIRequest<U>): Headers {
+    const values: Record<string, string> = {};
+    HEADER_CONTRIBUTORS.forEach((contribute) => contribute(request, values));
 
-    return headers;
+    return new Headers(values);
   }
 }

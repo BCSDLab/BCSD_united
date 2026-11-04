@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { isKoinError } from '@bcsdlab/koin';
 import { useMutation } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
 
@@ -11,6 +10,7 @@ import useNaverGeocode from 'components/Order/OrderDelivery/hooks/useNaverGeocod
 import useNaverMapsLoaded from 'components/Order/OrderDelivery/hooks/useNaverMapsLoaded';
 import CenterModal from 'components/Store/mobile/common/CenterModal';
 import Button from 'components/ui/Button';
+import { isKoinError } from 'interfaces/APIError';
 import ROUTES from 'static/routes';
 import useGoBack from 'utils/hooks/routing/useGoBack';
 import showToast from 'utils/ts/showToast';
