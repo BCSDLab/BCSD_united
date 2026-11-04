@@ -8,15 +8,15 @@
 
 설정값:
 
-| 이름                                          | 의미                                                                                                                |
-| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `SENTRY_ORGANIZATION` / `SENTRY_PROJECT_APPS` | 허용 조직과 `{"koin-united-prod":"web","koin-united-preview":"web"}`처럼 브라우저 프로젝트만 매핑                   |
-| `SENTRY_PROJECT_HOSTS`                        | `{"koin-united-prod":["koreatech.in"],"koin-united-preview":["stage.koreatech.in"]}`처럼 실제 경로 확인에 쓸 호스트 |
-| `CLOUDFLARE_SOURCES`                          | 실제 Issues policy의 accountId/policyId/workerName/app 정확한 매핑. 미설정이면 `[]`                                 |
-| `ERROR_PROJECT_DOMAINS`                       | 프로젝트별 GitHub 이슈 제목 분류. 허용 값은 `캠퍼스`, `비즈니스`, `유저`, `공통`                                    |
-| `AUTOFIX_EXECUTOR_ID`                         | `koin-rocky-umpc`만 허용. 이벤트나 요청 본문에서 변경 불가                                                          |
+| 이름                                          | 의미                                                                                                                                                            |
+| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SENTRY_ORGANIZATION` / `SENTRY_PROJECT_APPS` | 허용 조직과 `{"koin-united-prod":"web","koin-united-preview":"web"}`처럼 브라우저 프로젝트만 매핑                                                               |
+| `SENTRY_PROJECT_HOSTS`                        | 기존 `koreatech.in`/`stage.koreatech.in`과 실제 확인된 `koin-web.bcsdlab.workers.dev`/`preview-koin-web.bcsdlab.workers.dev`만 각 프로젝트의 경로 호스트로 허용 |
+| `CLOUDFLARE_SOURCES`                          | 실제 Issues policy의 accountId/policyId/workerName/app 정확한 매핑. 고정 계정의 `koin-web`/`koin-api`만 등록; 미설정이면 `[]`                                   |
+| `ERROR_PROJECT_DOMAINS`                       | 프로젝트별 GitHub 이슈 제목 분류. 허용 값은 `캠퍼스`, `비즈니스`, `유저`, `공통`                                                                                |
+| `AUTOFIX_EXECUTOR_ID`                         | `koin-rocky-umpc`만 허용. 이벤트나 요청 본문에서 변경 불가                                                                                                      |
 
-`CLOUDFLARE_SOURCES`에는 해당 Worker의 실제 Issues automation policy만 등록한다. 하나의 account/policy는 하나의 Worker/앱에 대응해야 한다. 일반 자원 경고 정책이나 추측한 계정/정책을 Issues 정책으로 넣지 않는다. 알림 본문 속 Worker·앱·프로젝트 값은 라우팅 근거가 아니다.
+`CLOUDFLARE_SOURCES`에는 BCSD 계정 `abe06b869950de952decf9df29c6f1a3`의 실제 Issues policy `3bcbfa2a0c04416ca7e3da038f77ac37`와 명시적 `koin-web:web`/`koin-api:api` 쌍만 등록한다. 두 Worker의 발생 1회 규칙은 같은 `KOIN Issues Autofix` destination/policy를 공유한다. 정책·Worker 쌍은 계정 전체에서 유일해야 하며, 서명된 제공자 알림의 정확히 한 `data.issue.services[].name`과 일치하지 않으면 거부한다. `text`/제목/임의 `data` 값에서 Worker를 추측하지 않는다.
 
 비밀은 운영 담당자가 승인 뒤 대화형 명령으로 등록한다. 값을 저장소·명령 인자·로그에 남기지 않는다:
 
@@ -24,13 +24,14 @@
 pnpm --dir apps/error-automation exec wrangler secret put SENTRY_CLIENT_SECRET
 pnpm --dir apps/error-automation exec wrangler secret put SENTRY_READ_TOKEN
 pnpm --dir apps/error-automation exec wrangler secret put CLOUDFLARE_WEBHOOK_SECRET
+pnpm --dir apps/error-automation exec wrangler secret put CLOUDFLARE_DIAGNOSTICS_TOKEN
 pnpm --dir apps/error-automation exec wrangler secret put DIAGNOSTICS_READ_TOKEN
 pnpm --dir apps/error-automation exec wrangler secret put GITHUB_DISPATCH_APP_PRIVATE_KEY
 pnpm --dir apps/error-automation exec wrangler secret put ANTHROPIC_API_KEY
 pnpm --dir apps/error-automation exec wrangler secret put AUTOFIX_EXECUTOR_TOKEN
 ```
 
-`SENTRY_CLIENT_SECRET`는 Sentry 웹훅 서명, `SENTRY_READ_TOKEN`은 Worker의 canonical issue/event 조회에만 사용한다. `CLOUDFLARE_WEBHOOK_SECRET`는 Issues Generic Webhook의 `cf-webhook-auth`와 같은 32자 이상 전용 무작위 값이다. `DIAGNOSTICS_READ_TOKEN`은 허용 scope의 진단 GET 전용 32자 이상 값이다. `AUTOFIX_EXECUTOR_TOKEN`은 별도 32자 이상 값으로 **Rocky 전용 실행기와 Worker만** 공유한다. 다른 서비스의 광범위한 제어 토큰을 재사용하지 않고, 해당 호스트에 외부 인바운드 포트를 열지 않는다. `ANTHROPIC_API_KEY`는 Worker의 고정 모델 프록시에만 있고 실행기·후보 소스·Docker에 전달하지 않는다.
+`SENTRY_CLIENT_SECRET`는 Sentry 웹훅 서명, `SENTRY_READ_TOKEN`은 Sentry canonical issue/event 조회에만 사용한다. `CLOUDFLARE_WEBHOOK_SECRET`는 Issues Generic Webhook의 `cf-webhook-auth`와 같은 32자 이상 전용 무작위 값이다. `CLOUDFLARE_DIAGNOSTICS_TOKEN`은 BCSD 한 계정의 Workers Observability Write(공식 조회 API도 이 권한 요구)와 **koin-web/koin-api 두 Worker만** Individual Workers Content Read-Only를 가진 별도 토큰이다. 배포/쓰기 명령에는 사용하지 않고, 고정 Cloudflare API 호스트의 승인된 두 서비스 증거 조회에만 사용한다. `DIAGNOSTICS_READ_TOKEN`은 허용 scope의 진단 GET 전용 32자 이상 값이다. `AUTOFIX_EXECUTOR_TOKEN`은 별도 32자 이상 값으로 **Rocky 전용 실행기와 Worker만** 공유한다. 다른 서비스의 광범위한 제어 토큰을 재사용하지 않고, 해당 호스트에 외부 인바운드 포트를 열지 않는다. `ANTHROPIC_API_KEY`는 Worker의 고정 모델 프록시에만 있고 실행기·후보 소스·Docker에 전달하지 않는다.
 
 기존 `GITHUB_DISPATCH_APP_*` 이름은 이미 저장된 **단일** App 키/ID/설치 ID를 가리키는 현재 배포 설정명이다. Actions dispatch 권한이나 두 번째 App을 뜻하지 않는다. Worker가 `BCSDLab/BCSD_united` 하나로 축소한 read 토큰(contents/issues/pull requests read)과 발행 단계 write 토큰(contents/issues/pull requests write)을 별도로 발급한다. 키와 발급 토큰은 모델/실행기/DO 저장소에 전달하지 않는다. 배포 시 기존 secret을 조용히 삭제·이름 변경하지 않는다.
 
@@ -42,23 +43,21 @@ Issues의 **Generic Webhook** destination URL은 `https://<운영 호스트>/web
 
 [Issues automation 공식 문서](https://developers.cloudflare.com/workers/observability/issues/automations/)가 보장하는 [표준 Notifications envelope](https://developers.cloudflare.com/notifications/reference/webhook-payload-schema/)를 사용한다.
 
-필수 필드:
+필수 native Issues 필드:
 
-- `account_id`: 배포 허용 목록의 32자리 소문자 hex 계정 ID
-- `policy_id`: 허용된 Issues policy UUID
-- `alert_correlation_id`: 관련 알림을 묶는 공식 UUID 필드. **이 값을 undocumented Issues REST issue ID로 간주하지 않는다.**
+- `policy_id`: 실제 `KOIN Issues Autofix` 알림 policy UUID
+- `alert_correlation_id`: 알림 묶음 UUID이며 이슈 ID로 쓰지 않는다
+- `account_id`: 표준 Notifications 유형에 따라 생략될 수 있다. 있으면 고정 계정과 정확히 일치해야 한다. 없으면 계정 전용 인증 secret과 유일한 policy/Worker 쌍으로만 계정을 정한다
 - `alert_type`: 비어 있지 않은 100자 이하 영숫자/`_`/`.`/`-` 식별자
 - `ts`: 0 이상의 안전한 정수 Unix 초
 - `text`: 문자열
-- `data`: JSON 객체. 내부 필드는 불투명 진단 데이터이지 신뢰된 설정이 아니다.
+- `data.issue.id` / `data.issue.services`: 실제 Issues 알림에서 확인한 canonical 이슈 UUID와 서비스 배열. 단일 `services[0].name`이 등록된 Worker여야 한다. 여러 서비스/누락/외부 Worker는 거부한다
 
 UUID는 소문자 32자리 hex 또는 표준 하이픈 표기를 받고 저장/큐 등록 전에 하이픈 없는 32자리로 정규화한다. `alert_event`는 선택적 문자열이며 알려진 `ALERT_STATE_EVENT_END`는 인증·식별 검증 후 무시한다. 요청 본문은 1 MiB까지 받는다.
 
-공식 문서의 네이티브 `workers_alert` 예시는 `data.scripts[].script_name`, `workers_observability_alert` 예시는 `data.episode`를 포함한다. 이들은 **Issues 전용 payload fixture가 아니며 이 서비스의 Issues 설정 예제로 대체하지 않는다.** 수신기는 특정 `alert_type` 이름이나 `data.issue.id`/stack 위치를 발명하지 않고 표준 envelope만 해석한다. 테스트의 `fixture_issue_notification`은 합성 식별자이며 실제 Cloudflare 타입이라고 주장하지 않는다.
+공식 `workers_alert`/`workers_observability_alert` 예시는 Issues payload가 아니다. 2026-10-30에 BCSD 계정의 **실제** koin-web 이슈를 승인된 destination으로 수동 전송해 `data.issue.id`가 대시보드 canonical ID와 같고, `data.issue.services[0].name`이 `koin-web`, `policy_id`가 위 정책 ID, `account_id`가 생략됨을 확인했다. 이 필드는 현재 native Issues 알림에서 검증한 계약이며 공개 문서의 고정 schema는 아니다. 제공자가 형식을 바꾸면 다른 필드에서 Worker/이슈를 추측하지 않고 닫힌다. 해당 수동 실행의 Cloudflare 활동 `성공`은 Notifications 접수 표시이지, Worker 진단 수락·Rocky lease·GitHub PR 성공의 증거는 아니다.
 
-Issues 전용 `data` 구조와 실제 alert type은 공개 문서에 상세히 고정되어 있지 않다. 배포 후 운영 담당자가 해당 Worker Issues 화면에서 실제 오류를 선택해 destination으로 수동 전송하고, 진단 읽기 경로로 마스킹된 결과를 확인해야 한다. 테스트는 네이티브 Issues 전달 성공의 증거가 아니다. 실제 알림에 account/policy/correlation UUID가 빠져 있거나 형식이 다르면 400/403으로 거부하며 text/임의 data 값에서 ID를 추측하지 않는다. 이런 경우 필요한 자료는 **secret·개인정보를 제거한 실제 envelope와 대시보드의 정책-Worker 연결 정보**이다. 문서화되지 않은 Issues REST endpoint나 가짜 canonical 오류 이벤트는 사용하지 않는다.
-
-Cloudflare Save and Test의 정확한 공식 probe `{"text":"Hello World! This is a test message sent from https://cloudflare.com. If you can see this, your webhook is configured properly."}`는 HTTPS·운영 환경·POST·본문 제한·전용 `cf-webhook-auth`(32자 이상) 검증 후 204로 응답하되 진단 기록·큐 등록은 하지 않는다. provider allowlist와 GitHub 설치가 미설정이어도 **이 인증된 설정 확인만** 허용한다. 추가 필드나 수정된 문장은 전체 설정/identity 검증을 거치며 미설정이면 503이다. probe 204는 실제 Issues 알림 수신 증거가 아니다.
+Cloudflare Generic Webhook의 인증된 설정 확인에는 문서의 `...configured properly.`와 실제 Issues destination wizard에서 관찰한 `...configured correctly.` 두 **정확한** 단일 `text` 메시지만 204로 응답한다. 이 경로는 HTTPS·POST·본문 제한·전용 `cf-webhook-auth`를 먼저 검증하고 진단·큐에 넣지 않는다. 다른 단일 문장이나 추가 필드는 전체 identity/증거 검증을 거친다. 설정 probe 204는 실제 Issues 알림 또는 수정 작업 증거가 아니다.
 
 ## Sentry 입력 계약
 
@@ -68,13 +67,13 @@ URL은 `https://<운영 호스트>/webhooks/sentry`이다. 정확한 요청 바�
 
 ## 진단 보관과 아웃바운드 실행 계약
 
-웹훅에서 검증한 제공자 식별자만 고정 저장소 큐에 등록한다. 오류 문자열, prompt, URL, 저장소·실행 호스트·명령·파일 경로 선택은 웹훅이 제어하지 못한다. 식별자는 Sentry의 `source/sourceId/project/app:web/scope.organization` 또는 Cloudflare의 `source/sourceId/project/app/scope.accountId/policyId/workerName`으로 제한한다. 준비 단계는 고정 default branch/SHA와 issue marker를 다시 확인하고, Sentry의 안전한 GET 경로와 실제 앱 소스 프레임이 없으면 모델을 호출하지 않는다. Cloudflare Issues 전용 진단의 경로/프레임 계약은 아직 실제 인증 샘플로 입증되지 않아 `CLOUDFLARE_EVIDENCE_UNAVAILABLE`로 중단하고 이슈에 자료 부족을 남긴다.
+웹훅 인증·고정 account/policy/단일 Worker·canonical 이슈 ID를 검증한 뒤에만 진단을 검토한다. Cloudflare native 알림은 summary만 포함하며 route/소스 프레임을 직접 주지 않는다. 고정 BCSD account의 Issues occurrence read(GET, 현재 대시보드에서 관찰한 beta/비공개 계약), 공식 Workers Observability telemetry query, 정확한 Worker script version metadata와 두 Worker의 Tail 증거를 서로 비교한다. Tail은 `cf-ray`, Worker, 버전, GET, 고정 production hostname/path와 **Cloudflare가 source-map으로 매핑한 앱 소스 위치만** 7일간 전용 DO에 남기고 요청 헤더·본문·쿼리·원문 로그/스택을 저장하지 않는다. 올바른 route/버전/매핑된 `apps/<app>/src` 프레임이 없거나 조회 API 계약이 바뀌면 503으로 재시도를 요청하며 큐·공개 GitHub 이슈를 생성하지 않는다. 기존 이슈의 삭제된 버전에 현재 버전 소스맵을 대입하지 않는다. GitHub issue는 진단 증거 확인 **이후**에만 만든다.
 
 Rocky/UMPC의 전용 실행기는 고정 HTTPS Worker origin으로 `X-Executor-Id: koin-rocky-umpc`, 전용 Bearer `AUTOFIX_EXECUTOR_TOKEN`을 보내며 인바운드 서버·임의 작업 URL을 열지 않는다. `POST /executor/claim`은 사전 영속한 `claimNonce`(64자리 hex)로 작업을 요청한다(204: 작업 없음, 200: 고정 SHA/진단/lease). 응답 유실 때 **같은 nonce**로 같은 작업/lease를 복원한다. `POST /executor/jobs/<runId>/heartbeat`는 2분 rolling lease를 갱신하되 절대 90분 기한을 넘기지 못한다. 하나의 저장소 큐에서 진행 작업은 최대 하나이며 중복/만료 작업을 조용히 재실행하지 않는다.
 
 `POST /executor/jobs/<runId>/model`은 살아 있는 generation lease에서만 가능하다. Worker가 `ANTHROPIC_API_KEY`를 보관하고 고정된 `claude-fable-5-1`/정적 source-only system/Read·Edit·Write·Glob·Grep JSON schema로만 Anthropic `/v1/messages`에 요청한다. 실행기 요청은 정확한 model/messages/다섯 tool 이름/maxTokens/lease만 담는다. 임의 provider URL·헤더·system·서버 도구는 받지 않는다. 본문/응답은 각 256 KB 이하, 모델 호출 40회·generation 20분 한도이다. 후보 환경에는 GitHub/Anthropic 키가 없다.
 
-`POST /executor/jobs/<runId>/verification-start`는 generation을 원자적으로 닫고 별도 검증 단계로 전환한다. 이후 모델 요청은 거부한다. 실행기는 독립적인 새 검증 작업공간과 격리된 disposable Docker 실행으로 실제 수정 전 assertion 실패/수정 후 통과, 필수 native/security suites, 타입/lint/build, API+D1/SSR/Chromium(390px 포함)을 확인한다. `POST /executor/jobs/<runId>/result`의 성공은 lease+base SHA+manifest SHA256+정확한 필수 check 목록과 verified manifest bytes가 일치할 때만 PR 발행으로 이어진다. 모델 발언이나 빈 patch를 검증 완료로 처리하지 않는다. 고정 기본 브랜치가 전진하면 발행하지 않고, 기존 브랜치/PR을 덮어쓰거나 자동 merge/배포하지 않는다. 실패/자료 부족은 verified PR 없이 이슈에 사실만 남긴다.
+`POST /executor/jobs/<runId>/verification-start`는 generation을 원자적으로 닫고 별도 검증 단계로 전환한다. 이후 모델 요청은 거부한다. 실행기는 독립적인 새 검증 작업공간과 격리된 disposable Docker 실행으로 실제 수정 전 assertion 실패/수정 후 통과, 필수 native/security suites, 타입/lint/build, API+D1/SSR/Chromium(390px 포함)을 확인한다. `POST /executor/jobs/<runId>/result`의 성공은 lease+base SHA+manifest SHA256+정확한 필수 check 목록과 verified manifest bytes가 일치할 때만 PR 발행으로 이어진다. 모델 발언이나 빈 patch를 검증 완료로 처리하지 않는다. 고정 기본 브랜치가 전진하면 발행하지 않고, 기존 브랜치/PR을 덮어쓰거나 자동 merge/배포하지 않는다. 증거가 없는 제공자 이벤트는 공개 이슈 자체를 만들지 않고, 증거를 통과한 뒤 실행 중 실패한 작업만 기존 이슈에 사실을 남긴다.
 
 진단 읽기는 `Authorization: Bearer <DIAGNOSTICS_READ_TOKEN>`을 요구한다. query token, 쿠키, CORS 공개 읽기, 목록 조회는 지원하지 않는다.
 
@@ -107,13 +106,19 @@ pnpm --dir apps/error-automation test
 pnpm --dir apps/error-automation exec wrangler deploy --dry-run
 ```
 
-`ERROR_AUTOMATION_ORIGIN`을 승인·배포된 HTTPS Worker origin으로, `CLOUDFLARE_WEBHOOK_SECRET`을 해당 전용 비밀로 안전하게 제공한 뒤 `pnpm --dir apps/error-automation smoke:local`을 실행할 수 있다. 이 명령은 인증된 공식 설정 probe의 204만 검사하며 실제 오류/모델/PR을 만들지 않는다. Node 24 테스트는 `node:sqlite`로 실제 SQL, 서명/범위/진단 privacy/만료, 큐 lease/재시도, 모델 proxy 고정 계약을 검사한다. 테스트 mock이나 probe만으로 실제 Sentry/Issues delivery, Rocky Docker 격리, Anthropic 호출 또는 GitHub PR 성공을 주장하지 않는다.
+`ERROR_AUTOMATION_ORIGIN`을 승인·배포된 HTTPS Worker origin으로, `CLOUDFLARE_WEBHOOK_SECRET`을 해당 전용 비밀로 안전하게 제공한 뒤 `pnpm --dir apps/error-automation smoke:local`을 실행할 수 있다. 이 명령은 인증된 공식 설정 probe의 204만 검사하며 실제 오류/모델/PR을 만들지 않는다. Node 24 테스트는 `node:sqlite` 실제 SQL과 Tail handler→DO→인증된 Issues webhook→queue의 격리된 경로를 실행하며 제공자 조회 응답만 테스트 fixture로 대체한다. 따라서 테스트/설정 probe만으로 실제 mapped stack, Rocky lease, Anthropic 호출 또는 GitHub PR 성공을 주장하지 않는다.
+
+운영 증거 상태(2026-10-30): 두 Issues 발생 1회 규칙과 공통 Generic Webhook은 실제 대시보드에서 생성·활성화되었다. Rocky executor의 인증된 `POST /executor/claim`은 작업이 없을 때 실제 204로 반복 응답했다. 호스트 `MemAvailable`이 일시적으로 8 GiB 안전 기준 아래로 내려갔을 때 preflight는 claim을 중지했고, 8 GiB 이상 회복 후 nonce 갱신과 폴링이 다시 진행됐다. 6 GiB 검증 컨테이너와 2 GiB controller의 보호 기준을 낮추거나 Home Assistant를 중단하지 않았다. 기존 koin-web 이슈의 수동 발송은 provider 활동과 Worker 도착을 입증했지만, 당시 알림의 summary만으로는 소스 위치가 없어 큐·lease·모델/PR이 생성되지 않았다. 특정 과거 preview 발생은 스크립트 버전 조회가 404이며 현재 버전의 map을 대신 쓰지 않는다. 소스맵으로 매핑된 **새 실제 예외**의 Tail/Issues/telemetry 교차 검증 성공 전까지 자동 수정 완료나 PR 발행을 주장하지 않는다. Worker Previews의 PR 브랜치는 검사만 하고 배포하지 않으며, 운영/Preview 자동 merge는 없다.
+
+운영 연결 확인(2026-11-02): Git Build `332c364`의 Tail handler, `3cde7dd`의 koin-web/koin-api **production 전용** Tail consumer, `56d8077`의 두 정확한 source allowlist가 차례로 배포되었다. 두 생산 Worker 설정에 `bcsd-error-automation` 연결이 표시되고, 허용된 실제 버스 조회 `GET /bus?bus_type=city&depart=KOREATECH&arrival=STATION`은 200이었다. 같은 시각 자동화 Worker의 Cloudflare Observability `trace` 이벤트에 `consumedEvents.scriptName=koin-api`가 기록돼 정상 트래픽의 실제 Tail 전달을 확인했다. Rocky의 claim nonce도 최종 배포 뒤 계속 갱신됐다. 이는 **Tail 연결과 빈 큐 폴링** 증거일 뿐 매핑된 오류 프레임·lease·모델 검증·PR 증거가 아니다. 오류를 인위적으로 만들거나 기존 삭제 버전의 소스 위치를 추정하지 않았다.
 
 ## 공식 근거
 
 - [Cloudflare Issues automations](https://developers.cloudflare.com/workers/observability/issues/automations/)
 - [Generic webhook secret / test payload](https://developers.cloudflare.com/notifications/get-started/configure-webhooks/)
 - [Notifications webhook payload schema](https://developers.cloudflare.com/notifications/reference/webhook-payload-schema/)
+- [Issues 조사·발생 보존 기간](https://developers.cloudflare.com/workers/observability/issues/investigate/), [Tail Worker](https://developers.cloudflare.com/workers/observability/logs/tail-workers/), [source map과 매핑 범위](https://developers.cloudflare.com/workers/observability/source-maps/)
+- [Workers Observability query API와 Write 권한](https://developers.cloudflare.com/api/resources/workers/subresources/observability/subresources/telemetry/methods/query/), [정확한 Worker 버전 조회](https://developers.cloudflare.com/api/resources/workers/subresources/beta/subresources/workers/subresources/versions/methods/get/)
 - [Sentry webhook 서명](https://docs.sentry.io/integrations/integration-platform/webhooks/)
 - [Sentry issue 생성/회귀](https://docs.sentry.io/integrations/integration-platform/webhooks/issues/)
 - [Sentry event alert](https://docs.sentry.io/integrations/integration-platform/webhooks/issue-alerts/)

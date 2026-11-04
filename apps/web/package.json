@@ -33,7 +33,7 @@
     "embla-carousel-autoplay": "^8.6.0",
     "embla-carousel-react": "^8.6.0",
     "file-saver": "^2.0.5",
-    "framer-motion": "^14.7.1",
+    "framer-motion": "^14.8.0",
     "html-react-parser": "^6.1.9",
     "html2canvas": "^1.4.1",
     "idb": "^8.0.4",
@@ -89,7 +89,7 @@
     "typescript-eslint": "^8.72.1",
     "vite": "^8.3.5",
     "vite-plugin-svgr": "^5.2.0",
-    "wrangler": "4.155.0"
+    "wrangler": "4.156.0"
   },
   "browserslist": {
     "production": [
