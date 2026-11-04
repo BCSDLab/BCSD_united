@@ -255,9 +255,12 @@ async function command(bin, args, cwd, signal, timeoutMs, env = safeEnv()) {
   signal.addEventListener('abort', stop, { once: true });
   try {
     const result = await promise;
-    signal.throwIfAborted();
+    if (signal.aborted)
+      throw Object.assign(new Error('Command interrupted', { cause: signal.reason }), { diagnostics: output });
     if (result.code !== 0 || result.killed)
-      throw new Error(`${bin.split('/').at(-1)} exited ${result.code ?? result.killed}`);
+      throw Object.assign(new Error(`${bin.split('/').at(-1)} exited ${result.code ?? result.killed}`), {
+        diagnostics: output,
+      });
     return output;
   } finally {
     clearTimeout(timer);
@@ -668,7 +671,15 @@ async function runClaim(cfg, claim, claimNonce, parentSignal) {
         )
           throw new Error('Lease heartbeat could not be confirmed');
       })
-      .catch(() => controller.abort())
+      .catch((error) => {
+        console.error('[autofix-executor] heartbeat failed', {
+          runId: claim.runId,
+          reason: (error instanceof Error ? `${error.name}: ${error.message}` : 'Unknown heartbeat failure')
+            .replace(/https?:\/\/\S+|[A-Za-z0-9_=-]{40,}/g, '[redacted]')
+            .slice(0, 500),
+        });
+        controller.abort();
+      })
       .finally(() => {
         heartbeatPending = false;
       });
@@ -707,6 +718,11 @@ async function runClaim(cfg, claim, claimNonce, parentSignal) {
     );
     return true;
   } catch (error) {
+    if (typeof error?.diagnostics === 'string')
+      console.error(
+        '[autofix-executor] bounded command diagnostics',
+        error.diagnostics.replace(/https?:\/\/\S+|[A-Za-z0-9_=-]{40,}/g, '[redacted]').slice(-12_000),
+      );
     const prior = await readState();
     if (!controller.signal.aborted && !prior.pending) {
       const reason = (error instanceof Error ? error.message : 'Executor failure')
