@@ -37,6 +37,10 @@ pnpm --dir apps/error-automation exec wrangler secret put AUTOFIX_EXECUTOR_TOKEN
 
 기존 `GITHUB_DISPATCH_APP_*` 이름은 이미 저장된 **단일** App 키/ID/설치 ID를 가리키는 현재 배포 설정명이다. Actions dispatch 권한이나 두 번째 App을 뜻하지 않는다. Worker가 `BCSDLab/BCSD_united` 하나로 축소한 read 토큰(contents/issues/pull requests read)과 발행 단계 write 토큰(contents/issues/pull requests write)을 별도로 발급한다. 키와 발급 토큰은 모델/실행기/DO 저장소에 전달하지 않는다. 배포 시 기존 secret을 조용히 삭제·이름 변경하지 않는다.
 
+Worker의 외부 HTTP 호출은 `redirect: "manual"`과 비정상 상태 거부를 함께 사용합니다. workerd는 `"error"` 모드를 지원하지 않으며, 자동 리디렉션으로 GitHub·모델 자격 증명을 다른 호스트에 보내지 않습니다. 접수 실패 로그에는 단계·고정 오류 분류·코드 위치만, 모델 거부에는 상태·오류 종류·고정 분류만 남기고 원문 요청/응답과 키는 기록하지 않습니다.
+
+Fable 5.1은 adaptive thinking이 항상 켜져 있으므로 sampling 매개변수를 보내지 않습니다. assistant의 `thinking`/`redacted_thinking` 블록은 역할·크기를 검증한 뒤 서명과 원문을 바꾸지 않고 다음 요청에 전달합니다. 추론 블록은 도구 명령으로 실행하거나 PR 댓글로 게시하지 않습니다. 계정의 모델·데이터 보존 요건이 충족되지 않으면 자동으로 계정 설정이나 모델을 변경하지 않고 실패합니다. [Fable 5.1 API 이행 계약](https://platform.claude.com/docs/en/models/fable-5-1/migration-guide)을 따릅니다.
+
 `v1` migration의 `ErrorIssueDispatch` 클래스/`ERROR_ISSUES` binding은 기존 진단과 중복 기록을 유지한다. `v2`는 저장소별 `AutofixQueue` SQLite DO를 추가한다. 기존 `accepted_at`은 과거 Actions 수락 시각으로 보존하고 새 `queue_admitted_at`을 별도 추가하므로 과거 수락이 새 실행기 등록을 막지 않는다. 이미 배포한 migration을 제거하거나 상태를 초기화하지 않는다.
 
 ## Cloudflare Issues 입력 계약

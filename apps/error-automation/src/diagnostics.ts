@@ -108,7 +108,7 @@ async function cloudflareEvidence(
   // account dashboard. It is beta/undocumented: any contract drift fails closed.
   const response = await fetch(`${api}/workers/observability/issues/${issueId}/occurrences?per_page=5`, {
     headers,
-    redirect: 'error',
+    redirect: 'manual',
     signal: AbortSignal.timeout(15_000),
   });
   const body = await boundedJson(response, 500_000);
@@ -175,7 +175,7 @@ async function cloudflareEvidence(
 
     const version = await fetch(`${api}/workers/workers/${identity.project}/versions/${scriptVersion}`, {
       headers,
-      redirect: 'error',
+      redirect: 'manual',
       signal: AbortSignal.timeout(15_000),
     });
     if (version.status === 404) {
@@ -203,7 +203,7 @@ async function cloudflareEvidence(
           ],
         },
       }),
-      redirect: 'error',
+      redirect: 'manual',
       signal: AbortSignal.timeout(15_000),
     });
     const telemetry = await boundedJson(telemetryResponse, 500_000);
@@ -287,7 +287,7 @@ export async function trustedDiagnostics(env: Env, identity: Identity, stored: D
     fetch(url + suffix, {
       headers: { Authorization: `Bearer ${env.SENTRY_READ_TOKEN}` },
       signal: AbortSignal.timeout(30000),
-      redirect: 'error',
+      redirect: 'manual',
     }).then((response) => boundedJson(response));
   const canonical = await get('');
   const event = await get('events/latest/');

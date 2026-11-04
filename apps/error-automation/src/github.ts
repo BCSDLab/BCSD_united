@@ -67,7 +67,7 @@ export async function installationToken(env: Env, role: Permission): Promise<str
     `https://api.github.com/app/installations/${env.GITHUB_DISPATCH_INSTALLATION_ID}/access_tokens`,
     {
       method: 'POST',
-      redirect: 'error',
+      redirect: 'manual',
       signal: AbortSignal.timeout(8000),
       headers: {
         Authorization: `Bearer ${jwt}`,
@@ -105,7 +105,7 @@ export async function installationToken(env: Env, role: Permission): Promise<str
 export async function github<T>(env: Env, token: string, path: string, method = 'GET', body?: unknown): Promise<T> {
   const init: RequestInit = {
     method,
-    redirect: 'error',
+    redirect: 'manual',
     signal: AbortSignal.timeout(30000),
     headers: {
       Authorization: `Bearer ${token}`,

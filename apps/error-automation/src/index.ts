@@ -6,7 +6,7 @@ import type { App, Diagnostic, Env, Identity, PatchManifest } from './types';
 export type { Env } from './types';
 export { AutofixQueue } from './queue';
 import { PolicyRejection, type AutofixQueue, type ExecutorResult } from './queue';
-import { installationToken } from './github';
+import { GitHubError, installationToken } from './github';
 import {
   PullRequestRejected,
   assertPinned,
@@ -536,6 +536,7 @@ async function pullRequestIntake(request: Request, env: Env, url: URL): Promise<
   if (data.version !== 1 || data.executorId !== env.AUTOFIX_EXECUTOR_ID)
     throw new RequestError(400, 'Invalid executor contract.');
   const stub = env.AUTOFIX_QUEUE.getByName('bcsdlab/bcsd_united');
+  let admissionPhase = 'validation';
   try {
     if (url.pathname === '/executor/pull-requests/status') {
       if (
@@ -555,8 +556,11 @@ async function pullRequestIntake(request: Request, env: Env, url: URL): Promise<
     if (!policy.enabled) throw new RequestError(503, 'Pull request review is not enabled.');
     if (!policy.allowed.has(identity.pullNumber)) throw new RequestError(403, 'Pull request is not allowlisted.');
     // Canonical GitHub facts decide admission; the request only names a pinned PR of the fixed repository.
+    admissionPhase = 'github-token';
     const token = await installationToken(env, 'read');
+    admissionPhase = 'canonical-pr';
     assertPinned(await inspectPullRequest(env, token, identity.pullNumber, policy), identity);
+    admissionPhase = 'queue';
     const admitted = await stub.enqueuePullRequest(identity);
     return Response.json(
       { status: admitted.status, runId: admitted.runId },
@@ -564,6 +568,24 @@ async function pullRequestIntake(request: Request, env: Env, url: URL): Promise<
     );
   } catch (error) {
     if (error instanceof PullRequestRejected) throw new RequestError(error.status, error.message);
+    if (!(error instanceof RequestError)) {
+      // 실패 단계와 고정 오류 분류만 남기고 토큰·요청 본문·원문 오류는 기록하지 않는다.
+      let failure = 'unknown';
+      if (error instanceof GitHubError) failure = `github-http-${error.status}`;
+      else if (error instanceof Error) {
+        const tokenStatus = /^GitHub App token rejected \((\d{3})\)$/.exec(error.message)?.[1];
+        if (tokenStatus) failure = `github-token-${tokenStatus}`;
+        else if (error.message === 'GitHub returned an invalid scoped token') failure = 'github-token-contract';
+        else failure = error.name;
+      }
+      const locations =
+        error instanceof Error
+          ? [...(error.stack ?? '').matchAll(/(?:index\.js|github\.ts):(\d+):(\d+)/g)]
+              .slice(0, 3)
+              .map((match) => `${match[1]}:${match[2]}`)
+          : [];
+      console.error('PR admission failed', { phase: admissionPhase, failure, locations });
+    }
     throw error;
   }
 }
