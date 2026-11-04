@@ -84,6 +84,7 @@ const releaseSha = prMode ? context.headSha : context.baseSha;
 // The trusted root is canonical so later candidate scratch/symlink escape checks
 // compare against the real snapshot path (macOS tmpdir /var is itself a symlink).
 const root = await realpath(await mkdtemp(resolve(process.env.RUNNER_TEMP ?? tmpdir(), 'error-verification-')));
+let dependencyMounts = [];
 process.once('exit', () => {
   try {
     cleanupSnapshot();
@@ -200,7 +201,7 @@ const scratch = [...runtimeScratch, 'apps/web/dist', 'apps/web/.tanstack', 'apps
 function cleanupSnapshot() {
   if (process.getuid() === 0) {
     const scoped = [];
-    for (const directory of scratch) {
+    for (const directory of [...scratch, ...dependencyMounts]) {
       const source = `${root}/${directory}`;
       let stat;
       try {
@@ -397,7 +398,8 @@ function installDependencies() {
   const name = `koin-error-install-${randomUUID()}`;
   const mounts = [
     '-v',
-    `${root}:/work`,
+    `${root}:/work${prMode ? ':ro' : ''}`,
+    ...dependencyMounts.flatMap((directory) => ['-v', `${resolve(root, directory)}:/work/${directory}`]),
     ...(executorRun ? [] : ['-v', `${automation}:/automation:ro`]),
     '-v',
     `${input}:/input:ro`,
@@ -467,9 +469,31 @@ async function dependencyDirectories() {
   }
   return found;
 }
-if (prMode && process.getuid() === 0) chownToCandidate(['.'], 'Candidate snapshot ownership');
-installDependencies();
 await chmod(root, 0o755);
+if (prMode) {
+  const workspaces = ['.'];
+  for (const scope of ['apps', 'packages']) {
+    if (!(await directoryExists(scope))) continue;
+    for (const entry of await readdir(resolve(root, scope), { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const workspace = `${scope}/${entry.name}`;
+      try {
+        if ((await lstat(resolve(root, workspace, 'package.json'))).isFile()) workspaces.push(workspace);
+      } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
+      }
+    }
+  }
+  for (const workspace of workspaces) {
+    const directory = workspace === '.' ? 'node_modules' : `${workspace}/node_modules`;
+    if (snapshot.some((entry) => entry.path === directory || entry.path.startsWith(`${directory}/`)))
+      throw new Error(`Dependency directory is part of the pinned tree: ${directory}`);
+    await mkdir(resolve(root, directory));
+    dependencyMounts.push(directory);
+  }
+  if (process.getuid() === 0) chownToCandidate(dependencyMounts, 'Installer dependency directory ownership');
+}
+installDependencies();
 if (!offlineSmoke) {
   await chmod(input, 0o755);
   await chmod(patchDirectory, 0o755);
@@ -480,6 +504,7 @@ if (!offlineSmoke) {
 // offline as the candidate UID with every source, config and test path
 // read-only; only the dependency directories themselves are writable.
 const dependencies = await dependencyDirectories();
+dependencyMounts = dependencies;
 if (dependencies.length && process.getuid() === 0) chownToCandidate(dependencies, 'Dependency directory ownership');
 requireSuccess(
   docker(['pnpm', 'rebuild', '--pending'], { writable: dependencies, timeout: 180_000, env: LIFECYCLE_ENVIRONMENT }),
