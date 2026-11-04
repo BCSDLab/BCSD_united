@@ -15,6 +15,8 @@
 | `CLOUDFLARE_SOURCES`                          | 실제 Issues policy의 accountId/policyId/workerName/app 정확한 매핑. 고정 계정의 `koin-web`/`koin-api`만 등록; 미설정이면 `[]`                                   |
 | `ERROR_PROJECT_DOMAINS`                       | 프로젝트별 GitHub 이슈 제목 분류. 허용 값은 `캠퍼스`, `비즈니스`, `유저`, `공통`                                                                                |
 | `AUTOFIX_EXECUTOR_ID`                         | `koin-rocky-umpc`만 허용. 이벤트나 요청 본문에서 변경 불가                                                                                                      |
+| `PR_REVIEW_ENABLED`                           | 기본 `"false"`. 정확히 문자열 `"true"`일 때만 `/executor/pull-requests/*` 입력을 받는다                                                                         |
+| `PR_REVIEW_ALLOWED_PRS`                       | 기본 `""`. 쉼표로 구분한 명시적 PR 번호만 리뷰 대상. 비어 있으면 어떤 PR도 받지 않는다                                                                          |
 
 `CLOUDFLARE_SOURCES`에는 BCSD 계정 `abe06b869950de952decf9df29c6f1a3`의 실제 Issues policy `3bcbfa2a0c04416ca7e3da038f77ac37`와 명시적 `koin-web:web`/`koin-api:api` 쌍만 등록한다. 두 Worker의 발생 1회 규칙은 같은 `KOIN Issues Autofix` destination/policy를 공유한다. 정책·Worker 쌍은 계정 전체에서 유일해야 하며, 서명된 제공자 알림의 정확히 한 `data.issue.services[].name`과 일치하지 않으면 거부한다. `text`/제목/임의 `data` 값에서 Worker를 추측하지 않는다.
 
@@ -34,6 +36,10 @@ pnpm --dir apps/error-automation exec wrangler secret put AUTOFIX_EXECUTOR_TOKEN
 `SENTRY_CLIENT_SECRET`는 Sentry 웹훅 서명, `SENTRY_READ_TOKEN`은 Sentry canonical issue/event 조회에만 사용한다. `CLOUDFLARE_WEBHOOK_SECRET`는 Issues Generic Webhook의 `cf-webhook-auth`와 같은 32자 이상 전용 무작위 값이다. `CLOUDFLARE_DIAGNOSTICS_TOKEN`은 BCSD 한 계정의 Workers Observability Write(공식 조회 API도 이 권한 요구)와 **koin-web/koin-api 두 Worker만** Individual Workers Content Read-Only를 가진 별도 토큰이다. 배포/쓰기 명령에는 사용하지 않고, 고정 Cloudflare API 호스트의 승인된 두 서비스 증거 조회에만 사용한다. `DIAGNOSTICS_READ_TOKEN`은 허용 scope의 진단 GET 전용 32자 이상 값이다. `AUTOFIX_EXECUTOR_TOKEN`은 별도 32자 이상 값으로 **Rocky 전용 실행기와 Worker만** 공유한다. 다른 서비스의 광범위한 제어 토큰을 재사용하지 않고, 해당 호스트에 외부 인바운드 포트를 열지 않는다. `ANTHROPIC_API_KEY`는 Worker의 고정 모델 프록시에만 있고 실행기·후보 소스·Docker에 전달하지 않는다.
 
 기존 `GITHUB_DISPATCH_APP_*` 이름은 이미 저장된 **단일** App 키/ID/설치 ID를 가리키는 현재 배포 설정명이다. Actions dispatch 권한이나 두 번째 App을 뜻하지 않는다. Worker가 `BCSDLab/BCSD_united` 하나로 축소한 read 토큰(contents/issues/pull requests read)과 발행 단계 write 토큰(contents/issues/pull requests write)을 별도로 발급한다. 키와 발급 토큰은 모델/실행기/DO 저장소에 전달하지 않는다. 배포 시 기존 secret을 조용히 삭제·이름 변경하지 않는다.
+
+Worker의 외부 HTTP 호출은 `redirect: "manual"`과 비정상 상태 거부를 함께 사용합니다. workerd는 `"error"` 모드를 지원하지 않으며, 자동 리디렉션으로 GitHub·모델 자격 증명을 다른 호스트에 보내지 않습니다. 접수 실패 로그에는 단계·고정 오류 분류·코드 위치만, 모델 거부에는 상태·오류 종류·고정 분류만 남기고 원문 요청/응답과 키는 기록하지 않습니다.
+
+Fable 5.1은 adaptive thinking이 항상 켜져 있으므로 sampling 매개변수를 보내지 않습니다. assistant의 `thinking`/`redacted_thinking` 블록은 역할·크기를 검증한 뒤 서명과 원문을 바꾸지 않고 다음 요청에 전달합니다. 추론 블록은 도구 명령으로 실행하거나 PR 댓글로 게시하지 않습니다. 계정의 모델·데이터 보존 요건이 충족되지 않으면 자동으로 계정 설정이나 모델을 변경하지 않고 실패합니다. [Fable 5.1 API 이행 계약](https://platform.claude.com/docs/en/models/fable-5-1/migration-guide)을 따릅니다.
 
 `v1` migration의 `ErrorIssueDispatch` 클래스/`ERROR_ISSUES` binding은 기존 진단과 중복 기록을 유지한다. `v2`는 저장소별 `AutofixQueue` SQLite DO를 추가한다. 기존 `accepted_at`은 과거 Actions 수락 시각으로 보존하고 새 `queue_admitted_at`을 별도 추가하므로 과거 수락이 새 실행기 등록을 막지 않는다. 이미 배포한 migration을 제거하거나 상태를 초기화하지 않는다.
 
@@ -69,7 +75,9 @@ URL은 `https://<운영 호스트>/webhooks/sentry`이다. 정확한 요청 바�
 
 웹훅 인증·고정 account/policy/단일 Worker·canonical 이슈 ID를 검증한 뒤에만 진단을 검토한다. Cloudflare native 알림은 summary만 포함하며 route/소스 프레임을 직접 주지 않는다. 고정 BCSD account의 Issues occurrence read(GET, 현재 대시보드에서 관찰한 beta/비공개 계약), 공식 Workers Observability telemetry query, 정확한 Worker script version metadata와 두 Worker의 Tail 증거를 서로 비교한다. Tail은 `cf-ray`, Worker, 버전, GET, 고정 production hostname/path와 **Cloudflare가 source-map으로 매핑한 앱 소스 위치만** 7일간 전용 DO에 남기고 요청 헤더·본문·쿼리·원문 로그/스택을 저장하지 않는다. 올바른 route/버전/매핑된 `apps/<app>/src` 프레임이 없거나 조회 API 계약이 바뀌면 503으로 재시도를 요청하며 큐·공개 GitHub 이슈를 생성하지 않는다. 기존 이슈의 삭제된 버전에 현재 버전 소스맵을 대입하지 않는다. GitHub issue는 진단 증거 확인 **이후**에만 만든다.
 
-Rocky/UMPC의 전용 실행기는 고정 HTTPS Worker origin으로 `X-Executor-Id: koin-rocky-umpc`, 전용 Bearer `AUTOFIX_EXECUTOR_TOKEN`을 보내며 인바운드 서버·임의 작업 URL을 열지 않는다. `POST /executor/claim`은 사전 영속한 `claimNonce`(64자리 hex)로 작업을 요청한다(204: 작업 없음, 200: 고정 SHA/진단/lease). 응답 유실 때 **같은 nonce**로 같은 작업/lease를 복원한다. `POST /executor/jobs/<runId>/heartbeat`는 2분 rolling lease를 갱신하되 절대 90분 기한을 넘기지 못한다. 하나의 저장소 큐에서 진행 작업은 최대 하나이며 중복/만료 작업을 조용히 재실행하지 않는다.
+Tail과 canonical occurrence의 route 호스트는 Worker별 정확한 목록만 허용한다: `koin-web`은 `koin-web.bcsdlab.workers.dev`와 운영 커스텀 도메인 `koreatech.in`(정확히 이 호스트, https, 포트/userinfo 없음), `koin-api`는 `koin-api.bcsdlab.workers.dev`뿐이다. `www.`/`stage.` 같은 wildcard나 `api.koreatech.in`은 Worker 신원 호스트로 추가하지 않으며, Tail 호스트와 occurrence 호스트가 서로 다른 허용 호스트여도 route 경로는 같아야 한다. 이는 DNS/커스텀 도메인 전환 자체가 아니라 전환 이후 증거 수용 범위이다.
+
+Rocky/UMPC의 전용 실행기는 고정 HTTPS Worker origin으로 `X-Executor-Id: koin-rocky-umpc`, 전용 Bearer `AUTOFIX_EXECUTOR_TOKEN`을 보내며 인바운드 서버·임의 작업 URL을 열지 않는다. `POST /executor/claim`은 사전 영속한 `claimNonce`(64자리 hex)로 작업을 요청한다(204: 작업 없음, 200: 고정 SHA/진단/lease). 응답 유실 때 **같은 nonce**로 같은 작업/lease를 복원한다. claim 응답(`version:1`)은 `runId, leaseToken, attempt, deadlineAt, leaseExpiresAt, job`을 담는다. `leaseExpiresAt`은 필수 ms epoch 정수로 새 claim에서는 방금 부여한 2분 lease 만료, 같은 nonce로 복원한 claim에서는 **저장된 실제 현재 만료**(이미 heartbeat로 연장된 값이든 짧아진 값이든)이며 복원이 lease를 연장하지 않는다. 만료된 lease는 복원하지 않고 204로 닫는다. `POST /executor/jobs/<runId>/heartbeat`는 살아 있는 lease에서만 2분 rolling lease를 갱신해 `{deadlineAt, leaseExpiresAt}`을 돌려주되 절대 90분 기한을 넘기지 못하고, 만료된 lease는 연장하지 않고 거부한다. 실행기는 서버가 마지막으로 확인한 `leaseExpiresAt`만 신뢰해야 하며 실패한 heartbeat가 lease를 연장했다고 가정해서는 안 된다. 하나의 저장소 큐에서 진행 작업은 최대 하나이며 중복/만료 작업을 조용히 재실행하지 않는다.
 
 `POST /executor/jobs/<runId>/model`은 살아 있는 generation lease에서만 가능하다. Worker가 `ANTHROPIC_API_KEY`를 보관하고 고정된 `claude-fable-5-1`/정적 source-only system/Read·Edit·Write·Glob·Grep JSON schema로만 Anthropic `/v1/messages`에 요청한다. 실행기 요청은 정확한 model/messages/다섯 tool 이름/maxTokens/lease만 담는다. 임의 provider URL·헤더·system·서버 도구는 받지 않는다. 본문/응답은 각 256 KB 이하, 모델 호출 40회·generation 20분 한도이다. 후보 환경에는 GitHub/Anthropic 키가 없다.
 
@@ -97,6 +105,38 @@ query는 정확한 필드 집합만 허용하고 중복/추가 필드는 거부�
 source + 조직/프로젝트 또는 계정/정책/Worker + sourceId별 진단 DO가 진행 중 웹훅 요청 하나의 Promise를 공유한다. 진단을 SQLite에 저장·sync한 뒤 고정 저장소 큐에 등록하고 그 수락을 저장한 후 응답한다. 큐 장애는 503 및 `Retry-After: 30`으로 재전달을 요청한다. 과거 Actions의 `accepted_at`은 큐 등록 증거가 아니므로 새 `queue_admitted_at`을 별도 사용한다. 진단 만료·중복 전달은 기존 작업을 새로 모델 실행시키지 않는다.
 
 큐는 최대 100건 대기, 동시에 하나의 lease만 허용한다. 기한/heartbeat 상실은 실패로 닫고 모호한 실행을 자동 중복 발행하지 않는다. 결과 응답 유실 시 같은 lease/outcome으로 이미 완료된 결과만 다시 확인할 수 있다. 이슈 marker와 `fix/#<issue>/<source>-<sourceId>` 브랜치, 고정 base SHA/트리 검사를 유지한다. GitHub issue/PR 발행 도중 실패하면 운영자가 기존 브랜치·PR을 조사해야 하며 force push하지 않는다.
+
+## 고정 저장소 PR 리뷰 모드 (선택적)
+
+오류 경로와 별개로, 같은 큐 DO·같은 실행기 인증(`X-Executor-Id`/`AUTOFIX_EXECUTOR_TOKEN`)·같은 단일 lease를 공유하는 `mode: 'pull-request'` 작업이 있다. 기본은 닫혀 있고 `PR_REVIEW_ENABLED="true"`와 `PR_REVIEW_ALLOWED_PRS` 목록을 **둘 다** 설정해야 한다. 요청은 저장소/모델/URL/프롬프트/경로 범위를 전달하지 못하며 고정 `BCSDLab/BCSD_united`의 PR 번호와 두 SHA만 지명한다.
+
+- `POST /executor/pull-requests/enqueue` `{version:1, executorId:'koin-rocky-umpc', pullNumber, headSha, baseSha}` → `200 {status:'queued'|'duplicate', runId}`. `runId = 'autofix-' + sha256('github-pr/<번호>/<headSha>/<baseSha>')`로 두 SHA가 모두 내구 키에 포함된다. Worker는 read 토큰으로 canonical GitHub를 조회해 같은 저장소·fork 아님·open·non-draft·base `develop`·head ref가 `main`/`preview`/`develop`이 아님·현재 head SHA와 **실제 develop tip**이 요청 pin과 정확히 같음을 확인한다. 비활성 503, 허용 목록 밖/fork/draft/closed/보호 ref/base 불일치 403, pin 불일치 409. 입력 단계는 GitHub에 아무것도 쓰지 않는다.
+- `POST /executor/pull-requests/status` `{version:1, executorId, runId}` → 토큰/소스 없는 내구 영수증 `{runId, pullNumber, headSha, baseSha, status, outcome, attempt, enqueuedAt, result:{reviewedHeadSha, publishedHeadSha, decision, findingsCount, passedChecks, commentUrl}|null}`; 모르는/오류 모드 run은 404.
+- claim 응답의 job은 `{mode:'pull-request', owner, repository, pullNumber, headSha, headTree, headRef, baseBranch:'develop', baseSha, changedFiles, reviewContext}`이다. `changedFiles`는 canonical `pulls/N/files` 파일명(최대 500개/64 KB), `reviewContext`는 `{version:1, title, body, comments}`로 canonical PR 제목(300자)/본문(2000자)과 reviews/review comments/issue comments(최대 50건/32 KB, 본문 2000자, 제어문자·비밀·이메일 마스킹, 자동화 자신의 댓글 제외)를 담는다. 모두 요청자가 아닌 GitHub에서 읽은 **신뢰할 수 없는 자료**이며 경로나 권한을 결정하지 않는다. `baseSha`는 실제 develop SHA이고 head와 같을 수 없다. 기존 오류 작업은 `mode` 없이 그대로다.
+- `/model`은 PR 전용 정적 system prompt(리뷰 기준은 PR head, 제목/본문/diff/댓글은 자료, 기존 댓글은 코드로 검증할 가설, 전체 페이지→SPA 전환 시 상태 초기화·상위/하위 라우트와 데스크톱/모바일 접근 일관성·SSR/인증/쿠키 계약 같은 일반 불변식 점검)을 쓰며 모델·다섯 파일 도구·호출 한도는 동일하다.
+- 결과는 `outcome:'pr-reviewed'` + `manifest`(0~24개, 빈 manifest는 PR 모드에서만 허용되고 그래도 검증 단계를 거쳐야 한다) + `review {decision:'approved'|'changes-requested', findings[{severity P1|P2|P3, path, line, message}]}` + `verification {headSha, baseSha, manifestSha256, passedChecks}`. `passedChecks`는 정확히 `['pr-head-pinned','native-fixture-tests','typecheck','autofix-security-tests','lint','build','runtime-route-smoke']`여야 하고, approved는 P1/P2 finding이 없을 때만, changes-requested는 finding이 하나 이상일 때만 유효하다. 'no-fix'/'verified'는 PR 작업에서, 'pr-reviewed'는 오류 작업에서 422로 거부된다. 큐 DO의 정책 거부(`PolicyRejection`)는 RPC 경계를 넘으면서 prototype이 아니라 `name`/`message`만 남는 일반 Error로 재구성되므로 Worker는 `name === 'PolicyRejection'`으로 구조적으로 판별해 종결 422로 내려보내며, 같은 payload 재시도는 성공할 수 없다. finding의 `path`/`message`는 한 줄 필드로 CR/LF/탭/행·단락 구분자를 공백 하나로 접고(제어문자 제거, 300/1000자 제한), 증거 댓글에 넣을 때 code span 안의 backtick은 제거하고 message의 `&`·`<`·`>`·backtick은 HTML entity로 바꿔 모델 출력이 댓글의 섹션·code span·HTML을 위조하지 못하게 한다. 수정 경로는 `changedFiles`에 등장하는 `apps/<x>/`·`packages/<x>/` 아래 소스/테스트/문서만 허용하고 `.github`, lockfile/package.json/workspace/.npmrc, wrangler/tsconfig/*.config, Dockerfile, 셸 스크립트, `scripts/`, `apps/error-automation`, `tests/autofix`, generated 파일, 비밀을 금지한다. 설정 변경은 리뷰 대상이지만 수정 권한은 없으며 모델은 차단됨을 finding으로 보고해야 한다.
+- 발행 전 canonical PR을 다시 읽어 head/base/ref가 리뷰 시점과 같지 않으면 아무것도 쓰지 않고 `outcome:'pull-request-stale'`(응답 `{status:'recorded', outcome:'pull-request-stale'}`)로 닫는다. manifest가 있으면 각 파일의 `before`가 pinned head의 실제 일반 파일 내용 sha256과 일치해야 하고(symlink/불일치 거부, 새 파일은 존재하지 않아야 함) `headSha`를 부모로 `fix: PR #<번호> 자동 리뷰 수정` 커밋을 만들어 현재 head ref를 `force:false`로만 전진시킨다. 사람이 그 사이 push했으면 거부한다. 빈 manifest는 head를 유지한다. 그 뒤 `<!-- pr-review:<번호>:<headSha>:<baseSha>:<manifestSha256> -->` marker가 있는 증거 댓글(리뷰/발행 head, base, manifest 해시, 판정, finding, 적용 파일, 통과 check)을 GitHub App 봇으로 한 번만 남긴다. 응답 유실 후 중복 방지는 `bcsd-united-error-publisher[bot]`(`type: Bot`, `performed_via_github_app.id` 5522353)이 쓴 정확히 같은 marker 댓글만 인정하며, 사람이나 다른 앱이 위조한 marker는 봇 리뷰를 억제하지 못한다. 승인/merge/배포는 하지 않으며 merge는 운영자가 발행된 정확한 head와 녹색 CI를 확인한 뒤 수동으로 한다.
+
+활성화와 상태 확인(승인된 운영 배포에서만):
+
+```sh
+# 1) 현재 승인 목록으로 wrangler.jsonc vars를 바꾼 뒤 배포 (기본값은 false / 빈 목록)
+#    "PR_REVIEW_ENABLED": "true", "PR_REVIEW_ALLOWED_PRS": "3,7,9,13,14,15,16"
+pnpm --dir apps/error-automation exec wrangler deploy
+# 2) 실행기 자격으로 PR 하나를 pin 하여 등록
+curl -sS -X POST "$ERROR_AUTOMATION_ORIGIN/executor/pull-requests/enqueue" \
+  -H 'Content-Type: application/json' -H 'X-Executor-Id: koin-rocky-umpc' \
+  -H "Authorization: Bearer $AUTOFIX_EXECUTOR_TOKEN" \
+  -d '{"version":1,"executorId":"koin-rocky-umpc","pullNumber":3,"headSha":"<현재 head 40hex>","baseSha":"<현재 develop 40hex>"}'
+# 3) 내구 영수증 조회
+curl -sS -X POST "$ERROR_AUTOMATION_ORIGIN/executor/pull-requests/status" \
+  -H 'Content-Type: application/json' -H 'X-Executor-Id: koin-rocky-umpc' \
+  -H "Authorization: Bearer $AUTOFIX_EXECUTOR_TOKEN" \
+  -d '{"version":1,"executorId":"koin-rocky-umpc","runId":"autofix-<sha256(github-pr/3/<headSha>/<baseSha>)>"}'
+# 4) 처리 후 다시 닫기: PR_REVIEW_ENABLED "false", PR_REVIEW_ALLOWED_PRS "" 로 되돌려 배포
+```
+
+`#7`처럼 base가 `develop`이 아닌 PR은 base가 바뀌기 전까지 403이며, 허용 목록에 있어도 현재 head/develop SHA가 pin과 다르면 409로 다시 pin 해야 한다.
 
 ## 로컬 검증
 
