@@ -38,6 +38,53 @@ const RUN_ID = /^autofix-[a-f0-9]{64}$/;
 const TOKEN = /^[a-f0-9]{64}$/;
 const MAX_BODY = 1_300_000;
 
+/** 서명된 추론 블록은 보존하되 공개 답변·실행 도구와 분리한다. */
+export function parseAssistantBlocks(content) {
+  if (!Array.isArray(content) || !content.length || content.length > 50)
+    throw new Error('Unexpected model content array');
+  const text = [];
+  const calls = [];
+  for (const block of content) {
+    if (!block || typeof block !== 'object' || Array.isArray(block)) throw new Error('Unexpected model content type');
+    const keys = Object.keys(block).sort().join(',');
+    if (block.type === 'text' && keys === 'text,type' && typeof block.text === 'string' && block.text.length <= 64000) {
+      text.push(block.text);
+    } else if (
+      block.type === 'thinking' &&
+      keys === 'signature,thinking,type' &&
+      typeof block.thinking === 'string' &&
+      block.thinking.length <= 64000 &&
+      typeof block.signature === 'string' &&
+      block.signature.length > 0 &&
+      block.signature.length <= 64000
+    ) {
+      // API가 서명을 검증하므로 원문을 변경하거나 도구 명령으로 해석하지 않는다.
+    } else if (
+      block.type === 'redacted_thinking' &&
+      keys === 'data,type' &&
+      typeof block.data === 'string' &&
+      block.data.length > 0 &&
+      block.data.length <= 64000
+    ) {
+      // 불투명한 암호화 데이터는 다음 요청에만 그대로 전달한다.
+    } else if (
+      block.type === 'tool_use' &&
+      keys === 'id,input,name,type' &&
+      typeof block.id === 'string' &&
+      /^[A-Za-z0-9_-]{1,100}$/.test(block.id) &&
+      TOOLS.includes(block.name) &&
+      block.input &&
+      typeof block.input === 'object' &&
+      !Array.isArray(block.input)
+    ) {
+      calls.push(block);
+    } else {
+      throw new Error('Unexpected or forbidden model content');
+    }
+  }
+  return { blocks: content, text: text.join('\n'), calls };
+}
+
 function configuration() {
   const origin = process.env.AUTOFIX_WORKER_ORIGIN ?? '';
   const token = process.env.AUTOFIX_EXECUTOR_TOKEN ?? '';
@@ -366,14 +413,7 @@ async function generate(cfg, claim, modelRoot, signal) {
     signal.throwIfAborted();
     if (!result || !Array.isArray(result.content) || typeof result.stop_reason !== 'string')
       throw new Error('Malformed bounded model response');
-    const blocks = result.content;
-    if (blocks.some((block) => !block || !['text', 'tool_use'].includes(block.type)))
-      throw new Error('Unexpected model content type');
-    const text = blocks
-      .filter((block) => block.type === 'text')
-      .map((block) => block.text)
-      .filter((value) => typeof value === 'string')
-      .join('\n');
+    const { blocks, text, calls: callsNow } = parseAssistantBlocks(result.content);
     if (result.stop_reason === 'end_turn') {
       if (blocks.some((block) => block.type === 'tool_use')) throw new Error('Model ended with unfinished tool calls');
       answer = text;
@@ -381,22 +421,12 @@ async function generate(cfg, claim, modelRoot, signal) {
       break;
     }
     if (result.stop_reason !== 'tool_use') throw new Error('Model did not complete a bounded source-edit turn');
-    const callsNow = blocks.filter((block) => block.type === 'tool_use');
     if (!callsNow.length) throw new Error('Model requested no callable file tools');
     if (calls + callsNow.length > 40) throw new Error('Model exceeded forty file tool calls');
     calls += callsNow.length;
     messages.push({ role: 'assistant', content: blocks });
     const results = [];
     for (const block of callsNow) {
-      if (
-        typeof block.id !== 'string' ||
-        !/^[A-Za-z0-9_-]{1,100}$/.test(block.id) ||
-        !TOOLS.includes(block.name) ||
-        !block.input ||
-        typeof block.input !== 'object' ||
-        Array.isArray(block.input)
-      )
-        throw new Error('Model emitted a forbidden tool invocation');
       let content;
       let is_error = false;
       try {
@@ -657,6 +687,7 @@ async function runClaim(cfg, claim, claimNonce, parentSignal) {
       const reason = (error instanceof Error ? error.message : 'Executor failure')
         .replace(/https?:\/\/\S+|[A-Za-z0-9_=-]{40,}/g, '[redacted]')
         .slice(0, 500);
+      console.error('[autofix-executor] execution failed', { runId: claim.runId, reason });
       try {
         await submitResult(cfg, claim, claimNonce, { outcome: 'failed', reason });
         return true;

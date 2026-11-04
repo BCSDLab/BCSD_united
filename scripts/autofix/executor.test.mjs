@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isPullRequest, parseClaim } from './executor.mjs';
+import { isPullRequest, parseAssistantBlocks, parseClaim } from './executor.mjs';
 
 const valid = () => ({
   version: 1,
@@ -36,6 +36,25 @@ test('Rocky executor accepts only a fresh fixed-repository lease with safe route
     { job: { ...claim.job, context: { ...claim.job.context, requestMethod: 'POST' } } },
   ])
     assert.throws(() => parseClaim({ ...claim, ...patch }));
+});
+
+test('Fable signed thinking stays opaque while only declared file tools are executable', () => {
+  const thinking = { type: 'thinking', thinking: 'private reasoning fixture', signature: 'opaque-signature' };
+  const redacted = { type: 'redacted_thinking', data: 'encrypted-fixture' };
+  const call = { type: 'tool_use', id: 'toolu_1', name: 'Read', input: { path: 'apps/web/src/a.ts' } };
+  const blocks = [thinking, redacted, { type: 'text', text: 'Public result' }, call];
+  const parsed = parseAssistantBlocks(blocks);
+  assert.equal(parsed.text, 'Public result');
+  assert.deepEqual(parsed.calls, [call]);
+  assert.equal(JSON.stringify(parsed.blocks), JSON.stringify(blocks));
+  for (const bad of [
+    { ...thinking, signature: '' },
+    { ...thinking, signature: 'x'.repeat(64001) },
+    { ...redacted, data: '' },
+    { ...call, name: 'Bash' },
+    { type: 'server_tool_use', id: 'x', name: 'web_search', input: {} },
+  ])
+    assert.throws(() => parseAssistantBlocks([bad]));
 });
 
 const pullRequest = () => ({
