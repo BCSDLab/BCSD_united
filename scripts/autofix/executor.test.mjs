@@ -41,7 +41,14 @@ test('Rocky executor accepts only a fresh fixed-repository lease with safe route
 test('Fable signed thinking stays opaque while only declared file tools are executable', () => {
   const thinking = { type: 'thinking', thinking: 'private reasoning fixture', signature: 'opaque-signature' };
   const redacted = { type: 'redacted_thinking', data: 'encrypted-fixture' };
-  const call = { type: 'tool_use', id: 'toolu_1', name: 'Read', input: { path: 'apps/web/src/a.ts' } };
+  const call = {
+    type: 'tool_use',
+    id: 'toolu_1',
+    name: 'Read',
+    input: { path: 'apps/web/src/a.ts' },
+    caller: { type: 'direct' },
+    toolset_name: null,
+  };
   const blocks = [thinking, redacted, { type: 'text', text: 'Public result' }, call];
   const parsed = parseAssistantBlocks(blocks);
   assert.equal(parsed.text, 'Public result');
@@ -52,6 +59,8 @@ test('Fable signed thinking stays opaque while only declared file tools are exec
     { ...thinking, signature: 'x'.repeat(64001) },
     { ...redacted, data: '' },
     { ...call, name: 'Bash' },
+    { ...call, caller: { type: 'code_execution_20260120', tool_id: 'srvtoolu_1' } },
+    { ...call, toolset_name: 'undeclared' },
     { type: 'server_tool_use', id: 'x', name: 'web_search', input: {} },
   ])
     assert.throws(() => parseAssistantBlocks([bad]));

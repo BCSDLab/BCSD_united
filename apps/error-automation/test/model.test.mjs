@@ -115,10 +115,18 @@ test('Worker rejects an upstream redirect without forwarding the model credentia
 test('signed Fable thinking is accepted only in bounded assistant history without changing its prefix', () => {
   const signed = { type: 'thinking', thinking: '', signature: 'signed-opaque-block' };
   const redacted = { type: 'redacted_thinking', data: 'encrypted-opaque-block' };
+  const directCall = {
+    type: 'tool_use',
+    id: 'toolu_1',
+    name: 'Read',
+    input: { path: 'apps/web/src/a.ts' },
+    caller: { type: 'direct' },
+    toolset_name: null,
+  };
   const messages = [
     { role: 'user', content: 'Read source' },
-    { role: 'assistant', content: [signed, redacted, { type: 'text', text: 'Inspection complete' }] },
-    { role: 'user', content: 'Continue' },
+    { role: 'assistant', content: [signed, redacted, { type: 'text', text: 'Inspection complete' }, directCall] },
+    { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'toolu_1', content: 'source' }] },
   ];
   assert.equal(JSON.stringify(parseModelRequest({ ...base, messages }).messages), JSON.stringify(messages));
   for (const block of [
@@ -127,6 +135,8 @@ test('signed Fable thinking is accepted only in bounded assistant history withou
     { ...signed, command: 'execute' },
     { ...redacted, data: '' },
     { ...redacted, data: 'x'.repeat(64001) },
+    { ...directCall, caller: { type: 'code_execution_20260120', tool_id: 'srvtoolu_1' } },
+    { ...directCall, toolset_name: 'undeclared' },
   ]) {
     assert.throws(() => parseModelRequest({ ...base, messages: [{ role: 'assistant', content: [block] }] }));
   }

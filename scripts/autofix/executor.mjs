@@ -18,6 +18,12 @@ import {
 const EXECUTOR_ID = 'koin-rocky-umpc';
 const MODEL = 'claude-fable-5-1';
 const TOOLS = ['Read', 'Edit', 'Write', 'Glob', 'Grep'];
+const TOOL_BLOCK_KEYS = {
+  'id,input,name,type': true,
+  'caller,id,input,name,type': true,
+  'id,input,name,toolset_name,type': true,
+  'caller,id,input,name,toolset_name,type': true,
+};
 const JOBS = '/var/lib/koin-autofix/jobs';
 const CACHE = '/var/lib/koin-autofix/cache/repo.git';
 const STATE = '/var/lib/koin-autofix/state/claim.json';
@@ -69,7 +75,14 @@ export function parseAssistantBlocks(content) {
       // 불투명한 암호화 데이터는 다음 요청에만 그대로 전달한다.
     } else if (
       block.type === 'tool_use' &&
-      keys === 'id,input,name,type' &&
+      TOOL_BLOCK_KEYS[keys] === true &&
+      (!('caller' in block) ||
+        (block.caller !== null &&
+          typeof block.caller === 'object' &&
+          !Array.isArray(block.caller) &&
+          Object.keys(block.caller).length === 1 &&
+          block.caller.type === 'direct')) &&
+      (!('toolset_name' in block) || block.toolset_name === null) &&
       typeof block.id === 'string' &&
       /^[A-Za-z0-9_-]{1,100}$/.test(block.id) &&
       TOOLS.includes(block.name) &&
