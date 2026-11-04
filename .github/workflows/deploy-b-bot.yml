@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - apps/b-bot/**
+      - apps/b-bot-crawler/**
       - packages/b-bot-ai/**
       - packages/b-bot-database/**
       - package.json
@@ -15,6 +16,7 @@ on:
   pull_request:
     paths:
       - apps/b-bot/**
+      - apps/b-bot-crawler/**
       - packages/b-bot-ai/**
       - packages/b-bot-database/**
       - package.json
@@ -65,8 +67,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @koin/b-bot-database migrate
-      - run: pnpm --filter '@koin/b-bot...' --if-present typecheck
-      - run: pnpm --filter '@koin/b-bot...' --if-present test
+      - run: pnpm --filter '@koin/b-bot...' --filter '@koin/b-bot-crawler...' --if-present typecheck
+      - run: pnpm --filter '@koin/b-bot...' --filter '@koin/b-bot-crawler...' --if-present test
       - run: pnpm --filter @koin/b-bot build
       - run: pnpm --filter @koin/b-bot exec wrangler deploy --dry-run
 

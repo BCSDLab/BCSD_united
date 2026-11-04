@@ -1,0 +1,28 @@
+{
+  "name": "@koin/b-bot-crawler",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx --tsconfig tsconfig.json src/main.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@koin/b-bot-ai": "workspace:*",
+    "@koin/b-bot-database": "workspace:*",
+    "@notionhq/client": "^5.29.0",
+    "ofetch": "^1.5.1",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "@types/pg": "^8.23.1",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.5"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

@@ -11,6 +11,7 @@ apps/
   web/                 TanStack Start 프론트엔드·SSR Worker
   api/                 Hono 업무 API Worker
   b-bot/               Slack 봇 HTTP·Queues·Workers AI Worker
+  b-bot-crawler/       Pi의 GitHub·Notion·Drive 장시간 색인 실행기(Node.js)
   error-automation/    오류 웹훅 수신과 자동 수정 작업 시작
 packages/
   telemetry/           공통 민감정보 마스킹
@@ -25,7 +26,7 @@ scripts/
 - 파일: R2. 실시간 연결·일부 변경 요청의 직렬화: Durable Objects.
 - 비동기 작업: Queues. KOIN 원본 동기화와 API 정기·복구 Cron은 비용 검증 전까지 비활성화합니다.
 - 도구: pnpm workspace, oxlint, oxfmt, TypeScript. 웹 전용 규칙에는 ESLint·Stylelint도 사용합니다.
-- 각 앱은 별도 Worker로 배포합니다. 하나의 Worker에 웹·업무 API·자동화 권한을 합치지 않습니다.
+- 웹·API·봇·오류 자동화는 별도 Worker로 배포합니다. Pi의 `b-bot-crawler`는 인증된 cloudflared 연결 뒤에서 실행하는 Node 서비스이며, [운영 안내](apps/b-bot-crawler/README.md)에 따라 별도로 설치합니다. 하나의 Worker에 웹·업무 API·자동화 권한을 합치지 않습니다.
 
 ## 개발 환경
 

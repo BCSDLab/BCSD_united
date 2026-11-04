@@ -1,4 +1,5 @@
 // 지식 소스 색인: 문서 upsert(소스·프로젝트 단위 갱신) + GitHub README 커넥터.
+import { $fetch } from 'ofetch';
 import { getPool, query } from '~/infra/postgres';
 import { embed } from '@koin/b-bot-ai';
 import { chunk } from './chunk';

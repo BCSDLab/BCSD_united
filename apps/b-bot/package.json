@@ -19,6 +19,7 @@
     "exceljs": "^4.4.0",
     "h3": "^1.15.11",
     "nitropack": "^2.13.5",
+    "ofetch": "^1.5.1",
     "unstorage": "^1.17.6",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
