@@ -1,9 +1,9 @@
 import type { Env, Identity, PatchManifest, PreparedJob, Verification } from './types';
 
 const encoder = new TextEncoder();
-const HEX = /^[a-f0-9]{40}$/;
-const SHA256 = /^[a-f0-9]{64}$/;
-const BRANCH_NAME = new RegExp('^[A-Za-z0-9_./-]{1,100}$');
+export const HEX = /^[a-f0-9]{40}$/;
+export const SHA256 = /^[a-f0-9]{64}$/;
+export const BRANCH_NAME = new RegExp('^[A-Za-z0-9_./-]{1,100}$');
 const CHECKS = [
   'regression-fails-on-base',
   'regression-passes-on-fix',
@@ -17,7 +17,7 @@ const CHECKS = [
 
 type Permission = 'read' | 'publish';
 
-function base64(bytes: Uint8Array): string {
+export function base64(bytes: Uint8Array): string {
   let encoded = '';
   // Fixed multiples of three avoid both call-stack exhaustion and intermediate padding.
   for (let i = 0; i < bytes.length; i += 12288) {
@@ -67,7 +67,7 @@ export async function installationToken(env: Env, role: Permission): Promise<str
     `https://api.github.com/app/installations/${env.GITHUB_DISPATCH_INSTALLATION_ID}/access_tokens`,
     {
       method: 'POST',
-      redirect: 'error',
+      redirect: 'manual',
       signal: AbortSignal.timeout(8000),
       headers: {
         Authorization: `Bearer ${jwt}`,
@@ -105,7 +105,7 @@ export async function installationToken(env: Env, role: Permission): Promise<str
 export async function github<T>(env: Env, token: string, path: string, method = 'GET', body?: unknown): Promise<T> {
   const init: RequestInit = {
     method,
-    redirect: 'error',
+    redirect: 'manual',
     signal: AbortSignal.timeout(30000),
     headers: {
       Authorization: `Bearer ${token}`,

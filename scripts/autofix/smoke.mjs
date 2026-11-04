@@ -32,6 +32,10 @@ if (
 )
   throw new Error('Changed source is not reachable from the event route; manual smoke required');
 
+// Either the legacy Worker API origin or the Java KOIN_API_V2 origin is an
+// accepted production target; offline verification still requires the local
+// koin-api auxiliary Worker to be bound in place of it.
+const PRODUCTION_API_ORIGINS = ['https://koin-api.bcsdlab.workers.dev', 'https://api.koreatech.in'];
 const deployPath = resolve('apps/web/.wrangler/deploy/config.json');
 const deployment = await jsonFile(deployPath);
 const configPath = resolve(dirname(deployPath), deployment.configPath);
@@ -42,7 +46,7 @@ const auxiliary = deployment.auxiliaryWorkers;
 if (
   worker.name !== 'koin-web' ||
   worker.vars?.KOIN_ENVIRONMENT !== 'main' ||
-  worker.vars?.KOIN_API_ORIGIN !== 'https://koin-api.bcsdlab.workers.dev' ||
+  !PRODUCTION_API_ORIGINS.includes(worker.vars?.KOIN_API_ORIGIN) ||
   !worker.services?.some(
     (binding) => binding.binding === 'KOIN_API' && binding.service === 'koin-api' && !binding.remote,
   ) ||
