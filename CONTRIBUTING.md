@@ -43,6 +43,8 @@ UI 변경은 실제 화면, API 변경은 실제 HTTP/D1 경로도 확인합니�
 
 의존성 변경 시 해당 `package.json`, `pnpm-workspace.yaml`의 호환 버전·허용된 설치 스크립트, 루트 `pnpm-lock.yaml`을 함께 반영합니다. `@types/node`는 Node 24에, TypeScript·ESLint·h3는 각 도구/프레임워크의 지원 범위에 맞춥니다. `pnpm up --latest` 후에도 peer 호환성과 고정 버전의 근거를 확인하고, SheetJS 외부 tarball의 lockfile 무결성을 유지합니다. 생성된 route tree와 schema는 생성 원본을 변경한 뒤 갱신합니다. 적용된 D1 마이그레이션을 다시 쓰지 않습니다.
 
+웹의 `@vitejs/plugin-react@6.1.2`는 React Compiler peer로 `oxc-transform-react@^0.152.0`을 요구합니다. `0.x`의 caret 범위는 다음 minor를 포함하지 않으므로, OXC를 `0.153.0` 이상으로 올릴 때는 해당 버전을 지원하는 플러그인과 함께 갱신합니다.
+
 커밋은 `feat:`, `fix:`, `refactor:`, `chore:` 등 Conventional Commit 접두사와 한국어 설명을 사용합니다. 관련 없는 변경이나 시크릿을 포함하지 않습니다. PR에 수행한 검증과 남은 운영 전제조건을 명시합니다.
 
 커밋 훅은 Corepack으로 고정된 pnpm을 사용합니다. Windows 명령 길이 제한을 넘지 않도록 파일 목록을 분할하고, 검사 묶음은 동시에 두 개까지 실행합니다.
