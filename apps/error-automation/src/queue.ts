@@ -437,17 +437,24 @@ export class AutofixQueue extends DurableObject<Env> {
 
   async model(runId: string, leaseToken: string, request: ModelRequest): Promise<Record<string, unknown>> {
     const row = await this.leased(runId, leaseToken);
+    const mode: ModelMode = (JSON.parse(row.prepared!) as QueuedJob).mode === 'pull-request' ? 'pull-request' : 'error';
+    const maxCalls = mode === 'pull-request' ? 80 : 40;
+    const maxMessages = mode === 'pull-request' ? 160 : 80;
+    const maxBytes = mode === 'pull-request' ? 1_000_000 : 256_000;
+    if (request.messages.length > maxMessages || encoder.encode(JSON.stringify(request)).length > maxBytes)
+      throw new Error('Model context limit exceeded');
     const now = Date.now();
-    if (row.model_calls >= 40 || (row.model_started_at !== null && now - row.model_started_at >= MODEL_MS))
+    if (row.model_calls >= maxCalls || (row.model_started_at !== null && now - row.model_started_at >= MODEL_MS))
       throw new Error('Model phase call or deadline limit exceeded');
     this.ctx.storage.sql.exec(
       `UPDATE jobs SET model_calls = model_calls + 1, model_started_at = COALESCE(model_started_at, ?)
        WHERE run_id = ? AND status = 'leased' AND lease_expires > ? AND deadline_at > ?
-       AND model_calls < 40 AND (model_started_at IS NULL OR model_started_at > ?)`,
+       AND model_calls < ? AND (model_started_at IS NULL OR model_started_at > ?)`,
       now,
       runId,
       now,
       now,
+      maxCalls,
       now - MODEL_MS,
     );
     const current = this.ctx.storage.sql
@@ -456,7 +463,6 @@ export class AutofixQueue extends DurableObject<Env> {
     if (current?.status !== 'leased' || current.model_calls !== row.model_calls + 1)
       throw new Error('Model phase no longer owns the lease');
     await this.ctx.storage.sync();
-    const mode: ModelMode = (JSON.parse(row.prepared!) as QueuedJob).mode === 'pull-request' ? 'pull-request' : 'error';
     const response = await invokeModel(this.env, request, mode);
     await this.leased(runId, leaseToken);
     return response;

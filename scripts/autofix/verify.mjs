@@ -198,10 +198,12 @@ const runtimeScratch = [
   ...bbotRuntimeScratch,
 ];
 const scratch = [...runtimeScratch, 'apps/web/dist', 'apps/web/.tanstack', 'apps/api/dist', ...bbotBuildScratch];
+const insideDependency = (directory) =>
+  dependencyMounts.some((dependency) => directory === dependency || directory.startsWith(`${dependency}/`));
 function cleanupSnapshot() {
   if (process.getuid() === 0) {
     const scoped = [];
-    for (const directory of [...scratch, ...dependencyMounts]) {
+    for (const directory of [...scratch.filter((directory) => !insideDependency(directory)), ...dependencyMounts]) {
       const source = `${root}/${directory}`;
       let stat;
       try {
@@ -514,7 +516,17 @@ requireSuccess(
 // after acquisition and lifecycle builds: no pinned byte changed, nothing was
 // added outside dependency directories.
 if (prMode) await assertSnapshotMatchesTree(snapshot, root, dependencyDirectory);
+const dependencyScratch = scratch.filter(insideDependency);
+if (dependencyScratch.length) {
+  requireSuccess(
+    docker(['node', '/automation/patch.mjs', 'prepare-scratch', '/work', ...dependencyScratch], {
+      writable: dependencies,
+    }),
+    'Candidate-owned dependency scratch preparation',
+  );
+}
 for (const directory of scratch) {
+  if (insideDependency(directory)) continue;
   const parts = directory.split('/');
   let relative = '';
   for (const part of parts) {
@@ -530,7 +542,11 @@ for (const directory of scratch) {
   if ((await realpath(`${root}/${directory}`)) !== resolve(root, directory))
     throw new Error(`Scratch path escaped the trusted snapshot: ${directory}`);
 }
-if (process.getuid() === 0) chownToCandidate(scratch, 'Scoped scratch ownership');
+if (process.getuid() === 0)
+  chownToCandidate(
+    scratch.filter((directory) => !insideDependency(directory)),
+    'Scoped scratch ownership',
+  );
 const identity = docker(['id', '-u']);
 requireSuccess(identity, 'Non-root candidate identity');
 if (identity.stdout.trim() !== user.split(':')[0] || identity.stdout.trim() === '0')

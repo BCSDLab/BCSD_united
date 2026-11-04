@@ -425,11 +425,12 @@ async function generate(cfg, claim, modelRoot, signal) {
     : '';
   const messages = [{ role: 'user', content: [{ type: 'text', text: modelMessage(job) + reviewGuidance }] }];
   const maxFileCalls = pullRequest ? 256 : 40;
+  const maxTurns = pullRequest ? 80 : 40;
   const started = Date.now();
   let calls = 0;
   let answer = '';
   let finished = false;
-  for (let turn = 0; turn < 40; turn += 1) {
+  for (let turn = 0; turn < maxTurns; turn += 1) {
     signal.throwIfAborted();
     if (Date.now() - started >= 19 * 60_000) throw new Error('Model stage exceeded 19 minutes');
     const response = await post(
@@ -445,7 +446,7 @@ async function generate(cfg, claim, modelRoot, signal) {
         maxTokens: 4096,
       },
       AbortSignal.timeout(100_000),
-      256_000,
+      pullRequest ? 1_000_000 : 256_000,
     );
     const result = await boundedJson(response, 256_000);
     signal.throwIfAborted();
@@ -477,7 +478,7 @@ async function generate(cfg, claim, modelRoot, signal) {
     }
     messages.push({ role: 'user', content: results });
   }
-  if (!finished) throw new Error('Model exceeded forty turns without a final answer');
+  if (!finished) throw new Error(`Model exceeded ${maxTurns} turns without a final answer`);
   // The collector is a trusted image script, not a model-edited repository script.
   await command('node', ['/opt/autofix/patch.mjs', 'collect'], modelRoot, signal, 60_000, {
     ...safeEnv(),

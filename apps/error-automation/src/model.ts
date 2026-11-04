@@ -106,7 +106,7 @@ export function parseModelRequest(value: Record<string, unknown>): ModelRequest 
     value.tools.some((tool, i) => tool !== names[i]) ||
     !Array.isArray(value.messages) ||
     !value.messages.length ||
-    value.messages.length > 80
+    value.messages.length > 160
   )
     throw new Error('Invalid fixed model request');
   const messages: ModelRequest['messages'] = value.messages.map((raw): ModelRequest['messages'][number] => {

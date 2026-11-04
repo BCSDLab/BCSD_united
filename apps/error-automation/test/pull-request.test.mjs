@@ -715,6 +715,32 @@ test('error jobs reject pr-reviewed results and keep the strict error proof', as
   );
 });
 
+test('whole-PR model limits do not widen error-job context or turn limits', async (t) => {
+  for (const mode of ['error', 'pull-request']) {
+    await t.test(mode, async (t) => {
+      const h = queueHarness(t);
+      if (mode === 'pull-request') await h.queue.enqueuePullRequest(identity3);
+      else await h.queue.enqueue(errorIdentity, 'sentry/bcsd/koin-united-prod/123');
+      const claim = await h.queue.claim('f'.repeat(64));
+      const expanded = {
+        ...request,
+        messages: Array.from({ length: 90 }, () => ({ role: 'user', content: 'x'.repeat(4000) })),
+      };
+      const exhausted = {
+        ...request,
+        messages: Array.from({ length: 160 }, () => ({ role: 'user', content: 'x'.repeat(7000) })),
+      };
+      await assert.rejects(h.queue.model(claim.runId, claim.leaseToken, exhausted), /context limit/);
+      if (mode === 'error')
+        await assert.rejects(h.queue.model(claim.runId, claim.leaseToken, expanded), /context limit/);
+      const limit = mode === 'pull-request' ? 80 : 40;
+      for (let call = 0; call < limit; call++)
+        await h.queue.model(claim.runId, claim.leaseToken, mode === 'pull-request' && call === 0 ? expanded : request);
+      await assert.rejects(h.queue.model(claim.runId, claim.leaseToken, request), /call or deadline limit/);
+    });
+  }
+});
+
 function executorRequest(path, token, body, headers = {}) {
   return new Request(`https://automation.example${path}`, {
     method: 'POST',
