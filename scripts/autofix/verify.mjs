@@ -610,7 +610,10 @@ if (prMode) {
       names.add(await packageName(directory));
   packageFilters.push(...[...names].flatMap((name) => ['--filter', `${name}...`]));
 } else packageFilters.push('--filter', '@koin/api...', ...(context.app === 'web' ? ['--filter', '@koin/web...'] : []));
-const workspaceCommand = (script) => ['pnpm', '-r', ...packageFilters, '--if-present', script];
+const workspaceCommand = (script) =>
+  script === 'typecheck'
+    ? ['pnpm', '-r', ...packageFilters, 'exec', 'node', '/automation/workspace-typecheck.mjs']
+    : ['pnpm', '-r', ...packageFilters, '--if-present', script];
 const lintDirectories = prMode
   ? ['apps/api', 'packages/telemetry', 'scripts/autofix', ...(profiles.has('web') ? ['apps/web'] : []), ...related]
   : ['apps/api', 'packages/telemetry', 'scripts/autofix', ...(context.app === 'web' ? ['apps/web'] : [])];
