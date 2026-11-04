@@ -77,6 +77,7 @@ function fixture() {
   const signals: Job[] = [];
   const env = {
     DB: binding,
+    API_ENABLED: 'true',
     TOSS_SECRET_KEY: 'test_secret',
     JOBS: {
       async send(job: Job) {

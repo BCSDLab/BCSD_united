@@ -4,12 +4,14 @@ KOIN의 웹앱과 업무 API를 함께 관리하는 Cloudflare 기반 모노레�
 
 > 현재 전환 작업과 통합 검증이 진행 중입니다. 소스가 있다는 이유만으로 운영 이관이 완료된 것은 아닙니다. 운영 DB의 데이터를 아직 가져오지 않았으며, 운영 도메인도 전환하지 않았습니다.
 
+> **업무 API의 현재 방향은 기존 Java 서버 유지입니다.** `apps/api`의 TypeScript Worker API는 레거시로 분류하며 배포 설정에서 `API_ENABLED`가 기본 `"false"`(비활성)입니다. 코드·D1 데이터·R2·Queue·DO·마이그레이션은 삭제하지 않고 그대로 보존합니다. 절차와 미확인 항목은 [레거시 Worker API 비활성화와 복원](#레거시-worker-api-비활성화와-복원)을 참고하세요.
+
 ## 구성
 
 ```text
 apps/
   web/                 TanStack Start 프론트엔드·SSR Worker
-  api/                 Hono 업무 API Worker
+  api/                 Hono 업무 API Worker(레거시, 기본 비활성·코드와 데이터 보존)
   b-bot/               Slack 봇 HTTP·Queues·Workers AI Worker
   error-automation/    오류 웹훅 수신과 자동 수정 작업 시작
 packages/
@@ -21,7 +23,7 @@ scripts/
 ```
 
 - 프론트엔드: React 19, TanStack Start/Router, React Query, Zustand, SCSS Modules.
-- 백엔드: TypeScript, Hono, Drizzle ORM, Cloudflare D1.
+- 업무 API: 기존 Java 서버를 유지합니다. 저장소의 TypeScript·Hono·Drizzle ORM·Cloudflare D1 Worker는 레거시로 보존하며 `API_ENABLED`가 정확히 `"true"`일 때만 업무 경로를 실행합니다.
 - 파일: R2. 실시간 연결·일부 변경 요청의 직렬화: Durable Objects.
 - 비동기 작업: Queues. KOIN 원본 동기화와 API 정기·복구 Cron은 비용 검증 전까지 비활성화합니다.
 - 도구: pnpm workspace, oxlint, oxfmt, TypeScript. 웹 전용 규칙에는 ESLint·Stylelint도 사용합니다.
@@ -47,6 +49,8 @@ pnpm dev:b-bot
 
 웹 개발 서버는 `http://localhost:3000`, API의 Wrangler 개발 서버는 기본 `http://localhost:8787`, 봇은 `http://localhost:8793`을 사용합니다.
 
+레거시 API Worker는 `wrangler.jsonc`의 `API_ENABLED`가 `"false"`이므로 `pnpm dev:api`만으로는 `/health`·`/docs`를 포함한 모든 경로가 `503 API_DISABLED`로 응답합니다. 로컬에서 업무 경로를 실행하려면 해당 프로세스에만 값을 넣습니다: `pnpm --filter @koin/api dev --var API_ENABLED:true`. 이 값은 로컬 Miniflare에만 적용되며 배포 설정을 바꾸지 않습니다. `scripts/autofix`의 격리 검증기도 같은 방식으로 로컬 Worker에만 `"true"`를 명시합니다.
+
 ### 로컬 설정
 
 | 위치                    | 용도                                                   |
@@ -66,7 +70,7 @@ API 로그인에는 `JWT_SECRET`, `WEB_CSRF_SECRET`, `AUTH_ALLOWED_ORIGINS`가 �
 
 ### API 문서
 
-API Worker의 `GET /docs`는 Swagger UI를, `GET /openapi.json`은 OpenAPI 3.0.3 계약을 제공합니다. 두 경로는 인증이나 DB 조회 없이 공개됩니다. 문서는 `apps/api/src/openapi/source-contract.json`에 보관된 운영 API 계약(2026-10-27)의 DTO와 464개 작업을 유지하고, Worker의 `/health`와 서명된 R2 파일 접근 작업을 추가합니다. 소스 운영 계약에 없는 테스트·개발용 작업을 임의로 공개 문서에 추가하지 않습니다.
+API Worker의 `GET /docs`는 Swagger UI를, `GET /openapi.json`은 OpenAPI 3.0.3 계약을 제공합니다. 두 경로는 인증이나 DB 조회 없이 공개되지만 `API_ENABLED` 게이트의 예외는 아니므로 비활성 상태에서는 `/health`와 함께 `503 API_DISABLED`로 응답합니다. 문서는 `apps/api/src/openapi/source-contract.json`에 보관된 운영 API 계약(2026-10-27)의 DTO와 464개 작업을 유지하고, Worker의 `/health`와 서명된 R2 파일 접근 작업을 추가합니다. 소스 운영 계약에 없는 테스트·개발용 작업을 임의로 공개 문서에 추가하지 않습니다.
 
 서버 URL은 `/`이므로 **Try it out은 문서를 연 API Worker에 실제 요청**을 보냅니다. 운영 API 주소로 자동 전환하지 않습니다. `/health`는 Worker 응답 상태만 확인하며 DB·외부 연동 readiness 검사가 아닙니다. Swagger UI는 고정 버전 `5.32.0`의 CSS/JavaScript를 jsDelivr에서 로드하므로 브라우저의 해당 CDN 접근이 필요합니다. 외부 계약 validator 호출과 인증 정보 영속 저장은 비활성화합니다.
 
@@ -113,7 +117,7 @@ API 회귀 테스트는 SQLite의 실제 제약조건·원자 배치와 HTTP 계
 
 ### 원본 DB 호스트의 임시 배치 필드 동기화
 
-**현재 중지 상태입니다.** 비용 문제로 원본 서버의 운영·프리뷰 동기화 Cron 등록을 제거하고 실행 중인 동기화를 종료했습니다. Cloudflare `koin-api` Cron도 제거했으며 저장소의 `triggers.crons`는 빈 배열입니다. 변경 행만 반영하는 증분 방식의 로컬 검증과 비용 검토 후 사용자가 다시 승인하기 전에는 원격 동기화, 초기 기준선 조회·적용, Cron 재등록을 실행하지 않습니다. 아래 실행 설명은 운영 참고이며 재실행 승인이 아닙니다.
+**현재 중지 상태입니다.** 비용 문제로 원본 서버의 운영·프리뷰 동기화 Cron 등록을 제거하고 실행 중인 동기화를 종료했습니다. Cloudflare `koin-api` Cron도 제거했으며 저장소의 `triggers.crons`는 빈 배열입니다. 2026-11-04 원본 호스트 읽기 전용 확인 결과 `sync-enabled` 없음, `sync-paused` 있음, crontab 등록 0건, 실행 중인 동기화 프로세스 없음이었으며 추가 삭제나 cron 수정은 하지 않았습니다. 레거시 Worker API의 `API_ENABLED` 비활성화와는 별개의 게이트이며 이 상태를 바꾸지 않습니다. 변경 행만 반영하는 증분 방식의 로컬 검증과 비용 검토 후 사용자가 다시 승인하기 전에는 원격 동기화, 초기 기준선 조회·적용, Cron 재등록을 실행하지 않습니다. 아래 실행 설명은 운영 참고이며 재실행 승인이 아닙니다.
 
 원본 DB 호스트용 `source-sync-uploader.py`, `source-sync-cron.sh`, `source-sync-mysql-prep.py`는 비공개 운영 도구이며 공개 Git에 포함하지 않습니다. 검증한 배포본과 저장소의 `source-schema.json`을 원본 DB 호스트의 `$HOME/.local/share/koin-d1-sync/`(0700)에 복사합니다. 운영과 프리뷰는 각각 `production/`, `preview/` 상태 디렉터리(0700)와 독립된 `config.json`(0600)의 `source_sync_secret`을 사용합니다. 실제 설정·출력 데이터·비밀번호는 커밋하거나 명령행 인자로 전달하지 않습니다. 호스트에는 Python 3, Docker, `flock`, `timeout`이 필요합니다. 읽기는 지정된 KOIN 컨테이너에 한정합니다. `--environment production|preview`는 각각 고정된 `https://koin-api.bcsdlab.workers.dev/internal/source-sync`, `https://preview-koin-api.bcsdlab.workers.dev/internal/source-sync`만 선택하며 임의의 원격 URL은 허용하지 않습니다. 기본 대상은 운영이고, 기본 상태 디렉터리도 선택한 환경에 따라 분리됩니다.
 
@@ -173,6 +177,37 @@ Preview 설정은 각 Wrangler 파일의 `previews` 블록에 명시하며 운�
 Production R2는 비공개이며 실제 공개 파일 도메인 또는 비공개 전달 정책을 정하기 전 임의 `R2_PUBLIC_URL`을 넣지 않습니다. 테스트 버킷의 공개 URL을 운영에 재사용하지 않습니다. 운영 도메인 전환, 실제 데이터 반입, 기존 시스템의 쓰기 중단은 별도 절차입니다. Worker 코드 롤백은 DB·객체 데이터 복구가 아닙니다.
 
 Cloudflare 근거: [Preview 설정](https://developers.cloudflare.com/workers/previews/configuration/), [리소스 격리와 제한](https://developers.cloudflare.com/workers/previews/resources/). 자동화 Preview의 외부 쓰기 차단과 별도 자격 증명은 [자동화 운영 안내](apps/error-automation/README.md)를 따릅니다.
+
+### 레거시 Worker API 비활성화와 복원
+
+업무 API는 기존 Java 서버를 유지합니다. `koin-api` Worker는 삭제·정리하지 않고 **비활성(disabled) 상태로 보존**합니다. 코드, `apps/api/drizzle` 마이그레이션, D1(`koin-api-import-20261029`, `koin-api-test-import-20261029`), R2, Queue(`koin-api-jobs`, DLQ, `-test`), DO 클래스와 consumer 정의, 테스트 fixture는 모두 그대로 둡니다. 비활성 전환의 근거는 설정값 하나이며 되돌릴 수 있습니다.
+
+| 게이트                     | 현재 저장소 값                                      | 비활성 동작                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| -------------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `API_ENABLED`              | 운영 `vars`·`previews.vars` 모두 `"false"`          | 정확히 `"true"`가 아니면 첫 미들웨어에서 `/health`·`/docs`·`/openapi.json`·`/internal/source-sync`를 포함한 모든 HTTP가 `503` JSON `API_DISABLED` + `Cache-Control: no-store` + `Retry-After: 3600`. scheduled는 업무 I/O 없이 즉시 종료. Queue 배치는 ack/drop 없이 `retryAll({ delaySeconds: 86400 })`(Queues 최대 지연 24시간). `Coordinator` DO fetch는 `503`, `CommunityChatDurableObject`는 신규 WebSocket 수락·dispatch를 막고 동면 소켓 메시지에는 STOMP `ERROR`(`API_DISABLED`) 후 `1013`으로 닫습니다. 두 DO에 alarm·RPC 메서드는 원래 없습니다. |
+| `SOURCE_SYNC_ENABLED`      | 운영·프리뷰 `"false"`(이전부터 유지)                | 원본 동기화 엔드포인트가 D1 접근 전 `503 SOURCE_SYNC_DISABLED`. `API_ENABLED`와 별개의 기존 게이트이며 중복 게이트를 추가하지 않습니다.                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `triggers.crons`           | `[]`(이전부터 유지)                                 | Cloudflare Cron 호출 없음.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| 원본 호스트 `sync-enabled` | 없음, `sync-paused` 있음(2026-11-04 읽기 전용 확인) | `source-sync-cron.sh`가 자식 동기화를 실행하지 않음. `sync-paused`가 있으면 항상 우선. 같은 날 crontab 등록 0건, 실행 중인 동기화 프로세스 없음을 확인했으며 추가 삭제·cron 수정은 불필요. 재승인 전 `sync-enabled`를 만들지 않습니다.                                                                                                                                                                                                                                                                                                                     |
+
+**원격 Worker 비활성은 아직 반영되지 않았습니다.** 이 저장소 변경은 `develop → preview → main` 승격과 Workers Builds 배포를 거쳐야 실제 Worker에 적용됩니다. 2026-11-04 기준 `koin-api` production·preview의 `/health`는 여전히 `status: ok`로 활성이며, 현재 작업 환경에는 해당 Cloudflare 계정 권한이 없어 배포된 변수·Queue 상태를 읽거나 바꾸지 않았습니다. 원본 호스트 동기화 중지만 읽기 전용 접속으로 확인했습니다(접속 정보는 비공개 운영 인수인계에만 보관). 저장소 값과 원격 상태를 같은 것으로 보고하지 않습니다.
+
+**배포 전 장애 위험.** 웹 Worker의 Java API 전환(#9)은 아직 `develop`에 병합되지 않았으므로 현재 웹 SSR·`/api` gateway는 레거시 `koin-api`를 호출할 수 있습니다. 이 상태에서 `API_ENABLED: "false"`를 원격에 배포하면 웹의 업무 요청이 전부 `503`이 됩니다. 원격 비활성 배포는 웹의 Java API 전환과 Java 서버의 CORS/허용 Origin 설정이 끝나 웹이 레거시 Worker를 호출하지 않음을 확인한 뒤에만 승격합니다.
+
+**Queue는 `retryAll()`만으로 멈추지 않습니다.** 비활성 상태의 consumer는 메시지를 버리지 않도록 최대 지연으로 재시도만 하므로, 배포 후 메시지가 남아 있으면 재전달마다 시도 횟수가 쌓여 `max_retries`(5) 이후 `koin-api-jobs-dlq`로 이동합니다. 원격 비활성 배포 전후에 운영 담당자가 `wrangler queues pause-delivery koin-api-jobs`로 전달을 실제로 중지해야 하며, 복원 시 `wrangler queues resume-delivery koin-api-jobs`로 재개합니다. 일시 중지 중에도 producer의 메시지는 보관되며 보존 기간 만료에는 그대로 적용됩니다. 근거: [Queues Pause and Purge](https://developers.cloudflare.com/queues/configuration/pause-purge/), [Queues Limits](https://developers.cloudflare.com/queues/platform/limits/). `purge`는 메시지를 영구 삭제하므로 사용하지 않습니다.
+
+비활성 반영 절차(운영 담당자, 각 단계는 실제 확인 후 다음 단계로):
+
+1. 웹이 Java API만 호출하는지 확인합니다(#9 병합·배포, Java CORS). 미완료면 중단합니다.
+2. `wrangler queues pause-delivery koin-api-jobs`로 전달을 중지하고 `wrangler queues list`로 상태를 확인합니다.
+3. `API_ENABLED: "false"` 커밋을 `preview`로 승격해 Preview URL에서 `/health`를 포함한 모든 경로가 `503 API_DISABLED`(`Cache-Control: no-store`)로 응답하는지 확인합니다.
+4. `main`으로 승격한 뒤 운영 URL에서 같은 응답과 Cloudflare Observability의 오류율을 확인합니다. `wrangler deploy`는 저장소 `vars`를 그대로 올리므로 대시보드에서 따로 값을 바꾸지 않습니다.
+5. D1·R2·Queue·DO namespace는 삭제하지 않습니다. 과금 축소가 필요하면 데이터 보존을 전제로 별도 승인합니다.
+
+복원 절차(레거시 Worker를 다시 써야 할 때):
+
+1. `apps/api/wrangler.jsonc`의 운영 `vars.API_ENABLED`와 필요 시 `previews.vars.API_ENABLED`를 `"true"`로 바꾸고 같은 승격 경로로 배포합니다. 운영과 Preview 중 하나만 복원할 수도 있습니다.
+2. 복원 후 `/health`와 실제 업무 경로의 2xx를 확인한 다음 `wrangler queues resume-delivery koin-api-jobs`로 전달을 재개합니다. 재개 전 DLQ에 쌓인 메시지는 수동으로 검토합니다.
+3. 원본 동기화(`SOURCE_SYNC_ENABLED`, `triggers.crons`, 원본 호스트 `sync-enabled`)는 이 절차와 무관하며 비용 검토와 사용자 재승인 전에는 비활성 상태를 유지합니다.
 
 ## 오류 추적과 자동 수정
 

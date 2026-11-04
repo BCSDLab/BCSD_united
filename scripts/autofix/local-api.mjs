@@ -7,6 +7,13 @@ import { stripVTControlCharacters } from 'node:util';
 export const API_ORIGIN = 'http://127.0.0.1:4174';
 export const delay = (ms) => new Promise((done) => setTimeout(done, ms));
 
+// 배포 설정은 레거시 Worker 업무 API를 기본 비활성(API_ENABLED "false")으로 두므로,
+// 격리 검증기는 로컬 Miniflare 인스턴스에만 명시적으로 "true"를 넣어 기존 업무 경로를
+// 그대로 검증한다. 원격 Worker·D1·Queue에는 닿지 않으며 운영 설정을 바꾸지 않는다.
+// SOURCE_SYNC_ENABLED는 wrangler.jsonc에서 이미 "false"(crons 없음)이고 여기서 건드리지 않는다.
+const apiEnabledDisabled = '"API_ENABLED": "false"';
+const apiEnabledForced = '"API_ENABLED": "true"';
+
 const instrumentedApi = `
 import worker from '../../src/index.ts';
 export * from '../../src/index.ts';
@@ -34,12 +41,21 @@ export async function prepareWebApi() {
   const original = await readFile(resolve('apps/api/wrangler.jsonc'), 'utf8');
   const main = '"main": "src/index.ts"';
   const migrations = '"migrations_dir": "drizzle"';
-  if (original.split(main).length !== 2 || original.split(migrations).length !== 3)
+  // 최상위 vars와 previews.vars 양쪽이 "false"인 배포 설정만 허용하고, 보조 Worker 사본에서만 "true"로 바꾼다.
+  if (
+    original.split(main).length !== 2 ||
+    original.split(migrations).length !== 3 ||
+    original.split(apiEnabledDisabled).length !== 3 ||
+    original.includes(apiEnabledForced)
+  )
     throw new Error('API configuration changed; offline auxiliary Worker needs review');
   await writeFile(join(directory, 'index.mjs'), instrumentedApi);
   await writeFile(
     join(directory, 'wrangler.jsonc'),
-    original.replace(main, '"main": "index.mjs"').replaceAll(migrations, '"migrations_dir": "../../drizzle"'),
+    original
+      .replace(main, '"main": "index.mjs"')
+      .replaceAll(migrations, '"migrations_dir": "../../drizzle"')
+      .replaceAll(apiEnabledDisabled, apiEnabledForced),
   );
 }
 
@@ -165,6 +181,7 @@ export async function startLocalApi() {
     }
     const entry = join(entryDirectory, 'index.mjs');
     await writeFile(entry, instrumentedApi);
+    // `--var`는 이 로컬 wrangler dev 프로세스의 env에만 적용된다(DO·Queue 핸들러 포함).
     runtime = startProcess(
       'pnpm',
       [
@@ -183,6 +200,8 @@ export async function startLocalApi() {
         '9230',
         '--persist-to',
         persistence,
+        '--var',
+        'API_ENABLED:true',
       ],
       env,
     );
