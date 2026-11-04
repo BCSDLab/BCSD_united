@@ -29,6 +29,8 @@ const PROTECTED_BASENAME =
 const EXTENSION = /\.(?:ts|tsx|js|jsx|mjs|cjs|scss|css|md|mdx|json)$/;
 /** Control characters except tab and newline, plus line/paragraph separators. */
 const CONTROL = /(?![\t\n])[\p{Cc}\u2028\u2029]/gu;
+/** Line breaks and tabs that a single-line field must not carry into the evidence comment. */
+const LINE_BREAKS = /[\t\n\r\u2028\u2029]+/g;
 
 /** Intake rejection with the HTTP status the authenticated executor should see. */
 export class PullRequestRejected extends Error {
@@ -344,9 +346,10 @@ export function validatePullRequestManifest(manifest: PatchManifest, job: Prepar
   if (total > 1000000) throw new Error('Correction exceeds retained bytes');
 }
 
+/** Single-line review text: breaks collapse to one space so no field can start a new Markdown line. */
 function sanitize(value: unknown, max: number): string {
   if (typeof value !== 'string') throw new Error('Invalid review text');
-  const clean = value.replace(CONTROL, '').trim();
+  const clean = value.replace(LINE_BREAKS, ' ').replace(CONTROL, '').trim();
   if (!clean || clean.length > max) throw new Error('Invalid review text');
   return clean;
 }
@@ -468,8 +471,14 @@ function severityLabel(review: PullRequestReview): string {
   return `P1 ${counts.P1} / P2 ${counts.P2} / P3 ${counts.P3}`;
 }
 
-function escapeCell(value: string): string {
-  return value.replaceAll('`', '\u0060\u200b').replaceAll('|', '\\|');
+/** Content of an inline code span: a backtick would close the span, so it cannot survive. */
+function inlineCode(value: string): string {
+  return value.replaceAll('`', '');
+}
+
+/** Inline prose outside code spans: raw HTML and code-span openers render as literal characters. */
+function inlineText(value: string): string {
+  return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('`', '&#96;');
 }
 
 export function reviewComment(
@@ -483,7 +492,7 @@ export function reviewComment(
     ? review.findings
         .map(
           (finding) =>
-            `- **${finding.severity}** \`${escapeCell(finding.path)}:${finding.line}\` — ${escapeCell(finding.message)}`,
+            `- **${finding.severity}** \`${inlineCode(finding.path)}:${finding.line}\` — ${inlineText(finding.message)}`,
         )
         .join('\n')
     : '- 없음';
@@ -491,7 +500,7 @@ export function reviewComment(
     ? manifest.files
         .map(
           (file) =>
-            `- \`${escapeCell(file.path)}\` (${file.content === null ? '삭제' : file.before === null ? '추가' : '수정'})`,
+            `- \`${inlineCode(file.path)}\` (${file.content === null ? '삭제' : file.before === null ? '추가' : '수정'})`,
         )
         .join('\n')
     : '- 없음 (리뷰 head 유지)';

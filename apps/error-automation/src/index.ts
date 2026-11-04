@@ -5,7 +5,7 @@ import { extractTailEvidence, tailKey } from './tail';
 import type { App, Diagnostic, Env, Identity, PatchManifest } from './types';
 export type { Env } from './types';
 export { AutofixQueue } from './queue';
-import { PolicyRejection, type AutofixQueue, type ExecutorResult } from './queue';
+import { isPolicyRejection, type AutofixQueue, type ExecutorResult } from './queue';
 import { GitHubError, installationToken } from './github';
 import {
   PullRequestRejected,
@@ -778,7 +778,8 @@ async function submitResult(
   } catch (error) {
     if (error instanceof Error && error.message === 'Expired or invalid executor lease')
       throw new RequestError(409, 'Expired or invalid lease.');
-    if (error instanceof PolicyRejection) throw new RequestError(422, error.message);
+    // RPC reconstructs the queue's PolicyRejection as a plain Error carrying only name/message.
+    if (isPolicyRejection(error)) throw new RequestError(422, error.message);
     throw error;
   }
 }

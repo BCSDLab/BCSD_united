@@ -83,8 +83,30 @@ export type ResultReceipt =
   | { status: 'published'; pr: string; headSha?: string }
   | { status: 'recorded'; outcome?: string };
 
-/** Executor payload violates the fixed proof or edit policy; retrying the same payload cannot succeed. */
-export class PolicyRejection extends Error {}
+/**
+ * Executor payload violates the fixed proof or edit policy; retrying the same payload cannot succeed.
+ * Crosses the Durable Object RPC boundary as a plain Error: only `name`/`message` survive, never the prototype,
+ * so consumers classify by {@link POLICY_REJECTION} rather than `instanceof`.
+ */
+const POLICY_REJECTION = 'PolicyRejection';
+export class PolicyRejection extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = POLICY_REJECTION;
+  }
+}
+
+/** Structural match for a policy rejection, whether thrown in-process or reconstructed from RPC serialization. */
+export function isPolicyRejection(error: unknown): error is { name: string; message: string } {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'name' in error &&
+    error.name === POLICY_REJECTION &&
+    'message' in error &&
+    typeof error.message === 'string'
+  );
+}
 
 interface PullRequestResultRow extends Record<string, SqlStorageValue> {
   run_id: string;

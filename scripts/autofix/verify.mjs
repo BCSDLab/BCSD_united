@@ -7,6 +7,7 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  readdir,
   readlink,
   realpath,
   symlink,
@@ -15,7 +16,7 @@ import {
 import { dirname, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createHash, randomUUID } from 'node:crypto';
-import { applyManifest, validateManifest } from './patch.mjs';
+import { applyManifest, assertSnapshotMatchesTree, exportTree, validateManifest } from './patch.mjs';
 import {
   ERROR_CHECKS,
   PR_CHECKS,
@@ -93,6 +94,8 @@ process.once('exit', () => {
     process.exitCode = 1;
   }
 });
+/** Pinned tree entries of the verified snapshot (`null` for the offline worktree copy). */
+let snapshot = null;
 if (offlineSmoke) {
   // Snapshot only git-tracked paths from the current worktree. No .env, PEM,
   // untracked secrets, host node_modules or user Docker mounts enter the image.
@@ -124,10 +127,12 @@ if (offlineSmoke) {
   }
 } else {
   if (prMode) pinPullRequestHead();
-  const archive = execFileSync('git', ['archive', releaseSha], { maxBuffer: 100_000_000 });
-  await writeFile(`${root}/base.tar`, archive);
-  execFileSync('tar', ['-xf', `${root}/base.tar`, '-C', root]);
+  // Built from the object database, not `git archive`: a PR head's
+  // `.gitattributes` must not be able to drop or rewrite pinned files.
+  snapshot = await exportTree(releaseSha, root);
 }
+/** Dependency directories are the only snapshot paths lifecycle scripts may populate. */
+const dependencyDirectory = (relative) => relative.split('/').at(-1) === 'node_modules';
 
 /**
  * `pr-head-pinned`: the worktree HEAD, the archived commit and its tree are the
@@ -155,7 +160,9 @@ function pinPullRequestHead() {
     throw new Error('Verifier worktree has unexpected modifications');
 }
 
-await mkdir(`${root}/tests/autofix`, { recursive: true });
+// Error-mode regression tests live here; the PR head is never a target of host
+// writes, so its (possibly symlinked) `tests` entry is left untouched.
+if (!prMode) await mkdir(`${root}/tests/autofix`, { recursive: true });
 const automation = resolve('scripts/autofix');
 const input = offlineSmoke ? `${root}/offline-input` : resolve('error-input');
 const patchDirectory = offlineSmoke ? `${root}/offline-patch` : resolve('error-patch');
@@ -275,6 +282,16 @@ const environment = [
   '-e',
   'WRANGLER_SEND_METRICS=false',
 ];
+const LIFECYCLE_ENVIRONMENT = [
+  '-e',
+  'PNPM_CONFIG_CACHE_DIR=/work/node_modules/.cache/pnpm',
+  '-e',
+  'PNPM_CONFIG_CHILD_CONCURRENCY=1',
+  '-e',
+  'RAYON_NUM_THREADS=2',
+  '-e',
+  'UV_THREADPOOL_SIZE=2',
+];
 function docker(
   command,
   {
@@ -285,6 +302,7 @@ function docker(
     offlineWeb = false,
     offlineStandalone = false,
     workdir = null,
+    env = [],
   } = {},
 ) {
   const name = `koin-error-verifier-${randomUUID()}`;
@@ -315,6 +333,7 @@ function docker(
       ...environment,
       ...(offlineWeb ? ['-e', 'AUTOFIX_OFFLINE_SMOKE=1'] : []),
       ...(offlineStandalone ? ['-e', 'AUTOFIX_OFFLINE_STANDALONE=1'] : []),
+      ...env,
       ...(workdir ? ['-w', workdir] : []),
       ...mounts,
       'koin-error-verifier',
@@ -370,6 +389,10 @@ function chownToCandidate(directories, label) {
   );
   requireSuccess(result, label);
 }
+/**
+ * Frozen, script-free acquisition. pnpm itself is trusted; the lockfile is not,
+ * so lifecycle scripts never run here and the only network access is this step.
+ */
 function installDependencies() {
   const name = `koin-error-install-${randomUUID()}`;
   const mounts = [
@@ -381,78 +404,68 @@ function installDependencies() {
     '-v',
     `${patchDirectory}:/patch:ro`,
   ];
-  const invoke = (args, timeout = 30_000) =>
-    spawnSync('docker', args, { encoding: 'utf8', timeout, maxBuffer: 8_000_000 });
-  let failure;
-  try {
-    requireSuccess(
-      invoke([
-        'run',
-        '--rm',
-        '-d',
-        '--init',
-        '--name',
-        name,
-        ...labels,
-        '--user',
-        installerUser,
-        ...limits,
-        '--network',
-        'bridge',
-        ...environment,
-        '-e',
-        'PNPM_CONFIG_CHILD_CONCURRENCY=1',
-        '-e',
-        'RAYON_NUM_THREADS=2',
-        '-e',
-        'UV_THREADPOOL_SIZE=2',
-        ...mounts,
-        'koin-error-verifier',
-        'sleep',
-        'infinity',
-      ]),
-      'Frozen installer container startup',
-    );
-    requireSuccess(
-      invoke(
-        [
-          'exec',
-          '-w',
-          '/work',
-          name,
-          'pnpm',
-          'install',
-          '--frozen-lockfile',
-          '--ignore-scripts',
-          ...(prMode ? ['--ignore-pnpmfile'] : []),
-        ],
-        600_000,
-      ),
-      'Frozen dependency acquisition',
-    );
-    requireSuccess(invoke(['network', 'disconnect', 'bridge', name]), 'Trusted installer network cutoff');
-    const routes = invoke(['exec', name, 'cat', '/proc/net/route']);
-    requireSuccess(routes, 'Offline installer route inspection');
-    if (
-      routes.stdout
-        .split('\n')
-        .slice(1)
-        .some((line) => line.trim().split(/\s+/)[1] === '00000000')
-    )
-      throw new Error('Installer still has a default network route');
-    requireSuccess(
-      invoke(['exec', '-w', '/work', name, 'pnpm', 'rebuild', '--pending'], 180_000),
-      'Approved offline dependency lifecycle builds',
-    );
-  } catch (error) {
-    failure = error;
+  const result = spawnSync(
+    'docker',
+    [
+      'run',
+      '--rm',
+      '--init',
+      '--name',
+      name,
+      ...labels,
+      '--user',
+      installerUser,
+      ...limits,
+      '--network',
+      'bridge',
+      ...environment,
+      ...LIFECYCLE_ENVIRONMENT,
+      '-w',
+      '/work',
+      ...mounts,
+      'koin-error-verifier',
+      'pnpm',
+      'install',
+      '--frozen-lockfile',
+      '--ignore-scripts',
+      ...(prMode ? ['--ignore-pnpmfile'] : []),
+    ],
+    { encoding: 'utf8', timeout: 600_000, maxBuffer: 8_000_000 },
+  );
+  if (result.error) {
+    const cleanup = spawnSync('docker', ['rm', '--force', name], {
+      encoding: 'utf8',
+      timeout: 30_000,
+      maxBuffer: 100_000,
+    });
+    if (cleanup.error || cleanup.status !== 0) throw new Error(`Unable to remove trusted installer container ${name}`);
   }
-  const cleanup = invoke(['rm', '--force', name]);
-  if (cleanup.error || cleanup.status !== 0) {
-    if (failure) process.stderr.write(`${failure.message}\n`);
-    throw new Error(`Unable to remove trusted installer container ${name}`);
+  requireSuccess(result, 'Frozen dependency acquisition');
+}
+/**
+ * Real `node_modules` directories the installer populated. Tracked paths and
+ * symlinks are never handed to lifecycle scripts as writable mounts.
+ */
+async function dependencyDirectories() {
+  const found = [];
+  const pending = ['.'];
+  while (pending.length) {
+    const directory = pending.pop();
+    for (const dirent of await readdir(resolve(root, directory), { withFileTypes: true })) {
+      if (!dirent.isDirectory()) continue;
+      const relative = directory === '.' ? dirent.name : `${directory}/${dirent.name}`;
+      if (!dependencyDirectory(relative)) {
+        pending.push(relative);
+        continue;
+      }
+      if ((await realpath(resolve(root, relative))) !== resolve(root, relative))
+        throw new Error(`Dependency directory escaped the trusted snapshot: ${relative}`);
+      if (snapshot?.some((entry) => entry.path === relative || entry.path.startsWith(`${relative}/`)))
+        throw new Error(`Dependency directory is part of the pinned tree: ${relative}`);
+      found.push(relative);
+    }
   }
-  if (failure) throw failure;
+  return found;
 }
 if (prMode && process.getuid() === 0) chownToCandidate(['.'], 'Candidate snapshot ownership');
 installDependencies();
@@ -463,6 +476,19 @@ if (!offlineSmoke) {
   await chmod(`${input}/context.json`, 0o644);
   await chmod(`${patchDirectory}/patch.json`, 0o644);
 }
+// Approved lifecycle scripts come from the (untrusted) snapshot, so they run
+// offline as the candidate UID with every source, config and test path
+// read-only; only the dependency directories themselves are writable.
+const dependencies = await dependencyDirectories();
+if (dependencies.length && process.getuid() === 0) chownToCandidate(dependencies, 'Dependency directory ownership');
+requireSuccess(
+  docker(['pnpm', 'rebuild', '--pending'], { writable: dependencies, timeout: 180_000, env: LIFECYCLE_ENVIRONMENT }),
+  'Approved offline dependency lifecycle builds',
+);
+// `pr-head-pinned` also means the tree the checks see is still the pinned one
+// after acquisition and lifecycle builds: no pinned byte changed, nothing was
+// added outside dependency directories.
+if (prMode) await assertSnapshotMatchesTree(snapshot, root, dependencyDirectory);
 for (const directory of scratch) {
   const parts = directory.split('/');
   let relative = '';

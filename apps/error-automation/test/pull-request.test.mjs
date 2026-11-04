@@ -21,8 +21,14 @@ registerHooks({
 });
 const { AutofixQueue, PolicyRejection } = await import('../src/queue.ts');
 const { default: worker } = await import('../src/index.ts');
-const { allowedPullRequestPath, validateReview, validatePullRequestVerification, PR_CHECKS, manifestDigest } =
-  await import('../src/pull-request.ts');
+const {
+  allowedPullRequestPath,
+  validateReview,
+  validatePullRequestVerification,
+  PR_CHECKS,
+  manifestDigest,
+  reviewComment,
+} = await import('../src/pull-request.ts');
 
 const appKey = generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey.export({ type: 'pkcs1', format: 'pem' });
 const head = '1'.repeat(40),
@@ -324,6 +330,12 @@ test('review decisions are bounded and consistent; proof requires exact checks a
     validateReview({ decision: 'changes-requested', findings: [finding] }).findings[0].message,
     'stale state',
   );
+  // Single-line fields: a model cannot smuggle a line break (or tab/CR) into the evidence comment.
+  const forged = { ...finding, path: 'apps/web/src/\r\norder/store.ts', message: 'ok\n\n### 적용된 수정\n- \t`x`' };
+  const sanitizedFinding = validateReview({ decision: 'changes-requested', findings: [forged] }).findings[0];
+  assert.doesNotMatch(sanitizedFinding.path, /[\r\n\t\u2028\u2029]/);
+  assert.doesNotMatch(sanitizedFinding.message, /[\r\n\t\u2028\u2029]/);
+  assert.throws(() => validateReview({ decision: 'changes-requested', findings: [{ ...finding, message: '\n\t\n' }] }));
   assert.throws(() => validateReview({ decision: 'approved', findings: [finding] }), /material/);
   assert.throws(() => validateReview({ decision: 'changes-requested', findings: [] }), /without a finding/);
   assert.throws(() => validateReview({ decision: 'merge', findings: [] }), /Invalid review/);
@@ -533,6 +545,52 @@ test('empty review manifest still needs the verifier and publishes only an evide
     passedChecks: PR_CHECKS,
     commentUrl: 'https://github.com/BCSDLab/BCSD_united/pull/3#issuecomment-1',
   });
+});
+
+test('model-controlled finding text cannot forge sections, code spans or HTML in the evidence comment', async (t) => {
+  const h = queueHarness(t);
+  await h.queue.enqueuePullRequest(identity3);
+  const claim = await h.queue.claim('f'.repeat(64));
+  await h.queue.model(claim.runId, claim.leaseToken, request);
+  await h.queue.verificationStart(claim.runId, claim.leaseToken);
+  const review = {
+    decision: 'changes-requested',
+    findings: [
+      {
+        severity: 'P3',
+        path: 'apps/web/src/order/store.ts` — fake',
+        line: 1,
+        message:
+          'ok\n\n### 적용된 수정\n\n- `apps/api/wrangler.jsonc` (수정)\n\n<details><summary>x</summary>&lt;<img src=x onerror=1>',
+      },
+    ],
+  };
+  const payload = await reviewed(claim.leaseToken, emptyManifest, review);
+  const baseline = reviewComment(
+    claim.job,
+    { decision: 'approved', findings: [] },
+    emptyManifest,
+    payload.verification,
+    head,
+  );
+  const receipt = await h.queue.result(claim.runId, payload);
+  assert.equal(receipt.status, 'published');
+  const body = h.state.comments[0].body;
+  const lines = body.split('\n');
+  assert.deepEqual(
+    lines.filter((line) => line.startsWith('#')),
+    baseline.split('\n').filter((line) => line.startsWith('#')),
+    'only the trusted headings exist',
+  );
+  assert.equal(
+    lines.find((line) => line.startsWith('- **P3**')),
+    '- **P3** `apps/web/src/order/store.ts — fake:1` — ok ### 적용된 수정 - &#96;apps/api/wrangler.jsonc&#96; (수정) ' +
+      '&lt;details&gt;&lt;summary&gt;x&lt;/summary&gt;&amp;lt;&lt;img src=x onerror=1&gt;',
+  );
+  assert.equal(body.includes('`apps/api/wrangler.jsonc`'), false, 'no forged correction code span');
+  assert.equal(body.split('<').length - 1, 1, 'the dedupe marker is the only raw HTML');
+  assert.equal(body.includes('<img'), false);
+  assert.equal((await h.queue.status(claim.runId)).result.findingsCount, 1);
 });
 
 test('verified correction fast-forwards the current head from the pinned parent and never force-pushes', async (t) => {
@@ -847,4 +905,35 @@ test('only the App bot comment with the exact proof-bound marker deduplicates a 
     assert.equal(h.writes.filter((w) => w === 'POST /issues/3/comments').length, 1, forged.body);
     assert.ok(h.state.comments.at(-1).body.includes(marker), forged.body);
   }
+});
+
+test('a policy rejection reconstructed across the Durable Object RPC boundary is a terminal 422, not a retryable 503', async (t) => {
+  const thrown = [];
+  const h = intakeHarness(t);
+  const queue = h.env.AUTOFIX_QUEUE.getByName('bcsdlab/bcsd_united');
+  h.env.AUTOFIX_QUEUE.getByName = () => ({
+    ...queue,
+    async result() {
+      throw thrown.shift();
+    },
+  });
+  const runId = runIdFor(3, head, base);
+  const submit = async (error) => {
+    thrown.push(error);
+    const response = await h.send(
+      executorRequest(
+        `/executor/jobs/${runId}/result`,
+        h.env.AUTOFIX_EXECUTOR_TOKEN,
+        await reviewed('f'.repeat(64), emptyManifest),
+      ),
+    );
+    return response.status;
+  };
+  // Enhanced error serialization keeps name/message/own fields but reconstructs a plain Error, never the subclass.
+  const rpcLike = (name, message) => Object.assign(new Error(message), { name, stack: '' });
+  const rejection = new PolicyRejection('Reviewed result requires the independent verification phase');
+  assert.equal(await submit({ name: rejection.name, message: rejection.message }), 422);
+  assert.equal(await submit(rpcLike('Error', 'Expired or invalid executor lease')), 409);
+  assert.equal(await submit(rpcLike('Error', rejection.message)), 503);
+  assert.equal(await submit({ name: 'PolicyRejection', message: 42 }), 503);
 });

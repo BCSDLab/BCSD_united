@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
+import { chmod, lstat, mkdtemp, mkdir, readdir, readFile, readlink, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -12,7 +13,7 @@ import {
   validateChangedFiles,
   validateReviewContext,
 } from './common.mjs';
-import { applyManifest, validateManifest } from './patch.mjs';
+import { applyManifest, assertSnapshotMatchesTree, exportTree, validateManifest } from './patch.mjs';
 import { matchesRoute } from './source-graph.mjs';
 import { parseJsonc, smokeConfiguration } from './bbot-smoke.mjs';
 import { declaresApiGate } from './local-api.mjs';
@@ -100,6 +101,157 @@ test('independent application rejects changed baselines and symlink parents', as
     }
   } finally {
     await rm(root, { recursive: true, force: true });
+  }
+});
+
+/** A throwaway repository whose single commit is an untrusted PR head. */
+async function pinnedRepository(files) {
+  const repo = await mkdtemp(join(tmpdir(), 'error-head-'));
+  const run = (...args) =>
+    execFileSync('git', ['-c', 'user.name=head', '-c', 'user.email=head@example.invalid', ...args], {
+      cwd: repo,
+      env: { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null' },
+    });
+  const git = (...args) =>
+    run(...args)
+      .toString()
+      .trim();
+  git('init', '-q');
+  for (const [path, file] of Object.entries(files)) {
+    await mkdir(join(repo, path, '..'), { recursive: true });
+    if (file.link !== undefined) await symlink(file.link, join(repo, path));
+    else await writeFile(join(repo, path), file.content, { mode: file.executable ? 0o755 : 0o644 });
+  }
+  git('add', '-A');
+  for (const [path, file] of Object.entries(files)) if (file.executable) git('update-index', '--chmod=+x', path);
+  git('commit', '-q', '-m', 'head');
+  return { repo, sha: git('rev-parse', 'HEAD'), archive: () => run('archive', '--format=tar', 'HEAD') };
+}
+
+async function inRepository(repo, work) {
+  const previous = process.cwd();
+  process.chdir(repo);
+  try {
+    return await work();
+  } finally {
+    process.chdir(previous);
+  }
+}
+
+test('snapshot export ignores head-controlled export-ignore/export-subst and keeps modes', async () => {
+  const { repo, sha, archive } = await pinnedRepository({
+    '.gitattributes': { content: 'apps/api/src/evil.ts export-ignore\napps/api/src/version.ts export-subst\n' },
+    'apps/api/src/evil.ts': { content: 'export const evil: number = "not a number";\n' },
+    'apps/api/src/version.ts': { content: 'export const commit = "$Format:%H$";\n' },
+    'scripts/run.sh': { content: '#!/bin/sh\n', executable: true },
+    'apps/api/link': { link: 'src/version.ts' },
+  });
+  const root = await mkdtemp(join(tmpdir(), 'error-snapshot-'));
+  try {
+    // The attribute-driven archive is what a PR author would hide behind.
+    const archivedPaths = execFileSync('tar', ['-tf', '-'], { input: archive(), encoding: 'utf8' }).split('\n');
+    assert.equal(archivedPaths.includes('apps/api/src/evil.ts'), false);
+    const entries = await inRepository(repo, () => exportTree(sha, root));
+    assert.deepEqual(entries.map((entry) => entry.path).sort(), [
+      '.gitattributes',
+      'apps/api/link',
+      'apps/api/src/evil.ts',
+      'apps/api/src/version.ts',
+      'scripts/run.sh',
+    ]);
+    assert.equal(
+      await readFile(join(root, 'apps/api/src/evil.ts'), 'utf8'),
+      'export const evil: number = "not a number";\n',
+    );
+    assert.equal(
+      await readFile(join(root, 'apps/api/src/version.ts'), 'utf8'),
+      'export const commit = "$Format:%H$";\n',
+    );
+    assert.ok((await lstat(join(root, 'scripts/run.sh'))).mode & 0o100);
+    assert.ok(!((await lstat(join(root, 'apps/api/src/evil.ts'))).mode & 0o100));
+    assert.equal(await readlink(join(root, 'apps/api/link')), 'src/version.ts');
+    await assertSnapshotMatchesTree(entries, root);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test('snapshot integrity rejects mutated, added, removed or re-moded pinned files', async () => {
+  const { repo, sha } = await pinnedRepository({
+    'apps/api/src/index.ts': { content: 'export const ok = 1;\n' },
+    'pnpm-lock.yaml': { content: 'lockfileVersion: 9\n' },
+    'apps/api/link': { link: 'src/index.ts' },
+  });
+  const root = await mkdtemp(join(tmpdir(), 'error-snapshot-'));
+  const skip = (relative) => relative.split('/').at(-1) === 'node_modules';
+  try {
+    const entries = await inRepository(repo, () => exportTree(sha, root));
+    await mkdir(join(root, 'node_modules/.pnpm'), { recursive: true });
+    await writeFile(join(root, 'node_modules/.modules.yaml'), 'pending: []\n');
+    await mkdir(join(root, 'apps/api/empty'));
+    await assertSnapshotMatchesTree(entries, root, skip);
+
+    await writeFile(join(root, 'apps/api/src/index.ts'), 'export const ok = 2;\n');
+    await assert.rejects(assertSnapshotMatchesTree(entries, root, skip), /differs.*apps\/api\/src\/index\.ts/);
+    await writeFile(join(root, 'apps/api/src/index.ts'), 'export const ok = 1;\n');
+    await assertSnapshotMatchesTree(entries, root, skip);
+
+    await writeFile(join(root, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n# lifecycle edit\n');
+    await assert.rejects(assertSnapshotMatchesTree(entries, root, skip), /differs.*pnpm-lock\.yaml/);
+    await writeFile(join(root, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n');
+
+    await writeFile(join(root, 'apps/api/src/evil.ts'), 'export {};\n');
+    await assert.rejects(assertSnapshotMatchesTree(entries, root, skip), /unpinned path: apps\/api\/src\/evil\.ts/);
+    await rm(join(root, 'apps/api/src/evil.ts'));
+    await assert.rejects(assertSnapshotMatchesTree(entries, root), /unpinned path: node_modules/);
+
+    await chmod(join(root, 'apps/api/src/index.ts'), 0o755);
+    await assert.rejects(assertSnapshotMatchesTree(entries, root, skip), /differs.*apps\/api\/src\/index\.ts/);
+    await chmod(join(root, 'apps/api/src/index.ts'), 0o644);
+
+    await rm(join(root, 'apps/api/link'));
+    await symlink('../../pnpm-lock.yaml', join(root, 'apps/api/link'));
+    await assert.rejects(assertSnapshotMatchesTree(entries, root, skip), /differs.*apps\/api\/link/);
+    await rm(join(root, 'apps/api/link'));
+    await assert.rejects(assertSnapshotMatchesTree(entries, root, skip), /lost a pinned file: apps\/api\/link/);
+
+    await rm(join(root, 'apps'), { recursive: true });
+    await symlink(repo, join(root, 'apps'));
+    await assert.rejects(assertSnapshotMatchesTree(entries, root, skip), /unpinned path: apps$/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test('snapshot export never follows symlinks for host writes', async () => {
+  const outside = await mkdtemp(join(tmpdir(), 'error-outside-'));
+  const { repo, sha } = await pinnedRepository({
+    tests: { link: outside },
+    'apps/api/src/index.ts': { content: 'export const ok = 1;\n' },
+  });
+  const root = await mkdtemp(join(tmpdir(), 'error-snapshot-'));
+  try {
+    const entries = await inRepository(repo, () => exportTree(sha, root));
+    assert.equal(await readlink(join(root, 'tests')), outside);
+    assert.deepEqual(await readdir(outside), []);
+    await assertSnapshotMatchesTree(entries, root);
+
+    // A pre-existing link where the pinned tree expects a directory is refused,
+    // not traversed: nothing lands beyond the snapshot root.
+    await rm(root, { recursive: true, force: true });
+    await mkdir(root);
+    await symlink(outside, join(root, 'apps'));
+    await assert.rejects(
+      inRepository(repo, () => exportTree(sha, root)),
+      /not a directory: apps/,
+    );
+    assert.deepEqual(await readdir(outside), []);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+    await rm(repo, { recursive: true, force: true });
+    await rm(outside, { recursive: true, force: true });
   }
 });
 
