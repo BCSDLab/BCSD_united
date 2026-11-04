@@ -43,6 +43,11 @@ const PR_REF = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$/;
 const RUN_ID = /^autofix-[a-f0-9]{64}$/;
 const TOKEN = /^[a-f0-9]{64}$/;
 const MAX_BODY = 1_300_000;
+const HEARTBEAT_MS = 45_000;
+const HEARTBEAT_TIMEOUT_MS = 30_000;
+const HEARTBEAT_RETRY_MS = 5_000;
+const LEASE_MARGIN_MS = 15_000;
+const REDACTED = /https?:\/\/\S+|[A-Za-z0-9_=-]{40,}/g;
 
 /** 서명된 추론 블록은 보존하되 공개 답변·실행 도구와 분리한다. */
 export function parseAssistantBlocks(content) {
@@ -196,6 +201,8 @@ function pullRequestJob(job) {
 /**
  * Error jobs keep the existing shape with no `mode`; PR jobs are the explicit
  * `mode:'pull-request'` union member. Anything else is rejected outright.
+ * `leaseExpiresAt` is the Worker-confirmed expiry of this (fresh or resumed)
+ * lease; the executor never runs past it without a later confirmation.
  */
 export function parseClaim(value) {
   const job = value?.job;
@@ -208,6 +215,9 @@ export function parseClaim(value) {
     !Number.isSafeInteger(value.deadlineAt) ||
     value.deadlineAt <= Date.now() ||
     value.deadlineAt > Date.now() + 90 * 60_000 ||
+    !Number.isSafeInteger(value.leaseExpiresAt) ||
+    value.leaseExpiresAt <= Date.now() ||
+    value.leaseExpiresAt > value.deadlineAt ||
     job?.owner !== 'BCSDLab' ||
     job.repository !== 'BCSD_united' ||
     !(job.mode === undefined ? errorJob(job) : job.mode === 'pull-request' && pullRequestJob(job))
@@ -649,6 +659,124 @@ async function cleanupJob(runId, workspace) {
   await rm(workspace, { recursive: true, force: true });
 }
 
+function redact(text) {
+  return text.replace(REDACTED, '[redacted]');
+}
+
+/** Operator-log description of a failure: name/message plus the transport cause chain, redacted and bounded. */
+function describeFailure(error) {
+  if (!(error instanceof Error)) return 'Unknown failure';
+  const parts = [`${error.name}: ${error.message}`];
+  for (let cause = error.cause, depth = 0; cause instanceof Error && depth < 3; cause = cause.cause, depth += 1)
+    parts.push(`${cause.code ?? cause.name}: ${cause.message}`);
+  return redact(parts.join(' <- ')).slice(0, 500);
+}
+
+// Transport failures that leave the Worker's lease state unknown. Anything else
+// (HTTP policy/auth, TLS, malformed body, our own abort) fails closed at once.
+const TRANSIENT_TRANSPORT = {
+  UND_ERR_CONNECT_TIMEOUT: true,
+  UND_ERR_HEADERS_TIMEOUT: true,
+  UND_ERR_BODY_TIMEOUT: true,
+  UND_ERR_SOCKET: true,
+  ECONNRESET: true,
+  ECONNREFUSED: true,
+  ENETUNREACH: true,
+  EHOSTUNREACH: true,
+  ETIMEDOUT: true,
+  EAI_AGAIN: true,
+  EPIPE: true,
+};
+export function transientTransportFailure(error) {
+  if (error?.name === 'TimeoutError') return true;
+  const code = error instanceof TypeError ? error.cause?.code : undefined;
+  return typeof code === 'string' && Object.hasOwn(TRANSIENT_TRANSPORT, code);
+}
+
+/**
+ * Executor-side keeper for one claim's rolling lease. The latest Worker-confirmed
+ * expiry is the only truth: a heartbeat that was not confirmed never extends it,
+ * transport failures retry only while that expiry minus the safety margin
+ * remains, and an independent timer calls `onLost` at the margin even when a
+ * heartbeat hangs. HTTP, TLS and malformed responses call `onLost` at once.
+ * One heartbeat is in flight at a time; `stop` cancels timers and the in-flight
+ * request, after which no callback runs.
+ */
+export function keepLease({ runId, deadlineAt, leaseExpiresAt, heartbeat, onLost }) {
+  const inFlight = new AbortController();
+  let confirmedExpiresAt = leaseExpiresAt;
+  let stopped = false;
+  let next;
+  let margin;
+  const stop = () => {
+    if (stopped) return;
+    stopped = true;
+    clearTimeout(next);
+    clearTimeout(margin);
+    inFlight.abort();
+  };
+  const lost = (reason) => {
+    if (stopped) return;
+    console.error('[autofix-executor] lease lost', {
+      runId,
+      reason,
+      leaseRemainingMs: confirmedExpiresAt - Date.now(),
+    });
+    stop();
+    onLost();
+  };
+  const armMargin = () => {
+    clearTimeout(margin);
+    margin = setTimeout(
+      () => lost('Confirmed lease reached the safety margin without a newer confirmation'),
+      Math.max(0, confirmedExpiresAt - LEASE_MARGIN_MS - Date.now()),
+    );
+  };
+  // Keep a full attempt (timeout included) ahead of the margin; a lease already
+  // clipped to the absolute deadline cannot be extended, so stop asking.
+  const scheduleNext = () => {
+    if (confirmedExpiresAt >= deadlineAt) return;
+    next = setTimeout(
+      attempt,
+      Math.min(HEARTBEAT_MS, Math.max(0, confirmedExpiresAt - LEASE_MARGIN_MS - HEARTBEAT_TIMEOUT_MS - Date.now())),
+    );
+  };
+  async function attempt() {
+    if (stopped) return;
+    try {
+      const value = await heartbeat(inFlight.signal);
+      if (stopped) return;
+      if (
+        !value ||
+        value.deadlineAt !== deadlineAt ||
+        !Number.isSafeInteger(value.leaseExpiresAt) ||
+        value.leaseExpiresAt > deadlineAt ||
+        value.leaseExpiresAt < Date.now() + LEASE_MARGIN_MS
+      )
+        throw new Error('Lease heartbeat could not be confirmed');
+      confirmedExpiresAt = value.leaseExpiresAt;
+      armMargin();
+      scheduleNext();
+    } catch (error) {
+      if (stopped) return;
+      const reason = describeFailure(error);
+      const retryable =
+        transientTransportFailure(error) && Date.now() + HEARTBEAT_RETRY_MS < confirmedExpiresAt - LEASE_MARGIN_MS;
+      if (!retryable) return lost(reason);
+      console.error('[autofix-executor] heartbeat failed', {
+        runId,
+        reason,
+        retryInMs: HEARTBEAT_RETRY_MS,
+        leaseRemainingMs: confirmedExpiresAt - Date.now(),
+      });
+      next = setTimeout(attempt, HEARTBEAT_RETRY_MS);
+    }
+  }
+  armMargin();
+  scheduleNext();
+  return { stop, confirmedExpiresAt: () => confirmedExpiresAt };
+}
+
 async function runClaim(cfg, claim, claimNonce, parentSignal) {
   const workspace = await mkdtemp(join(JOBS, 'run-'));
   const controller = new AbortController();
@@ -656,34 +784,21 @@ async function runClaim(cfg, claim, claimNonce, parentSignal) {
   const parentAbort = () => controller.abort();
   parentSignal.addEventListener('abort', parentAbort, { once: true });
   const leaseBody = { version: 1, executorId: EXECUTOR_ID, leaseToken: claim.leaseToken };
-  let heartbeatPending = false;
-  const heartbeat = setInterval(() => {
-    if (heartbeatPending || controller.signal.aborted) return;
-    heartbeatPending = true;
-    void post(cfg, `/executor/jobs/${claim.runId}/heartbeat`, leaseBody, AbortSignal.timeout(30_000))
-      .then(boundedJson)
-      .then((value) => {
-        if (
-          !value ||
-          value.deadlineAt !== claim.deadlineAt ||
-          !Number.isSafeInteger(value.leaseExpiresAt) ||
-          value.leaseExpiresAt < Date.now() + 15_000
-        )
-          throw new Error('Lease heartbeat could not be confirmed');
-      })
-      .catch((error) => {
-        console.error('[autofix-executor] heartbeat failed', {
-          runId: claim.runId,
-          reason: (error instanceof Error ? `${error.name}: ${error.message}` : 'Unknown heartbeat failure')
-            .replace(/https?:\/\/\S+|[A-Za-z0-9_=-]{40,}/g, '[redacted]')
-            .slice(0, 500),
-        });
-        controller.abort();
-      })
-      .finally(() => {
-        heartbeatPending = false;
-      });
-  }, 45_000);
+  const lease = keepLease({
+    runId: claim.runId,
+    deadlineAt: claim.deadlineAt,
+    leaseExpiresAt: claim.leaseExpiresAt,
+    heartbeat: (signal) =>
+      post(
+        cfg,
+        `/executor/jobs/${claim.runId}/heartbeat`,
+        leaseBody,
+        AbortSignal.any([signal, AbortSignal.timeout(HEARTBEAT_TIMEOUT_MS)]),
+      ).then(boundedJson),
+    onLost: () => controller.abort(),
+  });
+  // Any abort (deadline, shutdown, lost lease, completion) ends this job's heartbeats.
+  controller.signal.addEventListener('abort', lease.stop, { once: true });
   try {
     const verifierRoot = join(workspace, 'verifier');
     const modelRoot = join(workspace, 'model');
@@ -719,15 +834,10 @@ async function runClaim(cfg, claim, claimNonce, parentSignal) {
     return true;
   } catch (error) {
     if (typeof error?.diagnostics === 'string')
-      console.error(
-        '[autofix-executor] bounded command diagnostics',
-        error.diagnostics.replace(/https?:\/\/\S+|[A-Za-z0-9_=-]{40,}/g, '[redacted]').slice(-12_000),
-      );
+      console.error('[autofix-executor] bounded command diagnostics', redact(error.diagnostics).slice(-12_000));
     const prior = await readState();
     if (!controller.signal.aborted && !prior.pending) {
-      const reason = (error instanceof Error ? error.message : 'Executor failure')
-        .replace(/https?:\/\/\S+|[A-Za-z0-9_=-]{40,}/g, '[redacted]')
-        .slice(0, 500);
+      const reason = redact(error instanceof Error ? error.message : 'Executor failure').slice(0, 500);
       console.error('[autofix-executor] execution failed', { runId: claim.runId, reason });
       try {
         await submitResult(cfg, claim, claimNonce, { outcome: 'failed', reason });
@@ -739,7 +849,7 @@ async function runClaim(cfg, claim, claimNonce, parentSignal) {
     console.error(`[autofix-executor] run failed: ${claim.runId}`);
     return false;
   } finally {
-    clearInterval(heartbeat);
+    lease.stop();
     clearTimeout(deadlineTimer);
     parentSignal.removeEventListener('abort', parentAbort);
     controller.abort();

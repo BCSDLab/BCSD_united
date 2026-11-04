@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isPullRequest, parseAssistantBlocks, parseClaim } from './executor.mjs';
+import { isPullRequest, keepLease, parseAssistantBlocks, parseClaim } from './executor.mjs';
 
 const valid = () => ({
   version: 1,
@@ -8,6 +8,7 @@ const valid = () => ({
   leaseToken: 'b'.repeat(64),
   attempt: 1,
   deadlineAt: Date.now() + 60_000,
+  leaseExpiresAt: Date.now() + 30_000,
   job: {
     identity: { source: 'sentry', sourceId: '123', project: 'koin-united-prod', app: 'web' },
     owner: 'BCSDLab',
@@ -25,12 +26,18 @@ const valid = () => ({
 test('Rocky executor accepts only a fresh fixed-repository lease with safe route', () => {
   const claim = valid();
   assert.equal(parseClaim(claim).runId, claim.runId);
+  // A resumed claim reports the stored expiry, which may be close.
+  assert.equal(parseClaim({ ...claim, leaseExpiresAt: Date.now() + 1_000 }).runId, claim.runId);
   for (const patch of [
     { runId: 'arbitrary-job' },
     { leaseToken: 'not-a-lease' },
     { deadlineAt: 'tomorrow' },
     { deadlineAt: Date.now() - 1 },
     { deadlineAt: Date.now() + 91 * 60_000 },
+    { leaseExpiresAt: undefined },
+    { leaseExpiresAt: 'soon' },
+    { leaseExpiresAt: Date.now() - 1 },
+    { leaseExpiresAt: claim.deadlineAt + 1 },
     { job: { ...claim.job, repository: 'other' } },
     { job: { ...claim.job, context: { ...claim.job.context, route: '//other' } } },
     { job: { ...claim.job, context: { ...claim.job.context, requestMethod: 'POST' } } },
@@ -73,6 +80,7 @@ const pullRequest = () => ({
   leaseToken: 'e'.repeat(64),
   attempt: 1,
   deadlineAt: Date.now() + 60_000,
+  leaseExpiresAt: Date.now() + 30_000,
   job: {
     mode: 'pull-request',
     owner: 'BCSDLab',
@@ -149,4 +157,183 @@ test('Rocky executor accepts only the explicit pinned pull-request union member'
   const errorShaped = valid();
   errorShaped.job.mode = 'pull-request';
   assert.throws(() => parseClaim(errorShaped));
+});
+
+const START = 1_800_000_000_000;
+const DEADLINE = START + 90 * 60_000;
+const flush = () => new Promise((resolve) => setImmediate(resolve));
+const transport = (code, message = 'connect failure') =>
+  new TypeError('fetch failed', { cause: Object.assign(new Error(message), { code }) });
+const denied = (status) => Object.assign(new Error(`Executor endpoint returned ${status}`), { status });
+
+/**
+ * Lease keeper under mocked timers and clock: every heartbeat attempt is recorded
+ * with its abort signal and settled explicitly by the test.
+ */
+function keeper(t, overrides = {}) {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: START });
+  t.mock.method(console, 'error', () => {});
+  const attempts = [];
+  const lost = t.mock.fn();
+  const lease = keepLease({
+    runId: `autofix-${'a'.repeat(64)}`,
+    deadlineAt: DEADLINE,
+    leaseExpiresAt: START + 120_000,
+    heartbeat: (signal) => {
+      const attempt = { signal, ...Promise.withResolvers() };
+      attempts.push(attempt);
+      return attempt.promise;
+    },
+    onLost: lost,
+    ...overrides,
+  });
+  t.after(lease.stop);
+  return { attempts, lost, lease };
+}
+
+test('lease keeper retries transient transport failures only inside the confirmed lease', async (t) => {
+  const { attempts, lost, lease } = keeper(t);
+  t.mock.timers.tick(44_999);
+  assert.equal(attempts.length, 0);
+  t.mock.timers.tick(1);
+  assert.equal(attempts.length, 1);
+  // Nothing overlaps an in-flight heartbeat, however long it takes.
+  t.mock.timers.tick(30_000);
+  assert.equal(attempts.length, 1);
+  attempts[0].reject(new DOMException('The operation was aborted due to timeout', 'TimeoutError'));
+  await flush();
+  // An unconfirmed heartbeat never extends the lease; the retry lands inside the margin.
+  assert.equal(lease.confirmedExpiresAt(), START + 120_000);
+  assert.equal(lost.mock.callCount(), 0);
+  t.mock.timers.tick(4_999);
+  assert.equal(attempts.length, 1);
+  t.mock.timers.tick(1);
+  assert.equal(attempts.length, 2);
+  assert.equal(Date.now(), START + 80_000);
+  attempts[1].reject(transport('UND_ERR_CONNECT_TIMEOUT', 'Connect Timeout Error https://worker.example/executor'));
+  await flush();
+  const logged = console.error.mock.calls
+    .filter((call) => call.arguments[0] === '[autofix-executor] heartbeat failed')
+    .at(-1);
+  assert.match(logged.arguments[1].reason, /UND_ERR_CONNECT_TIMEOUT/);
+  assert.doesNotMatch(logged.arguments[1].reason, /https?:\/\//);
+  t.mock.timers.tick(5_000);
+  assert.equal(attempts.length, 3);
+  assert.equal(Date.now(), START + 85_000);
+  attempts[2].resolve({ deadlineAt: DEADLINE, leaseExpiresAt: START + 205_000 });
+  await flush();
+  assert.equal(lease.confirmedExpiresAt(), START + 205_000);
+  assert.equal(lost.mock.callCount(), 0);
+  // The normal cadence resumes from the confirmed heartbeat.
+  t.mock.timers.tick(44_999);
+  assert.equal(attempts.length, 3);
+  t.mock.timers.tick(1);
+  assert.equal(attempts.length, 4);
+  assert.equal(lost.mock.callCount(), 0);
+});
+
+test('lease keeper stops the run before the confirmed lease expires when no heartbeat is confirmed', async (t) => {
+  const { attempts, lost, lease } = keeper(t);
+  t.mock.timers.tick(45_000);
+  for (let round = 0; round < 50 && !lost.mock.callCount(); round += 1) {
+    attempts.at(-1).reject(transport('ENETUNREACH'));
+    await flush();
+    if (!lost.mock.callCount()) t.mock.timers.tick(5_000);
+  }
+  assert.equal(lost.mock.callCount(), 1);
+  assert.equal(lease.confirmedExpiresAt(), START + 120_000);
+  assert.ok(Date.now() <= START + 105_000, 'stopped at or before the safety margin');
+  // Retries at 45s, 50s … 100s; the one that could not finish before the margin is not attempted.
+  assert.equal(attempts.length, 12);
+  t.mock.timers.tick(90 * 60_000);
+  assert.equal(attempts.length, 12);
+  assert.equal(lost.mock.callCount(), 1);
+});
+
+test('lease keeper fails closed at the safety margin while a heartbeat hangs', async (t) => {
+  const { attempts, lost } = keeper(t);
+  t.mock.timers.tick(45_000);
+  assert.equal(attempts.length, 1);
+  t.mock.timers.tick(59_999);
+  assert.equal(lost.mock.callCount(), 0);
+  assert.equal(attempts[0].signal.aborted, false);
+  t.mock.timers.tick(1);
+  assert.equal(Date.now(), START + 105_000);
+  assert.equal(lost.mock.callCount(), 1);
+  assert.equal(attempts[0].signal.aborted, true);
+  // A late answer to the cancelled heartbeat cannot revive the job.
+  attempts[0].resolve({ deadlineAt: DEADLINE, leaseExpiresAt: START + 400_000 });
+  await flush();
+  t.mock.timers.tick(90 * 60_000);
+  assert.equal(attempts.length, 1);
+  assert.equal(lost.mock.callCount(), 1);
+});
+
+test('lease keeper aborts at once on Worker rejection, TLS failure or an unconfirmed lease', async (t) => {
+  const cases = {
+    'HTTP 401': (attempt) => attempt.reject(denied(401)),
+    'HTTP 409': (attempt) => attempt.reject(denied(409)),
+    'HTTP 500': (attempt) => attempt.reject(denied(500)),
+    'TLS certificate': (attempt) => attempt.reject(transport('CERT_HAS_EXPIRED', 'certificate has expired')),
+    'malformed JSON': (attempt) => attempt.reject(new SyntaxError('Unexpected token')),
+    'empty body': (attempt) => attempt.resolve(null),
+    'other deadline': (attempt) => attempt.resolve({ deadlineAt: DEADLINE + 1, leaseExpiresAt: START + 165_000 }),
+    'expiry inside margin': (attempt) => attempt.resolve({ deadlineAt: DEADLINE, leaseExpiresAt: START + 59_999 }),
+    'expiry past deadline': (attempt) => attempt.resolve({ deadlineAt: DEADLINE, leaseExpiresAt: DEADLINE + 1 }),
+    'non-integer expiry': (attempt) => attempt.resolve({ deadlineAt: DEADLINE, leaseExpiresAt: '2026' }),
+  };
+  for (const [label, settle] of Object.entries(cases))
+    await t.test(label, async (t) => {
+      const { attempts, lost, lease } = keeper(t);
+      t.mock.timers.tick(45_000);
+      settle(attempts[0]);
+      await flush();
+      assert.equal(lost.mock.callCount(), 1);
+      assert.equal(lease.confirmedExpiresAt(), START + 120_000);
+      t.mock.timers.tick(60_000);
+      assert.equal(attempts.length, 1);
+      assert.equal(lost.mock.callCount(), 1);
+    });
+});
+
+test('lease keeper stop cancels timers and the in-flight heartbeat without reporting loss', async (t) => {
+  const { attempts, lost, lease } = keeper(t);
+  t.mock.timers.tick(45_000);
+  assert.equal(attempts.length, 1);
+  lease.stop();
+  assert.equal(attempts[0].signal.aborted, true);
+  attempts[0].reject(denied(401));
+  await flush();
+  t.mock.timers.tick(90 * 60_000);
+  assert.equal(attempts.length, 1);
+  assert.equal(lost.mock.callCount(), 0);
+  // A keeper stopped before its first heartbeat never sends one.
+  const idle = keepLease({
+    runId: `autofix-${'b'.repeat(64)}`,
+    deadlineAt: DEADLINE,
+    leaseExpiresAt: START + 120_000,
+    heartbeat: () => assert.fail('heartbeat after stop'),
+    onLost: () => assert.fail('loss after stop'),
+  });
+  idle.stop();
+  t.mock.timers.tick(90 * 60_000);
+});
+
+test('lease keeper heartbeats early for a short resumed lease and rests once the lease is clipped to the deadline', async (t) => {
+  const deadlineAt = START + 100_000;
+  const { attempts, lost, lease } = keeper(t, { deadlineAt, leaseExpiresAt: START + 40_000 });
+  // 40s left minus the margin leaves no room for a 45s wait plus a full attempt.
+  t.mock.timers.tick(1);
+  assert.equal(attempts.length, 1);
+  attempts[0].resolve({ deadlineAt, leaseExpiresAt: deadlineAt });
+  await flush();
+  assert.equal(lease.confirmedExpiresAt(), deadlineAt);
+  // A lease already reaching the absolute deadline cannot be extended, so no
+  // further heartbeat is sent; the margin timer still ends the run on time.
+  t.mock.timers.tick(84_998);
+  assert.equal(attempts.length, 1);
+  assert.equal(lost.mock.callCount(), 0);
+  t.mock.timers.tick(1);
+  assert.equal(Date.now(), deadlineAt - 15_000);
+  assert.equal(lost.mock.callCount(), 1);
 });
