@@ -58,6 +58,8 @@ export interface Claim {
   leaseToken: string;
   attempt: number;
   deadlineAt: number;
+  /** Server-confirmed lease expiry (ms epoch). Resumed claims report the stored expiry, not a fresh one. */
+  leaseExpiresAt: number;
   job: QueuedJob;
 }
 export type ExecutorResult =
@@ -307,6 +309,7 @@ export class AutofixQueue extends DurableObject<Env> {
         leaseToken: token,
         attempt: active.attempt,
         deadlineAt: active.deadline_at!,
+        leaseExpiresAt: active.lease_expires,
         job: JSON.parse(active.prepared) as QueuedJob,
       };
     }
@@ -388,7 +391,15 @@ export class AutofixQueue extends DurableObject<Env> {
     );
     await this.ctx.storage.setAlarm(leaseExpiresAt);
     await this.ctx.storage.sync();
-    return { version: 1, runId: row.run_id, leaseToken: token, attempt: row.attempt + 1, deadlineAt, job };
+    return {
+      version: 1,
+      runId: row.run_id,
+      leaseToken: token,
+      attempt: row.attempt + 1,
+      deadlineAt,
+      leaseExpiresAt,
+      job,
+    };
   }
 
   private async leased(runId: string, leaseToken: string, allowVerifying = false): Promise<Row> {
