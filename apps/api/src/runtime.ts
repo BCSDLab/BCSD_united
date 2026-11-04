@@ -32,6 +32,7 @@ export interface Bindings {
   API_PUBLIC_URL?: string;
   UPLOAD_SIGNING_SECRET?: string;
   SOURCE_SYNC_SECRET?: string;
+  SOURCE_SYNC_ENABLED?: string;
   NAVER_ACCESS_KEY?: string;
   NAVER_SECRET_KEY?: string;
   NAVER_SMS_API_URL?: string;

@@ -23,7 +23,7 @@ scripts/
 - 프론트엔드: React 19, TanStack Start/Router, React Query, Zustand, SCSS Modules.
 - 백엔드: TypeScript, Hono, Drizzle ORM, Cloudflare D1.
 - 파일: R2. 실시간 연결·일부 변경 요청의 직렬화: Durable Objects.
-- 비동기 작업: Queues. 정기·복구 작업: 5분 간격 Cron.
+- 비동기 작업: Queues. KOIN 원본 동기화와 API 정기·복구 Cron은 비용 검증 전까지 비활성화합니다.
 - 도구: pnpm workspace, oxlint, oxfmt, TypeScript. 웹 전용 규칙에는 ESLint·Stylelint도 사용합니다.
 - 각 앱은 별도 Worker로 배포합니다. 하나의 Worker에 웹·업무 API·자동화 권한을 합치지 않습니다.
 
@@ -113,9 +113,21 @@ API 회귀 테스트는 SQLite의 실제 제약조건·원자 배치와 HTTP 계
 
 ### 원본 DB 호스트의 임시 배치 필드 동기화
 
-원본 DB 호스트용 `source-sync-uploader.py`, `source-sync-cron.sh`, `source-sync-mysql-prep.py`는 비공개 운영 도구이며 공개 Git에 포함하지 않습니다. 로컬에서 준비·검증한 배포본과 저장소의 `source-schema.json`을 원본 DB 호스트의 `$HOME/.local/share/koin-d1-sync/`(0700)에 복사합니다. 운영 동기화는 별도 `production/` 상태 디렉터리(0700)를 사용해 로컬 검증용 체크포인트와 분리합니다. 독립적인 `SOURCE_SYNC_SECRET`과 동일한 비밀을 호스트의 `production/config.json`(0600)에 저장하며, 실제 설정·출력 데이터·비밀번호는 커밋하거나 명령행 인자로 전달하지 않습니다. 호스트에는 Python 3, Docker, `flock`, `timeout`이 필요합니다. 읽기는 지정된 KOIN 컨테이너에 한정하고, 전송 대상은 고정된 `https://koin-api.bcsdlab.workers.dev/internal/source-sync`입니다. 직접 실행할 때도 `--state-dir "$HOME/.local/share/koin-d1-sync/production"`을 지정합니다.
+**현재 중지 상태입니다.** 비용 문제로 원본 서버의 운영·프리뷰 동기화 Cron 등록을 제거하고 실행 중인 동기화를 종료했습니다. Cloudflare `koin-api` Cron도 제거했으며 저장소의 `triggers.crons`는 빈 배열입니다. 변경 행만 반영하는 증분 방식의 로컬 검증과 비용 검토 후 사용자가 다시 승인하기 전에는 원격 동기화, 초기 기준선 조회·적용, Cron 재등록을 실행하지 않습니다. 아래 실행 설명은 운영 참고이며 재실행 승인이 아닙니다.
 
-`python3 source-sync-uploader.py sync --dry-run`은 원본을 읽기만 하고 private `pending/`에 일곱 데이터셋(식단·공지·학기·강의·시간표 버전·시내버스 시간표·날씨)을 완전한 파일로 내보냅니다. 날씨는 지정된 Redis 키만 읽고 원본의 만료 시각을 보존하며, 더 최신인 대상 캐시를 덮어쓰지 않습니다. 성공 시 `python3 source-sync-uploader.py sync`가 같은 파일을 페이지·체크포인트·HMAC으로 전송하고 완료 응답 뒤에만 다음 체크포인트로 넘어갑니다. 실패한 실행은 동일한 `pending/`을 재개하며, 불완전하거나 데이터셋 구성이 다른 내보내기는 자동으로 전송하지 않습니다. `source-sync-cron.sh`는 겹침을 `flock`으로 막고 30분 종료·1MiB 제한 로그를 적용합니다. **회원 포함 전체 초기 이관·검증이 완료되고 대상·명령을 승인한 뒤에만** `0 * * * * /home/ubuntu/.local/share/koin-d1-sync/source-sync-cron.sh`를 ubuntu 사용자 Cron에 등록합니다. 야간에만 실행하는 것이 아니라 매일 24시간 매시 정각 실행합니다. 읽기 전용 내보내기, 전송 테스트, 실제 Cron 설치는 각각 구분합니다.
+원본 DB 호스트용 `source-sync-uploader.py`, `source-sync-cron.sh`, `source-sync-mysql-prep.py`는 비공개 운영 도구이며 공개 Git에 포함하지 않습니다. 검증한 배포본과 저장소의 `source-schema.json`을 원본 DB 호스트의 `$HOME/.local/share/koin-d1-sync/`(0700)에 복사합니다. 운영과 프리뷰는 각각 `production/`, `preview/` 상태 디렉터리(0700)와 독립된 `config.json`(0600)의 `source_sync_secret`을 사용합니다. 실제 설정·출력 데이터·비밀번호는 커밋하거나 명령행 인자로 전달하지 않습니다. 호스트에는 Python 3, Docker, `flock`, `timeout`이 필요합니다. 읽기는 지정된 KOIN 컨테이너에 한정합니다. `--environment production|preview`는 각각 고정된 `https://koin-api.bcsdlab.workers.dev/internal/source-sync`, `https://preview-koin-api.bcsdlab.workers.dev/internal/source-sync`만 선택하며 임의의 원격 URL은 허용하지 않습니다. 기본 대상은 운영이고, 기본 상태 디렉터리도 선택한 환경에 따라 분리됩니다.
+
+HTTP 클라이언트는 실제 프로그램 이름인 `User-Agent: KOINSourceSync/2.0`을 명시합니다. HMAC 인증과 고정 대상 URL은 유지하며 브라우저로 위장하거나 Cloudflare 보안 검사를 비활성화하지 않습니다.
+
+운영 API의 `secrets.required`는 `JWT_SECRET`, `WEB_CSRF_SECRET`, `SOURCE_SYNC_SECRET`을 선언합니다. 누락된 비밀값이 있으면 Wrangler 배포가 실패해야 하며, 값 자체는 설정 파일에 쓰지 않습니다. 네이티브 프리뷰의 인증·동기화 키는 프리뷰 설정에서 독립적으로 관리합니다. 이 선언은 로컬 `.dev.vars`/`.env`에서 불러올 키도 제한하므로 새 공급자 비밀값을 활성화할 때 선언과 실제 저장값을 함께 갱신합니다. 대시보드나 CLI의 명시적인 비밀값 삭제까지 막는 기능은 아닙니다.
+
+증분 v2는 원본 서버에서 일곱 데이터셋을 읽고 환경별 마지막 ACK 기준의 행·그룹 지문과 비교합니다. 변경이 없으면 HTTP 요청과 D1 쓰기가 모두 0건입니다. `sync --environment production --dry-run`은 로컬 변경 계획만 계산하며 프리뷰는 `--environment preview`를 사용합니다. 기준선이 없으면 자동 전체 업로드하지 않고 중단합니다. 사용자 승인 후의 명시적 `initialize-baseline`만 현재 원본 키에 해당하는 대상의 소유 필드를 제한된 읽기 전용 요청으로 비교합니다. 기준선과 재전송할 원문은 환경별 `fingerprints-v2.json`에 보존하고 ACK 후에만 진행합니다. 기존 v1 체크포인트·스풀은 초기화하거나 삭제하지 않습니다.
+
+v2 API는 변경된 엔터티만 페이지별 원자 배치로 반영합니다. 조회수만 바뀐 공지는 검색 인덱스·첨부파일·본문을 쓰지 않습니다. 제목 변경 시 검색 토큰은 달라진 위치만 UPDATE/INSERT하고 사라진 위치만 DELETE합니다. 첨부파일도 실제 차이만 처리합니다. 강의·시간표 버전은 작은 완전 그룹으로 비교해 동일 행 ID를 재사용하고, 연결된 시간표를 잃는 삭제나 모호한 매핑은 거부합니다. 삭제는 이전 기준선에 있던 원본 키가 실제 사라진 명시적 tombstone에 한하며 전체 대상 테이블을 비우지 않습니다. 날짜만 새로 캡처한 동일 날씨는 변경으로 보지 않습니다.
+
+요청은 256KiB, 페이지당 100 엔터티, 그룹 데이터는 1,000행 이내입니다. 기준선 응답은 1MiB로 제한하며 그 크기 오류에만 키 묶음을 나눠 조회합니다. 클라이언트 기본 한도는 변경 행·그룹 구성원·첨부파일·검색 위치 예상 작업을 합쳐 100 작업 단위입니다. 초과하면 원격 쓰기 전에 중단하며 검토한 정확한 `--approve-work-units` 값이 필요합니다. 이 수치는 청구 금액이나 실제 D1의 인덱스·트리거 포함 청구 행 수를 보장하지 않습니다.
+
+`source-sync-cron.sh`는 기본 비활성화입니다. 원본 서버의 `sync-enabled` 승인 파일이 없거나 `sync-paused`가 있으면 자식 동기화 프로세스를 실행하지 않습니다. API도 `SOURCE_SYNC_ENABLED`가 정확히 `"true"`가 아니면 D1에 접근하기 전에 거부하며 운영·프리뷰 설정은 현재 `"false"`입니다. 예외적인 수동 네트워크 허용 옵션은 사용자 재승인을 받은 작업에만 사용합니다. 재개 전에는 새 메타데이터 마이그레이션 `0004_incremental_source_sync.sql`, 읽기 전용 기준선, 변경 계획·비용 검토를 순서대로 확인해야 합니다. 이 마이그레이션은 기존 v1 staging/receipt를 교체하며 업무 데이터 테이블을 초기화하지 않습니다. 현재 원격 마이그레이션·기준선 초기화·동기화·Cron 재등록은 실행하지 않습니다.
 
 `full-snapshot`은 회원·원본 ID·비밀번호 해시·계정 상태·주문·게시글을 포함한 **전체 원본**과 Mongo/Redis를 비공개 스냅샷으로 보존하는 별도 경로입니다. 기본 경로는 `--quiescence-attestation`으로 모든 원본 쓰기의 중단 증빙을 요구합니다. 승인된 온라인 초기 이관에서는 저장소별 캡처 시각과 비일관성 한계를 기록하고, MySQL DATETIME은 운영자가 지정한 `+09:00`으로 해석합니다. 실제 JVM/JDBC 시간대가 확인된 것으로 주장하지 않습니다. 원본 로그인·재설정·인증 증명과 포털 로그인 쿠키는 비공개 스냅샷에만 보존하고 D1의 활성 상태 및 원본 보관 테이블에서 제외합니다. 회원·비밀번호 해시는 유지하고 운영·프리뷰에서 각각 새 로그인 권한을 발급합니다. Cron 경로는 초기 전체 이관의 대체물이 아니며 회원·인증·주문 같은 대상 소유 필드를 재동기화하지 않습니다.
 

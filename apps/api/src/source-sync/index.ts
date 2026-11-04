@@ -2,46 +2,23 @@ import type { Hono } from 'hono';
 import { ZodError } from 'zod';
 import type { ApiEnv } from '@api/runtime';
 import { signalOutbox } from '@api/domains/community/store';
-import { ngrams } from '@api/domains/community/search';
-import { applyStatements, type Statement } from './apply';
-import { parseEnvelope, type SourceEnvelope } from './contract';
+import { applyDelta, BaselineTooLarge, Conflict, readBaseline, type Statement } from './apply';
+import { canonicalKey, parseEnvelope, rowKey, type Delta } from './contract';
 
 const MAX_BYTES = 256 * 1024;
+const MAX_BASELINE_BYTES = 1024 * 1024;
 const encoder = new TextEncoder();
-const PAGE_ACK_SQL = `SELECT p.body_sha256,
-  (SELECT COALESCE(sum(q.row_count),0) FROM native_source_sync_page q
-    WHERE q.dataset=p.dataset AND q.checkpoint=p.checkpoint AND q.page<=p.page) staged_rows
-  FROM native_source_sync_page p WHERE p.dataset=? AND p.checkpoint=? AND p.page=?`;
-interface PageAck {
-  body_sha256: string;
-  staged_rows: number;
-}
 interface State {
   checkpoint: string;
-  stage_checkpoint: string | null;
   next_page: number;
-  staged_rows: number;
-  stage_final: number;
-  total_rows: number | null;
+  completed: number;
+}
+interface Receipt {
+  body_sha256: string;
   applied_rows: number;
-  completed_page: number;
 }
 function failure(status: number, code: string): Response {
   return Response.json({ error: code }, { status, headers: { 'Cache-Control': 'no-store' } });
-}
-function response(payload: SourceEnvelope, stagedRows: number, appliedRows: number, completed: boolean): Response {
-  return Response.json(
-    {
-      version: 1,
-      dataset: payload.dataset,
-      checkpoint: payload.checkpoint,
-      page: payload.page,
-      stagedRows,
-      appliedRows,
-      completed,
-    },
-    { headers: { 'Cache-Control': 'no-store' } },
-  );
 }
 async function rawBody(request: Request): Promise<Uint8Array> {
   if (Number(request.headers.get('content-length')) > MAX_BYTES) throw new RangeError('oversize');
@@ -91,9 +68,23 @@ async function sha256(body: Uint8Array): Promise<string> {
 function prepared(db: D1Database, statements: Statement[]): D1PreparedStatement[] {
   return statements.map(({ sql, args }) => db.prepare(sql).bind(...args));
 }
+function acknowledgement(payload: Delta, appliedRows: number): Response {
+  return Response.json(
+    {
+      version: 2,
+      dataset: payload.dataset,
+      checkpoint: payload.checkpoint,
+      page: payload.page,
+      appliedRows,
+      completed: true,
+    },
+    { headers: { 'Cache-Control': 'no-store' } },
+  );
+}
 export function registerSourceSync(app: Hono<ApiEnv>): void {
   app.post('/internal/source-sync', async (c) => {
     const request = c.req.raw;
+    if (c.env.SOURCE_SYNC_ENABLED !== 'true') return failure(503, 'SOURCE_SYNC_DISABLED');
     if (new URL(request.url).protocol !== 'https:' && c.env.ENVIRONMENT !== 'development')
       return failure(403, 'HTTPS_REQUIRED');
     if (request.headers.get('content-type')?.split(';', 1)[0]?.toLowerCase() !== 'application/json')
@@ -107,131 +98,110 @@ export function registerSourceSync(app: Hono<ApiEnv>): void {
       return failure(413, 'BODY_TOO_LARGE');
     }
     if (!(await authenticate(request, secret, body))) return failure(401, 'BAD_SIGNATURE');
-    let payload: SourceEnvelope;
-    let rawText: string;
+    let payload;
     try {
-      rawText = new TextDecoder('utf-8', { fatal: true, ignoreBOM: false }).decode(body);
-      payload = parseEnvelope(rawText);
+      payload = parseEnvelope(new TextDecoder('utf-8', { fatal: true, ignoreBOM: false }).decode(body));
     } catch (error) {
       if (error instanceof SyntaxError || error instanceof ZodError || error instanceof TypeError)
         return failure(400, 'INVALID_PAYLOAD');
       throw error;
     }
-    const { dataset, checkpoint, page, rows, final, totalRows } = payload;
     const db = c.env.DB;
+    if ('action' in payload) {
+      let rows;
+      try {
+        rows = await readBaseline(db, payload.dataset, payload.keys);
+      } catch (error) {
+        if (error instanceof Conflict) return failure(409, error.message);
+        if (error instanceof BaselineTooLarge) return failure(413, 'BASELINE_TOO_LARGE');
+        throw error;
+      }
+      const fragments: string[] = [];
+      let bytes = encoder.encode(`{"version":2,"dataset":${JSON.stringify(payload.dataset)},"rows":[]}`).byteLength;
+      for (const row of rows) {
+        const fragment = JSON.stringify(row);
+        bytes += encoder.encode(fragment).byteLength + Number(fragments.length > 0);
+        if (bytes > MAX_BASELINE_BYTES) return failure(413, 'BASELINE_TOO_LARGE');
+        fragments.push(fragment);
+      }
+      return new Response(
+        `{"version":2,"dataset":${JSON.stringify(payload.dataset)},"rows":[${fragments.join(',')}]}`,
+        { headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Cache-Control': 'no-store' } },
+      );
+    }
+    const { dataset, checkpoint, page, final } = payload;
     const pageHash = await sha256(body);
     const state = await db
-      .prepare(
-        'SELECT checkpoint,stage_checkpoint,next_page,staged_rows,stage_final,total_rows,applied_rows,completed_page FROM native_source_sync_state WHERE dataset=?',
-      )
+      .prepare('SELECT checkpoint,next_page,completed FROM native_source_sync_v2_state WHERE dataset=?')
       .bind(dataset)
       .first<State>();
     if (state && BigInt(checkpoint) <= BigInt(state.checkpoint)) {
       if (checkpoint !== state.checkpoint) return failure(409, 'STALE_CHECKPOINT');
-      const saved = await db.prepare(PAGE_ACK_SQL).bind(dataset, checkpoint, page).first<PageAck>();
-      return saved?.body_sha256 === pageHash
-        ? response(payload, saved.staged_rows, state.applied_rows, true)
-        : failure(409, 'ALTERED_PAGE');
+      const receipt = await db
+        .prepare(
+          'SELECT body_sha256,applied_rows FROM native_source_sync_v2_receipt WHERE dataset=? AND checkpoint=? AND page=?',
+        )
+        .bind(dataset, checkpoint, page)
+        .first<Receipt>();
+      if (receipt)
+        return receipt.body_sha256 === pageHash
+          ? acknowledgement(payload, receipt.applied_rows)
+          : failure(409, 'ALTERED_PAGE');
+      if (page !== state.next_page || state.completed) return failure(409, 'REORDERED_PAGE');
+    } else if (page !== 0 || state?.completed === 0) return failure(409, 'REORDERED_PAGE');
+    const operations =
+      new Set(payload.upserts.map((row) => canonicalKey(dataset, rowKey(dataset, row)))).size + payload.deletes.length;
+    let statements: Statement[];
+    try {
+      statements = await applyDelta(db, payload);
+    } catch (error) {
+      if (error instanceof Conflict) return failure(409, error.message);
+      throw error;
     }
-    if (state?.stage_checkpoint === checkpoint && page < state.next_page) {
-      const saved = await db.prepare(PAGE_ACK_SQL).bind(dataset, checkpoint, page).first<PageAck>();
-      if (saved?.body_sha256 !== pageHash) return failure(409, 'ALTERED_PAGE');
-      if (!final) return response(payload, saved.staged_rows, 0, false);
-    } else {
-      if (
-        (state?.stage_final && state.stage_checkpoint === checkpoint) ||
-        (page !== 0 && (state?.stage_checkpoint !== checkpoint || state.next_page !== page)) ||
-        (state?.stage_checkpoint && BigInt(checkpoint) < BigInt(state.stage_checkpoint))
-      )
-        return failure(409, 'REORDERED_PAGE');
-      if (
-        final &&
-        totalRows !==
-          (page === 0 && state?.stage_checkpoint !== checkpoint ? 0 : (state?.staged_rows ?? 0)) + rows.length
-      )
-        return failure(409, 'COUNT_MISMATCH');
-      const fresh = page === 0 && state?.stage_checkpoint !== checkpoint;
-      const previous = state?.stage_checkpoint ?? null;
-      const count = fresh ? 0 : (state?.staged_rows ?? 0);
-      const statements: Statement[] = [
-        { sql: 'INSERT OR IGNORE INTO native_source_sync_state(dataset) VALUES(?)', args: [dataset] },
-        {
-          sql: 'INSERT INTO native_source_sync_guard(valid) SELECT CASE WHEN checkpoint=? AND stage_checkpoint IS ? AND next_page=? AND (stage_final=0 OR ?=1) THEN 1 ELSE 0 END FROM native_source_sync_state WHERE dataset=?',
-          args: [state?.checkpoint ?? '0', previous, state?.next_page ?? 0, Number(fresh), dataset],
-        },
-      ];
-      if (fresh) {
-        statements.push(
-          {
-            sql: 'DELETE FROM native_source_sync_page WHERE dataset=? AND checkpoint<>?',
-            args: [dataset, state?.checkpoint ?? '0'],
-          },
-          { sql: 'DELETE FROM native_source_sync_row WHERE dataset=?', args: [dataset] },
-          { sql: 'DELETE FROM native_source_sync_article_gram WHERE checkpoint=?', args: [previous ?? ''] },
-        );
-      }
-      statements.push({
-        sql: 'INSERT INTO native_source_sync_page(dataset,checkpoint,page,body_sha256,row_count) VALUES(?,?,?,?,?)',
-        args: [dataset, checkpoint, page, pageHash, rows.length],
-      });
-      statements.push({
-        sql: `INSERT INTO native_source_sync_row(dataset,checkpoint,ordinal,payload)
-          SELECT ?,?,?+CAST(j.key AS INTEGER),json(j.value) FROM json_each(?,'$.rows') j`,
-        args: [dataset, checkpoint, count, rawText],
-      });
-      if (dataset === 'articles') {
-        const grams = rows.map((row) => {
-          if (!row || typeof row !== 'object' || !('title' in row) || typeof row.title !== 'string')
-            throw new TypeError('Validated source article is missing its title');
-          return ngrams(row.title);
-        });
-        statements.push({
-          sql: `INSERT INTO native_source_sync_article_gram(checkpoint,ordinal,grams)
-            SELECT ?,?+CAST(j.key AS INTEGER),json(j.value) FROM json_each(?) j`,
-          args: [checkpoint, count, JSON.stringify(grams)],
-        });
-      }
-      statements.push({
-        sql: 'UPDATE native_source_sync_state SET stage_checkpoint=?,next_page=?,staged_rows=?,stage_final=?,total_rows=? WHERE dataset=?',
-        args: [checkpoint, page + 1, count + rows.length, Number(final), totalRows ?? null, dataset],
-      });
-      statements.push({ sql: 'DELETE FROM native_source_sync_guard', args: [] });
-      try {
-        await db.batch(prepared(db, statements));
-      } catch (error) {
-        if (String(error).includes('native_source_sync_guard') || String(error).includes('UNIQUE constraint'))
-          return failure(409, 'CONCURRENT_PAGE');
-        throw error;
-      }
-      if (!final) return response(payload, count + rows.length, 0, false);
-    }
-    const guarded: Statement[] = [
+    // The guard and every changed business row execute in one D1 batch. A losing
+    // concurrent writer rolls back its entire page, including metadata.
+    const expected = state?.checkpoint ?? '0';
+    const next = state?.next_page ?? 0;
+    const completed = state?.completed ?? 1;
+    const batch: Statement[] = [
       {
-        sql: 'INSERT INTO native_source_sync_guard(valid) SELECT CASE WHEN stage_checkpoint=? AND checkpoint<? AND stage_final=1 AND next_page=? AND staged_rows=total_rows THEN 1 ELSE 0 END FROM native_source_sync_state WHERE dataset=?',
-        args: [checkpoint, checkpoint, page + 1, dataset],
+        sql: `INSERT OR IGNORE INTO native_source_sync_v2_state(dataset,checkpoint,next_page,completed) VALUES(?,'0',0,1)`,
+        args: [dataset],
       },
-      ...applyStatements(dataset, checkpoint),
       {
-        sql: 'UPDATE native_source_sync_state SET checkpoint=?,stage_checkpoint=NULL,stage_final=0,applied_rows=staged_rows,completed_page=? WHERE dataset=?',
-        args: [checkpoint, page, dataset],
+        sql: `INSERT INTO native_source_sync_v2_guard(valid)
+        SELECT CASE WHEN checkpoint=? AND next_page=? AND completed=? THEN 1 ELSE 0 END
+        FROM native_source_sync_v2_state WHERE dataset=?`,
+        args: [expected, next, completed, dataset],
       },
-      { sql: 'DELETE FROM native_source_sync_row WHERE dataset=? AND checkpoint=?', args: [dataset, checkpoint] },
-      { sql: 'DELETE FROM native_source_sync_page WHERE dataset=? AND checkpoint<>?', args: [dataset, checkpoint] },
-      { sql: 'DELETE FROM native_source_sync_guard', args: [] },
+      ...statements,
+      ...(page === 0
+        ? [
+            {
+              sql: 'DELETE FROM native_source_sync_v2_receipt WHERE dataset=? AND checkpoint<>?',
+              args: [dataset, checkpoint],
+            } satisfies Statement,
+          ]
+        : []),
+      {
+        sql: 'INSERT INTO native_source_sync_v2_receipt(dataset,checkpoint,page,body_sha256,applied_rows) VALUES(?,?,?,?,?)',
+        args: [dataset, checkpoint, page, pageHash, operations],
+      },
+      {
+        sql: 'UPDATE native_source_sync_v2_state SET checkpoint=?,next_page=?,completed=? WHERE dataset=?',
+        args: [checkpoint, page + 1, Number(final), dataset],
+      },
+      { sql: 'DELETE FROM native_source_sync_v2_guard', args: [] },
     ];
     let applied: D1Result[];
     try {
-      applied = await db.batch(prepared(db, guarded));
+      applied = await db.batch(prepared(db, batch));
     } catch (error) {
-      if (
-        String(error).includes('native_source_sync_guard') ||
-        String(error).includes('UNIQUE constraint') ||
-        String(error).includes('FOREIGN KEY constraint')
-      )
+      if (/native_source_sync_v2_guard|UNIQUE constraint|FOREIGN KEY constraint|CHECK constraint/.test(String(error)))
         return failure(409, 'SOURCE_CONFLICT');
       throw error;
     }
     if (dataset === 'articles') await signalOutbox(c.env, applied);
-    return response(payload, totalRows!, totalRows!, true);
+    return acknowledgement(payload, operations);
   });
 }

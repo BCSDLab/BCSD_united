@@ -1,5 +1,7 @@
 import { DurableObject } from 'cloudflare:workers';
+import { trustedDiagnostics } from './diagnostics';
 import { parseModelRequest } from './model';
+import { extractTailEvidence, tailKey } from './tail';
 import type { App, Diagnostic, Env, Identity, PatchManifest } from './types';
 export type { Env } from './types';
 export { AutofixQueue } from './queue';
@@ -87,7 +89,8 @@ export function configuration(env: Env): Configuration {
       sources.length > 100 ||
       Object.entries(projects).some(([project, app]) => !SENTRY_SLUG.test(project) || app !== 'web') ||
       (Object.keys(projects).length > 0 && (!SENTRY_SLUG.test(env.SENTRY_ORGANIZATION) || !env.SENTRY_CLIENT_SECRET)) ||
-      (sources.length > 0 && (env.CLOUDFLARE_WEBHOOK_SECRET?.length ?? 0) < 32) ||
+      (sources.length > 0 &&
+        ((env.CLOUDFLARE_WEBHOOK_SECRET?.length ?? 0) < 32 || (env.CLOUDFLARE_DIAGNOSTICS_TOKEN?.length ?? 0) < 30)) ||
       (Object.keys(projects).length === 0 && sources.length === 0) ||
       (env.DIAGNOSTICS_READ_TOKEN?.length ?? 0) < 32 ||
       (env.AUTOFIX_EXECUTOR_TOKEN?.length ?? 0) < 32 ||
@@ -119,8 +122,10 @@ export function configuration(env: Env): Configuration {
         app: source.app,
       };
     });
-    if (new Set(cloudflare.map((source) => `${source.accountId}/${source.policyId}`)).size !== cloudflare.length) {
-      throw new Error('Ambiguous policy');
+    // Native Issues notifications omit account_id. The secret identifies the account;
+    // a policy/Worker pair must therefore resolve to exactly one configured account.
+    if (new Set(cloudflare.map((source) => `${source.policyId}/${source.workerName}`)).size !== cloudflare.length) {
+      throw new Error('Ambiguous Cloudflare policy and Worker');
     }
     return {
       organization: env.SENTRY_ORGANIZATION,
@@ -266,7 +271,10 @@ export function validateIdentity(value: unknown, config: Configuration): Identit
       throw new RequestError(400, 'Invalid Cloudflare scope.');
     }
     const policyId = uuid(scope.policyId);
-    const source = config.cloudflare.find((item) => item.accountId === scope.accountId && item.policyId === policyId);
+    const source = config.cloudflare.find(
+      (item) =>
+        item.accountId === scope.accountId && item.policyId === policyId && item.workerName === scope.workerName,
+    );
     if (
       !source ||
       scope.workerName !== source.workerName ||
@@ -401,12 +409,25 @@ function redactData(value: unknown, env: Env): unknown {
 function cloudflarePayload(raw: unknown, config: Configuration, env: Env): Diagnostic | null {
   const webhook = record(raw);
   const policyId = uuid(webhook.policy_id);
-  const source = config.cloudflare.find((item) => item.accountId === webhook.account_id && item.policyId === policyId);
-  if (!source) throw new RequestError(403, 'Cloudflare account or policy is not allowlisted.');
+  const data = record(webhook.data);
+  const issue = record(data.issue);
+  const services = issue.services;
+  if (!Array.isArray(services) || services.length !== 1) {
+    throw new RequestError(400, 'Expected exactly one Issues service.');
+  }
+  const workerName = requiredString(record(services[0]).name, 'data.issue.services[0].name');
+  const source = config.cloudflare.find(
+    (item) =>
+      item.policyId === policyId &&
+      item.workerName === workerName &&
+      (webhook.account_id === undefined || item.accountId === webhook.account_id),
+  );
+  if (!source) throw new RequestError(403, 'Cloudflare policy or Worker is not allowlisted.');
+  uuid(webhook.alert_correlation_id);
   const identity = validateIdentity(
     {
       source: 'cloudflare',
-      sourceId: uuid(webhook.alert_correlation_id),
+      sourceId: uuid(issue.id),
       project: source.workerName,
       app: source.app,
       scope: { accountId: source.accountId, policyId, workerName: source.workerName },
@@ -423,8 +444,8 @@ function cloudflarePayload(raw: unknown, config: Configuration, env: Env): Diagn
   ) {
     throw new RequestError(400, 'Invalid notification envelope.');
   }
-  const data = record(webhook.data);
-  // Worker는 배포 설정의 Issues policy로 결정한다. 문서화되지 않은 data 필드는 식별 근거로 쓰지 않는다.
+  // The authenticated Issues policy and its single explicit service bind the Worker;
+  // notification text and other opaque diagnostic fields never choose a route.
   if (webhook.alert_event === 'ALERT_STATE_EVENT_END') return null;
   return diagnostic(
     identity,
@@ -478,7 +499,10 @@ function retrievalIdentity(url: URL, config: Configuration): Identity {
     );
   const policyId = uuid(url.searchParams.get('policyId'));
   const source = config.cloudflare.find(
-    (item) => item.accountId === url.searchParams.get('accountId') && item.policyId === policyId,
+    (item) =>
+      item.accountId === url.searchParams.get('accountId') &&
+      item.policyId === policyId &&
+      item.workerName === url.searchParams.get('workerName'),
   );
   return validateIdentity(
     {
@@ -699,90 +723,51 @@ export default {
       ) {
         return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
       }
-      if (
-        url.pathname === '/webhooks/cloudflare' &&
-        json !== null &&
-        typeof json === 'object' &&
-        !Array.isArray(json) &&
-        'policy_id' in json
-      ) {
-        const shape = (value: unknown): [string, string][] =>
-          value !== null && typeof value === 'object' && !Array.isArray(value)
-            ? Object.entries(value)
-                .slice(0, 40)
-                .filter(([key]) => /^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(key))
-                .map(([key, child]) => [key, Array.isArray(child) ? 'array' : typeof child])
-            : [];
-        const data = 'data' in json ? json.data : null;
-        const nested =
-          data !== null && typeof data === 'object' && !Array.isArray(data)
-            ? Object.entries(data)
-                .slice(0, 20)
-                .filter(
-                  ([key, child]) =>
-                    /^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(key) &&
-                    child !== null &&
-                    typeof child === 'object' &&
-                    !Array.isArray(child),
-                )
-                .map(([key, child]) => [key, shape(child)])
-            : [];
-        const issueValue =
-          data !== null && typeof data === 'object' && !Array.isArray(data) && 'issue' in data ? data.issue : null;
-        const services =
-          issueValue !== null &&
-          typeof issueValue === 'object' &&
-          !Array.isArray(issueValue) &&
-          'services' in issueValue &&
-          Array.isArray(issueValue.services)
-            ? issueValue.services.slice(0, 5)
-            : [];
-        const serviceShapes = services.map((service) => ({
-          type: Array.isArray(service) ? 'array' : typeof service,
-          fields: shape(service),
-          exact:
-            typeof service === 'string'
-              ? { web: service === 'koin-web', api: service === 'koin-api' }
-              : service !== null && typeof service === 'object' && !Array.isArray(service)
-                ? Object.entries(service)
-                    .filter(([key, value]) => /^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(key) && typeof value === 'string')
-                    .map(([key, value]) => ({ key, web: value === 'koin-web', api: value === 'koin-api' }))
-                : null,
-        }));
-        console.info('Cloudflare native Issues envelope shape', {
-          bodyBytes: body.byteLength,
-          top: shape(json),
-          data: shape(data),
-          nested,
-          serviceShapes,
-          policyMatchesApproved: json.policy_id === '3bcbfa2a0c04416ca7e3da038f77ac37',
-          accountProvided: 'account_id' in json,
-          issueIdMatchesCanonical:
-            issueValue !== null &&
-            typeof issueValue === 'object' &&
-            !Array.isArray(issueValue) &&
-            'id' in issueValue &&
-            issueValue.id === '0087a4dd-dcd0-471f-9850-617dd3cccd37',
-          issueIdIsUuid:
-            issueValue !== null &&
-            typeof issueValue === 'object' &&
-            !Array.isArray(issueValue) &&
-            'id' in issueValue &&
-            typeof issueValue.id === 'string' &&
-            /^(?:[a-f0-9]{32}|[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12})$/.test(issueValue.id),
-        });
-      }
       const config = configuration(env);
       const capture =
         url.pathname === '/webhooks/sentry'
           ? sentryPayload(request.headers.get('Sentry-Hook-Resource'), json, config, env)
           : cloudflarePayload(json, config, env);
       if (!capture) return reply(200, { status: 'ignored' });
+      if (capture.identity.source === 'cloudflare') {
+        try {
+          capture.details.verifiedEvidence = await trustedDiagnostics(env, capture.identity, capture);
+        } catch {
+          return reply(503, { error: 'Authenticated Cloudflare route and mapped source evidence unavailable.' });
+        }
+      }
       const stub = env.ERROR_ISSUES.get(env.ERROR_ISSUES.idFromName(identityKey(capture.identity)));
       return await stub.fetch('https://error-dispatch.internal/', { method: 'POST', body: JSON.stringify(capture) });
     } catch (error) {
       if (error instanceof RequestError) return reply(error.status, { error: error.message });
       return reply(503, { error: 'Webhook processing failed; retry this delivery.' });
+    }
+  },
+  async tail(events: TraceItem[], env: Env): Promise<void> {
+    if (env.ENVIRONMENT !== 'production') return;
+    let config: Configuration | undefined;
+    for (let index = 0; index < events.length && index < 20; index += 1) {
+      const item = events[index];
+      if (
+        (item.scriptName !== 'koin-web' && item.scriptName !== 'koin-api') ||
+        (!item.exceptions.length && !item.logs.some((log) => log.level === 'error' && log.errorInfo?.length))
+      )
+        continue;
+      config ??= configuration(env);
+      const source = config.cloudflare.find((candidate) => candidate.workerName === item.scriptName);
+      if (!source) continue;
+      const evidence = extractTailEvidence(item, source.workerName, source.app);
+      if (!evidence) continue;
+      const stub = env.ERROR_ISSUES.get(env.ERROR_ISSUES.idFromName(tailKey(evidence.workerName, evidence.rayId)));
+      const response = await stub.fetch('https://error-dispatch.internal/tail', {
+        method: 'POST',
+        body: JSON.stringify(evidence),
+      });
+      if (!response.ok) {
+        await response.body?.cancel();
+        throw new Error('Trusted Tail evidence was not persisted');
+      }
+      await response.body?.cancel();
     }
   },
 } satisfies ExportedHandler<Env>;
@@ -800,6 +785,11 @@ export class ErrorIssueDispatch extends DurableObject<Env> {
       accepted_at TEXT,
       queue_admitted_at TEXT
     )`);
+    state.storage.sql.exec(`CREATE TABLE IF NOT EXISTS tail_evidence (
+      singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+      evidence TEXT NOT NULL,
+      expires_at INTEGER NOT NULL
+    )`);
     // v1 persisted GitHub Actions acceptance, not outbound executor queue admission.
     // Preserve the historical timestamp while allowing one clean enqueue after cutover.
     const columns = state.storage.sql.exec<{ name: string }>('PRAGMA table_info(dispatch)').toArray();
@@ -809,6 +799,7 @@ export class ErrorIssueDispatch extends DurableObject<Env> {
 
   async alarm(): Promise<void> {
     this.ctx.storage.sql.exec('UPDATE dispatch SET diagnostic = NULL WHERE expires_at <= ?', Date.now());
+    this.ctx.storage.sql.exec('DELETE FROM tail_evidence WHERE expires_at <= ?', Date.now());
     await this.ctx.storage.sync();
   }
 
@@ -829,6 +820,68 @@ export class ErrorIssueDispatch extends DurableObject<Env> {
             'X-Content-Type-Options': 'nosniff',
           },
         });
+      }
+      if (new URL(request.url).pathname === '/tail') {
+        if (request.method === 'GET') {
+          const row = this.ctx.storage.sql
+            .exec<{ evidence: string; expires_at: number }>(
+              'SELECT evidence, expires_at FROM tail_evidence WHERE singleton = 1',
+            )
+            .toArray()[0];
+          if (!row || row.expires_at <= Date.now()) return reply(404, { error: 'Tail evidence unavailable.' });
+          return new Response(row.evidence, {
+            headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+          });
+        }
+        if (request.method !== 'POST') return reply(405, { error: 'Use POST.' });
+        const bytes = await boundedBody(request, 4096);
+        const evidence = record(JSON.parse(new TextDecoder('utf-8', { fatal: true, ignoreBOM: false }).decode(bytes)));
+        const config = configuration(this.env);
+        const source = config.cloudflare.find((item) => item.workerName === evidence.workerName);
+        if (
+          Object.keys(evidence).sort().join(',') !==
+            'eventTimestamp,frames,rayId,route,scriptVersion,version,workerName' ||
+          evidence.version !== 1 ||
+          !source ||
+          typeof evidence.rayId !== 'string' ||
+          !/^[a-f0-9]{16}$/.test(evidence.rayId) ||
+          typeof evidence.scriptVersion !== 'string' ||
+          !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(evidence.scriptVersion) ||
+          !Number.isSafeInteger(evidence.eventTimestamp) ||
+          (evidence.eventTimestamp as number) < Date.now() - RETENTION_MS ||
+          typeof evidence.route !== 'string' ||
+          evidence.route.length > 200 ||
+          !/^\/[A-Za-z0-9_/-]*$/.test(evidence.route) ||
+          evidence.route.startsWith('//') ||
+          !Array.isArray(evidence.frames) ||
+          evidence.frames.length === 0 ||
+          evidence.frames.length > 12 ||
+          evidence.frames.some((value) => {
+            const frame = record(value);
+            return (
+              Object.keys(frame).sort().join(',') !== 'column,line,path' ||
+              typeof frame.path !== 'string' ||
+              !frame.path.startsWith(`apps/${source.app}/src/`) ||
+              frame.path.length > 180 ||
+              frame.path.includes('..') ||
+              !Number.isSafeInteger(frame.line) ||
+              (frame.line as number) < 1 ||
+              !Number.isSafeInteger(frame.column) ||
+              (frame.column as number) < 1
+            );
+          })
+        )
+          throw new RequestError(400, 'Invalid bounded Tail evidence.');
+        const expiresAt = (evidence.eventTimestamp as number) + RETENTION_MS;
+        this.ctx.storage.sql.exec(
+          `INSERT INTO tail_evidence (singleton, evidence, expires_at) VALUES (1, ?, ?)
+           ON CONFLICT(singleton) DO UPDATE SET evidence = excluded.evidence, expires_at = excluded.expires_at`,
+          JSON.stringify(evidence),
+          expiresAt,
+        );
+        await this.ctx.storage.setAlarm(expiresAt);
+        await this.ctx.storage.sync();
+        return new Response(null, { status: 204 });
       }
       if (request.method !== 'POST' || new URL(request.url).pathname !== '/')
         return reply(404, { error: 'Not found.' });

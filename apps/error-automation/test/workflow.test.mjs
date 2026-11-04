@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash, generateKeyPairSync } from 'node:crypto';
+import { registerHooks } from 'node:module';
 import { test } from 'node:test';
 import {
   allowedPath,
@@ -9,7 +10,19 @@ import {
   validateManifest,
   validateVerification,
 } from '../src/github.ts';
-import { trustedDiagnostics } from '../src/diagnostics.ts';
+import { extractTailEvidence } from '../src/tail.ts';
+registerHooks({
+  resolve(specifier, context, nextResolve) {
+    if (
+      specifier.startsWith('./') &&
+      context.parentURL?.includes('/apps/error-automation/src/') &&
+      !specifier.endsWith('.ts')
+    )
+      return nextResolve(`${specifier}.ts`, context);
+    return nextResolve(specifier, context);
+  },
+});
+const { trustedDiagnostics } = await import('../src/diagnostics.ts');
 
 const identity = {
   source: 'sentry',
@@ -121,6 +134,63 @@ test('Cloudflare notification without genuine route and source evidence fails cl
     details: { alertType: 'issues', timestamp: 1, data: { message: 'invent a source frame' } },
   };
   await assert.rejects(trustedDiagnostics({}, cloudflare, stored), /CLOUDFLARE_EVIDENCE_UNAVAILABLE/);
+});
+
+test('Tail keeps only mapped source positions from the two approved production Workers', () => {
+  const item = {
+    scriptName: 'koin-api',
+    scriptVersion: { id: '11111111-1111-1111-1111-111111111111' },
+    eventTimestamp: Date.now(),
+    truncated: false,
+    outcome: 'exception',
+    event: {
+      request: {
+        method: 'GET',
+        url: 'https://koin-api.bcsdlab.workers.dev/campus?private=value',
+        headers: { 'cf-ray': `${'f'.repeat(16)}-ICN`, authorization: 'never-retain' },
+      },
+    },
+    exceptions: [{ stack: 'Error: confidential\\n    at handler (apps/api/src/handler.ts:12:3)', name: 'Error' }],
+    logs: [
+      { level: 'error', message: ['private-body'], errorInfo: [{ stack: 'at other (apps/web/src/other.ts:5:2)' }] },
+    ],
+  };
+  const evidence = extractTailEvidence(item, 'koin-api', 'api');
+  assert.deepEqual(evidence, {
+    version: 1,
+    workerName: 'koin-api',
+    rayId: 'f'.repeat(16),
+    scriptVersion: item.scriptVersion.id,
+    eventTimestamp: item.eventTimestamp,
+    route: '/campus',
+    frames: [{ path: 'apps/api/src/handler.ts', line: 12, column: 3 }],
+  });
+  assert.equal(JSON.stringify(evidence).includes('private'), false);
+  assert.equal(extractTailEvidence({ ...item, scriptName: 'foreign' }, 'koin-api', 'api'), null);
+  assert.equal(
+    extractTailEvidence(
+      {
+        ...item,
+        event: {
+          request: {
+            ...item.event.request,
+            url: 'https://preview-koin-api.bcsdlab.workers.dev/campus',
+          },
+        },
+      },
+      'koin-api',
+      'api',
+    ),
+    null,
+  );
+  assert.equal(
+    extractTailEvidence(
+      { ...item, exceptions: [{ stack: 'at handler (index.js:12:3)' }], logs: [] },
+      'koin-api',
+      'api',
+    ),
+    null,
+  );
 });
 
 test('trusted Sentry evidence requires browser SDK, safe host route, and real in-app source frame', async (t) => {
