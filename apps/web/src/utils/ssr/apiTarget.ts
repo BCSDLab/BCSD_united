@@ -73,6 +73,8 @@ export const apiRequestAdapter: AxiosAdapter = async (config) => {
       body: config.data,
       signal: controller.signal,
       credentials: config.withCredentials === false ? 'omit' : 'include',
+      // 세션 쿠키를 실어 보내므로 외부 API의 리다이렉트를 따라가 다른 호스트로 자격 증명을 넘기지 않는다
+      redirect: 'manual',
     });
     cancelToken?.subscribe(cancel);
     config.signal?.addEventListener?.('abort', onAbort);
