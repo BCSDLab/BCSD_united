@@ -53,7 +53,9 @@ Sentry는 `https://sentry.io/api/0/organizations/<org>/issues/<id>/` 및 `events
 
 Worker secret은 웹훅별 `SENTRY_CLIENT_SECRET`/`CLOUDFLARE_WEBHOOK_SECRET`, canonical Sentry read 전용 `SENTRY_READ_TOKEN`, 진단 읽기 전용 `DIAGNOSTICS_READ_TOKEN`, 단일 GitHub App의 기존 `GITHUB_DISPATCH_APP_PRIVATE_KEY`, Anthropic `ANTHROPIC_API_KEY`, 전용 `AUTOFIX_EXECUTOR_TOKEN`이다. 전용 실행기는 마지막 토큰만 안전한 host 설정 파일에서 사용하고 GitHub/Anthropic/provider 비밀을 받지 않는다. 기존 App 이름 `GITHUB_DISPATCH_*`은 저장된 한 App의 배포 설정명일 뿐 GitHub dispatch 실행을 뜻하지 않는다. App은 **BCSDLab/BCSD_united 하나**에만 설치되며 Worker가 역할별 contents/issues/pull requests read 또는 write 범위의 설치 토큰을 필요한 순간 발급한다.
 
-`AUTOFIX_EXECUTOR_ID=koin-rocky-umpc`로 고정한다. 실행기는 고정 HTTPS Worker origin에만 `Authorization: Bearer <AUTOFIX_EXECUTOR_TOKEN>` 및 `X-Executor-Id: koin-rocky-umpc`를 보내며 호스트 인바운드 네트워크 포트를 열지 않는다. `/executor/claim`의 `claimNonce` 64자리 hex를 비밀 파일과 분리해 먼저 영속하고, 응답 유실 때 같은 nonce로 동일 lease를 재요청한다. 204는 대기 작업 없음, 200은 고정 repo/base SHA/diagnostics/context/issue/lease. 2분 rolling heartbeat·90분 절대 기한·동시 한 작업을 적용한다.
+`AUTOFIX_EXECUTOR_ID=koin-rocky-umpc`로 고정한다. 실행기는 고정 HTTPS Worker origin에만 `Authorization: Bearer <AUTOFIX_EXECUTOR_TOKEN>` 및 `X-Executor-Id: koin-rocky-umpc`를 보내며 호스트 인바운드 네트워크 포트를 열지 않는다. `/executor/claim`의 `claimNonce` 64자리 hex를 비밀 파일과 분리해 먼저 영속하고, 응답 유실 때 같은 nonce로 동일 lease를 재요청한다. 204는 대기 작업 없음, 200은 고정 repo/base SHA/diagnostics/context/issue/lease. 2분 rolling heartbeat·90분 절대 기한·동시 한 작업을 적용한다. claim(신규·재개 모두)은 Worker가 확인한 `leaseExpiresAt`(안전 정수, 미래, `deadlineAt` 이하)을 반드시 포함하며, 실행기는 이를 마지막 확인 만료로 삼아 시작한다.
+
+실행기 lease 유지(`keepLease`): heartbeat는 45초 간격이며 한 번에 하나만 보낸다. Worker가 확인한 마지막 `leaseExpiresAt`만 사실로 취급하고, 확인되지 않은 heartbeat는 lease를 연장한 것으로 간주하지 않는다. 연결 시간 초과·연결 거부/재설정·네트워크 도달 불가·30초 요청 시간 초과 같은 전송 계층 실패만 5초 뒤 재시도하되, 마지막 확인 만료에서 15초 안전 여유를 뺀 시점 안에 재시도가 들어갈 때만 한다. HTTP 상태 거부(인증·정책·409 등), TLS 실패, 잘못된 응답 본문, `deadlineAt` 불일치, 15초 여유보다 짧은 만료는 즉시 작업을 중단한다. 독립 fail-closed 타이머가 확인 만료 − 15초에 작업을 중단하므로 heartbeat 요청이 멈춰도 알려진 lease를 넘겨 실행하지 않으며, 그때 진행 중인 heartbeat 요청도 취소한다. 작업 완료·종료 시 타이머와 진행 중 요청을 모두 정리해 늦게 도착한 응답이 다음 작업에 영향을 주지 않는다. 확인 만료가 이미 절대 기한과 같으면 더 연장할 수 없으므로 heartbeat를 보내지 않는다.
 
 `/executor/jobs/<runId>/model`은 살아 있는 generation lease에서만 요청한다. Worker가 정적 system prompt/고정 Fable 모델/Read·Edit·Write·Glob·Grep JSON schema만 Anthropic `/v1/messages`로 전송하고 API key를 Worker 밖에 내보내지 않는다. 모델 메시지의 파일 요청은 실행기에서 허용 경로·symlink·앱 경계를 다시 검사한다. 모델 호출 40회·generation 20분·본문 256 KB 제한은 두 모드에 공통이다. 파일 도구는 단일 오류 수정에서 40회, 여러 파일의 diff와 관련 코드를 검토하는 PR에서 256회까지 허용한다. PR 검토는 diff 중심의 좁은 줄 범위와 독립 읽기 묶음을 사용한다. 후보 workspace는 이슈 진단을 **자료**로만 다루며 shell/network/MCP/GitHub credential을 사용할 수 없다.
 
@@ -65,7 +67,7 @@ Rocky/UMPC의 root 신뢰 실행기는 고정 SHA 소스에서 후보와 독립 
 
 두 단계는 `PNPM_CONFIG_CACHE_DIR=/work/node_modules/.cache/pnpm`을 공유한다. 온라인 획득 단계의 공급망 정책 검증 캐시를 오프라인 rebuild에서도 사용하며, 정책 검사 자체를 끄거나 lifecycle에 네트워크를 열지 않는다.
 
-heartbeat 실패 원인과 중단·실패한 하위 명령의 마지막 12 KB는 실행기 운영 로그에만 남긴다. URL과 긴 토큰형 문자열은 제거하며, 이 진단을 PR 댓글이나 검증 성공 증거로 사용하지 않는다.
+heartbeat 실패 원인(원인 체인의 오류 코드 포함)과 중단·실패한 하위 명령의 마지막 12 KB는 실행기 운영 로그에만 남긴다. URL과 긴 토큰형 문자열은 제거하고 사유는 500자로 제한하며, 이 진단을 PR 댓글이나 검증 성공 증거로 사용하지 않는다.
 
 2026-10-29 Rocky 호스트에서 고정 커밋 `68c6d24`의 root 컨트롤러 이미지로 오프라인 전체 스모크가 종료 코드 0으로 완료됐다. 검증 코드가 Docker 내부 `id -u`의 비루트 일치를 확인했고, 실제 로컬 API/D1 GET·홈 SSR/Chromium·390px 모바일 게이트가 통과했으며 격리 컨테이너와 소스 스냅샷 정리까지 끝났다. 이는 후보 패치의 회귀 전후 검증, 실제 제공자 호출 또는 운영 PR 발행의 증거는 아니다.
 
@@ -108,7 +110,7 @@ PR 모드의 온라인 설치에는 `--ignore-pnpmfile`도 강제합니다. `--i
 
 proof는 `{headSha, baseSha, sha256(manifest), checks:['pr-head-pinned','native-fixture-tests','typecheck','autofix-security-tests','lint','build','runtime-route-smoke'], profiles}`이며 실행기가 headSha/baseSha/sha256/check 목록을 대조한 뒤 `{outcome:'pr-reviewed', manifest, review, verification:{headSha, baseSha, manifestSha256, passedChecks}}`를 제출한다. 어떤 check라도 실패하면 `failed` + 사유다. **PR 모드에 한해** Worker가 `pr-reviewed` 결과를 422/409/400으로 거부하면 같은 bytes를 무한 재시도하지 않고 한 번 `failed` 기록으로 낮춘 뒤 nonce를 돌린다(오류 모드의 durable receipt 재전송 의미는 그대로다). 발행(원본 head 부모의 correction commit, 비-force head 갱신, 리뷰 COMMENT, 영수증)과 merge 판단은 Worker/운영자 몫이며 실행기는 GitHub 자격 증명을 갖지 않는다.
 
-결정적 로컬 검사: `node --test scripts/autofix/security.test.mjs scripts/autofix/executor.test.mjs scripts/autofix/executor-model.test.mjs scripts/autofix/pr-review.test.mjs` (경로 정책, 프로필 도출, reviewContext 경계, 구조화 리뷰 파서, B-BOT smoke 설정, API 게이트 감지, claim union 검증).
+결정적 로컬 검사: `node --test scripts/autofix/security.test.mjs scripts/autofix/executor.test.mjs scripts/autofix/executor-model.test.mjs scripts/autofix/pr-review.test.mjs` (경로 정책, 프로필 도출, reviewContext 경계, 구조화 리뷰 파서, B-BOT smoke 설정, API 게이트 감지, claim union·`leaseExpiresAt` 검증, mock 타이머 기반 lease heartbeat 복구·여유 중단·거부 즉시 중단·정리).
 
 ## 프롬프트 출처와 적용 범위
 
