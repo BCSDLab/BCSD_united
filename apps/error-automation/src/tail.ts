@@ -16,9 +16,21 @@ export const SOURCE_HOSTS: Record<string, readonly string[]> = {
   'koin-api': ['koin-api.bcsdlab.workers.dev'],
 };
 const UUID = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;
-const FRAME = /\bapps\/(web|api)\/src\/([A-Za-z0-9_./-]+\.(?:ts|tsx|js|jsx)):(\d+):(\d+)/g;
+const FRAME =
+  /(?:^|[\s(])((?:(?:apps\/(?:web|api)\/)?src\/|assets\/)[A-Za-z0-9_.$/-]+\.(?:ts|tsx|js|jsx)|index\.js):(\d+):(\d+)(?=[\s)]|$)/gm;
 
-/** Retain only provider-mapped file positions, never raw Tail headers, URLs, logs or messages. */
+export function sourcePath(path: string, app: App): string | null {
+  if (path.length > 180 || path.includes('..')) return null;
+  const match = /^(?:apps\/(web|api)\/)?src\/([A-Za-z0-9_.$/-]+\.(?:ts|tsx|js|jsx))$/.exec(path);
+  if (!match || (match[1] && match[1] !== app)) return null;
+  return `apps/${app}/src/${match[2]}`;
+}
+
+export function isBundlePath(path: string): boolean {
+  return path.length <= 180 && !path.includes('..') && /^(?:assets\/[A-Za-z0-9_.$/-]+\.js|index\.js)$/.test(path);
+}
+
+/** 원문 로그 없이 위치만 보존한다. 번들 위치는 접수 시 같은 배포 버전의 소스맵으로 검증한다. */
 export function extractTailEvidence(item: TraceItem, workerName: string, app: App): TailEvidence | null {
   if (
     item.scriptName !== workerName ||
@@ -76,9 +88,10 @@ export function extractTailEvidence(item: TraceItem, workerName: string, app: Ap
   for (const stack of stacks) {
     if (stack.length > 16_384) continue;
     for (const match of stack.matchAll(FRAME)) {
-      if (match[1] !== app || match[2].length > 160 || match[2].includes('..')) continue;
-      const line = Number(match[3]),
-        column = Number(match[4]);
+      const path = sourcePath(match[1], app) ?? (isBundlePath(match[1]) ? match[1] : null);
+      if (!path) continue;
+      const line = Number(match[2]),
+        column = Number(match[3]);
       if (
         !Number.isSafeInteger(line) ||
         line < 1 ||
@@ -88,7 +101,6 @@ export function extractTailEvidence(item: TraceItem, workerName: string, app: Ap
         column > 10_000
       )
         continue;
-      const path = `apps/${app}/src/${match[2]}`;
       const key = `${path}:${line}:${column}`;
       if (seen.has(key)) continue;
       seen.add(key);

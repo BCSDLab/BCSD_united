@@ -143,7 +143,8 @@ function harness(t) {
   // Module-level nativeFetch: several harnesses in one test must not chain or leak mocks.
   let mocked = false;
   const occurrenceHost = {};
-  async function seedTail(workerName = 'koin-api', host = `${workerName}.bcsdlab.workers.dev`) {
+  const compiled = 'function handler() {}\n//# sourceMappingURL=handler.js.map';
+  async function seedTail(workerName = 'koin-api', host = `${workerName}.bcsdlab.workers.dev`, sourceFormat = 'full') {
     occurrenceHost[workerName] = host;
     if (!mocked) {
       mocked = true;
@@ -175,7 +176,36 @@ function harness(t) {
           });
         }
         if (url.pathname.endsWith(`/versions/${cfVersion}`))
-          return Response.json({ success: true, result: { id: cfVersion } });
+          return Response.json({
+            success: true,
+            result: {
+              id: cfVersion,
+              ...(url.searchParams.get('include') === 'modules'
+                ? {
+                    modules: [{ name: 'assets/handler.js', content_base64: Buffer.from(compiled).toString('base64') }],
+                  }
+                : {}),
+            },
+          });
+        if (url.pathname.endsWith('/scripts/koin-web') && url.searchParams.get('deployment') === cfVersion) {
+          const parts = new FormData();
+          parts.set(
+            'assets/handler.js',
+            new Blob([compiled], { type: 'application/javascript+module' }),
+            'assets/handler.js',
+          );
+          parts.set(
+            'assets/handler.js.map',
+            JSON.stringify({
+              version: 3,
+              file: 'assets/handler.js',
+              sources: ['src/handler.ts'],
+              names: [],
+              mappings: 'AAWE',
+            }),
+          );
+          return new Response(parts);
+        }
         if (url.pathname.endsWith('/telemetry/query')) {
           const query = JSON.parse(init.body);
           const project = query.parameters.filters.find((filter) => filter.key === '$metadata.service').value;
@@ -220,7 +250,10 @@ function harness(t) {
             },
           },
           exceptions: [
-            { name: 'TypeError', stack: `TypeError: sensitive\\n at handler (apps/${app}/src/handler.ts:12:3)` },
+            {
+              name: 'TypeError',
+              stack: `TypeError: sensitive\n at handler (${sourceFormat === 'bundle' ? 'assets/handler.js:1:1' : `${sourceFormat === 'relative' ? 'src' : `apps/${app}/src`}/handler.ts:12:3`})`,
+            },
           ],
           logs: [],
         },
@@ -232,7 +265,10 @@ function harness(t) {
     if (storedTail.status !== 200) return false;
     const persisted = await storedTail.text();
     assert.equal(persisted.includes('sensitive'), false);
-    assert.equal(JSON.parse(persisted).frames[0].path, `apps/${app}/src/handler.ts`);
+    assert.equal(
+      JSON.parse(persisted).frames[0].path,
+      sourceFormat === 'bundle' ? 'assets/handler.js' : `apps/${app}/src/handler.ts`,
+    );
     return true;
   }
   t.after(() => {
@@ -662,6 +698,47 @@ test('one provider policy keeps web and API issue identities separate', async (t
   sources.push({ accountId: 'e'.repeat(32), policyId: cfPolicy, workerName: 'koin-api', app: 'api' });
   ambiguous.env.CLOUDFLARE_SOURCES = JSON.stringify(sources);
   assert.equal((await ambiguous.send(cloudflareRequest(ambiguous))).status, 503);
+});
+
+test('app-relative mapped Tail evidence reaches the queue for the authenticated production issue', async (t) => {
+  const h = harness(t);
+  const web = cloudflare({
+    data: { issue: { id: 'e'.repeat(32), services: [{ name: 'koin-web', type: 'worker' }] } },
+  });
+  assert.equal(await h.seedTail('koin-web', 'koreatech.in', 'relative'), true);
+  assert.equal((await h.send(cloudflareRequest(h, web))).status, 200);
+  assert.deepEqual(
+    [...h.queue.values()],
+    [
+      {
+        source: 'cloudflare',
+        sourceId: 'e'.repeat(32),
+        project: 'koin-web',
+        app: 'web',
+        scope: { accountId: cfAccount, policyId: cfPolicy, workerName: 'koin-web' },
+      },
+    ],
+  );
+});
+
+test('bundled Tail locations require the pinned map before the production issue reaches the queue', async (t) => {
+  const h = harness(t);
+  const web = cloudflare({
+    data: { issue: { id: 'e'.repeat(32), services: [{ name: 'koin-web', type: 'worker' }] } },
+  });
+  assert.equal(await h.seedTail('koin-web', 'koreatech.in', 'bundle'), true);
+  assert.equal((await h.send(cloudflareRequest(h, web))).status, 200);
+  const response = await h.send(
+    diagnosticRequest(h, {
+      id: 'e'.repeat(32),
+      query: `project=koin-web&accountId=${cfAccount}&policyId=${cfPolicy}&workerName=koin-web`,
+    }),
+  );
+  const diagnostic = await response.json();
+  assert.deepEqual(diagnostic.details.verifiedEvidence.data.sourceFrames, [
+    { path: 'apps/web/src/handler.ts', line: 12, column: 3 },
+  ]);
+  assert.equal(h.queue.size, 1);
 });
 
 test('koin-web custom domain koreatech.in is accepted exactly; unrelated hosts never admit a job', async (t) => {

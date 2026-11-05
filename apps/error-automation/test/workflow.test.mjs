@@ -23,6 +23,7 @@ registerHooks({
   },
 });
 const { trustedDiagnostics } = await import('../src/diagnostics.ts');
+const { mappedTailFrames } = await import('../src/source-maps.ts');
 
 const identity = {
   source: 'sentry',
@@ -136,7 +137,7 @@ test('Cloudflare notification without genuine route and source evidence fails cl
   await assert.rejects(trustedDiagnostics({}, cloudflare, stored), /CLOUDFLARE_EVIDENCE_UNAVAILABLE/);
 });
 
-test('Tail keeps only mapped source positions from the two approved production Workers', () => {
+test('Tail keeps bounded positions from the two approved production Workers', () => {
   const item = {
     scriptName: 'koin-api',
     scriptVersion: { id: '11111111-1111-1111-1111-111111111111' },
@@ -183,13 +184,126 @@ test('Tail keeps only mapped source positions from the two approved production W
     ),
     null,
   );
-  assert.equal(
-    extractTailEvidence(
-      { ...item, exceptions: [{ stack: 'at handler (index.js:12:3)' }], logs: [] },
-      'koin-api',
-      'api',
+  assert.deepEqual(
+    extractTailEvidence({ ...item, exceptions: [{ stack: 'at handler (index.js:12:3)' }], logs: [] }, 'koin-api', 'api')
+      ?.frames,
+    [{ path: 'index.js', line: 12, column: 3 }],
+  );
+});
+
+test('Tail resolves app-relative source-mapped frames without accepting foreign paths', () => {
+  const item = {
+    scriptName: 'koin-web',
+    scriptVersion: { id: '11111111-1111-1111-1111-111111111111' },
+    eventTimestamp: Date.now(),
+    truncated: false,
+    outcome: 'ok',
+    event: { request: { method: 'GET', url: 'https://koreatech.in/', headers: { 'cf-ray': 'a'.repeat(16) } } },
+    exceptions: [],
+    logs: [
+      {
+        level: 'error',
+        errorInfo: [
+          {
+            stack:
+              'HttpError: Request failed\n    at send (src/utils/ts/apiClient.ts:201:17)\n    at page (src/routes/store.$id.index.tsx:25:4)',
+          },
+        ],
+      },
+    ],
+  };
+  assert.deepEqual(extractTailEvidence(item, 'koin-web', 'web')?.frames, [
+    { path: 'apps/web/src/utils/ts/apiClient.ts', line: 201, column: 17 },
+    { path: 'apps/web/src/routes/store.$id.index.tsx', line: 25, column: 4 },
+  ]);
+  for (const path of [
+    'apps/api/src/handler.ts',
+    '../src/handler.ts',
+    'src/../private.ts',
+    'https://attacker.example/src/handler.ts',
+    'foreign/src/handler.ts',
+  ]) {
+    const logs = [{ level: 'error', errorInfo: [{ stack: `at handler (${path}:12:3)` }] }];
+    assert.equal(extractTailEvidence({ ...item, logs }, 'koin-web', 'web'), null, path);
+  }
+});
+
+function sourceMapFixture(
+  t,
+  { source = 'src/handler.ts', compiled, mapFile = 'assets/handler.js', duplicate = false } = {},
+) {
+  const code = 'function handler() {}\n//# sourceMappingURL=handler.js.map';
+  const version = {
+    id: '11111111-1111-1111-1111-111111111111',
+    modules: [{ name: 'assets/handler.js', content_base64: Buffer.from(code).toString('base64') }],
+  };
+  t.mock.method(globalThis, 'fetch', async () => {
+    const parts = new FormData();
+    parts.set(
+      'assets/handler.js',
+      new Blob([compiled ?? code], { type: 'application/javascript+module' }),
+      'assets/handler.js',
+    );
+    parts.set(
+      'assets/handler.js.map',
+      JSON.stringify({
+        version: 3,
+        file: mapFile,
+        sources: [source],
+        sourcesContent: ['private source content'],
+        names: [],
+        mappings: 'AAAA,GAEI',
+      }),
+    );
+    if (duplicate) parts.append('assets/handler.js.map', '{}');
+    return new Response(parts);
+  });
+  return {
+    version,
+    map: (frames = [{ path: 'assets/handler.js', line: 1, column: 4 }]) =>
+      mappedTailFrames('koin-web', 'web', version.id, version, frames, 'scoped-read-token'),
+  };
+}
+
+test('pinned bundle mapping preserves original line/column and exposes positions only', async (t) => {
+  const fixture = sourceMapFixture(t);
+  assert.deepEqual(await fixture.map(), [{ path: 'apps/web/src/handler.ts', line: 3, column: 5 }]);
+  assert.deepEqual(
+    await fixture.map([
+      { path: 'assets/handler.js', line: 1, column: 1 },
+      { path: 'assets/handler.js', line: 1, column: 4 },
+    ]),
+    [
+      { path: 'apps/web/src/handler.ts', line: 1, column: 1 },
+      { path: 'apps/web/src/handler.ts', line: 3, column: 5 },
+    ],
+  );
+});
+
+test('source mapping never uses another version, different code, duplicate maps or foreign app sources', async (t) => {
+  for (const options of [
+    { compiled: 'another deployment' },
+    { mapFile: 'assets/other.js' },
+    { duplicate: true },
+    { source: 'apps/api/src/handler.ts' },
+    { source: '../src/handler.ts' },
+    { source: 'https://attacker.example/src/handler.ts' },
+  ]) {
+    await t.test(JSON.stringify(options), async (child) => {
+      const fixture = sourceMapFixture(child, options);
+      await assert.rejects(fixture.map());
+    });
+  }
+  const fixture = sourceMapFixture(t);
+  await assert.rejects(
+    mappedTailFrames(
+      'koin-web',
+      'web',
+      '22222222-2222-2222-2222-222222222222',
+      fixture.version,
+      [{ path: 'assets/handler.js', line: 1, column: 4 }],
+      'scoped-read-token',
     ),
-    null,
   );
 });
 
