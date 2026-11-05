@@ -360,3 +360,19 @@ test('signed Fable thinking is accepted only in bounded assistant history withou
     assert.throws(() => parseModelRequest({ ...base, messages: [{ role: 'user', content: [block] }] }));
   }
 });
+
+test('model interruption diagnostics retain the error class without exposing exception content', async (t) => {
+  const logs = [];
+  const privateContent = 'private prompt and local-worker-only-key';
+  t.mock.method(console, 'error', (...args) => logs.push(args));
+  t.mock.method(globalThis, 'fetch', async () => {
+    throw new DOMException(privateContent, 'TimeoutError');
+  });
+  await assert.rejects(invokeModel(env, parseModelRequest(base), 'pull-request'), { name: 'TimeoutError' });
+  assert.equal(
+    logs.some((entry) => entry[1]?.errorClass === 'TimeoutError'),
+    true,
+  );
+  assert.equal(JSON.stringify(logs).includes(privateContent), false);
+  assert.equal(JSON.stringify(logs).includes('local-worker-only-key'), false);
+});
