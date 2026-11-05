@@ -117,6 +117,7 @@ test('message endpoint commits message, sender cursor, recipient inbox and outbo
     const delivered: unknown[] = [];
     const env = {
       SERIALIZED: true,
+      API_ENABLED: 'true',
       DB: db.$client,
       JOBS: {
         send: async (job: unknown) => {
