@@ -42,6 +42,13 @@ GOOGLE_REDIRECT_URI=
 GOOGLE_AUTH_SECRET=
 GDRIVE_FOLDER_IDS=
 
+# Pi document indexer (GitHub/Notion/Drive), independent of Worker OAuth/KV. Required only when sync jobs are enabled.
+# HTTPS origin only (no path/query); provision both Pi Bearer token (>=32 chars) and Cloudflare Access service token separately.
+B_BOT_CRAWLER_ORIGIN=
+B_BOT_CRAWLER_TOKEN=
+B_BOT_CRAWLER_ACCESS_CLIENT_ID=
+B_BOT_CRAWLER_ACCESS_CLIENT_SECRET=
+
 # KOIN admin API. Channel determines stage/prod; production never falls back to stage.
 KOIN_ADMIN_EMAIL=
 KOIN_ADMIN_PASSWORD=

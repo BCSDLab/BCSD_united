@@ -1,13 +1,14 @@
-// Google Drive Docs를 RAG 색인하는 스케줄 태스크. nitro.config.ts scheduledTasks에서 호출.
+import { crawlerJobRequest, enqueueCrawlerJob, type CrawlerSchedulePayload } from '~/services/rag/crawlerClient';
+
+// Google Drive Docs 색인은 Pi에 등록만 한다. nitro.config.ts scheduledTasks에서 호출.
 export default defineTask({
   meta: {
     name: 'sync:gdrive',
-    description: '봇 Google 계정의 Google Docs를 RAG document_chunk에 색인',
+    description: 'Google Docs 색인 작업을 Pi에 등록',
   },
-  async run() {
-    const { ingestGdrive } = await import('~/services/rag/gdrive');
-    const res = await ingestGdrive();
-    console.warn(`[sync:gdrive] docs=${res.docs} changed=${res.changed} chunks=${res.chunks} removed=${res.removed}`);
-    return { result: res };
+  async run(ctx) {
+    const job = await enqueueCrawlerJob(crawlerJobRequest('gdrive', ctx?.payload as CrawlerSchedulePayload));
+    console.warn(`[sync:gdrive] Pi job=${job.id} status=${job.status}`);
+    return { result: job };
   },
 });
