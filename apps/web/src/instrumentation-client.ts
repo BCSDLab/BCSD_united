@@ -1,6 +1,8 @@
 import { maskSensitive } from '@koin/telemetry';
 import * as Sentry from '@sentry/react';
 
+import { isHttpError, isKoinError } from 'interfaces/APIError';
+
 const environment = process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT;
 const isProduction = environment === 'production';
 
@@ -10,19 +12,6 @@ const isProduction = environment === 'production';
 // (424: 하이드레이션 완료 전 업데이트가 발생해 루트 전체가 클라이언트 렌더링으로 전환).
 const HYDRATION_ERROR_PATTERN =
   /Hydration failed|didn't match|Text content does not match|error while hydrating|Minified React error #4(1[89]|2[1-5])/i;
-
-interface KoinErrorLike {
-  type?: string;
-  status?: number;
-  code?: number;
-}
-
-function asKoinError(error: unknown): KoinErrorLike | null {
-  if (error == null || typeof error !== 'object') return null;
-  const candidate = error as KoinErrorLike;
-
-  return candidate.type === 'KOIN_ERROR' ? candidate : null;
-}
 
 /** WebPageTest 등 합성 모니터링 봇/크롤러의 UA 패턴. 실사용자 모바일 네트워크 지연은 걸러내지 않는다. */
 const BOT_USER_AGENT_PATTERN = /bot|crawler|spider|WebPageTest|HeadlessChrome|PhantomJS|Pingdom|Lighthouse/i;
@@ -116,12 +105,10 @@ Sentry.init({
   beforeSend(event, hint) {
     const error = hint.originalException;
 
-    // Axios 네트워크/타임아웃/취소 에러
+    // HTTP 클라이언트의 네트워크/타임아웃/취소 에러
     if (
-      error != null &&
-      typeof error === 'object' &&
-      'code' in error &&
-      (error.code === 'ERR_NETWORK' || error.code === 'ECONNABORTED' || error.code === 'ERR_CANCELED')
+      isHttpError(error) &&
+      (error.code === 'NETWORK_ERROR' || error.code === 'TIMEOUT' || error.code === 'ABORTED')
     ) {
       return null;
     }
@@ -136,24 +123,22 @@ Sentry.init({
       return null;
     }
 
-    const koinError = asKoinError(error);
+    const koinError = isKoinError(error) ? error : null;
     if (koinError) {
       // 401: 인증 만료. apiClient의 리프레시/재로그인 흐름이 처리하는 정상 흐름이다.
       // 404: 삭제된 게시글 등에 접근. 페이지에서 안내하므로 알림 대상이 아니다.
       if (koinError.status === 401 || koinError.status === 404) return null;
 
-      // KoinError는 Error 인스턴스가 아니라 plain object다. 그대로 두면 Sentry가
-      // "Object captured as exception with keys: ..." 로 묶어 서로 다른 에러가 한 이슈에
-      // 뒤섞이고 스택도 남지 않는다. 상태 코드별로 그룹을 분리한다.
-      event.fingerprint = ['koin-error', String(koinError.status), String(koinError.code ?? 'no-code')];
+      // KoinError는 일반 Error와 구조가 다르므로 상태 코드별로 이슈를 그룹핑한다.
+      event.fingerprint = ['koin-error', String(koinError.status), String(koinError.code)];
       event.tags = {
         ...event.tags,
-        'koin.error_type': koinError.type ?? 'KOIN_ERROR',
-        'koin.error_status': String(koinError.status ?? 'unknown'),
-        'koin.error_code': String(koinError.code ?? 'no-code'),
+        'koin.error_type': koinError.type,
+        'koin.error_status': String(koinError.status),
+        'koin.error_code': String(koinError.code),
       };
       event.exception?.values?.forEach((value) => {
-        value.type = `KoinError(${koinError.status ?? 'unknown'})`;
+        value.type = `KoinError(${koinError.status})`;
       });
     }
 

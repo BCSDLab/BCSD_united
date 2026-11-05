@@ -1,5 +1,4 @@
 import { useRef, useState } from 'react';
-import { isKoinError } from '@bcsdlab/koin';
 import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { useSearch } from '@tanstack/react-router';
 
@@ -10,6 +9,7 @@ import AlertModal from 'components/Store/mobile/common/AlertModal';
 import LoginRequiredModal from 'components/Store/mobile/common/LoginRequiredModal';
 import DetailHeader from 'components/Store/mobile/StoreDetailPage/components/DetailHeader';
 import ImageCarousel from 'components/Store/mobile/StoreDetailPage/components/ImageCarousel';
+import { isKoinError } from 'interfaces/APIError';
 import ROUTES from 'static/routes';
 import useGoBack from 'utils/hooks/routing/useGoBack';
 import useBooleanState from 'utils/hooks/state/useBooleanState';

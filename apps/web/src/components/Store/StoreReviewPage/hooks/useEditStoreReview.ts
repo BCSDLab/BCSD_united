@@ -1,8 +1,8 @@
-import { isKoinError } from '@bcsdlab/koin';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { reviewMutations } from 'api/review/mutations';
 import { useKoinToast } from 'components/feedback/KoinToast/useKoinToast';
+import { isKoinError } from 'interfaces/APIError';
 import showToast from 'utils/ts/showToast';
 
 export const useEditStoreReview = (shopId: string, reviewId: string) => {

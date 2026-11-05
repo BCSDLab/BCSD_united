@@ -156,7 +156,7 @@ export class WebLogout<R extends WebLogoutResponse> implements APIRequest<R> {
   constructor() {}
 }
 
-// SSR은 axios의 withCredentials가 통하지 않으므로 Cookie/Origin을 직접 실어 보낸다.
+// SSR에서는 브라우저의 쿠키 자동 첨부가 적용되지 않으므로 Cookie/Origin을 직접 실어 보낸다.
 export class WebSession<R extends WebSessionResponse> implements APIRequest<R> {
   method = HTTP_METHOD.GET;
 

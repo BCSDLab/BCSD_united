@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { isKoinError } from '@bcsdlab/koin';
 import { cn, sha256 } from '@bcsdlab/utils';
 import { useMutation, useSuspenseQuery } from '@tanstack/react-query';
 import { Controller, type FieldError, useFormContext, useFormState, useWatch } from 'react-hook-form';
@@ -9,6 +8,7 @@ import { deptQueries } from 'api/dept/queries';
 import BackIcon from 'assets/svg/arrow-back.svg';
 import CustomSelector from 'components/Auth/SignupPage/components/CustomSelector';
 import PCCustomInput from 'components/Auth/SignupPage/components/PCCustomInput';
+import { isKoinError } from 'interfaces/APIError';
 import type { InputMessage } from 'interfaces/InputMessage';
 import { REGEX, MESSAGES } from 'static/auth';
 import { useSessionLogger } from 'utils/hooks/analytics/useSessionLogger';

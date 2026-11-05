@@ -1,6 +1,6 @@
-import type { AxiosAdapter } from 'axios';
-
-export const apiRequestAdapter: AxiosAdapter | undefined = undefined;
+export function fetchApiRequest(request: Request): Promise<Response> {
+  return fetch(request);
+}
 
 export function getApiBaseUrl(): string {
   return '/api';

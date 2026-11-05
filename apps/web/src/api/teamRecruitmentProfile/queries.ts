@@ -1,4 +1,3 @@
-import { isKoinError } from '@bcsdlab/koin';
 import { captureError } from '@koin/telemetry/runtime';
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query';
 
@@ -7,6 +6,7 @@ import type {
   TeamRecruitmentProfileResponse,
   UpsertTeamRecruitmentProfileRequest,
 } from 'api/teamRecruitmentProfile/entity';
+import { isKoinError } from 'interfaces/APIError';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import { getViewerScope } from 'utils/ts/getViewerScope';
 import showToast from 'utils/ts/showToast';

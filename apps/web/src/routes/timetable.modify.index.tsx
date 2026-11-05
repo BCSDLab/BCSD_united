@@ -1,4 +1,3 @@
-import { isKoinError } from '@bcsdlab/koin';
 import { dehydrate, QueryClient } from '@tanstack/react-query';
 import { createFileRoute, useSearch, useParams } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
@@ -7,6 +6,7 @@ import type { Semester } from 'api/timetable/entity';
 import { timetableQueries } from 'api/timetable/queries';
 import { SSRLayout } from 'components/layout';
 import ModifyTimetablePage from 'components/TimetablePage/ModifyTimetablePage';
+import { isKoinError } from 'interfaces/APIError';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { getRecentSemester, getSemesterFromQuery, resolveTimetableSemester } from 'utils/timetable/semester';
 import { isUnauthorizedError } from 'utils/ts/httpError';
