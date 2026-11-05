@@ -67,8 +67,8 @@ async function optimizeImage(request: Request): Promise<Response> {
   if (cached) return cached;
 
   const upstream = await fetchImage(source, request);
-  const mime = upstream.headers.get('content-type')?.split(';')[0];
-  if (!upstream.ok || !upstream.body || !mime || !/^image\/(jpeg|png|webp|avif|gif)$/.test(mime)) {
+  // 업로드 메타데이터에 잘못된 MIME 목록이 있어도 실제 이미지 바이트는 디코더가 검증한다.
+  if (!upstream.ok || !upstream.body) {
     await upstream.body?.cancel();
 
     return new Response('Image source is unavailable', { status: upstream.status === 404 ? 404 : 502 });
@@ -83,7 +83,15 @@ async function optimizeImage(request: Request): Promise<Response> {
       },
     }),
   );
-  const output = await env.IMAGES.input(limited).transform({ width, fit: 'scale-down' }).output({ format, quality });
+  let output: ImageTransformationResult;
+  try {
+    output = await env.IMAGES.input(limited).transform({ width, fit: 'scale-down' }).output({ format, quality });
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && typeof error.code === 'number') {
+      return new Response('Image transformation failed', { status: 502 });
+    }
+    throw error;
+  }
   const response = output.response({
     headers: {
       'Cache-Control': 'public, max-age=2678400',

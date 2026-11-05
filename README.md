@@ -63,6 +63,8 @@ pnpm dev:b-bot
 
 웹의 `NEXT_PUBLIC_API_PATH`는 실행할 API 주소로 설정합니다. 기존 공개 환경 변수 이름은 유지하지만 Next.js 런타임을 사용하지 않습니다. `NEXT_PUBLIC_*` 값은 브라우저에 노출될 수 있으므로 비밀 키를 넣으면 안 됩니다.
 
+이미지는 `components/ui/Image`가 `/api/image?url=...&w=...&q=...`와 반응형 `srcset`을 생성하고 Cloudflare Images binding이 변환합니다. 원본 `KOIN_WEB_RECODE`의 `next/image`와 같은 선택 방식이며, `sizes="672px"`처럼 고정 크기를 지정해도 후보 URL 여러 개가 나오는 것은 정상입니다. 브라우저는 화면 밀도에 맞는 후보를 선택합니다. 허용된 원본 호스트·리디렉션 검증과 20 MiB 스트림 제한은 유지하며, 업로드 서버의 잘못된 `Content-Type` 목록 때문에 정상 사진을 거부하지 않도록 실제 이미지 디코더가 바이트를 검증합니다. 원본 응답을 그대로 전달하지 않고 AVIF/WebP/JPEG로 변환한 결과만 반환합니다. PC 학식 확대 사진은 중첩된 고정 높이 컨테이너 없이 원본 비율과 화면 최대 크기에 맞춰 표시합니다.
+
 API 로그인에는 `JWT_SECRET`, `WEB_CSRF_SECRET`, `AUTH_ALLOWED_ORIGINS`가 필요합니다. 네이티브 앱 토큰 발급에는 `NATIVE_ACCESS_TTL_SECONDS`도 필요합니다. 파일·문자·메일·결제·푸시 연동은 해당 공급자의 실제 설정이 있어야 동작하며, 누락된 설정을 가짜 성공 응답으로 대체하지 않습니다.
 
 `.env*`, `.dev.vars*`, PEM, 데이터 스냅샷, `.claude`, `.vscode`는 공개 커밋 대상이 아닙니다. 운영 시크릿은 Wrangler secret 또는 GitHub Actions secret에 저장합니다.
