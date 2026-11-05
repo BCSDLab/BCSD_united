@@ -40,13 +40,9 @@ const withCsrfToken: HeaderContributor = (request, headers) => {
   if (csrfToken) headers['X-CSRF-Token'] = csrfToken;
 };
 
+// 본문이 있으면 메서드와 무관하게 JSON으로 보낸다(DELETE 본문 포함). 문자열 본문의 fetch 기본값은 text/plain이다.
 const withJsonContentType: HeaderContributor = (request, headers) => {
-  if (
-    request.data !== undefined &&
-    !(request.data instanceof FormData) &&
-    !(request.data instanceof Blob) &&
-    (request.method === HTTP_METHOD.POST || request.method === HTTP_METHOD.PUT || request.method === HTTP_METHOD.PATCH)
-  ) {
+  if (request.data !== undefined && !(request.data instanceof FormData) && !(request.data instanceof Blob)) {
     headers['Content-Type'] = 'application/json';
   }
 };
@@ -159,7 +155,11 @@ export default class APIClient {
   private async sendRequest<U extends APIResponse>(request: APIRequest<U>): Promise<APIResult<U>> {
     const controller = new AbortController();
     let timeout: ReturnType<typeof setTimeout> | undefined;
-    const { promise: cancellation, reject } = Promise.withResolvers<never>();
+    // 브라우저 요청 경로에서도 실행되므로 Promise.withResolvers(iOS 17.4+/Chrome 119+)에 의존하지 않는다.
+    let reject!: (reason: HttpError) => void;
+    const cancellation = new Promise<never>((_, rejectCancellation) => {
+      reject = rejectCancellation;
+    });
     const cancel = () => {
       reject(new HttpError('Request aborted', { code: 'ABORTED', cause: request.signal?.reason }));
       controller.abort();
