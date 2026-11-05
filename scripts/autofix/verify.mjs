@@ -185,6 +185,7 @@ const crawlerPresent = prMode && (await directoryExists('apps/b-bot-crawler'));
 const bbotRuntimeScratch = profiles.has('b-bot')
   ? [
       'apps/b-bot/.wrangler',
+      'apps/b-bot/node_modules/.vite-temp',
       'apps/b-bot/node_modules/.vite',
       ...(crawlerPresent ? ['apps/b-bot-crawler/node_modules/.vite', 'apps/b-bot-crawler/data'] : []),
     ]
