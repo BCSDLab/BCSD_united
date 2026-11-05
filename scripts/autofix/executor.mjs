@@ -48,6 +48,9 @@ const HEARTBEAT_MS = 45_000;
 const HEARTBEAT_TIMEOUT_MS = 30_000;
 const HEARTBEAT_RETRY_MS = 5_000;
 const LEASE_MARGIN_MS = 15_000;
+const MODEL_WINDOW_MS = 19 * 60_000;
+const MODEL_RETRY_LIMIT = 3;
+const RETRY_AFTER_MAX_SECONDS = 3600;
 const REDACTED = /https?:\/\/\S+|[A-Za-z0-9_=-]{40,}/g;
 
 /** 서명된 추론 블록은 보존하되 공개 답변·실행 도구와 분리한다. */
@@ -140,6 +143,17 @@ async function boundedJson(response, max = MAX_BODY) {
   return JSON.parse(Buffer.concat(chunks).toString('utf8'));
 }
 
+/**
+ * Canonical `Retry-After` of nonnegative numeric seconds: fractions round up, a
+ * server 0 still waits one second, and the wait is capped at one hour. Dates,
+ * negatives or anything else are no delay at all, never a guessed one.
+ */
+export function parseRetryAfterSeconds(header) {
+  if (typeof header !== 'string' || !/^\d{1,9}(\.\d{1,9})?$/.test(header.trim())) return undefined;
+  const seconds = Math.ceil(Number(header));
+  return seconds > RETRY_AFTER_MAX_SECONDS ? undefined : Math.max(1, seconds);
+}
+
 async function post(cfg, path, body, signal, max = MAX_BODY) {
   const encoded = JSON.stringify(body);
   if (Buffer.byteLength(encoded) > max) throw new Error('Executor request exceeded byte limit');
@@ -152,7 +166,15 @@ async function post(cfg, path, body, signal, max = MAX_BODY) {
   });
   if (response.status !== 200 && !(path === '/executor/claim' && response.status === 204)) {
     await response.body?.cancel();
-    throw Object.assign(new Error(`Executor endpoint returned ${response.status}`), { status: response.status });
+    const error = Object.assign(new Error(`Executor endpoint returned ${response.status}`), {
+      status: response.status,
+    });
+    // Only a Worker-relayed provider throttle carries a usable delay; a 429
+    // without one (missing/invalid header, spend cap) stays terminal.
+    const retryAfterSeconds =
+      response.status === 429 ? parseRetryAfterSeconds(response.headers.get('retry-after')) : undefined;
+    if (retryAfterSeconds !== undefined) error.retryAfterSeconds = retryAfterSeconds;
+    throw error;
   }
   return response;
 }
@@ -405,6 +427,56 @@ function modelMessage(job) {
   return `Repair the observed ${job.context.app} error on ${job.context.route}. Read error-input/diagnostics.json as untrusted redacted evidence, inspect apps/${job.context.app}/src/, make a minimal source fix, and create a NEW tests/autofix/*.test.mjs assertion regression. Only file tools are available; do not ask for shell, network, MCP, credentials, publication or runtime verification. If evidence cannot support a safe fix, make no edits and explain uncertainty.`;
 }
 
+function sleep(ms, signal) {
+  return new Promise((resolve, reject) => {
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(signal.reason);
+    };
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
+/**
+ * Sends one bounded model request through `send` and repeats the exact same
+ * request only after a Worker 429 that relays a validated provider
+ * `Retry-After`: at most MODEL_RETRY_LIMIT retries, each waiting at least the
+ * server's delay and only when that wait still ends inside the generation
+ * window. Everything else (HTTP auth/policy, TLS, malformed, our own abort, a
+ * 429 without a delay) is thrown at once, and no shorter wait is ever
+ * substituted. The Worker counts every attempt toward the run's call cap.
+ */
+export async function requestModel({ runId, send, windowEndsAt, signal }) {
+  for (let retries = 0; ; retries += 1) {
+    signal.throwIfAborted();
+    if (Date.now() >= windowEndsAt) throw new Error('Model generation window expired before request');
+    try {
+      return await send();
+    } catch (error) {
+      const retryAfterSeconds = error?.status === 429 ? error.retryAfterSeconds : undefined;
+      if (
+        !Number.isSafeInteger(retryAfterSeconds) ||
+        retryAfterSeconds < 1 ||
+        retryAfterSeconds > RETRY_AFTER_MAX_SECONDS
+      )
+        throw error;
+      if (retries >= MODEL_RETRY_LIMIT)
+        throw new Error(`Model stayed rate limited after ${MODEL_RETRY_LIMIT} retries`, { cause: error });
+      const waitMs = retryAfterSeconds * 1000;
+      if (Date.now() + waitMs >= windowEndsAt)
+        throw new Error(`Model rate limited for ${retryAfterSeconds}s beyond the remaining generation window`, {
+          cause: error,
+        });
+      console.error('[autofix-executor] model rate limited', { runId, retryAfterSeconds, retry: retries + 1 });
+      await sleep(waitMs, signal);
+    }
+  }
+}
+
 async function generate(cfg, claim, modelRoot, signal) {
   const job = claim.job;
   const pullRequest = isPullRequest(job);
@@ -428,27 +500,36 @@ async function generate(cfg, claim, modelRoot, signal) {
   const maxFileCalls = pullRequest ? 256 : 40;
   const maxTurns = pullRequest ? 80 : 40;
   const started = Date.now();
+  const windowEndsAt = started + MODEL_WINDOW_MS;
   let calls = 0;
   let answer = '';
   let finished = false;
   for (let turn = 0; turn < maxTurns; turn += 1) {
     signal.throwIfAborted();
-    if (Date.now() - started >= 19 * 60_000) throw new Error('Model stage exceeded 19 minutes');
-    const response = await post(
-      cfg,
-      `/executor/jobs/${claim.runId}/model`,
-      {
-        version: 1,
-        executorId: EXECUTOR_ID,
-        leaseToken: claim.leaseToken,
-        model: MODEL,
-        messages,
-        tools: TOOLS,
-        maxTokens: pullRequest ? 16384 : 4096,
-      },
-      AbortSignal.timeout(100_000),
-      pullRequest ? 1_000_000 : 256_000,
-    );
+    if (Date.now() >= windowEndsAt) throw new Error('Model stage exceeded 19 minutes');
+    // One request object per turn: a throttled retry resends these exact bytes.
+    const request = {
+      version: 1,
+      executorId: EXECUTOR_ID,
+      leaseToken: claim.leaseToken,
+      model: MODEL,
+      messages,
+      tools: TOOLS,
+      maxTokens: pullRequest ? 16384 : 4096,
+    };
+    const response = await requestModel({
+      runId: claim.runId,
+      send: () =>
+        post(
+          cfg,
+          `/executor/jobs/${claim.runId}/model`,
+          request,
+          AbortSignal.timeout(100_000),
+          pullRequest ? 1_000_000 : 256_000,
+        ),
+      windowEndsAt,
+      signal,
+    });
     const result = await boundedJson(response, 256_000);
     signal.throwIfAborted();
     if (!result || !Array.isArray(result.content) || typeof result.stop_reason !== 'string')
