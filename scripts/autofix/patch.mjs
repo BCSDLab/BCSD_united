@@ -103,6 +103,15 @@ async function snapshotDirectory(root, relative, verified) {
   verified.add(relative);
 }
 
+/** Creates trusted scratch paths as their owner without traversing symlinks. */
+export async function prepareScratch(root, paths) {
+  const verified = new Set();
+  for (const path of paths) {
+    if (!safeTreePath(path)) throw new Error('Unsafe scratch path');
+    await snapshotDirectory(resolve(root), path, verified);
+  }
+}
+
 /**
  * Materialises a pinned tree into an empty `root` from the object database, so
  * tree-controlled `.gitattributes` (`export-ignore`, `export-subst`) cannot
@@ -218,3 +227,4 @@ async function collect() {
 }
 if (process.argv[2] === 'collect') await collect();
 if (process.argv[2] === 'apply') await applyManifest(await jsonFile(process.argv[3]), process.argv[4]);
+if (process.argv[2] === 'prepare-scratch') await prepareScratch(process.argv[3], process.argv.slice(4));

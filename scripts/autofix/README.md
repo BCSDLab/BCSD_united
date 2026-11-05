@@ -57,7 +57,15 @@ Worker secret은 웹훅별 `SENTRY_CLIENT_SECRET`/`CLOUDFLARE_WEBHOOK_SECRET`, c
 
 실행기 lease 유지(`keepLease`): heartbeat는 45초 간격이며 한 번에 하나만 보낸다. Worker가 확인한 마지막 `leaseExpiresAt`만 사실로 취급하고, 확인되지 않은 heartbeat는 lease를 연장한 것으로 간주하지 않는다. 연결 시간 초과·연결 거부/재설정·네트워크 도달 불가·30초 요청 시간 초과 같은 전송 계층 실패만 5초 뒤 재시도하되, 마지막 확인 만료에서 15초 안전 여유를 뺀 시점 안에 재시도가 들어갈 때만 한다. HTTP 상태 거부(인증·정책·409 등), TLS 실패, 잘못된 응답 본문, `deadlineAt` 불일치, 15초 여유보다 짧은 만료는 즉시 작업을 중단한다. 독립 fail-closed 타이머가 확인 만료 − 15초에 작업을 중단하므로 heartbeat 요청이 멈춰도 알려진 lease를 넘겨 실행하지 않으며, 그때 진행 중인 heartbeat 요청도 취소한다. 작업 완료·종료 시 타이머와 진행 중 요청을 모두 정리해 늦게 도착한 응답이 다음 작업에 영향을 주지 않는다. 확인 만료가 이미 절대 기한과 같으면 더 연장할 수 없으므로 heartbeat를 보내지 않는다.
 
-`/executor/jobs/<runId>/model`은 살아 있는 generation lease에서만 요청한다. Worker가 정적 system prompt/고정 Fable 모델/Read·Edit·Write·Glob·Grep JSON schema만 Anthropic `/v1/messages`로 전송하고 API key를 Worker 밖에 내보내지 않는다. 모델 메시지의 파일 요청은 실행기에서 허용 경로·symlink·앱 경계를 다시 검사한다. 모델 호출 40회·generation 20분·본문 256 KB 제한은 두 모드에 공통이다. 파일 도구는 단일 오류 수정에서 40회, 여러 파일의 diff와 관련 코드를 검토하는 PR에서 256회까지 허용한다. PR 검토는 diff 중심의 좁은 줄 범위와 독립 읽기 묶음을 사용한다. 후보 workspace는 이슈 진단을 **자료**로만 다루며 shell/network/MCP/GitHub credential을 사용할 수 없다.
+`/executor/jobs/<runId>/model`은 살아 있는 generation lease에서만 요청한다. Worker가 정적 system prompt/고정 Fable 모델/Read·Edit·Write·Glob·Grep JSON schema만 Anthropic `/v1/messages`로 전송하고 API key를 Worker 밖에 내보내지 않는다. 모델 메시지의 파일 요청은 실행기에서 허용 경로·symlink·앱 경계를 다시 검사한다. 단일 오류 수정은 모델 40회·80개 메시지·256 KB context, PR 검토는 모델 80회·160개 메시지·1 MB context로 제한한다. generation 20분과 응답 256 KB 한도는 공통이다. 파일 도구는 단일 오류 수정에서 40회, 여러 파일의 diff와 관련 코드를 검토하는 PR에서 256회까지 허용한다. PR 검토는 diff 중심의 좁은 줄 범위와 독립 읽기 묶음을 사용한다. 후보 workspace는 이슈 진단을 **자료**로만 다루며 shell/network/MCP/GitHub credential을 사용할 수 없다.
+
+요청당 출력 토큰은 오류 수정 4,096개, PR 검토 16,384개까지 허용한다. 큰 수정 응답이 중단되면 제공자의 `stop_reason`만 제한된 진단에 남기며, 거절·중단을 승인으로 취급하지 않는다.
+
+PR 모델 요청은 Worker에서 최대 180초, 실행기에서 최대 190초까지 기다리되 실행기는 남은 19분 generation 시간으로 다시 제한한다. 오류 수정의 기존 90초/100초 한도는 유지한다. 모든 실행기 모델 요청은 작업 abort와 연결되어 lease 상실·종료 시 취소되며, 호출 시간 초과를 자동 재시도하거나 검증 성공으로 처리하지 않는다.
+
+제공자 429 처리(`requestModel`): Worker는 upstream Anthropic 429가 숫자 `Retry-After`를 싣고 spend cap(`enforced_spend_limit_reached`)이 아닐 때만 `/model`에 429와 canonical 십진 정수 `Retry-After`(1~3600초)를 돌려준다. 실행기는 그 429에 한해 **같은 요청 바이트**(대화 transcript 무변경)를 최대 3회 재전송하되, 서버 지연 이상을 기다리고 대기가 남은 19분 generation 창 안에 끝날 때만 한다. 창을 넘는 지연은 더 짧게 기다리지 않고 즉시 실패하며, 대기 중 작업 abort(기한·lease 상실·종료)는 재시도를 취소한다. 헤더가 없거나 잘못된 429, spend cap, 400/401/403, 503, TLS/전송 실패, 잘못된 본문은 재시도하지 않는다. lease heartbeat는 대기와 무관하게 독립적으로 이어지고, 429로 끝난 요청도 Worker의 모델 호출 상한에 그대로 계산된다. 운영 로그에는 `retryAfterSeconds`와 재시도 횟수만 남기고 제공자 응답 본문은 기록하지 않는다.
+
+자원 프로필은 검증 컨테이너당 RAM 최대 **3 GiB**, CPU 2개다. 시작 시 가용 메모리 **5 GiB**를 확인해 검증기 상한 외에 2 GiB 여유를 둔다. 컨트롤러의 기존 2 GiB 상한은 유지하고, workspace 타입 검사·테스트·빌드는 하나씩 실행해 중첩 메모리 피크를 줄인다. 한도 초과로 검증 프로세스가 종료되면 실패로 처리하며 검증 생략·자동 한도 상향·다른 서비스 중지는 하지 않는다.
 
 실행기는 공개 저장소의 검증된 고정 SHA를 각 작업의 별도 model/verifier git worktree로 준비한다. verifier image는 미리 빌드해 재사용하되, 후보 소스는 독립적인 새 검증 작업공간/매번 disposable Docker 실행으로 검증한다. `/verification-start` 이후 모델 프록시는 닫힌다. source-only 모델이 낸 manifest는 최대 24 text 파일, 파일당 256 KB, 합계 1 MB이며 수정 앱 src와 새 `tests/autofix/*.test.mjs`로만 제한한다. 기존 테스트/설정/lockfile/schema/generated 변경과 다른 앱 변경은 거부한다.
 
@@ -92,6 +100,14 @@ claim의 PR 작업 형태: `{mode:'pull-request', owner:'BCSDLab', repository:'B
 
 독립 verifier(PR 모드)는 pinned head를 object database에서 정확히 복원해 스냅샷하고 `pr-head-pinned`(worktree HEAD·commit·tree·develop base 존재·**`git merge-base --is-ancestor baseSha headSha`**·무변경 확인) 후 신뢰 네트워크 단계에서 `pnpm install --frozen-lockfile --ignore-scripts`를 수행한다. 운영자가 enqueue 전에 각 PR 브랜치를 현재 develop으로 update-branch하므로 base가 head의 조상이 아니면 오래된 통합 상태를 조용히 검토하지 않고 실패한다(실행기는 shallow cache를 최대 3×200 커밋 deepen하여 조상 관계를 판정한다). PR head의 lockfile/lifecycle은 신뢰하지 않으므로 PR 모드 설치 컨테이너는 **root가 아닌 UID 1000**으로만 실행한다. 스냅샷 소스는 컨트롤러 소유·읽기 전용으로 유지하고, 루트 및 `apps/*`·`packages/*` workspace의 `node_modules`만 미리 만들어 CHOWN 전용 도우미로 넘겨 쓰기 마운트한다. `pnpm rebuild --pending`도 소스가 read-only인 오프라인 non-root 컨테이너에서 의존성 디렉터리만 쓰며, 그 직후 수정 manifest 적용 전에 스냅샷을 고정 tree와 다시 대조한다(`patch.mjs` `assertSnapshotMatchesTree`: 모든 고정 blob·symlink·실행 비트 일치, `node_modules` 밖의 추가 파일 없음). 설치·lifecycle이 head 소스를 바꾸거나 파일을 추가하면 실패한다. 종료 시 의존성·scratch 내용은 해당 UID의 무권한 도우미가 제거한 뒤 컨트롤러가 자신의 스냅샷을 회수한다. CAP_FOWNER·DAC_OVERRIDE를 추가하지 않는다. PR 모드에서는 `tests/autofix`를 호스트에 만들지 않으므로 head가 `tests`를 symlink로 바꿔도 호스트 쓰기가 발생하지 않는다. 이후 모든 검사는 기존과 같은 `--network none`, non-root, read-only source 컨테이너다. 수정 manifest는 설치 후 head 위에 적용된다.
 
+`node_modules` 안의 `.vite-temp` 같은 scratch도 그 디렉터리 소유자 UID의 무권한·오프라인 도우미가 경로별 symlink 검사를 거쳐 만든다. 웹 Vite와 B-BOT Vitest의 설정 번들용 `.vite-temp`를 각각 허용하여 설정 파일 옆에 임시 모듈을 쓰지 않게 한다. 컨트롤러가 후보 소유 디렉터리에 직접 mkdir/chmod하거나 이를 위해 권한을 넓히지 않는다. 정리는 상위 의존성 마운트에서 한 번만 수행한다.
+
+B-BOT native fixture 단계만 `node_modules/.vitest-cache`(변환 캐시)와 `apps/b-bot/.data`(기존 검토 HTML 테스트 산출물)를 추가로 쓸 수 있다. 해당 경로가 pinned 소스에 포함되면 거부하며, 모델·타입 검사·빌드·런타임 smoke에 새 쓰기 권한을 주지 않는다. 테스트 종료 후 다른 scratch와 함께 회수한다.
+
+타입 검사는 신뢰 `workspace-typecheck.mjs`가 각 workspace의 기존 `typecheck` 스크립트(예: `nitro prepare && tsc --noEmit`)를 그대로 실행하되, 증분 캐시를 workspace 경로 해시별 `/tmp/*.tsbuildinfo`로 지정한다. 소스를 쓰기 가능하게 만들거나 타입 검사를 생략하지 않으며 병렬 workspace가 같은 캐시 파일을 공유하지 않는다.
+
+B-BOT은 신뢰 `bbot-build.mjs`가 실제 Nitro API의 public asset 복사·prerender·production build·close를 실행한다. `.output` 마운트 자체를 지우는 대신 내용만 완전히 비우고 같은 server/public 디렉터리를 준비한다. build 스크립트·출력 배치가 달라지거나 출력 안에 보존해야 할 public asset이 있으면 실패한다. Wrangler dry-run은 원본 설정의 모든 바인딩을 유지한 사본에서 이미 수행한 custom build 훅만 제거하고 main/assets 경로를 절대 경로로 고정한다. 실제 배포하지 않으며 원본 설정·소스는 바꾸지 않는다.
+
 PR 모드의 온라인 설치에는 `--ignore-pnpmfile`도 강제합니다. `--ignore-scripts`만으로는 `.pnpmfile.cjs` 및 config dependency의 JavaScript 훅 실행이 차단되지 않습니다. 승인된 lifecycle과 후보 코드 실행은 네트워크를 끊은 뒤에만 허용합니다.
 
 런타임 프로필은 changedFiles에서만 도출하는 allowlist다(PR 본문·설정이 명령을 바꾸지 못한다):
@@ -110,7 +126,7 @@ PR 모드의 온라인 설치에는 `--ignore-pnpmfile`도 강제합니다. `--i
 
 proof는 `{headSha, baseSha, sha256(manifest), checks:['pr-head-pinned','native-fixture-tests','typecheck','autofix-security-tests','lint','build','runtime-route-smoke'], profiles}`이며 실행기가 headSha/baseSha/sha256/check 목록을 대조한 뒤 `{outcome:'pr-reviewed', manifest, review, verification:{headSha, baseSha, manifestSha256, passedChecks}}`를 제출한다. 어떤 check라도 실패하면 `failed` + 사유다. **PR 모드에 한해** Worker가 `pr-reviewed` 결과를 422/409/400으로 거부하면 같은 bytes를 무한 재시도하지 않고 한 번 `failed` 기록으로 낮춘 뒤 nonce를 돌린다(오류 모드의 durable receipt 재전송 의미는 그대로다). 발행(원본 head 부모의 correction commit, 비-force head 갱신, 리뷰 COMMENT, 영수증)과 merge 판단은 Worker/운영자 몫이며 실행기는 GitHub 자격 증명을 갖지 않는다.
 
-결정적 로컬 검사: `node --test scripts/autofix/security.test.mjs scripts/autofix/executor.test.mjs scripts/autofix/executor-model.test.mjs scripts/autofix/pr-review.test.mjs` (경로 정책, 프로필 도출, reviewContext 경계, 구조화 리뷰 파서, B-BOT smoke 설정, API 게이트 감지, claim union·`leaseExpiresAt` 검증, mock 타이머 기반 lease heartbeat 복구·여유 중단·거부 즉시 중단·정리).
+결정적 로컬 검사: `node --test scripts/autofix/security.test.mjs scripts/autofix/executor.test.mjs scripts/autofix/executor-model.test.mjs scripts/autofix/pr-review.test.mjs` (경로 정책, 프로필 도출, reviewContext 경계, 구조화 리뷰 파서, B-BOT smoke 설정, API 게이트 감지, claim union·`leaseExpiresAt` 검증, mock 타이머 기반 lease heartbeat 복구·여유 중단·거부 즉시 중단·정리, `Retry-After` 파싱과 429 재시도의 서버 지연 준수·abort·generation 창·3회 상한·비재시도 실패).
 
 ## 프롬프트 출처와 적용 범위
 
