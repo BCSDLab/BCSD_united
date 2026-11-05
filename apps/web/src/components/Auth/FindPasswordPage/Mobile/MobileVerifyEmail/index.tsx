@@ -1,7 +1,7 @@
-import { isKoinError } from '@bcsdlab/koin';
 import { Controller, useFormContext, useWatch } from 'react-hook-form';
 
 import CustomInput from 'components/Auth/SignupPage/components/CustomInput';
+import { isKoinError } from 'interfaces/APIError';
 import { type ContactType, MESSAGES } from 'static/auth';
 import useEmailVerification from 'utils/hooks/auth/useEmailVerification';
 

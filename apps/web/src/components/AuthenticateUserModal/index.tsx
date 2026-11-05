@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { isKoinError } from '@bcsdlab/koin';
 import { cn, sha256 } from '@bcsdlab/utils';
 import { useRouter } from '@tanstack/react-router';
 
@@ -9,6 +8,7 @@ import WarningMobileIcon from 'assets/svg/mobile-warning-icon.svg';
 import ShowIcon from 'assets/svg/show-icon.svg';
 import WarningIcon from 'assets/svg/warning-icon.svg';
 import useCheckPassword from 'components/layout/Header/hooks/useCheckPassword';
+import { isKoinError } from 'interfaces/APIError';
 import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';

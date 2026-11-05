@@ -1,7 +1,7 @@
-import { isKoinError } from '@bcsdlab/koin';
 import { captureError } from '@koin/telemetry/runtime';
 import { mutationOptions, type QueryClient } from '@tanstack/react-query';
 
+import { isKoinError } from 'interfaces/APIError';
 import showToast from 'utils/ts/showToast';
 
 import type {

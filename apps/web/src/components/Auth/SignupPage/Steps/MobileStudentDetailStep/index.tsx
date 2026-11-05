@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { isKoinError } from '@bcsdlab/koin';
 import { sha256 } from '@bcsdlab/utils';
 import { useMutation, useSuspenseQuery } from '@tanstack/react-query';
 import {
@@ -15,6 +14,7 @@ import { checkId, nicknameDuplicateCheck, signupStudent } from 'api/auth';
 import { deptQueries } from 'api/dept/queries';
 import CustomInput from 'components/Auth/SignupPage/components/CustomInput';
 import CustomSelector from 'components/Auth/SignupPage/components/CustomSelector';
+import { isKoinError } from 'interfaces/APIError';
 import type { InputMessage } from 'interfaces/InputMessage';
 import { REGEX, MESSAGES } from 'static/auth';
 import { useSessionLogger } from 'utils/hooks/analytics/useSessionLogger';

@@ -1,5 +1,4 @@
 import React from 'react';
-import { isKoinError } from '@bcsdlab/koin';
 import { dehydrate, QueryClient } from '@tanstack/react-query';
 import { createFileRoute, redirect } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
@@ -7,6 +6,7 @@ import { createServerFn } from '@tanstack/react-start';
 import { timetableQueries } from 'api/timetable/queries';
 import { SSRLayout } from 'components/layout';
 import MobileTimetableListPage from 'components/TimetablePage/MobileTimetableListPage';
+import { isKoinError } from 'interfaces/APIError';
 import ROUTES from 'static/routes';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { isUnauthorizedError } from 'utils/ts/httpError';

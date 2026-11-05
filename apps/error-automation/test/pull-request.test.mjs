@@ -67,7 +67,8 @@ function env(overrides = {}) {
     GITHUB_DISPATCH_INSTALLATION_ID: '176455083',
     AUTOFIX_EXECUTOR_ID: 'koin-rocky-umpc',
     AUTOFIX_EXECUTOR_TOKEN: 'local-dedicated-executor-secret-32-characters',
-    ANTHROPIC_API_KEY: 'local-test-only-anthropic-key',
+    OMP_GATEWAY_ORIGIN: 'https://bridge.example',
+    OMP_GATEWAY_TOKEN: 'local-gateway-bearer-0123456789abcdef',
     PR_REVIEW_ENABLED: 'true',
     PR_REVIEW_ALLOWED_PRS: '3,7',
     ...overrides,
@@ -78,6 +79,10 @@ function env(overrides = {}) {
 function githubMock(t, state) {
   const writes = [];
   const systems = [];
+  /** `max_tokens` the Worker actually forwarded per gateway call (clamped by the remaining output budget). */
+  const forwarded = [];
+  const gateway = { reply: () => null };
+  const gatewayReply = (body) => gateway.reply(body);
   t.mock.method(globalThis, 'fetch', async (url, options = {}) => {
     const href = String(url);
     const method = options.method ?? 'GET';
@@ -93,14 +98,20 @@ function githubMock(t, state) {
         repositories: [{ full_name: 'BCSDLab/BCSD_united' }],
       });
     }
-    if (href === 'https://api.anthropic.com/v1/messages') {
-      systems.push(JSON.parse(options.body).system);
-      return Response.json({
-        type: 'message',
-        model: 'claude-fable-5-1',
-        content: [{ type: 'text', text: 'reviewing' }],
-        stop_reason: 'end_turn',
-      });
+    if (href === 'https://bridge.example/v1/messages') {
+      const body = JSON.parse(options.body);
+      systems.push(body.system);
+      forwarded.push(body.max_tokens);
+      return (
+        gatewayReply(body) ??
+        Response.json({
+          type: 'message',
+          model: body.model,
+          content: [{ type: 'text', text: 'reviewing' }],
+          stop_reason: 'end_turn',
+          usage: { input_tokens: 1000, output_tokens: 100 },
+        })
+      );
     }
     if (api === '/pulls/3' || api === '/pulls/7') {
       const number = Number(api.slice(-1));
@@ -191,7 +202,7 @@ function githubMock(t, state) {
     if (api.startsWith('/pulls?')) return Response.json([]);
     throw new Error(`Unexpected trusted request ${method} ${href}`);
   });
-  return { writes, systems };
+  return { writes, systems, forwarded, gateway };
 }
 
 function pullState() {
@@ -253,12 +264,20 @@ function queueHarness(t, state = pullState(), overrides = {}) {
   };
   const mock = githubMock(t, state);
   t.after(() => db.close());
-  return { queue: new AutofixQueue({ storage }, e), db, state, env: e, ...mock };
+  return {
+    queue: new AutofixQueue({ storage }, e),
+    /** A fresh Durable Object instance over the same SQLite file, as after an eviction or deploy. */
+    restart: () => new AutofixQueue({ storage }, e),
+    db,
+    state,
+    env: e,
+    ...mock,
+  };
 }
 
 const identity3 = { source: 'github-pr', pullNumber: 3, headSha: head, baseSha: base };
 const request = {
-  model: 'claude-fable-5-1',
+  model: 'claude-opus-5-5',
   maxTokens: 4096,
   tools: ['Read', 'Edit', 'Write', 'Glob', 'Grep'],
   messages: [{ role: 'user', content: 'Review PR' }],
@@ -705,7 +724,10 @@ test('error jobs reject pr-reviewed results and keep the strict error proof', as
   const h = queueHarness(t);
   await h.queue.enqueue(errorIdentity, 'sentry/bcsd/koin-united-prod/123');
   const claim = await h.queue.claim('f'.repeat(64));
-  await h.queue.model(claim.runId, claim.leaseToken, request);
+  // An error job runs on the Sonnet tier; echoing the PR tier is rejected before any provider call.
+  await assert.rejects(h.queue.model(claim.runId, claim.leaseToken, request), /tier/);
+  assert.equal(h.systems.length, 0);
+  await h.queue.model(claim.runId, claim.leaseToken, { ...request, model: 'claude-sonnet-5-5' });
   assert.match(h.systems.at(-1), /error repair agent/);
   await h.queue.verificationStart(claim.runId, claim.leaseToken);
   await assert.rejects(h.queue.result(claim.runId, await reviewed(claim.leaseToken, emptyManifest)), PolicyRejection);
@@ -715,35 +737,148 @@ test('error jobs reject pr-reviewed results and keep the strict error proof', as
   );
 });
 
-test('whole-PR model limits do not widen error-job context or turn limits', async (t) => {
+const BUDGET = {
+  error: { calls: 6, windowMs: 4 * 60_000, inputTokens: 50_000, outputTokens: 8_000, perCall: 4096 },
+  'pull-request': { calls: 12, windowMs: 8 * 60_000, inputTokens: 150_000, outputTokens: 16_000, perCall: 8192 },
+};
+const budgetRow = (h, runId) => ({
+  ...h.db.prepare('SELECT model_calls, model_input_tokens, model_output_tokens FROM jobs WHERE run_id = ?').get(runId),
+});
+async function budgetJob(t, mode) {
+  const h = queueHarness(t);
+  if (mode === 'pull-request') await h.queue.enqueuePullRequest(identity3);
+  else await h.queue.enqueue(errorIdentity, 'sentry/bcsd/koin-united-prod/123');
+  const claim = await h.queue.claim('f'.repeat(64));
+  const tiered = { ...request, model: mode === 'pull-request' ? 'claude-opus-5-5' : 'claude-sonnet-5-5' };
+  const call = (queue, body = tiered) => queue.model(claim.runId, claim.leaseToken, body);
+  return { h, claim, tiered, call };
+}
+
+test('per-job model budgets are mode-specific, enforced before the call, and survive a restart', async (t) => {
   for (const mode of ['error', 'pull-request']) {
     await t.test(mode, async (t) => {
-      const h = queueHarness(t);
-      if (mode === 'pull-request') await h.queue.enqueuePullRequest(identity3);
-      else await h.queue.enqueue(errorIdentity, 'sentry/bcsd/koin-united-prod/123');
-      const claim = await h.queue.claim('f'.repeat(64));
+      const { h, claim, tiered, call } = await budgetJob(t, mode);
+      const budget = BUDGET[mode];
       await assert.rejects(
-        h.queue.model(claim.runId, claim.leaseToken, { ...request, maxTokens: mode === 'pull-request' ? 16385 : 4097 }),
-        /output limit/,
+        call(h.queue, { ...tiered, model: mode === 'pull-request' ? 'claude-sonnet-5-5' : 'claude-opus-5-5' }),
+        PolicyRejection,
       );
-      const expanded = {
-        ...request,
-        maxTokens: mode === 'pull-request' ? 16384 : 4096,
-        messages: Array.from({ length: 90 }, () => ({ role: 'user', content: 'x'.repeat(4000) })),
-      };
+      await assert.rejects(call(h.queue, { ...tiered, maxTokens: budget.perCall + 1 }), /output limit/);
       const exhausted = {
-        ...request,
+        ...tiered,
         messages: Array.from({ length: 160 }, () => ({ role: 'user', content: 'x'.repeat(7000) })),
       };
-      await assert.rejects(h.queue.model(claim.runId, claim.leaseToken, exhausted), /context limit/);
-      if (mode === 'error')
-        await assert.rejects(h.queue.model(claim.runId, claim.leaseToken, expanded), /context limit/);
-      const limit = mode === 'pull-request' ? 80 : 40;
-      for (let call = 0; call < limit; call++)
-        await h.queue.model(claim.runId, claim.leaseToken, mode === 'pull-request' && call === 0 ? expanded : request);
-      await assert.rejects(h.queue.model(claim.runId, claim.leaseToken, request), /call or deadline limit/);
+      await assert.rejects(call(h.queue, exhausted), /context limit/);
+      // Inside the byte cap yet above the cumulative input budget: rejected without reserving anything.
+      const overBudget = {
+        ...tiered,
+        messages: Array.from({ length: mode === 'pull-request' ? 40 : 30 }, () => ({
+          role: 'user',
+          content: 'x'.repeat(mode === 'pull-request' ? 8000 : 4000),
+        })),
+      };
+      await assert.rejects(call(h.queue, overBudget), /input budget exhausted/);
+      assert.deepEqual(budgetRow(h, claim.runId), { model_calls: 0, model_input_tokens: 0, model_output_tokens: 0 });
+      assert.equal(h.systems.length, 0);
+      for (let n = 0; n < budget.calls; n++) await call(h.queue);
+      // Trustworthy usage replaced each conservative reservation.
+      assert.deepEqual(budgetRow(h, claim.runId), {
+        model_calls: budget.calls,
+        model_input_tokens: 1000 * budget.calls,
+        model_output_tokens: 100 * budget.calls,
+      });
+      await assert.rejects(call(h.queue), /call or deadline limit exceeded/);
+      await assert.rejects(call(h.restart()), /call or deadline limit exceeded/);
+      assert.equal(h.systems.length, budget.calls);
+      // The lease, heartbeat and verification phase are untouched by model exhaustion.
+      await h.queue.heartbeat(claim.runId, claim.leaseToken);
+      assert.deepEqual(await h.queue.verificationStart(claim.runId, claim.leaseToken), { status: 'verifying' });
     });
   }
+});
+
+test('output budget is reserved from the forwarded max_tokens, clamped to what remains, and kept without usage', async (t) => {
+  const { h, claim, call } = await budgetJob(t, 'error');
+  h.gateway.reply = (body) =>
+    Response.json({ type: 'message', model: body.model, content: [], stop_reason: 'max_tokens' });
+  await call(h.queue);
+  await call(h.queue);
+  assert.deepEqual(h.forwarded, [4096, 3904]);
+  assert.equal(budgetRow(h, claim.runId).model_output_tokens, 8000);
+  await assert.rejects(call(h.queue), /output budget exhausted/);
+  await assert.rejects(call(h.restart()), /output budget exhausted/);
+  assert.equal(h.forwarded.length, 2);
+});
+
+test('a failed upstream call keeps its reservation and concurrent calls cannot exceed the call cap', async (t) => {
+  const { h, claim, tiered, call } = await budgetJob(t, 'error');
+  h.gateway.reply = () =>
+    Response.json({ type: 'error', error: { type: 'api_error', message: 'omp child exited' } }, { status: 502 });
+  t.mock.method(console, 'error', () => {});
+  await assert.rejects(call(h.queue), /declined fixed model invocation \(502\)/);
+  assert.equal(budgetRow(h, claim.runId).model_calls, 1);
+  assert.equal(budgetRow(h, claim.runId).model_output_tokens, 4096);
+  h.gateway.reply = () => null;
+  const settled = await Promise.allSettled(
+    Array.from({ length: 8 }, () => call(h.queue, { ...tiered, maxTokens: 100 })),
+  );
+  assert.equal(settled.filter((result) => result.status === 'fulfilled').length, 5);
+  for (const result of settled.filter((result) => result.status === 'rejected'))
+    assert.match(result.reason.message, /call or deadline limit exceeded/);
+  assert.equal(budgetRow(h, claim.runId).model_calls, 6);
+  assert.equal(h.systems.length, 6);
+});
+
+test('the generation window is mode-specific and bounds the next call timeout', async (t) => {
+  const timeouts = [];
+  const original = AbortSignal.timeout;
+  t.mock.method(AbortSignal, 'timeout', (ms) => {
+    timeouts.push(ms);
+    return original.call(AbortSignal, ms);
+  });
+  const pr = await budgetJob(t, 'pull-request');
+  await pr.call(pr.h.queue);
+  assert.equal(timeouts.at(-1), 180_000);
+  pr.h.db.prepare('UPDATE jobs SET model_started_at = ? WHERE run_id = ?').run(Date.now() - 7 * 60_000, pr.claim.runId);
+  await pr.call(pr.h.queue);
+  assert.equal(timeouts.at(-1) <= 60_000 && timeouts.at(-1) > 55_000, true, String(timeouts.at(-1)));
+  pr.h.db.prepare('UPDATE jobs SET model_started_at = ? WHERE run_id = ?').run(Date.now() - 8 * 60_000, pr.claim.runId);
+  await assert.rejects(pr.call(pr.h.queue), /call or deadline limit exceeded \(12 calls, 8 min\)/);
+  const error = await budgetJob(t, 'error');
+  error.h.db
+    .prepare('UPDATE jobs SET model_started_at = ? WHERE run_id = ?')
+    .run(Date.now() - 4 * 60_000, error.claim.runId);
+  await assert.rejects(error.call(error.h.queue), /call or deadline limit exceeded \(6 calls, 4 min\)/);
+  assert.equal(budgetRow(error.h, error.claim.runId).model_calls, 0);
+});
+
+test('only trustworthy provider usage replaces a reservation', async (t) => {
+  const { h, claim, call } = await budgetJob(t, 'pull-request');
+  h.gateway.reply = (body) =>
+    Response.json({
+      type: 'message',
+      model: body.model,
+      content: [],
+      stop_reason: 'end_turn',
+      usage: { input_tokens: 0, output_tokens: 5 },
+    });
+  await call(h.queue);
+  const reserved = budgetRow(h, claim.runId).model_input_tokens;
+  assert.equal(budgetRow(h, claim.runId).model_output_tokens, 4096);
+  h.gateway.reply = (body) =>
+    Response.json({
+      type: 'message',
+      model: body.model,
+      content: [],
+      stop_reason: 'end_turn',
+      usage: { input_tokens: 1500, cache_creation_input_tokens: 0, cache_read_input_tokens: 500, output_tokens: 50 },
+    });
+  await call(h.queue);
+  assert.deepEqual(budgetRow(h, claim.runId), {
+    model_calls: 2,
+    model_input_tokens: reserved + 2000,
+    model_output_tokens: 4096 + 50,
+  });
 });
 
 function executorRequest(path, token, body, headers = {}) {

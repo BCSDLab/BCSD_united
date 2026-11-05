@@ -1,9 +1,9 @@
-import { isKoinError } from '@bcsdlab/koin';
 import { captureError } from '@koin/telemetry/runtime';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { agreeGraduationCredits } from 'api/graduationCalculator';
 import { graduationCalculatorQueryKeys } from 'api/graduationCalculator/queries';
+import { isKoinError } from 'interfaces/APIError';
 import showToast from 'utils/ts/showToast';
 
 export default function useAgreeGraduationCreidts() {

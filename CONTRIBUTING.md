@@ -19,9 +19,10 @@ pnpm dev
 
 - 웹은 기존 절대 경로, API는 `@api/*`를 사용합니다.
 - 내부 화면 이동은 TanStack Router와 `ROUTES`를 사용합니다.
-- 웹 mutation 오류는 `isKoinError()`로 좁힌 뒤 `showToast()`로 표시합니다.
+- 웹 mutation 오류는 `interfaces/APIError`의 `isKoinError()`로 좁힌 뒤 `showToast()`로 표시합니다. 업무 오류가 아닌 HTTP·네트워크 오류는 같은 모듈의 `HttpError`를 사용하며, 상태 코드는 `utils/ts/httpError`의 `getErrorStatus()`로 읽습니다.
 - 서버가 아는 기기·인증·시각은 서버 스냅샷으로 전달합니다. 이를 클라이언트 시계나 영속 회원 유형으로 대체하지 않습니다.
 - 요청별 QueryClient·쿠키 전달 컨텍스트를 공유 전역 상태로 바꾸지 않습니다.
+- 웹 HTTP 요청은 `APIClient`의 native `fetch` 경로를 사용합니다. 브라우저는 same-origin `/api`, SSR은 검증된 Worker 대상과 요청별 Cookie/Origin을 사용합니다. 타임아웃은 응답 본문 수신까지 적용하며, 브라우저 401은 세션을 한 번 갱신한 뒤 최신 CSRF 헤더로 한 번만 재시도합니다. 직접 파일 업로드는 원본 Blob을 보내고 서비스 쿠키·CSRF를 제외합니다.
 - D1 변경은 Drizzle의 파라미터화 SQL·원자 배치를 사용합니다. DO 직렬화만으로 DB 원자성이 생기는 것은 아닙니다.
 - Queue 소비자는 중복 전달·중단·재시도를 고려하고, D1의 작업 상태와 fencing을 지킵니다.
 - 주석은 변경 이력이 아니라 코드의 계약·제약을 한국어로 설명합니다.

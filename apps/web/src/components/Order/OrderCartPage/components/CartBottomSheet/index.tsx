@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { isKoinError } from '@bcsdlab/koin';
 import { cn } from '@bcsdlab/utils';
 import { useMutation } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
@@ -11,6 +10,7 @@ import CartValidateModal, {
   type CartValidateErrorCode,
 } from 'components/Order/OrderCartPage/components/CartValidateModal';
 import Button from 'components/ui/Button';
+import { isKoinError } from 'interfaces/APIError';
 import ROUTES from 'static/routes';
 import { formatNumber } from 'utils/ts/formatPrice';
 import showToast from 'utils/ts/showToast';

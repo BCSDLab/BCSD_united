@@ -1,6 +1,5 @@
-import { isKoinError } from '@bcsdlab/koin';
-
 import type { CallvanRestrictionResponse } from 'api/callvan/entity';
+import { isKoinError } from 'interfaces/APIError';
 
 const CALLVAN_RESTRICTED_ERROR_STATUS = 403;
 

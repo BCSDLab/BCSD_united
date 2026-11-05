@@ -1,9 +1,9 @@
-import { isKoinError } from '@bcsdlab/koin';
 import { captureError } from '@koin/telemetry/runtime';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
 
 import { clubMutations } from 'api/club/mutations';
+import { isKoinError } from 'interfaces/APIError';
 import ROUTES from 'static/routes';
 import showToast from 'utils/ts/showToast';
 

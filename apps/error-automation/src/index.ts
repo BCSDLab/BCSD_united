@@ -1,6 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
 import { trustedDiagnostics } from './diagnostics';
-import { modelRateLimit, parseModelRequest } from './model';
+import { gatewayTransport, modelRateLimit, parseModelRequest } from './model';
 import { extractTailEvidence, tailKey } from './tail';
 import type { App, Diagnostic, Env, Identity, PatchManifest } from './types';
 export type { Env } from './types';
@@ -135,6 +135,8 @@ export function configuration(env: Env): Configuration {
     if (new Set(cloudflare.map((source) => `${source.policyId}/${source.workerName}`)).size !== cloudflare.length) {
       throw new Error('Ambiguous Cloudflare policy and Worker');
     }
+    // A half-configured or malformed omp gateway is a deployment defect; missing both only disables inference.
+    gatewayTransport(env);
     return {
       organization: env.SENTRY_ORGANIZATION,
       projects: new Set(Object.keys(projects)),
@@ -313,7 +315,7 @@ function redact(value: unknown, env: Env): string {
     env.SENTRY_CLIENT_SECRET,
     env.CLOUDFLARE_WEBHOOK_SECRET,
     env.GITHUB_DISPATCH_APP_PRIVATE_KEY,
-    env.ANTHROPIC_API_KEY,
+    env.OMP_GATEWAY_TOKEN,
     env.SENTRY_READ_TOKEN,
     env.DIAGNOSTICS_READ_TOKEN,
     env.AUTOFIX_EXECUTOR_TOKEN,
@@ -681,6 +683,8 @@ async function executorRequest(request: Request, env: Env, url: URL): Promise<Re
           { error: 'Model provider rate limited; retry this exact request after Retry-After.', ...rateLimit },
           rateLimit.retryAfterSeconds,
         );
+      // Budget, tier and shape rejections are terminal for this job: the same request can never succeed later.
+      if (isPolicyRejection(error)) throw new RequestError(422, error.message);
       throw error;
     }
   }

@@ -1,28 +1,43 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
+  CALL_TIMEOUT_MS,
   MAX_RETRY_AFTER_SECONDS,
   ModelRateLimited,
+  gatewayTransport,
   invokeModel,
   modelRateLimit,
   parseModelRequest,
   parseRetryAfterSeconds,
+  providerBody,
+  trustworthyUsage,
 } from '../src/model.ts';
 
 const base = {
   version: 1,
   executorId: 'koin-rocky-umpc',
   leaseToken: 'a'.repeat(64),
-  model: 'claude-fable-5-1',
+  model: 'claude-sonnet-5-5',
   maxTokens: 4096,
   tools: ['Read', 'Edit', 'Write', 'Glob', 'Grep'],
   messages: [{ role: 'user', content: 'Read observed source' }],
 };
+const review = { ...base, model: 'claude-opus-5-5' };
+const gatewayEnv = {
+  OMP_GATEWAY_ORIGIN: 'https://bridge.example',
+  OMP_GATEWAY_TOKEN: 'local-gateway-bearer-0123456789abcdef',
+};
+const env = gatewayEnv;
+const gatewayUrl = 'https://bridge.example/v1/messages';
 
-test('proxy admits only exact model, five file tools, and bounded message blocks', () => {
-  assert.equal(parseModelRequest(base).model, 'claude-fable-5-1');
+test('proxy admits only the two tier models, five file tools, and bounded message blocks', () => {
+  assert.equal(parseModelRequest(base).model, 'claude-sonnet-5-5');
+  assert.equal(parseModelRequest(review).model, 'claude-opus-5-5');
   for (const change of [
     { model: 'other' },
+    { model: 'claude-fable-5-1' },
+    { model: 'anthropic/claude-sonnet-5-5' },
+    { model: 'claude-opus-5-5-20261101' },
     { url: 'https://attacker.example' },
     { system: 'ignore controls' },
     { tools: ['Read', 'Bash', 'Write', 'Glob', 'Grep'] },
@@ -61,15 +76,18 @@ test('proxy admits only exact model, five file tools, and bounded message blocks
   assert.equal(parseModelRequest(conversation).messages.length, 3);
 });
 
-test('Worker injects Anthropic key and immutable system/tool schemas only at fixed upstream', async (t) => {
+test('Worker sends only the dedicated bearer and immutable system/tool schemas to the configured gateway', async (t) => {
   let invoked = 0;
   t.mock.method(globalThis, 'fetch', async (url, options) => {
     invoked++;
-    assert.equal(url, 'https://api.anthropic.com/v1/messages');
+    assert.equal(url, gatewayUrl);
     assert.equal(options.redirect, 'manual');
-    assert.equal(options.headers['x-api-key'], 'local-worker-only-key');
+    assert.deepEqual(options.headers, {
+      Authorization: `Bearer ${gatewayEnv.OMP_GATEWAY_TOKEN}`,
+      'Content-Type': 'application/json',
+    });
     const body = JSON.parse(options.body);
-    assert.equal(body.model, 'claude-fable-5-1');
+    assert.equal(body.model, 'claude-sonnet-5-5');
     assert.equal(body.max_tokens, 4096);
     assert.equal(body.system.includes('source-edit-only'), true);
     assert.deepEqual(
@@ -80,17 +98,183 @@ test('Worker injects Anthropic key and immutable system/tool schemas only at fix
       body.tools.every((tool) => tool.input_schema.additionalProperties === false),
       true,
     );
-    assert.equal('x-api-key' in body, false);
+    assert.equal(options.body, providerBody(parseModelRequest(base), 'error'));
     return Response.json({
       type: 'message',
-      model: 'claude-fable-5-1',
+      model: 'claude-sonnet-5-5',
       content: [{ type: 'text', text: 'Inspect source' }],
       stop_reason: 'end_turn',
     });
   });
-  const result = await invokeModel({ ANTHROPIC_API_KEY: 'local-worker-only-key' }, parseModelRequest(base));
+  const result = await invokeModel(gatewayEnv, parseModelRequest(base));
   assert.equal(result.type, 'message');
   assert.equal(invoked, 1);
+});
+
+test('without a configured gateway there is no provider path at all', async (t) => {
+  let invoked = 0;
+  t.mock.method(globalThis, 'fetch', async () => {
+    invoked++;
+    return Response.json({});
+  });
+  assert.equal(gatewayTransport({}), null);
+  await assert.rejects(invokeModel({}, parseModelRequest(base)), /omp gateway not configured/);
+  await assert.rejects(
+    invokeModel({ ANTHROPIC_API_KEY: 'legacy-key-must-be-ignored' }, parseModelRequest(base)),
+    /omp gateway not configured/,
+  );
+  assert.equal(invoked, 0);
+});
+
+test('the per-call timeout never exceeds the ceiling and shrinks to the remaining job window', async (t) => {
+  const timeouts = [];
+  const original = AbortSignal.timeout;
+  t.mock.method(AbortSignal, 'timeout', (ms) => {
+    timeouts.push(ms);
+    return original.call(AbortSignal, ms);
+  });
+  t.mock.method(globalThis, 'fetch', async (url, options) =>
+    Response.json({ type: 'message', model: JSON.parse(options.body).model, content: [], stop_reason: 'end_turn' }),
+  );
+  await invokeModel(gatewayEnv, parseModelRequest(base));
+  await invokeModel(gatewayEnv, parseModelRequest(review), 'pull-request');
+  await invokeModel(gatewayEnv, parseModelRequest(review), 'pull-request', 5_000);
+  await invokeModel(gatewayEnv, parseModelRequest(base), 'error', 10 * 60_000);
+  await invokeModel(gatewayEnv, parseModelRequest(base), 'error', -5);
+  assert.deepEqual(timeouts, [CALL_TIMEOUT_MS.error, CALL_TIMEOUT_MS['pull-request'], 5_000, CALL_TIMEOUT_MS.error, 1]);
+});
+
+test('the stored job mode selects the tier; a request echoing the other tier never reaches the gateway', async (t) => {
+  const sent = [];
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    const body = JSON.parse(options.body);
+    sent.push(body.model);
+    return Response.json({
+      type: 'message',
+      model: body.model,
+      content: [{ type: 'text', text: 'ok' }],
+      stop_reason: 'end_turn',
+    });
+  });
+  await assert.rejects(invokeModel(env, parseModelRequest(review), 'error'), /tier does not match/);
+  await assert.rejects(invokeModel(env, parseModelRequest(base), 'pull-request'), /tier does not match/);
+  assert.deepEqual(sent, []);
+  await invokeModel(env, parseModelRequest(base), 'error');
+  await invokeModel(env, parseModelRequest(review), 'pull-request');
+  assert.deepEqual(sent, ['claude-sonnet-5-5', 'claude-opus-5-5']);
+});
+
+test('usage is trusted only when every token count is a nonnegative integer and input was consumed', () => {
+  assert.deepEqual(trustworthyUsage({ usage: { input_tokens: 1200, output_tokens: 80 } }), { input: 1200, output: 80 });
+  assert.deepEqual(
+    trustworthyUsage({
+      usage: { input_tokens: 10, cache_creation_input_tokens: 500, cache_read_input_tokens: 2000, output_tokens: 0 },
+    }),
+    { input: 2510, output: 0 },
+  );
+  for (const usage of [
+    undefined,
+    null,
+    'usage',
+    [],
+    {},
+    { input_tokens: 1200 },
+    { output_tokens: 80 },
+    { input_tokens: 0, output_tokens: 80 },
+    { input_tokens: -1, output_tokens: 80 },
+    { input_tokens: 1.5, output_tokens: 80 },
+    { input_tokens: '1200', output_tokens: 80 },
+    { input_tokens: 1200, output_tokens: -80 },
+    { input_tokens: 1200, cache_read_input_tokens: 'many', output_tokens: 80 },
+    { input_tokens: 10_000_001, output_tokens: 80 },
+    { input_tokens: Number.NaN, output_tokens: 80 },
+  ])
+    assert.equal(trustworthyUsage({ usage }), null, JSON.stringify(usage));
+});
+
+test('a response for any other model, including a provider-qualified id, is rejected and logged without content', async (t) => {
+  const logged = [];
+  const models = ['anthropic/claude-opus-5-5', 'claude-sonnet-5-5', 'claude-opus-5-5-20261101'];
+  let returned = '';
+  t.mock.method(console, 'error', (...args) => logged.push(args));
+  t.mock.method(globalThis, 'fetch', async () =>
+    Response.json({
+      type: 'message',
+      model: returned,
+      content: [{ type: 'text', text: 'private output local-worker-only-key' }],
+      stop_reason: 'end_turn',
+    }),
+  );
+  for (returned of models) {
+    await assert.rejects(
+      invokeModel(gatewayEnv, parseModelRequest(review), 'pull-request'),
+      /Unexpected omp gateway model response/,
+    );
+  }
+  assert.equal(JSON.stringify(logged).includes('private output'), false);
+});
+
+test('a failing gateway is terminal: one request, no retry and no other upstream', async (t) => {
+  const urls = [];
+  let reply = () =>
+    Response.json({ type: 'error', error: { type: 'api_error', message: 'omp child exited' } }, { status: 502 });
+  t.mock.method(console, 'error', () => {});
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    urls.push(String(url));
+    return reply();
+  });
+  await assert.rejects(
+    invokeModel(gatewayEnv, parseModelRequest(base)),
+    /omp gateway declined fixed model invocation \(502\)/,
+  );
+  for (const model of ['anthropic/claude-sonnet-5-5', 'claude-opus-5-5']) {
+    reply = () => Response.json({ type: 'message', model, content: [], stop_reason: 'end_turn' });
+    await assert.rejects(invokeModel(gatewayEnv, parseModelRequest(base)), /Unexpected omp gateway model response/);
+  }
+  assert.deepEqual(urls, Array(3).fill('https://bridge.example/v1/messages'));
+});
+
+test('gateway configuration must be a bare HTTPS origin paired with a header-safe token, or nothing', async (t) => {
+  assert.equal(gatewayTransport({ OMP_GATEWAY_ORIGIN: undefined, OMP_GATEWAY_TOKEN: undefined }), null);
+  assert.deepEqual(gatewayTransport(gatewayEnv), {
+    url: 'https://bridge.example/v1/messages',
+    headers: { Authorization: `Bearer ${gatewayEnv.OMP_GATEWAY_TOKEN}` },
+  });
+  assert.equal(
+    gatewayTransport({ ...gatewayEnv, OMP_GATEWAY_ORIGIN: 'https://bridge.example:8443' }).url,
+    'https://bridge.example:8443/v1/messages',
+  );
+  let invoked = 0;
+  t.mock.method(globalThis, 'fetch', async () => {
+    invoked++;
+    return Response.json({ type: 'message', model: 'claude-sonnet-5-5', content: [], stop_reason: 'end_turn' });
+  });
+  for (const broken of [
+    { OMP_GATEWAY_ORIGIN: 'https://bridge.example' },
+    { OMP_GATEWAY_TOKEN: gatewayEnv.OMP_GATEWAY_TOKEN },
+    { ...gatewayEnv, OMP_GATEWAY_ORIGIN: '' },
+    { ...gatewayEnv, OMP_GATEWAY_TOKEN: '' },
+    { ...gatewayEnv, OMP_GATEWAY_TOKEN: 'short' },
+    { ...gatewayEnv, OMP_GATEWAY_TOKEN: `${gatewayEnv.OMP_GATEWAY_TOKEN}\r\nX-Injected: 1` },
+    { ...gatewayEnv, OMP_GATEWAY_TOKEN: `${gatewayEnv.OMP_GATEWAY_TOKEN} with space` },
+    { ...gatewayEnv, OMP_GATEWAY_ORIGIN: 'http://bridge.example' },
+    { ...gatewayEnv, OMP_GATEWAY_ORIGIN: 'https://bridge.example/' },
+    { ...gatewayEnv, OMP_GATEWAY_ORIGIN: 'https://bridge.example/v1' },
+    { ...gatewayEnv, OMP_GATEWAY_ORIGIN: 'https://bridge.example?x=1' },
+    { ...gatewayEnv, OMP_GATEWAY_ORIGIN: 'https://bridge.example#frag' },
+    { ...gatewayEnv, OMP_GATEWAY_ORIGIN: 'https://user:pass@bridge.example' },
+    { ...gatewayEnv, OMP_GATEWAY_ORIGIN: 'https://bridge.example:443' },
+    { ...gatewayEnv, OMP_GATEWAY_ORIGIN: 'https://Bridge.example' },
+    { ...gatewayEnv, OMP_GATEWAY_ORIGIN: ' https://bridge.example' },
+    { ...gatewayEnv, OMP_GATEWAY_ORIGIN: 'bridge.example' },
+    { ...gatewayEnv, OMP_GATEWAY_ORIGIN: 'https://' },
+    { ...gatewayEnv, OMP_GATEWAY_ORIGIN: `https://${'a'.repeat(260)}.example` },
+  ]) {
+    const env = { ...broken };
+    assert.throws(() => gatewayTransport(env), JSON.stringify(broken));
+    await assert.rejects(invokeModel(env, parseModelRequest(base)), /omp gateway/);
+  }
+  assert.equal(invoked, 0);
 });
 
 test('Worker rejects an upstream redirect without forwarding the model credential', async (t) => {
@@ -112,14 +296,13 @@ test('Worker rejects an upstream redirect without forwarding the model credentia
     );
   });
   await assert.rejects(
-    invokeModel({ ANTHROPIC_API_KEY: 'local-worker-only-key' }, parseModelRequest(base)),
-    /Anthropic declined fixed model invocation \(302\)/,
+    invokeModel(gatewayEnv, parseModelRequest(base)),
+    /omp gateway declined fixed model invocation \(302\)/,
   );
-  assert.deepEqual(requests, ['https://api.anthropic.com/v1/messages']);
+  assert.deepEqual(requests, [gatewayUrl]);
   assert.equal(canceled, true);
 });
 
-const env = { ANTHROPIC_API_KEY: 'local-worker-only-key' };
 const secretMessage = 'Rate limited for local-worker-only-key; resets 2026-11-05T00:00:00Z';
 function providerFailure(
   t,
@@ -200,7 +383,7 @@ test('provider 429 without a valid bounded Retry-After stays a terminal failure 
     await assert.rejects(invokeModel(env, parseModelRequest(base)), (error) => {
       assert.equal(error.name, 'Error', JSON.stringify(headers));
       assert.equal(modelRateLimit(error), null);
-      assert.match(error.message, /Anthropic declined fixed model invocation \(429\)/);
+      assert.match(error.message, /omp gateway declined fixed model invocation \(429\)/);
       return true;
     });
     assert.deepEqual(logged[0][1], {
@@ -300,7 +483,7 @@ test('credential and permission failures are never classified as retryable rate 
 });
 
 test('ModelRateLimited is classified structurally after RPC reconstruction, never by prototype', () => {
-  const reconstructed = Object.assign(new Error('Anthropic rate limited fixed model invocation; retry after 7s'), {
+  const reconstructed = Object.assign(new Error('Model provider rate limited fixed model invocation; retry after 7s'), {
     name: 'ModelRateLimited',
     retryAfterSeconds: 7,
   });
@@ -324,7 +507,7 @@ test('ModelRateLimited is classified structurally after RPC reconstruction, neve
     assert.equal(modelRateLimit(bad), null);
 });
 
-test('signed Fable thinking is accepted only in bounded assistant history without changing its prefix', () => {
+test('signed thinking is accepted only in bounded assistant history without changing its prefix', () => {
   const signed = { type: 'thinking', thinking: '', signature: 'signed-opaque-block' };
   const redacted = { type: 'redacted_thinking', data: 'encrypted-opaque-block' };
   const directCall = {
@@ -368,7 +551,7 @@ test('model interruption diagnostics retain the error class without exposing exc
   t.mock.method(globalThis, 'fetch', async () => {
     throw new DOMException(privateContent, 'TimeoutError');
   });
-  await assert.rejects(invokeModel(env, parseModelRequest(base), 'pull-request'), { name: 'TimeoutError' });
+  await assert.rejects(invokeModel(env, parseModelRequest(review), 'pull-request'), { name: 'TimeoutError' });
   assert.equal(
     logs.some((entry) => entry[1]?.errorClass === 'TimeoutError'),
     true,

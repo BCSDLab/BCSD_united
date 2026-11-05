@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { isKoinError } from '@bcsdlab/koin';
 import { cn } from '@bcsdlab/utils';
 import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 
@@ -8,6 +7,7 @@ import { storeMobileQueries, storeMobileQueryKeys } from 'api/storeMobile/querie
 import CheckIcon from 'assets/svg/Store/check-icon.svg';
 import MobilePageHeader from 'components/layout/MobilePageHeader';
 import Button from 'components/ui/Button';
+import { isKoinError } from 'interfaces/APIError';
 import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useGoBack from 'utils/hooks/routing/useGoBack';

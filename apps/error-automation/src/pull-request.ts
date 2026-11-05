@@ -1,4 +1,5 @@
 import { BRANCH_NAME, GitHubError, HEX, SHA256, base64, github, installationToken } from './github';
+import { MODEL_BY_MODE } from './model';
 import type {
   Env,
   PatchManifest,
@@ -504,7 +505,7 @@ export function reviewComment(
         )
         .join('\n')
     : '- 없음 (리뷰 head 유지)';
-  return `${reviewMarker(job, proof)}\n\n## 자동 리뷰 결과 (claude-fable-5-1, 독립 검증)\n\n- 리뷰 head: \`${job.headSha}\`\n- 발행 head: \`${publishedHeadSha}\`\n- base(develop): \`${job.baseSha}\`\n- manifest sha256: \`${proof.manifestSha256}\`\n- 판정: **${review.decision}** (${severityLabel(review)})\n\n### 발견 사항\n\n${findings}\n\n### 적용된 수정\n\n${corrections}\n\n### 독립 검증 통과 항목\n\n${proof.passedChecks.map((check) => `- [x] ${check}`).join('\n')}\n\n### 주의\n\n- 이 댓글은 자동 리뷰 증거이며 승인·merge·배포가 아닙니다. PR 제목/본문/diff와 모델 출력은 신뢰할 수 없는 입력으로 취급했습니다.\n- 수정 커밋은 리뷰 head를 부모로 하는 fast-forward만 적용했으며 사람의 변경을 덮어쓰지 않습니다.\n`;
+  return `${reviewMarker(job, proof)}\n\n## 자동 리뷰 결과 (${MODEL_BY_MODE['pull-request']}, 독립 검증)\n\n- 리뷰 head: \`${job.headSha}\`\n- 발행 head: \`${publishedHeadSha}\`\n- base(develop): \`${job.baseSha}\`\n- manifest sha256: \`${proof.manifestSha256}\`\n- 판정: **${review.decision}** (${severityLabel(review)})\n\n### 발견 사항\n\n${findings}\n\n### 적용된 수정\n\n${corrections}\n\n### 독립 검증 통과 항목\n\n${proof.passedChecks.map((check) => `- [x] ${check}`).join('\n')}\n\n### 주의\n\n- 이 댓글은 자동 리뷰 증거이며 승인·merge·배포가 아닙니다. PR 제목/본문/diff와 모델 출력은 신뢰할 수 없는 입력으로 취급했습니다.\n- 수정 커밋은 리뷰 head를 부모로 하는 fast-forward만 적용했으며 사람의 변경을 덮어쓰지 않습니다.\n`;
 }
 
 /** The fixed App installation's bot; a human or another app can never satisfy this. */

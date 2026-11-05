@@ -1,9 +1,9 @@
-import { isKoinError } from '@bcsdlab/koin';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { uploadGraduationExcel } from 'api/graduationCalculator';
 import { graduationCalculatorQueryKeys } from 'api/graduationCalculator/queries';
 import type { GraduationExcelUploadForPost } from 'components/GraduationCalculatorPage/ts/types';
+import { isKoinError } from 'interfaces/APIError';
 import showToast from 'utils/ts/showToast';
 
 const usePostGraduationExcel = () => {
