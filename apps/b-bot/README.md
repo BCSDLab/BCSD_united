@@ -126,6 +126,6 @@ DB 회귀 테스트는 `DB_HOST`와 `_test`로 끝나는 `DB_NAME`이 있어야 
 pnpm deploy:b-bot
 ```
 
-[앱 전용 GitHub Actions](../../.github/workflows/deploy-b-bot.yml)는 이 앱과 공용 패키지만 검증한다. 실제 배포는 `main`의 수동 실행으로 제한한다. 배포 자격 증명은 GitHub의 `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`이며 봇 실행용 Secrets는 Cloudflare에 별도로 유지한다.
+[앱 전용 GitHub Actions](../../.github/workflows/deploy-b-bot.yml)는 이 앱과 공용 패키지만 검증한다. 실제 배포는 `develop`의 수동 실행으로 제한하며, 웹·API·오류 자동화의 자동 운영 배포와 달리 B-BOT을 자동 배포하지 않는다. 배포 자격 증명은 GitHub의 `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`이며 봇 실행용 Secrets는 Cloudflare에 별도로 유지한다. GitHub Actions의 브랜치 제한이 원격에 반영됐는지는 별도로 확인한다.
 
 원본 기능 계획은 [계획서](./docs/계획서.md)와 [기능명세서](./docs/기능명세서.md)에 보존한다. 해당 문서의 서버·모델 운영 방식과 구현 예정 항목은 현재 런타임의 완료 상태를 뜻하지 않으며, 실행·배포 설정은 이 README와 코드가 기준이다.

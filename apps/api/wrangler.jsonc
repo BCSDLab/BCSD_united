@@ -53,7 +53,7 @@
       "WEB_COOKIE_PREFIX": "koin-web",
       "WEB_COOKIE_DOMAIN": "",
       "WEB_COOKIE_SECURE": "true",
-      "AUTH_ALLOWED_ORIGINS": "https://preview-koin-web.bcsdlab.workers.dev,http://localhost:3000,http://127.0.0.1:3000",
+      "AUTH_ALLOWED_ORIGINS": "https://stage.koreatech.in,https://stage-koin-web.bcsdlab.workers.dev,http://localhost:3000,http://127.0.0.1:3000",
       "NATIVE_ACCESS_TTL_SECONDS": "6000",
       "API_PUBLIC_URL": "https://preview-koin-api.bcsdlab.workers.dev",
       "R2_FILES_PUBLIC_URL": "https://pub-035732b521844e3b9205d80d8d6efda1.r2.dev",

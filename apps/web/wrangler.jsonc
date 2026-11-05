@@ -4,6 +4,7 @@
   "main": "src/server.ts",
   "workers_dev": true,
   "preview_urls": true,
+  "routes": [{ "pattern": "koreatech.in", "custom_domain": true, "previews_enabled": true }],
   "compatibility_date": "2026-10-26",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "upload_source_maps": true,

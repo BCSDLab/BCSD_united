@@ -2,7 +2,7 @@ name: Verify and deploy B-BOT
 
 on:
   push:
-    branches: [main]
+    branches: [develop]
     paths:
       - apps/b-bot/**
       - apps/b-bot-crawler/**
@@ -73,7 +73,7 @@ jobs:
       - run: pnpm --filter @koin/b-bot exec wrangler deploy --dry-run
 
   deploy:
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/develop'
     needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 15
