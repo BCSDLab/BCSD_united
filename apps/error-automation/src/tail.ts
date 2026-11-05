@@ -30,6 +30,36 @@ export function isBundlePath(path: string): boolean {
   return path.length <= 180 && !path.includes('..') && /^(?:assets\/[A-Za-z0-9_.$/-]+\.js|index\.js)$/.test(path);
 }
 
+export function extractStackFrames(stacks: string[], app: App): TailEvidence['frames'] {
+  const frames: TailEvidence['frames'] = [];
+  const seen = new Set<string>();
+  for (const stack of stacks) {
+    if (stack.length > 16_384) continue;
+    for (const match of stack.matchAll(FRAME)) {
+      const path = sourcePath(match[1], app) ?? (isBundlePath(match[1]) ? match[1] : null);
+      if (!path) continue;
+      const line = Number(match[2]),
+        column = Number(match[3]);
+      if (
+        !Number.isSafeInteger(line) ||
+        line < 1 ||
+        line > 1_000_000 ||
+        !Number.isSafeInteger(column) ||
+        column < 1 ||
+        column > 10_000
+      )
+        continue;
+      const key = `${path}:${line}:${column}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      frames.push({ path, line, column });
+      if (frames.length >= 12) break;
+    }
+    if (frames.length >= 12) break;
+  }
+  return frames;
+}
+
 /** 원문 로그 없이 위치만 보존한다. 번들 위치는 접수 시 같은 배포 버전의 소스맵으로 검증한다. */
 export function extractTailEvidence(item: TraceItem, workerName: string, app: App): TailEvidence | null {
   if (
@@ -70,8 +100,6 @@ export function extractTailEvidence(item: TraceItem, workerName: string, app: Ap
     return null;
   }
 
-  const frames: TailEvidence['frames'] = [];
-  const seen = new Set<string>();
   const stacks: string[] = [];
   for (let index = 0; index < item.exceptions.length && index < 5; index += 1) {
     const stack = item.exceptions[index].stack;
@@ -85,30 +113,7 @@ export function extractTailEvidence(item: TraceItem, workerName: string, app: Ap
       if (typeof stack === 'string') stacks.push(stack);
     }
   }
-  for (const stack of stacks) {
-    if (stack.length > 16_384) continue;
-    for (const match of stack.matchAll(FRAME)) {
-      const path = sourcePath(match[1], app) ?? (isBundlePath(match[1]) ? match[1] : null);
-      if (!path) continue;
-      const line = Number(match[2]),
-        column = Number(match[3]);
-      if (
-        !Number.isSafeInteger(line) ||
-        line < 1 ||
-        line > 1_000_000 ||
-        !Number.isSafeInteger(column) ||
-        column < 1 ||
-        column > 10_000
-      )
-        continue;
-      const key = `${path}:${line}:${column}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      frames.push({ path, line, column });
-      if (frames.length >= 12) break;
-    }
-    if (frames.length >= 12) break;
-  }
+  const frames = extractStackFrames(stacks, app);
   if (!frames.length) return null;
   return {
     version: 1,

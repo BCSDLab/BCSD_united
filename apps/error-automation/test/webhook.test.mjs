@@ -143,6 +143,7 @@ function harness(t) {
   // Module-level nativeFetch: several harnesses in one test must not chain or leak mocks.
   let mocked = false;
   const occurrenceHost = {};
+  const capturedEvidence = { stack: undefined, telemetryEventId: 'captured-error-event', scheme: 'https' };
   const compiled = 'function handler() {}\n//# sourceMappingURL=handler.js.map';
   async function seedTail(workerName = 'koin-api', host = `${workerName}.bcsdlab.workers.dev`, sourceFormat = 'full') {
     occurrenceHost[workerName] = host;
@@ -162,10 +163,12 @@ function harness(t) {
             success: true,
             result: [
               {
+                id: 'captured-error-event',
+                ...(capturedEvidence.stack ? { error: { stack: capturedEvidence.stack } } : {}),
                 timestamp: Date.now(),
                 worker: { scriptName: project, scriptVersion: { id: cfVersion } },
                 invocation: {
-                  url: `https://${occurrenceHost[project] ?? `${project}.bcsdlab.workers.dev`}/campus`,
+                  url: `${capturedEvidence.scheme}://${occurrenceHost[project] ?? `${project}.bcsdlab.workers.dev`}/campus`,
                   method: 'GET',
                   path: '/campus',
                   rayId,
@@ -217,6 +220,7 @@ function harness(t) {
                 events: [
                   {
                     $metadata: {
+                      id: capturedEvidence.telemetryEventId,
                       account: cfAccount,
                       service: project,
                       traceId: 'c'.repeat(32),
@@ -283,6 +287,7 @@ function harness(t) {
     databases,
     queue,
     occurrenceHost,
+    capturedEvidence,
     seedTail,
     send: (request) => worker.fetch(request, env),
     restartObjects: () => instances.clear(),
@@ -739,6 +744,53 @@ test('bundled Tail locations require the pinned map before the production issue 
     { path: 'apps/web/src/handler.ts', line: 12, column: 3 },
   ]);
   assert.equal(h.queue.size, 1);
+});
+
+test('historical canonical error recovers missing Tail only with the identical telemetry event and pinned source', async (t) => {
+  const web = cloudflare({
+    data: { issue: { id: 'e'.repeat(32), services: [{ name: 'koin-web', type: 'worker' }] } },
+  });
+  const setup = async () => {
+    const h = harness(t);
+    await h.seedTail('koin-web', 'koreatech.in', 'bundle');
+    h.databases
+      .get(`tail/koin-web/${'a'.repeat(16)}`)
+      .prepare('DELETE FROM tail_evidence')
+      .run();
+    h.capturedEvidence.stack = 'at handler (assets/handler.js:1:1)';
+    return h;
+  };
+  const accepted = await setup();
+  assert.equal((await accepted.send(cloudflareRequest(accepted, web))).status, 200);
+  assert.equal(accepted.queue.size, 1);
+  const diagnostic = await (
+    await accepted.send(
+      diagnosticRequest(accepted, {
+        id: 'e'.repeat(32),
+        query: `project=koin-web&accountId=${cfAccount}&policyId=${cfPolicy}&workerName=koin-web`,
+      }),
+    )
+  ).json();
+  assert.equal(diagnostic.details.verifiedEvidence.data.evidenceSource, 'canonical-occurrence-and-telemetry');
+  assert.deepEqual(diagnostic.details.verifiedEvidence.data.sourceFrames, [
+    { path: 'apps/web/src/handler.ts', line: 12, column: 3 },
+  ]);
+
+  const wrongEvent = await setup();
+  wrongEvent.capturedEvidence.telemetryEventId = 'different-event-in-the-same-trace';
+  assert.equal((await wrongEvent.send(cloudflareRequest(wrongEvent, web))).status, 503);
+  assert.equal(wrongEvent.queue.size, 0);
+  for (const [scheme, host] of [
+    ['https', 'koreatech.in:8443'],
+    ['http', 'koreatech.in'],
+    ['https', 'stage.koreatech.in'],
+  ]) {
+    const wrongOrigin = await setup();
+    wrongOrigin.capturedEvidence.scheme = scheme;
+    wrongOrigin.occurrenceHost['koin-web'] = host;
+    assert.equal((await wrongOrigin.send(cloudflareRequest(wrongOrigin, web))).status, 503);
+    assert.equal(wrongOrigin.queue.size, 0);
+  }
 });
 
 test('koin-web custom domain koreatech.in is accepted exactly; unrelated hosts never admit a job', async (t) => {

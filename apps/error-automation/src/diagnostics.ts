@@ -1,5 +1,5 @@
 import type { Diagnostic, Env, Identity } from './types';
-import { isBundlePath, SOURCE_HOSTS, sourcePath, tailKey } from './tail';
+import { extractStackFrames, isBundlePath, SOURCE_HOSTS, sourcePath, tailKey } from './tail';
 import { mappedTailFrames } from './source-maps';
 
 export class DiagnosticProviderError extends Error {
@@ -138,6 +138,8 @@ async function cloudflareEvidence(
       invocation.method !== 'GET' ||
       route === null ||
       route.includes('REDACTED') ||
+      new URL(invocation.url as string).protocol !== 'https:' ||
+      new URL(invocation.url as string).port !== '' ||
       invocation.path !== route ||
       typeof invocation.rayId !== 'string' ||
       !RAY_ID.test(invocation.rayId) ||
@@ -151,25 +153,34 @@ async function cloudflareEvidence(
 
     const stub = env.ERROR_ISSUES.get(env.ERROR_ISSUES.idFromName(tailKey(identity.project, invocation.rayId)));
     const storedTail = await stub.fetch('https://error-dispatch.internal/tail');
-    if (!storedTail.ok) {
+    let frames: Record<string, unknown>[];
+    const recovered = storedTail.status === 404;
+    if (recovered) {
       await storedTail.body?.cancel();
-      continue;
+      const stack = object(occurrence.error ?? {}).stack;
+      frames = typeof stack === 'string' ? extractStackFrames([stack], identity.app) : [];
+      if (!frames.length || typeof occurrence.id !== 'string' || !occurrence.id || occurrence.id.length > 128) continue;
+    } else {
+      if (!storedTail.ok) {
+        await storedTail.body?.cancel();
+        throw new Error('Tail evidence storage unavailable');
+      }
+      const tail = object(await storedTail.json());
+      if (
+        tail.version !== 1 ||
+        tail.workerName !== identity.project ||
+        tail.rayId !== invocation.rayId ||
+        tail.scriptVersion !== scriptVersion ||
+        tail.route !== route ||
+        !Number.isSafeInteger(tail.eventTimestamp) ||
+        Math.abs((tail.eventTimestamp as number) - (timestamp as number)) > 120_000 ||
+        !Array.isArray(tail.frames) ||
+        tail.frames.length === 0 ||
+        tail.frames.length > 12
+      )
+        continue;
+      frames = tail.frames.map((value) => object(value));
     }
-    const tail = object(await storedTail.json());
-    if (
-      tail.version !== 1 ||
-      tail.workerName !== identity.project ||
-      tail.rayId !== invocation.rayId ||
-      tail.scriptVersion !== scriptVersion ||
-      tail.route !== route ||
-      !Number.isSafeInteger(tail.eventTimestamp) ||
-      Math.abs((tail.eventTimestamp as number) - (timestamp as number)) > 120_000 ||
-      !Array.isArray(tail.frames) ||
-      tail.frames.length === 0 ||
-      tail.frames.length > 12
-    )
-      continue;
-    const frames = tail.frames.map((value) => object(value));
     if (
       frames.some(
         (frame) =>
@@ -232,6 +243,7 @@ async function cloudflareEvidence(
             metadata.account === CF_ACCOUNT &&
             metadata.service === identity.project &&
             metadata.traceId === invocation.traceId &&
+            (!recovered || metadata.id === occurrence.id) &&
             metadata.rayId === invocation.rayId &&
             producer.scriptName === identity.project &&
             object(producer.scriptVersion).id === scriptVersion
@@ -263,6 +275,7 @@ async function cloudflareEvidence(
         issueId: identity.sourceId,
         workerName: identity.project,
         scriptVersion,
+        evidenceSource: recovered ? 'canonical-occurrence-and-telemetry' : 'tail-and-telemetry',
         summary: stored.summary,
         sourceFrames,
       },
