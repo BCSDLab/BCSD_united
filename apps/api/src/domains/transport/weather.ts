@@ -157,8 +157,7 @@ export async function getWeather(db: Database, env: Bindings, now = Date.now()) 
   hour.setUTCMinutes(0, 0, 0);
   let hourly = await cacheRead<Record<string, Weather>>(db, 'Weather:byeongcheon', now);
   if (!hourly?.[forecastKey(hour)]) {
-    if (!env.OPEN_API_KEY_PUBLIC)
-      throw new ApiError(503, 'CONFIGURATION_ERROR', 'OPEN_API_KEY_PUBLIC is required.');
+    if (!env.OPEN_API_KEY_PUBLIC) throw new ApiError(503, 'CONFIGURATION_ERROR', 'OPEN_API_KEY_PUBLIC is required.');
     await refreshWeather(db, env, now, 1);
     hourly = await cacheRead<Record<string, Weather>>(db, 'Weather:byeongcheon', now);
   }

@@ -9,6 +9,23 @@ export const MONGO_COLLECTIONS = [
   'address_byeongcheon',
   ...ARCHIVED_MONGO_COLLECTIONS,
 ];
+export const EXCLUDED_OPERATIONAL_REDIS_KEYS = new Set(['JSESSIONID', '__KSMSID__', 'KHANUSER']);
+export const EXCLUDED_SOURCE_AUTH_KEYSPACES = [
+  { prefix: 'refreshToken:', types: ['hash'], sourceClass: 'native-refresh' },
+  { prefix: 'webAuthSession:', types: ['string'], sourceClass: 'web-session' },
+  { prefix: 'passwordResetToken:', types: ['hash'], sourceClass: 'password-reset-proof' },
+  { prefix: 'userVerificationStatus:', types: ['hash'], sourceClass: 'user-verification-proof' },
+  { prefix: 'verificationStatus@:', types: ['hash'], sourceClass: 'owner-verification-proof' },
+  { prefix: 'StudentTemporaryStatus:', types: ['hash', 'set'], sourceClass: 'temporary-student-registration' },
+];
+export const REVIEWED_ARCHIVE_ONLY_REDIS_KEY_SHA256 =
+  '2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae';
+
+export function reviewedArchiveOnlyRedisKey(keySha256, type, keyLength, expiresAt) {
+  return (
+    keySha256 === REVIEWED_ARCHIVE_ONLY_REDIS_KEY_SHA256 && type === 'string' && keyLength === 3 && expiresAt === null
+  );
+}
 const bool = (value) => (value === true || value === 1 || value === '1' || value === 'true' ? 1 : 0);
 const number = (value) => {
   const n = Number(value);
@@ -37,14 +54,29 @@ function hashObject(array) {
   const nested = Object.create(null);
   for (const [key, value] of Object.entries(flat)) {
     if (key === '_class') continue;
-    const parts = key.replace(/\[(\d+)\]/g, '.$1').split('.');
-    if (parts.some((part) => ['__proto__', 'prototype', 'constructor'].includes(part)))
+    if (key.startsWith('.')) throw new Error('Unsafe Spring Redis field path');
+    const parts = key
+      .replace(/\.?\[(\d+)\]/g, '.$1')
+      .replace(/^\./, '')
+      .split('.');
+    if (parts.some((part) => !part || ['__proto__', 'prototype', 'constructor'].includes(part)))
       throw new Error('Unsafe Spring Redis field path');
     let target = nested;
-    for (let i = 0; i < parts.length - 1; i += 1)
-      target = target[parts[i]] ??= /^\d+$/.test(parts[i + 1]) ? [] : Object.create(null);
+    for (let i = 0; i < parts.length - 1; i += 1) {
+      const nextIsArray = /^\d+$/.test(parts[i + 1]) && parts[i] !== 'hourlyWeathers';
+      if (nextIsArray && Number(parts[i + 1]) > 10_000) throw new Error('Oversized Spring Redis array index');
+      target = target[parts[i]] ??= nextIsArray ? [] : Object.create(null);
+    }
     target[parts.at(-1)] = value;
   }
+  const rejectSparse = (value) => {
+    if (!value || typeof value !== 'object') return;
+    if (Array.isArray(value))
+      for (let index = 0; index < value.length; index += 1)
+        if (!(index in value)) throw new Error('Sparse Spring Redis array path');
+    for (const child of Object.values(value)) rejectSparse(child);
+  };
+  rejectSparse(nested);
   return nested;
 }
 function javaJson(value) {
@@ -224,6 +256,25 @@ export function redisRows(record, context) {
       },
     ],
   });
+  if (EXCLUDED_OPERATIONAL_REDIS_KEYS.has(key)) {
+    if (record.type !== 'string') throw new TypeError('Unexpected portal SSO cookie Redis type');
+    return { rows: [], disposition: 'operational-credential-excluded' };
+  }
+  for (const policy of EXCLUDED_SOURCE_AUTH_KEYSPACES)
+    if (key.startsWith(policy.prefix)) {
+      if (!policy.types.includes(record.type)) throw new TypeError('Unexpected source auth authority Redis type');
+      return { rows: [], disposition: 'source-auth-authority-excluded', sourceClass: policy.sourceClass };
+    }
+  if (
+    typeof key === 'string' &&
+    reviewedArchiveOnlyRedisKey(
+      createHash('sha256').update(key).digest('hex'),
+      record.type,
+      key.length,
+      record.expiresAt,
+    )
+  )
+    return archive('unattributed-archive-only-user-approved');
   if (record.expiresAt !== null && record.expiresAt <= context.now) return archive('expired-archived');
   const springKey =
     /^(AbtestVariableCount|AbtestVariableAssign|articleHitUser|articleHit|HotArticleKeyword|ClubCreateRequest|hotClub|Weather|CityBus|CityBusRoute|expressBus|busNoticeArticle|refreshToken|userVerificationStatus|userDailyVerificationCount|StudentTemporaryStatus|passwordResetToken|owner_shop@|dailyVerifyCount@|verificationStatus@|TemporaryPayment@|excelDownload|diningSoldOut|DiningNotify)(?::.*)?$/;
@@ -490,8 +541,11 @@ export function redisRows(record, context) {
       key: (excel ? 'excel:' : 'soldout:') + (value.id ?? key.slice(key.indexOf(':') + 1)),
       expires_at: new Date(requireExpiry()).toISOString(),
     });
-  } else if (/^(Weather|CityBus|CityBusRoute|expressBus|busNoticeArticle):/.test(key) && record.type === 'hash') {
-    const prefix = key.slice(0, key.indexOf(':'));
+  } else if (
+    (/^(Weather|CityBus|CityBusRoute|expressBus|busNoticeArticle):/.test(key) || key === 'busNoticeArticle') &&
+    record.type === 'hash'
+  ) {
+    const prefix = key === 'busNoticeArticle' ? key : key.slice(0, key.indexOf(':'));
     let id = key;
     let payload;
     if (prefix === 'Weather')

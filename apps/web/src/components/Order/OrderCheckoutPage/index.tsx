@@ -99,18 +99,26 @@ export default function OrderCheckoutPage({ orderType }: OrderCheckoutPageProps)
     bank,
     accountNumber,
     accountHolder,
-    hasAccount,
+    isAccountReady,
     isUnavailable: isAccountUnavailable,
     isError: isAccountError,
     retry: retryAccount,
   } = useShopBankAccount(cart.orderable_shop_id);
-  const canPay = hasAccount && isAgreed && !!phoneNumber && (!isDelivery || !!selectedAddress?.address) && !isOrdering;
+  const hasOrderInfo = !!phoneNumber && (!isDelivery || !!selectedAddress?.address);
+  const canPay = isAccountReady && isAgreed && hasOrderInfo && !isOrdering;
 
   const orderCallbacks = {
     onSuccess: (response: OrderCreateResponse) => {
-      // 주문이 만들어지면 저장된 주문 정보(연락처·요청사항·배달지)를 비우고 결과 화면으로 바꾼다
+      // 주문이 만들어지면 저장된 주문 정보(연락처·요청사항·배달지)를 비우고 결과 화면으로 바꾼다.
+      // 결제 승인 화면으로 전체 이동하던 때와 달리 SPA 이동이라 메모리의 값이 남으므로, 이 화면을 떠난 뒤
+      // 메모리도 기본값으로 되돌린다(이동 중 빈 연락처·배달지가 보이지 않게 이동이 끝난 뒤에 한다)
       useOrderStore.persist.clearStorage();
-      router.navigate({ href: ROUTES.OrderResult({ paymentId: String(response.payment_id) }), replace: true });
+      router
+        .navigate({ href: ROUTES.OrderResult({ paymentId: String(response.payment_id) }), replace: true })
+        .finally(() => {
+          useOrderStore.getState().reset();
+          useOrderStore.persist.clearStorage();
+        });
     },
     onError: (error: unknown) => {
       showToast('error', isKoinError(error) ? error.message : FAILED_ORDER_MESSAGE);

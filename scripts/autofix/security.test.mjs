@@ -1,207 +1,37 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
+import { chmod, lstat, mkdtemp, mkdir, readdir, readFile, readlink, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { allowedPath, dispatchConfig, marker, safeRoute, validateDispatch } from './common.mjs';
-import { applyManifest, validateManifest } from './patch.mjs';
-import { permitted } from './tool-policy.mjs';
+import {
+  allowedPath,
+  allowedPullRequestPath,
+  pullRequestPolicy,
+  relatedDirectories,
+  runtimeProfiles,
+  validateChangedFiles,
+  validateReviewContext,
+} from './common.mjs';
+import { applyManifest, assertSnapshotMatchesTree, exportTree, prepareScratch, validateManifest } from './patch.mjs';
 import { matchesRoute } from './source-graph.mjs';
-import { boundedJson, cloudflareDiagnostics, diagnosticUrl, redact, sentryDiagnostics } from './diagnostics.mjs';
+import { parseJsonc, smokeConfiguration } from './bbot-smoke.mjs';
+import { declaresApiGate } from './local-api.mjs';
 
-const payload = {
-  source: 'sentry',
-  sourceId: '12345',
-  project: 'koin-prod',
-  app: 'web',
-  scope: { organization: 'bcsdlab' },
-};
-const cloudflare = {
-  source: 'cloudflare',
-  sourceId: 'a'.repeat(32),
-  project: 'koin-api',
-  app: 'api',
-  scope: { accountId: 'b'.repeat(32), policyId: 'c'.repeat(32), workerName: 'koin-api' },
-};
-const config = {
-  organization: 'bcsdlab',
-  sentryApps: { 'koin-prod': 'web' },
-  cloudflareSources: [{ ...cloudflare.scope, app: 'api' }],
-};
-const event = { action: 'error-autofix', client_payload: payload };
-
-test('provider configuration can omit the other provider without accepting its events', () => {
-  const browserOnly = dispatchConfig({
-    SENTRY_ORGANIZATION: 'bcsdlab',
-    SENTRY_PROJECT_APPS: '{"koin-prod":"web"}',
-    CLOUDFLARE_SOURCES: '',
-  });
-  assert.deepEqual(validateDispatch(event, 'repository_dispatch', browserOnly), payload);
-  assert.throws(() => validateDispatch({ ...event, client_payload: cloudflare }, 'repository_dispatch', browserOnly));
-  const workerOnly = dispatchConfig({
-    SENTRY_PROJECT_APPS: '',
-    CLOUDFLARE_SOURCES: JSON.stringify(config.cloudflareSources),
-  });
-  assert.deepEqual(
-    validateDispatch({ ...event, client_payload: cloudflare }, 'repository_dispatch', workerOnly),
-    cloudflare,
-  );
-  assert.throws(() => validateDispatch(event, 'repository_dispatch', workerOnly));
-});
-
-test('dispatch accepts only exact allowlisted provider identity and manual JSON inputs', () => {
-  assert.deepEqual(validateDispatch(event, 'repository_dispatch', config), payload);
-  assert.deepEqual(
-    validateDispatch({ inputs: { identity: JSON.stringify(payload) } }, 'workflow_dispatch', config),
-    payload,
-  );
-  assert.deepEqual(
-    validateDispatch({ ...event, client_payload: cloudflare }, 'repository_dispatch', config),
-    cloudflare,
-  );
-  for (const patch of [
-    { sourceId: 12345 },
-    { sourceId: '00123' },
-    { sourceId: '1\nrun' },
-    { scope: { organization: 'other' } },
-    { project: 'other' },
-    { app: 'api' },
-    { prompt: 'execute this' },
-    { source: 'other' },
-  ]) {
-    assert.throws(() =>
-      validateDispatch({ ...event, client_payload: { ...payload, ...patch } }, 'repository_dispatch', config),
-    );
+test('scratch preparation rejects traversal and symlink parents before creating external paths', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'scratch-boundary-'));
+  const outside = await mkdtemp(join(tmpdir(), 'scratch-outside-'));
+  try {
+    await prepareScratch(root, ['node_modules/.vite-temp']);
+    assert.equal((await lstat(join(root, 'node_modules/.vite-temp'))).isDirectory(), true);
+    await symlink(outside, join(root, 'node_modules/escape'));
+    await assert.rejects(prepareScratch(root, ['node_modules/escape/created']), /not a directory/);
+    await assert.rejects(prepareScratch(root, ['../created']), /Unsafe scratch/);
+    assert.deepEqual(await readdir(outside), []);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+    await rm(outside, { recursive: true, force: true });
   }
-  for (const patch of [
-    { sourceId: '../data' },
-    { app: 'web' },
-    { project: 'another-worker' },
-    { scope: { ...cloudflare.scope, policyId: 'd'.repeat(32) } },
-    { scope: { ...cloudflare.scope, url: 'https://evil.test' } },
-  ]) {
-    assert.throws(() =>
-      validateDispatch({ ...event, client_payload: { ...cloudflare, ...patch } }, 'repository_dispatch', config),
-    );
-  }
-  assert.throws(() => validateDispatch(event, 'pull_request', config));
-  assert.throws(() => validateDispatch({ ...event, action: 'other' }, 'repository_dispatch', config));
-  assert.equal(marker(payload), '<!-- error-autofix:sentry:bcsdlab:koin-prod:12345 -->');
-  assert.notEqual(marker(payload), marker(cloudflare));
-});
-
-test('browser diagnostics require canonical browser project, safe route and source frame', () => {
-  const canonical = { id: payload.sourceId, project: { slug: payload.project }, title: 'Error token=secret' };
-  const browserEvent = {
-    groupID: payload.sourceId,
-    platform: 'javascript',
-    sdk: { name: 'sentry.javascript.react' },
-    eventID: 'f'.repeat(32),
-    entries: [
-      {
-        type: 'request',
-        data: { url: 'https://koreatech.in/auth?token=hidden', headers: { Authorization: 'private' } },
-      },
-      {
-        type: 'exception',
-        data: {
-          values: [
-            {
-              type: 'TypeError',
-              value: 'user@example.com password=hidden',
-              stacktrace: {
-                frames: [{ filename: 'src/utils/value.ts', lineNo: 12, inApp: true, context: 'private source' }],
-              },
-            },
-          ],
-        },
-      },
-    ],
-  };
-  const result = sentryDiagnostics(payload, canonical, browserEvent, ['koreatech.in']);
-  assert.equal(result.route, '/auth');
-  assert.equal(result.exceptions[0].frames[0].filename, 'src/utils/value.ts');
-  assert.equal(JSON.stringify(result).includes('hidden'), false);
-  assert.equal(JSON.stringify(result).includes('private'), false);
-  assert.throws(() =>
-    sentryDiagnostics(payload, canonical, { ...browserEvent, sdk: { name: 'sentry.javascript.cloudflare' } }, [
-      'koreatech.in',
-    ]),
-  );
-  assert.throws(() =>
-    sentryDiagnostics(payload, { ...canonical, project: { slug: 'other' } }, browserEvent, ['koreatech.in']),
-  );
-  assert.throws(() => sentryDiagnostics(payload, canonical, browserEvent, ['other.example']));
-  const crossed = structuredClone(browserEvent);
-  crossed.entries[1].data.values[0].stacktrace.frames[0].filename = 'apps/api/src/index.ts';
-  assert.throws(() => sentryDiagnostics(payload, canonical, crossed, ['koreatech.in']));
-});
-
-test('Cloudflare diagnostic retrieval fixes origin and binds stored scope without inventing evidence', () => {
-  const url = diagnosticUrl('https://diagnostics.example', cloudflare);
-  assert.equal(url.origin, 'https://diagnostics.example');
-  assert.equal(url.pathname, `/diagnostics/cloudflare/${cloudflare.sourceId}`);
-  assert.equal(url.searchParams.get('workerName'), 'koin-api');
-  for (const origin of [
-    'http://diagnostics.example',
-    'https://user:secret@diagnostics.example',
-    'https://diagnostics.example/extra',
-    'https://diagnostics.example?token=secret',
-  ])
-    assert.throws(() => diagnosticUrl(origin, cloudflare));
-  const record = {
-    version: 1,
-    identity: cloudflare,
-    capturedAt: '2026-10-28T00:00:00Z',
-    summary: 'token=private',
-    details: {
-      alertType: 'opaque-policy-notification',
-      timestamp: 1793145600,
-      data: { count: 42, headers: { Authorization: 'private' }, message: 'token=secret' },
-    },
-  };
-  const result = cloudflareDiagnostics(cloudflare, record, config);
-  assert.equal(result.route, null);
-  assert.deepEqual(result.exceptions, []);
-  assert.equal(result.title.includes('private'), false);
-  assert.equal(result.data.count, 42);
-  assert.equal(JSON.stringify(result.data).includes('private'), false);
-  assert.equal(JSON.stringify(result.data).includes('secret'), false);
-  assert.throws(() =>
-    cloudflareDiagnostics(cloudflare, { ...record, identity: { ...cloudflare, app: 'web' } }, config),
-  );
-  assert.throws(() =>
-    cloudflareDiagnostics(
-      cloudflare,
-      { ...record, details: { ...record.details, request: { url: 'https://evil.test' } } },
-      config,
-    ),
-  );
-  assert.throws(() =>
-    cloudflareDiagnostics(cloudflare, { ...record, details: { ...record.details, data: [] } }, config),
-  );
-});
-
-test('diagnostic redaction and bounded streaming prevent credential and oversized input', async () => {
-  const clean = redact('Bearer abc password=hidden test@example.com https://example.com/?secret=x 192.168.0.1');
-  for (const secret of ['abc', 'hidden', 'test@example.com', 'secret=x', '192.168.0.1'])
-    assert.equal(clean.includes(secret), false);
-  assert.equal(redact('x'.repeat(20000)).length, 2000);
-  assert.deepEqual(await boundedJson(new Response('{"ok":true}')), { ok: true });
-  await assert.rejects(boundedJson(new Response('x'.repeat(100)), 50), /limit/);
-  await assert.rejects(boundedJson(new Response('', { status: 403 })), /403/);
-});
-
-test('canonical routes strip secrets and refuse external destinations', () => {
-  assert.equal(safeRoute('https://koreatech.in/auth?token=secret#private', ['koreatech.in']), '/auth');
-  for (const value of [
-    'https://evil.example/auth',
-    'javascript:alert(1)',
-    'https://user:pass@koreatech.in/auth',
-    'https://koreatech.in//evil',
-    'https://koreatech.in/%2fsecret',
-  ])
-    assert.equal(safeRoute(value, ['koreatech.in']), null);
 });
 
 test('patch scope excludes configuration, symlinks, generated files and oversized data', () => {
@@ -261,28 +91,6 @@ test('patch scope excludes configuration, symlinks, generated files and oversize
   );
 });
 
-test('tool policy does not let diagnostic instructions grant execution or secret reads', () => {
-  assert.equal(permitted('Read', 'error-input/diagnostics.json'), true);
-  assert.equal(permitted('Edit', 'apps/web/src/utils/value.ts'), true);
-  assert.equal(permitted('Edit', 'apps/api/src/auth.ts'), true);
-  assert.equal(permitted('Read', 'apps/api/src/db/schema.ts'), true);
-  assert.equal(permitted('Write', 'apps/api/src/db/schema.ts'), false);
-  for (const [tool, path] of [
-    ['Bash', 'apps/web/src/a.ts'],
-    ['Read', '.git/config'],
-    ['Read', '/proc/self/environ'],
-    ['Read', 'error-input/context.json'],
-    ['Write', 'scripts/autofix/tool-policy.mjs'],
-    ['Write', 'error-input/diagnostics.json'],
-    ['Write', 'apps/error-automation/src/index.ts'],
-    ['Read', 'src/index.ts'],
-    ['WebFetch', 'apps/web/src/a.ts'],
-  ])
-    assert.equal(permitted(tool, path), false);
-  assert.equal(permitted('Read', 'apps/api/src/domains/identity/web.test.ts'), true);
-  assert.equal(permitted('Write', 'apps/api/src/domains/identity/web.test.ts'), false);
-});
-
 test('independent application rejects changed baselines and symlink parents', async () => {
   const root = await mkdtemp(join(tmpdir(), 'error-guard-'));
   try {
@@ -312,6 +120,157 @@ test('independent application rejects changed baselines and symlink parents', as
   }
 });
 
+/** A throwaway repository whose single commit is an untrusted PR head. */
+async function pinnedRepository(files) {
+  const repo = await mkdtemp(join(tmpdir(), 'error-head-'));
+  const run = (...args) =>
+    execFileSync('git', ['-c', 'user.name=head', '-c', 'user.email=head@example.invalid', ...args], {
+      cwd: repo,
+      env: { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null' },
+    });
+  const git = (...args) =>
+    run(...args)
+      .toString()
+      .trim();
+  git('init', '-q');
+  for (const [path, file] of Object.entries(files)) {
+    await mkdir(join(repo, path, '..'), { recursive: true });
+    if (file.link !== undefined) await symlink(file.link, join(repo, path));
+    else await writeFile(join(repo, path), file.content, { mode: file.executable ? 0o755 : 0o644 });
+  }
+  git('add', '-A');
+  for (const [path, file] of Object.entries(files)) if (file.executable) git('update-index', '--chmod=+x', path);
+  git('commit', '-q', '-m', 'head');
+  return { repo, sha: git('rev-parse', 'HEAD'), archive: () => run('archive', '--format=tar', 'HEAD') };
+}
+
+async function inRepository(repo, work) {
+  const previous = process.cwd();
+  process.chdir(repo);
+  try {
+    return await work();
+  } finally {
+    process.chdir(previous);
+  }
+}
+
+test('snapshot export ignores head-controlled export-ignore/export-subst and keeps modes', async () => {
+  const { repo, sha, archive } = await pinnedRepository({
+    '.gitattributes': { content: 'apps/api/src/evil.ts export-ignore\napps/api/src/version.ts export-subst\n' },
+    'apps/api/src/evil.ts': { content: 'export const evil: number = "not a number";\n' },
+    'apps/api/src/version.ts': { content: 'export const commit = "$Format:%H$";\n' },
+    'scripts/run.sh': { content: '#!/bin/sh\n', executable: true },
+    'apps/api/link': { link: 'src/version.ts' },
+  });
+  const root = await mkdtemp(join(tmpdir(), 'error-snapshot-'));
+  try {
+    // The attribute-driven archive is what a PR author would hide behind.
+    const archivedPaths = execFileSync('tar', ['-tf', '-'], { input: archive(), encoding: 'utf8' }).split('\n');
+    assert.equal(archivedPaths.includes('apps/api/src/evil.ts'), false);
+    const entries = await inRepository(repo, () => exportTree(sha, root));
+    assert.deepEqual(entries.map((entry) => entry.path).sort(), [
+      '.gitattributes',
+      'apps/api/link',
+      'apps/api/src/evil.ts',
+      'apps/api/src/version.ts',
+      'scripts/run.sh',
+    ]);
+    assert.equal(
+      await readFile(join(root, 'apps/api/src/evil.ts'), 'utf8'),
+      'export const evil: number = "not a number";\n',
+    );
+    assert.equal(
+      await readFile(join(root, 'apps/api/src/version.ts'), 'utf8'),
+      'export const commit = "$Format:%H$";\n',
+    );
+    assert.ok((await lstat(join(root, 'scripts/run.sh'))).mode & 0o100);
+    assert.ok(!((await lstat(join(root, 'apps/api/src/evil.ts'))).mode & 0o100));
+    assert.equal(await readlink(join(root, 'apps/api/link')), 'src/version.ts');
+    await assertSnapshotMatchesTree(entries, root);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test('snapshot integrity rejects mutated, added, removed or re-moded pinned files', async () => {
+  const { repo, sha } = await pinnedRepository({
+    'apps/api/src/index.ts': { content: 'export const ok = 1;\n' },
+    'pnpm-lock.yaml': { content: 'lockfileVersion: 9\n' },
+    'apps/api/link': { link: 'src/index.ts' },
+  });
+  const root = await mkdtemp(join(tmpdir(), 'error-snapshot-'));
+  const skip = (relative) => relative.split('/').at(-1) === 'node_modules';
+  try {
+    const entries = await inRepository(repo, () => exportTree(sha, root));
+    await mkdir(join(root, 'node_modules/.pnpm'), { recursive: true });
+    await writeFile(join(root, 'node_modules/.modules.yaml'), 'pending: []\n');
+    await mkdir(join(root, 'apps/api/empty'));
+    await assertSnapshotMatchesTree(entries, root, skip);
+
+    await writeFile(join(root, 'apps/api/src/index.ts'), 'export const ok = 2;\n');
+    await assert.rejects(assertSnapshotMatchesTree(entries, root, skip), /differs.*apps\/api\/src\/index\.ts/);
+    await writeFile(join(root, 'apps/api/src/index.ts'), 'export const ok = 1;\n');
+    await assertSnapshotMatchesTree(entries, root, skip);
+
+    await writeFile(join(root, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n# lifecycle edit\n');
+    await assert.rejects(assertSnapshotMatchesTree(entries, root, skip), /differs.*pnpm-lock\.yaml/);
+    await writeFile(join(root, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n');
+
+    await writeFile(join(root, 'apps/api/src/evil.ts'), 'export {};\n');
+    await assert.rejects(assertSnapshotMatchesTree(entries, root, skip), /unpinned path: apps\/api\/src\/evil\.ts/);
+    await rm(join(root, 'apps/api/src/evil.ts'));
+    await assert.rejects(assertSnapshotMatchesTree(entries, root), /unpinned path: node_modules/);
+
+    await chmod(join(root, 'apps/api/src/index.ts'), 0o755);
+    await assert.rejects(assertSnapshotMatchesTree(entries, root, skip), /differs.*apps\/api\/src\/index\.ts/);
+    await chmod(join(root, 'apps/api/src/index.ts'), 0o644);
+
+    await rm(join(root, 'apps/api/link'));
+    await symlink('../../pnpm-lock.yaml', join(root, 'apps/api/link'));
+    await assert.rejects(assertSnapshotMatchesTree(entries, root, skip), /differs.*apps\/api\/link/);
+    await rm(join(root, 'apps/api/link'));
+    await assert.rejects(assertSnapshotMatchesTree(entries, root, skip), /lost a pinned file: apps\/api\/link/);
+
+    await rm(join(root, 'apps'), { recursive: true });
+    await symlink(repo, join(root, 'apps'));
+    await assert.rejects(assertSnapshotMatchesTree(entries, root, skip), /unpinned path: apps$/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test('snapshot export never follows symlinks for host writes', async () => {
+  const outside = await mkdtemp(join(tmpdir(), 'error-outside-'));
+  const { repo, sha } = await pinnedRepository({
+    tests: { link: outside },
+    'apps/api/src/index.ts': { content: 'export const ok = 1;\n' },
+  });
+  const root = await mkdtemp(join(tmpdir(), 'error-snapshot-'));
+  try {
+    const entries = await inRepository(repo, () => exportTree(sha, root));
+    assert.equal(await readlink(join(root, 'tests')), outside);
+    assert.deepEqual(await readdir(outside), []);
+    await assertSnapshotMatchesTree(entries, root);
+
+    // A pre-existing link where the pinned tree expects a directory is refused,
+    // not traversed: nothing lands beyond the snapshot root.
+    await rm(root, { recursive: true, force: true });
+    await mkdir(root);
+    await symlink(outside, join(root, 'apps'));
+    await assert.rejects(
+      inRepository(repo, () => exportTree(sha, root)),
+      /not a directory: apps/,
+    );
+    assert.deepEqual(await readdir(outside), []);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+    await rm(repo, { recursive: true, force: true });
+    await rm(outside, { recursive: true, force: true });
+  }
+});
+
 test('route matching keeps web and API route syntax separate', () => {
   assert.equal(matchesRoute('/shops/$id', '/shops/123', 'web'), true);
   assert.equal(matchesRoute('/shops/:id', '/shops/123', 'api'), true);
@@ -321,4 +280,168 @@ test('route matching keeps web and API route syntax separate', () => {
   assert.equal(matchesRoute('/shops/$id', '/shops/123', 'api'), false);
   assert.equal(matchesRoute('/shops/:id', '/shops/123/reviews', 'api'), false);
   assert.equal(matchesRoute('/auth/', '/auth', 'web'), true);
+});
+
+test('pull-request corrections stay inside related app/package source, tests and docs', () => {
+  const related = relatedDirectories([
+    'apps/web/src/a.ts',
+    'packages/telemetry/src/index.ts',
+    'pnpm-lock.yaml',
+    'README.md',
+  ]);
+  assert.deepEqual([...related].sort(), ['apps/web', 'packages/telemetry']);
+  for (const path of [
+    'apps/web/src/components/Order/index.tsx',
+    'apps/web/src/components/Order/index.test.tsx',
+    'apps/web/src/styles/order.module.scss',
+    'apps/web/README.md',
+    'apps/web/src/constant/BASE_URL.json',
+    'packages/telemetry/src/runtime.ts',
+    'packages/telemetry/tests/runtime.test.ts',
+  ])
+    assert.equal(allowedPullRequestPath(path, related), true, path);
+  for (const path of [
+    'apps/api/src/app.ts',
+    'apps/b-bot/src/routes/health.get.ts',
+    'apps/web/package.json',
+    'apps/web/wrangler.jsonc',
+    'apps/web/vite.config.ts',
+    'apps/web/eslint.config.mjs',
+    'apps/web/tsconfig.json',
+    'apps/web/.dev.vars',
+    'apps/web/src/.env.local',
+    'apps/web/src/generated/client.ts',
+    'apps/web/src/routeTree.gen.ts',
+    'apps/web/scripts/deploy.sh',
+    'apps/web/Dockerfile',
+    'apps/web/src/assets/paying.svg',
+    'apps/web/src/../package.json',
+    'pnpm-lock.yaml',
+    'package.json',
+    'pnpm-workspace.yaml',
+    '.github/workflows/deploy.yml',
+    'scripts/autofix/verify.mjs',
+    'tests/autofix/regression.test.mjs',
+    'apps/error-automation/src/index.ts',
+    'apps/api/src/db/schema.ts',
+    `apps/web/src/${'a'.repeat(300)}.ts`,
+  ])
+    assert.equal(allowedPullRequestPath(path, related), false, path);
+  const policy = pullRequestPolicy(['apps/web/src/a.ts']);
+  assert.deepEqual(validateManifest({ version: 1, files: [] }, policy).files, []);
+  assert.throws(() =>
+    validateManifest({ version: 1, files: [{ path: 'apps/web/package.json', before: null, content: '{}' }] }, policy),
+  );
+  assert.throws(() =>
+    validateManifest(
+      { version: 1, files: [{ path: 'tests/autofix/new.test.mjs', before: null, content: 'x' }] },
+      policy,
+    ),
+  );
+  // The error-mode default policy is unchanged by the PR policy.
+  assert.equal(allowedPath('apps/web/README.md'), false);
+  assert.equal(allowedPath('tests/autofix/regression.test.mjs'), true);
+});
+
+test('canonical changed-file lists are bounded data and derive allowlisted runtime profiles', () => {
+  assert.throws(() => validateChangedFiles(Array.from({ length: 501 }, (_, i) => `apps/web/src/${i}.ts`)));
+  assert.throws(() => validateChangedFiles(['apps/web/src/a.ts', 'apps/web/src/a.ts']));
+  assert.throws(() => validateChangedFiles(['../x']));
+  assert.throws(() => validateChangedFiles(['apps/web/src/a\u0000.ts']));
+  assert.throws(() => validateChangedFiles([':(top)secret']));
+  assert.throws(() => validateChangedFiles('apps/web/src/a.ts'));
+  assert.deepEqual([...runtimeProfiles(['apps/web/src/a.ts', 'README.md', 'scripts/autofix/smoke.mjs'])], ['web']);
+  assert.deepEqual(
+    [...runtimeProfiles(['apps/api/src/app.ts', 'apps/api/wrangler.jsonc', 'CONTRIBUTING.md'])],
+    ['api'],
+  );
+  assert.deepEqual([...runtimeProfiles(['apps/web/src/a.ts', 'apps/api/src/app.ts'])], ['web', 'api']);
+  assert.deepEqual([...runtimeProfiles(['packages/b-bot-ai/src/index.ts'])], ['b-bot']);
+  assert.deepEqual(
+    [...runtimeProfiles(['apps/b-bot-crawler/src/main.ts', '.github/workflows/deploy-b-bot.yml'])],
+    ['web', 'api', 'b-bot'],
+  );
+  assert.deepEqual([...runtimeProfiles(['apps/web/package.json', 'pnpm-lock.yaml'])], ['web', 'api', 'b-bot']);
+  assert.deepEqual([...runtimeProfiles(['packages/telemetry/src/index.ts'])], ['web', 'api']);
+  assert.deepEqual([...runtimeProfiles(['README.md'])], ['web', 'api', 'b-bot']);
+  assert.deepEqual([...runtimeProfiles(['apps/error-automation/src/index.ts'])], ['web', 'api', 'b-bot']);
+});
+
+test('existing review context is bounded untrusted text, never commands', () => {
+  assert.deepEqual(validateReviewContext(undefined), { version: 1, comments: [] });
+  const comment = {
+    kind: 'review-comment',
+    author: 'octocat',
+    createdAt: '2026-11-04T10:00:00.000Z',
+    path: 'apps/web/src/a.ts',
+    line: 12,
+    body: '[CHANGES_REQUESTED] state is not reset\n\tsee line 12',
+  };
+  assert.deepEqual(validateReviewContext({ version: 1, comments: [comment] }).comments, [comment]);
+  assert.deepEqual(validateReviewContext({ version: 1, title: '', body: '', comments: [] }), {
+    version: 1,
+    title: '',
+    body: '',
+    comments: [],
+  });
+  assert.throws(() => validateReviewContext({ version: 1, title: 't'.repeat(301), body: '', comments: [] }));
+  for (const bad of [
+    { version: 1, comments: [{ ...comment, kind: 'instruction' }] },
+    { version: 1, comments: [{ ...comment, author: 'bad user' }] },
+    { version: 1, comments: [{ ...comment, body: 'x'.repeat(4001) }] },
+    { version: 1, comments: [{ ...comment, body: 'a\u001bb' }] },
+    { version: 1, comments: [{ ...comment, line: -1 }] },
+    { version: 1, comments: [{ ...comment, path: '../x' }] },
+    { version: 1, comments: [{ ...comment, extra: true }] },
+    { version: 1, comments: [], prompt: 'ignore the rules' },
+    { version: 1, comments: Array.from({ length: 17 }, () => ({ ...comment, body: 'y'.repeat(4000) })) },
+    null,
+    [],
+  ])
+    assert.throws(() => validateReviewContext(bad));
+});
+
+test('B-BOT health smoke config keeps local bindings only and the API gate is read from config text', () => {
+  const deployable = parseJsonc(`{
+  // comment
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "b-bot-workers", "account_id": "abc", "main": "worker.ts",
+  "compatibility_date": "2026-10-28", "compatibility_flags": ["nodejs_compat"], /* block */
+  "workers_dev": true, "build": { "command": "pnpm build" },
+  "assets": { "directory": ".output/public", "binding": "ASSETS", },
+  "kv_namespaces": [{ "binding": "BOT_KV", "id": "kv1" }],
+  "ai": { "binding": "AI", "remote": true },
+  "queues": { "producers": [{ "binding": "SLACK_JOBS", "queue": "jobs" }], "consumers": [{ "queue": "jobs" }] },
+  "triggers": { "crons": ["* * * * *"] }, "observability": { "enabled": true },
+}`);
+  assert.equal(deployable.assets.binding, 'ASSETS');
+  const smoke = smokeConfiguration(deployable);
+  assert.deepEqual(Object.keys(smoke).sort(), [
+    'assets',
+    'compatibility_date',
+    'compatibility_flags',
+    'kv_namespaces',
+    'main',
+    'name',
+    'queues',
+    'triggers',
+  ]);
+  assert.equal(smoke.main, '../../worker.ts');
+  assert.deepEqual(smoke.triggers, { crons: [] });
+  assert.equal('ai' in smoke, false);
+  assert.equal('build' in smoke, false);
+  assert.equal('account_id' in smoke, false);
+  assert.throws(() =>
+    smokeConfiguration({ ...deployable, kv_namespaces: [{ binding: 'BOT_KV', id: 'kv1', remote: true }] }),
+  );
+  assert.throws(() => smokeConfiguration({ ...deployable, hyperdrive: [{ binding: 'HYPERDRIVE', id: 'x' }] }));
+  assert.throws(() => smokeConfiguration({ ...deployable, d1_databases: [] }));
+  assert.throws(() => smokeConfiguration({ ...deployable, main: 'other.ts' }));
+  assert.equal(declaresApiGate('{ "vars": { "ENVIRONMENT": "production" }, "previews": { "vars": {} } }'), false);
+  assert.equal(
+    declaresApiGate('{ "vars": { "API_ENABLED": "false" }, "previews": { "vars": { "API_ENABLED": "false" } } }'),
+    true,
+  );
+  assert.throws(() => declaresApiGate('{ "vars": { "API_ENABLED": "true" } }'));
+  assert.throws(() => declaresApiGate('{ "vars": { "API_ENABLED": "false" } }'));
 });

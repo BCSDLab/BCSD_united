@@ -237,14 +237,12 @@ async function calculation(db: Database, userId: number) {
         );
       } else {
         statements.push(
-          db
-            .insert(s.student_course_calculation)
-            .values({
-              user_id: userId,
-              standard_graduation_requirements_id: firstRequirement.id,
-              completed_grades: completed,
-              is_deleted: 0,
-            }),
+          db.insert(s.student_course_calculation).values({
+            user_id: userId,
+            standard_graduation_requirements_id: firstRequirement.id,
+            completed_grades: completed,
+            is_deleted: 0,
+          }),
         );
       }
     }

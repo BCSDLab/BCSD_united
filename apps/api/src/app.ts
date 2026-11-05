@@ -20,6 +20,7 @@ import { registerTransport } from '@api/domains/transport';
 import { registerUploads } from '@api/domains/uploads';
 import { ApiError, errorResponse } from '@api/errors';
 import { registerOpenApi } from '@api/openapi';
+import { registerSourceSync } from '@api/source-sync';
 import type { ApiEnv } from '@api/runtime';
 
 const app = new Hono<ApiEnv>();
@@ -59,6 +60,7 @@ app.get('/health', (c) =>
 );
 
 registerOpenApi(app);
+registerSourceSync(app);
 
 app.use('*', async (c, next) => {
   c.set('db', createDatabase(c.env.DB));

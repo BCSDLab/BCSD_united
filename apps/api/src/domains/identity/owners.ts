@@ -48,7 +48,9 @@ export const ownerRegistrationSchema = z.object({
           .refine((value) => {
             try {
               const url = new URL(value);
-              return url.protocol === 'https:' && url.hostname === 'static.koreatech.in' && !url.username && !url.password;
+              return (
+                url.protocol === 'https:' && url.hostname === 'static.koreatech.in' && !url.username && !url.password
+              );
             } catch {
               return false;
             }
@@ -134,7 +136,12 @@ function newCertificationCode(): string {
   return String(sample[0]! % 1_000_000).padStart(6, '0');
 }
 
-export function ownerSmsStateStatements(target: string, code: string, clock: number, purpose: OwnerProofPurpose): SQL[] {
+export function ownerSmsStateStatements(
+  target: string,
+  code: string,
+  clock: number,
+  purpose: OwnerProofPurpose,
+): SQL[] {
   const dailyId = `owner_sms_daily:${target}`;
   return [
     ...atomicGuard(
@@ -160,7 +167,6 @@ export function ownerCodeAttemptStatement(target: string, clock: number, purpose
     AND coalesce(CAST(json_extract(payload, '$.attempts') AS INTEGER), 0) < 5
     RETURNING payload`;
 }
-
 
 function ownerProofId(target: string, purpose: OwnerProofPurpose): string {
   return `owner_verified_${purpose}:${target}`;
@@ -258,14 +264,17 @@ async function verifyCode(db: Database, target: string, code: string, purpose: O
   const clock = Date.now();
   const [attempt] = await executeAtomic(db, [ownerCodeAttemptStatement(target, clock, purpose)]);
   const row: unknown = attempt?.results?.[0];
-  if (!row || typeof row !== 'object' || !('payload' in row) || typeof row.payload !== 'string')
-    missingVerification();
+  if (!row || typeof row !== 'object' || !('payload' in row) || typeof row.payload !== 'string') missingVerification();
   const expectedPayload = row.payload;
-  const payload = z.object({ code: z.string(), attempts: z.number().int(), purpose: z.enum(['register', 'reset']), challenge: z.string().uuid() }).parse(
-    JSON.parse(expectedPayload),
-  );
-  if (payload.code !== code)
-    throw new ApiError(400, 'ILLEGAL_ARGUMENT', '인증번호가 일치하지 않습니다.');
+  const payload = z
+    .object({
+      code: z.string(),
+      attempts: z.number().int(),
+      purpose: z.enum(['register', 'reset']),
+      challenge: z.string().uuid(),
+    })
+    .parse(JSON.parse(expectedPayload));
+  if (payload.code !== code) throw new ApiError(400, 'ILLEGAL_ARGUMENT', '인증번호가 일치하지 않습니다.');
   const proof = crypto.randomUUID();
   try {
     await executeAtomic(db, ownerApproveCodeStatements(target, code, clock, purpose, proof, expectedPayload));
@@ -436,12 +445,18 @@ export function registerOwners(app: Hono<ApiEnv>): void {
   });
 
   app.put('/owners/password/reset/sms', async (c) => {
-    const request = await parseBody(c, phoneRequest.extend({ password: nonBlank, verification_token: z.string().uuid() }));
+    const request = await parseBody(
+      c,
+      phoneRequest.extend({ password: nonBlank, verification_token: z.string().uuid() }),
+    );
     const db = c.get('db');
     const { user } = await ownerByAccount(db, request.phone_number);
     const hash = await encodePassword(request.password, true);
     try {
-      await executeAtomic(db, ownerPasswordResetStatements(db, request.phone_number, user.id, hash, Date.now(), request.verification_token));
+      await executeAtomic(
+        db,
+        ownerPasswordResetStatements(db, request.phone_number, user.id, hash, Date.now(), request.verification_token),
+      );
     } catch (error) {
       if (isGuardFailure(error)) missingVerification();
       throw error;

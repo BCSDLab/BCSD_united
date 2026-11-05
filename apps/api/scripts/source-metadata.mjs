@@ -86,6 +86,90 @@ export function assertMetadataManifest(snapshot) {
     if (source.startsWith('mysql-ddl:') && file.count !== 1) throw new Error(`Invalid metadata DDL count: ${source}`);
   }
 }
+const validTimestamp = (value) =>
+  typeof value === 'string' &&
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z$/.test(value) &&
+  Number.isFinite(Date.parse(value));
+
+function assertCaptureIntervals(captures, startedAt, completedAt) {
+  const labels = {
+    mysql: 'repeatable-read-transaction',
+    mongo: 'sequential-collection-cursors-not-atomic',
+    redis: 'scan-per-key-atomic-not-global',
+  };
+  if (!validTimestamp(startedAt) || !validTimestamp(completedAt) || !captures)
+    throw new Error('Online capture requires complete UTC timing provenance');
+  let previous = Date.parse(startedAt);
+  for (const store of ['mysql', 'mongo', 'redis']) {
+    const capture = captures[store];
+    if (
+      !capture ||
+      capture.consistency !== labels[store] ||
+      !validTimestamp(capture.startedAt) ||
+      !validTimestamp(capture.completedAt) ||
+      Date.parse(capture.startedAt) < previous ||
+      Date.parse(capture.startedAt) > Date.parse(capture.completedAt)
+    )
+      throw new Error(`Invalid or overlapping online ${store} capture interval`);
+    previous = Date.parse(capture.completedAt);
+  }
+  if (previous > Date.parse(completedAt)) throw new Error('Online capture exceeds source manifest interval');
+}
+
+export function assertSnapshotCapture(snapshot, allowOnline, collections) {
+  if (snapshot.format !== 1 || snapshot.complete !== true) throw new Error('Incomplete or unsupported source snapshot');
+  if (
+    snapshot.quiesced === true &&
+    (snapshot.captureMode === undefined || snapshot.captureMode === 'writer-quiesced') &&
+    (snapshot.consistency === undefined || snapshot.consistency === 'cross-store-writer-quiesced')
+  )
+    return 'writer-quiesced';
+  if (
+    !allowOnline ||
+    snapshot.quiesced !== false ||
+    snapshot.captureMode !== 'per-store-online' ||
+    snapshot.consistency !== 'per-store-online'
+  )
+    throw new Error(
+      'Per-store online snapshot requires explicit --allow-online-bootstrap; quiescence must never be inferred',
+    );
+  assertCaptureIntervals(snapshot.storeCaptures, snapshot.startedAt, snapshot.completedAt);
+  for (const name of ['mongoInventory', 'mongoInventoryAfter']) {
+    const inventory = snapshot[name];
+    if (
+      !Array.isArray(inventory) ||
+      new Set(inventory.map((item) => item?.name)).size !== inventory.length ||
+      inventory.some(
+        (item) =>
+          !collections.includes(item?.name) ||
+          item.type !== 'collection' ||
+          !Number.isSafeInteger(item.count) ||
+          item.count < 0,
+      )
+    )
+      throw new Error(`Invalid online ${name}; unknown collections are not permitted`);
+  }
+  return 'per-store-online';
+}
+
+export function assertImportCapture(manifest, allowOnline) {
+  if (manifest.captureMode === 'per-store-online') {
+    if (
+      !allowOnline ||
+      manifest.consistency !== 'per-store-online' ||
+      manifest.sourceQuiesced !== false ||
+      !manifest.storeCaptures ||
+      !validTimestamp(manifest.sourceStartedAt) ||
+      !validTimestamp(manifest.sourceCompletedAt) ||
+      !/^[0-9a-f]{64}$/.test(manifest.snapshotHash ?? '')
+    )
+      throw new Error('Online D1 import requires verified provenance and explicit --allow-online-bootstrap');
+    assertCaptureIntervals(manifest.storeCaptures, manifest.sourceStartedAt, manifest.sourceCompletedAt);
+    return;
+  }
+  if (manifest.captureMode !== 'writer-quiesced' || manifest.sourceQuiesced !== true)
+    throw new Error('Converted strict snapshot must retain explicit writer-quiescence provenance');
+}
 
 export function metadataVerifier(file) {
   const hash = createHash('sha256');

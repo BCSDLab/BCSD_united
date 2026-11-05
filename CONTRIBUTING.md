@@ -43,6 +43,8 @@ UI 변경은 실제 화면, API 변경은 실제 HTTP/D1 경로도 확인합니�
 
 의존성 변경 시 해당 `package.json`, `pnpm-workspace.yaml`의 호환 버전·허용된 설치 스크립트, 루트 `pnpm-lock.yaml`을 함께 반영합니다. `@types/node`는 Node 24에, TypeScript·ESLint·h3는 각 도구/프레임워크의 지원 범위에 맞춥니다. `pnpm up --latest` 후에도 peer 호환성과 고정 버전의 근거를 확인하고, SheetJS 외부 tarball의 lockfile 무결성을 유지합니다. 생성된 route tree와 schema는 생성 원본을 변경한 뒤 갱신합니다. 적용된 D1 마이그레이션을 다시 쓰지 않습니다.
 
+웹의 `@vitejs/plugin-react@6.1.2`는 React Compiler peer로 `oxc-transform-react@^0.152.0`을 요구합니다. `0.x`의 caret 범위는 다음 minor를 포함하지 않으므로, OXC를 `0.153.0` 이상으로 올릴 때는 해당 버전을 지원하는 플러그인과 함께 갱신합니다.
+
 커밋은 `feat:`, `fix:`, `refactor:`, `chore:` 등 Conventional Commit 접두사와 한국어 설명을 사용합니다. 관련 없는 변경이나 시크릿을 포함하지 않습니다. PR에 수행한 검증과 남은 운영 전제조건을 명시합니다.
 
 커밋 훅은 Corepack으로 고정된 pnpm을 사용합니다. Windows 명령 길이 제한을 넘지 않도록 파일 목록을 분할하고, 검사 묶음은 동시에 두 개까지 실행합니다.
@@ -53,6 +55,6 @@ UI 변경은 실제 화면, API 변경은 실제 HTTP/D1 경로도 확인합니�
 
 API 테스트 명령에는 TypeScript 회귀와 `.mjs` 데이터·파일 이관 동작 테스트가 모두 포함됩니다. Preview 검증은 HTTP 경로만 대상으로 합니다. Queue consumer·Cron은 Preview에서 실행하지 않으므로 알림·예약의 enqueue를 실행 완료로 보고하지 않습니다. 전환 중 기존 테스트 Worker의 consumer가 제거됐는지도 운영 담당자가 별도로 확인해야 합니다.
 
-Preview D1/R2/Queue는 `-test` 리소스를 사용하지만 DO namespace는 Preview마다 자동 생성됩니다. 웹 Preview의 SSR·브라우저는 API Preview HTTP origin을 사용합니다. service binding은 production으로 연결되므로 Preview 연결 대안으로 사용하지 않습니다. 오류 자동화 Preview에 운영 GitHub 토큰이나 운영 저장소 쓰기 권한을 주지 않습니다.
+Preview D1/R2/Queue는 `-test` 리소스를 사용하지만 DO namespace는 Preview마다 자동 생성됩니다. 웹 Preview의 SSR·브라우저는 KOIN_API_V2 stage 서버(`https://api.stage.koreatech.in`)를 사용합니다. 오류 자동화 Preview에 운영 GitHub 토큰이나 운영 저장소 쓰기 권한을 주지 않습니다.
 
 실제 계정·결제·파일·메시지·사용자 데이터에 영향을 주는 테스트를 임의로 실행하지 않습니다. 테스트 Worker·D1·R2를 사용하고, 운영 데이터 이관과 도메인 전환은 별도 승인과 복구 절차를 갖춥니다.
