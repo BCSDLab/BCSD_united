@@ -1,5 +1,14 @@
 import type { Diagnostic, Env, Identity } from './types';
-import { SOURCE_HOSTS, tailKey } from './tail';
+import { isBundlePath, SOURCE_HOSTS, sourcePath, tailKey } from './tail';
+import { mappedTailFrames } from './source-maps';
+
+export class DiagnosticProviderError extends Error {
+  readonly status: number;
+  constructor(status: number) {
+    super('Diagnostic provider request failed');
+    this.status = status;
+  }
+}
 
 function object(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Expected provider object');
@@ -30,7 +39,7 @@ export function redact(value: unknown, max = 2000): string | null {
 async function boundedJson(response: Response, max = 2_000_000): Promise<Record<string, unknown>> {
   if (!response.ok) {
     await response.body?.cancel();
-    throw new Error(`Diagnostic provider returned ${response.status}`);
+    throw new DiagnosticProviderError(response.status);
   }
   if (!response.body) throw new Error('Missing diagnostic response');
   const reader = response.body.getReader();
@@ -165,24 +174,27 @@ async function cloudflareEvidence(
       frames.some(
         (frame) =>
           typeof frame.path !== 'string' ||
-          !frame.path.startsWith(`apps/${identity.app}/src/`) ||
-          frame.path.includes('..') ||
+          (!sourcePath(frame.path, identity.app) && !isBundlePath(frame.path)) ||
           !Number.isSafeInteger(frame.line) ||
           !Number.isSafeInteger(frame.column),
       )
     )
       continue;
 
-    const version = await fetch(`${api}/workers/workers/${identity.project}/versions/${scriptVersion}`, {
-      headers,
-      redirect: 'manual',
-      signal: AbortSignal.timeout(15_000),
-    });
+    const bundled = frames.some((frame) => isBundlePath(frame.path as string));
+    const version = await fetch(
+      `${api}/workers/workers/${identity.project}/versions/${scriptVersion}${bundled ? '?include=modules' : ''}`,
+      {
+        headers,
+        redirect: 'manual',
+        signal: AbortSignal.timeout(15_000),
+      },
+    );
     if (version.status === 404) {
       await version.body?.cancel();
       continue;
     }
-    const versionBody = await boundedJson(version, 100_000);
+    const versionBody = await boundedJson(version, bundled ? 12 * 1024 * 1024 : 100_000);
     if (versionBody.success !== true || object(versionBody.result).id !== scriptVersion)
       throw new Error('CLOUDFLARE_EVIDENCE_UNAVAILABLE: source version mismatch');
 
@@ -230,6 +242,18 @@ async function cloudflareEvidence(
       })
     )
       continue;
+    const sourceFrames = await mappedTailFrames(
+      identity.project,
+      identity.app,
+      scriptVersion,
+      object(versionBody.result),
+      frames.map((frame) => ({
+        path: frame.path as string,
+        line: frame.line as number,
+        column: frame.column as number,
+      })),
+      env.CLOUDFLARE_DIAGNOSTICS_TOKEN!,
+    );
 
     return {
       route,
@@ -240,7 +264,7 @@ async function cloudflareEvidence(
         workerName: identity.project,
         scriptVersion,
         summary: stored.summary,
-        sourceFrames: frames.map((frame) => ({ path: frame.path, line: frame.line, column: frame.column })),
+        sourceFrames,
       },
     };
   }

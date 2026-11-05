@@ -1,7 +1,8 @@
 import { DurableObject } from 'cloudflare:workers';
-import { trustedDiagnostics } from './diagnostics';
+import { DiagnosticProviderError, trustedDiagnostics } from './diagnostics';
+import { SourceMapEvidenceError } from './source-maps';
 import { gatewayTransport, modelRateLimit, parseModelRequest } from './model';
-import { extractTailEvidence, tailKey } from './tail';
+import { extractTailEvidence, isBundlePath, sourcePath, tailKey } from './tail';
 import type { App, Diagnostic, Env, Identity, PatchManifest } from './types';
 export type { Env } from './types';
 export { AutofixQueue } from './queue';
@@ -861,7 +862,16 @@ export default {
       if (capture.identity.source === 'cloudflare') {
         try {
           capture.details.verifiedEvidence = await trustedDiagnostics(env, capture.identity, capture);
-        } catch {
+        } catch (error) {
+          console.warn('Cloudflare evidence rejected', {
+            workerName: capture.identity.project,
+            sourceId: capture.identity.sourceId,
+            reason: error instanceof SourceMapEvidenceError ? error.message : 'Source evidence unavailable',
+            providerStatus:
+              error instanceof DiagnosticProviderError || error instanceof SourceMapEvidenceError
+                ? (error.status ?? null)
+                : null,
+          });
           return reply(503, { error: 'Authenticated Cloudflare route and mapped source evidence unavailable.' });
         }
       }
@@ -990,7 +1000,7 @@ export class ErrorIssueDispatch extends DurableObject<Env> {
             return (
               Object.keys(frame).sort().join(',') !== 'column,line,path' ||
               typeof frame.path !== 'string' ||
-              !frame.path.startsWith(`apps/${source.app}/src/`) ||
+              (!sourcePath(frame.path, source.app) && !isBundlePath(frame.path)) ||
               frame.path.length > 180 ||
               frame.path.includes('..') ||
               !Number.isSafeInteger(frame.line) ||
