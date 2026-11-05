@@ -186,6 +186,7 @@ test('durable deadline signals relay at twelve hours and obsolete dates cannot c
   const delivered: { job: unknown; delaySeconds?: number }[] = [];
   const env = {
     DB: db.$client,
+    API_ENABLED: 'true',
     JOBS: {
       send: async (job: unknown, options?: { delaySeconds?: number }) => {
         delivered.push({ job, delaySeconds: options?.delaySeconds });
@@ -215,6 +216,7 @@ test('due deadline queue delivery closes once and signals its durable notificati
   const delivered: unknown[] = [];
   const env = {
     DB: db.$client,
+    API_ENABLED: 'true',
     JOBS: {
       send: async (job: unknown) => {
         delivered.push(job);

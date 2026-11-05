@@ -3,6 +3,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { HTTPException } from 'hono/http-exception';
 import { ZodError } from 'zod';
+import { apiDisabledResponse, isApiEnabled } from '@api/api-gate';
 import { authenticate } from '@api/auth';
 import { coordinateRequest } from '@api/coordination';
 import { createDatabase } from '@api/db/client';
@@ -24,6 +25,13 @@ import { registerSourceSync } from '@api/source-sync';
 import type { ApiEnv } from '@api/runtime';
 
 const app = new Hono<ApiEnv>();
+
+// 비활성 게이트: CORS·인증·DB 연결·라우트 어느 것도 실행되기 전에 503으로 끝낸다.
+// Coordinator Durable Object도 같은 app을 호출하므로 직렬화 경로까지 함께 차단된다.
+app.use('*', async (c, next) => {
+  if (!isApiEnabled(c.env)) return apiDisabledResponse();
+  await next();
+});
 
 function allowedOrigins(value: string | undefined): string[] {
   if (!value) return [];

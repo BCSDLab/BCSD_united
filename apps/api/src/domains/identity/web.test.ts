@@ -98,7 +98,7 @@ async function fixture() {
       "INSERT INTO users (id,user_id,password,user_type,is_authed,is_deleted,anonymous_nickname) VALUES (1,'member',?,'STUDENT',1,0,'test-anonymous')",
     )
     .run(password);
-  const env = { ...signing, DB: fixtureBinding(database) } as Bindings;
+  const env = { ...signing, API_ENABLED: 'true', DB: fixtureBinding(database) } as Bindings;
   const app = new Hono<ApiEnv>();
   app.use('*', async (c, next) => {
     c.set('db', createDatabase(c.env.DB));

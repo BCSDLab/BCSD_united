@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm';
+import { apiDisabledResponse, isApiEnabled } from '@api/api-gate';
 import { authenticateToken } from '@api/auth';
 import { createDatabase } from '@api/db/client';
 import { schema } from '@api/db/schema';
@@ -205,6 +206,8 @@ export class CommunityChatDurableObject implements ChatBroker {
   }
 
   async fetch(request: Request): Promise<Response> {
+    // 비활성: 새 WebSocket 수락도, 내부 dispatch(D1 쓰기·큐 발행)도 하지 않는다.
+    if (!isApiEnabled(this.env)) return apiDisabledResponse();
     if (new URL(request.url).pathname === '/ws-stomp') {
       if (request.headers.get('Upgrade')?.toLowerCase() !== 'websocket')
         return new Response('WebSocket upgrade required', { status: 426 });
@@ -244,6 +247,24 @@ export class CommunityChatDurableObject implements ChatBroker {
   async webSocketMessage(socket: WebSocket, message: string | ArrayBuffer): Promise<void> {
     return this.serial(async () => {
       const session = socket.deserializeAttachment() as Session;
+      // 비활성: 동면에서 깨어난 기존 소켓도 업무 IO 없이 ERROR 프레임 후 종료한다(1013 = Try Again Later).
+      if (!isApiEnabled(this.env)) {
+        socket.send(
+          encodeStomp(
+            {
+              command: 'ERROR',
+              headers: { message: 'API_DISABLED', 'content-type': 'application/json' },
+              body: JSON.stringify({ code: 'API_DISABLED', message: '이 API 서비스는 현재 비활성화되어 있습니다.' }),
+            },
+            session.version,
+          ),
+        );
+        session.status = 'INACTIVE';
+        session.subscriptions = {};
+        socket.serializeAttachment(session);
+        socket.close(1013, 'API_DISABLED');
+        return;
+      }
       try {
         const incoming = typeof message === 'string' ? encoder.encode(message) : new Uint8Array(message);
         const pending = (await this.state.storage.get<Uint8Array>(`pending:${session.id}`)) ?? new Uint8Array();

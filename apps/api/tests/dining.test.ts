@@ -95,6 +95,7 @@ function fixture() {
   const db = createDatabase(binding);
   const env = {
     DB: binding,
+    API_ENABLED: 'true',
     R2_FILES_PUBLIC_URL: 'https://static.koreatech.in/',
     FILES: { head: async () => ({ key: 'object' }) },
   } as unknown as Bindings;

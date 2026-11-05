@@ -1,7 +1,15 @@
 import { DurableObject } from 'cloudflare:workers';
 import { prepare } from './prepare';
 import { github, installationToken, publish, validateManifest, validateVerification } from './github';
-import { invokeModel, type ModelMode, type ModelRequest } from './model';
+import {
+  CALL_TIMEOUT_MS,
+  MODEL_BY_MODE,
+  invokeModel,
+  providerBody,
+  trustworthyUsage,
+  type ModelMode,
+  type ModelRequest,
+} from './model';
 import {
   PullRequestRejected,
   type Published,
@@ -30,7 +38,30 @@ const DEADLINE_MS = 90 * 60_000;
 const LEASE_MS = 2 * 60_000;
 const PUBLISH_MS = 20 * 60_000;
 const REPORT_MS = 5 * 60_000;
-const MODEL_MS = 20 * 60_000;
+/**
+ * Hard per-job model budgets, persisted per row so restarts, concurrent calls and transport failures can never
+ * reset them. Input reserves one token per UTF-8 byte of the exact upstream body plus a fixed overhead allowance;
+ * output reserves the forwarded `max_tokens`. Both are replaced by the
+ * provider's usage only when it is trustworthy. Verification budgets are separate and unchanged.
+ */
+const MODEL_BUDGET: Record<
+  ModelMode,
+  { calls: number; generationMs: number; inputTokens: number; outputTokens: number; maxTokensPerCall: number }
+> = {
+  error: { calls: 6, generationMs: 4 * 60_000, inputTokens: 50_000, outputTokens: 8_000, maxTokensPerCall: 4096 },
+  'pull-request': {
+    calls: 12,
+    generationMs: 8 * 60_000,
+    inputTokens: 150_000,
+    outputTokens: 16_000,
+    maxTokensPerCall: 8192,
+  },
+};
+/**
+ * One token per UTF-8 byte avoids undercounting short/random tokens. The extra allowance covers gateway context;
+ * this remains an admission bound, not a provider billing guarantee. Trustworthy usage replaces the reservation.
+ */
+const INPUT_OVERHEAD_TOKENS = 1024;
 const MAX_PENDING = 100;
 const encoder = new TextEncoder();
 
@@ -51,6 +82,8 @@ interface Row extends Record<string, SqlStorageValue> {
   pr_url: string | null;
   model_calls: number;
   model_started_at: number | null;
+  model_input_tokens: number;
+  model_output_tokens: number;
 }
 export interface Claim {
   version: 1;
@@ -151,6 +184,7 @@ export class AutofixQueue extends DurableObject<Env> {
       lease_hash TEXT, claim_nonce_hash TEXT, lease_expires INTEGER, deadline_at INTEGER,
       prepared TEXT, issue_number INTEGER, outcome TEXT, pr_url TEXT,
       model_calls INTEGER NOT NULL DEFAULT 0, model_started_at INTEGER,
+      model_input_tokens INTEGER NOT NULL DEFAULT 0, model_output_tokens INTEGER NOT NULL DEFAULT 0,
       enqueued_at INTEGER NOT NULL
     )`);
     ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS pull_request_results (
@@ -158,6 +192,16 @@ export class AutofixQueue extends DurableObject<Env> {
       decision TEXT, findings_count INTEGER NOT NULL DEFAULT 0, passed_checks TEXT NOT NULL,
       comment_url TEXT, recorded_at INTEGER NOT NULL
     )`);
+    // Rows created before budgets existed keep their history; the new counters start from zero.
+    const columns = new Set(
+      ctx.storage.sql
+        .exec<{ name: string }>('PRAGMA table_info(jobs)')
+        .toArray()
+        .map((column) => column.name),
+    );
+    for (const column of ['model_input_tokens', 'model_output_tokens'])
+      if (!columns.has(column))
+        ctx.storage.sql.exec(`ALTER TABLE jobs ADD COLUMN ${column} INTEGER NOT NULL DEFAULT 0`);
   }
 
   private async admit(
@@ -436,35 +480,83 @@ export class AutofixQueue extends DurableObject<Env> {
   }
 
   async model(runId: string, leaseToken: string, request: ModelRequest): Promise<Record<string, unknown>> {
-    const row = await this.leased(runId, leaseToken);
-    const mode: ModelMode = (JSON.parse(row.prepared!) as QueuedJob).mode === 'pull-request' ? 'pull-request' : 'error';
-    const maxCalls = mode === 'pull-request' ? 80 : 40;
+    const leased = await this.leased(runId, leaseToken);
+    const mode: ModelMode =
+      (JSON.parse(leased.prepared!) as QueuedJob).mode === 'pull-request' ? 'pull-request' : 'error';
+    const budget = MODEL_BUDGET[mode];
     const maxMessages = mode === 'pull-request' ? 160 : 80;
     const maxBytes = mode === 'pull-request' ? 1_000_000 : 256_000;
-    if (request.maxTokens > (mode === 'pull-request' ? 16384 : 4096)) throw new Error('Model output limit exceeded');
+    if (request.model !== MODEL_BY_MODE[mode]) throw new PolicyRejection('Model tier does not match job mode');
+    if (request.maxTokens > budget.maxTokensPerCall)
+      throw new PolicyRejection(`Model output limit exceeded (${budget.maxTokensPerCall} tokens per call)`);
     if (request.messages.length > maxMessages || encoder.encode(JSON.stringify(request)).length > maxBytes)
-      throw new Error('Model context limit exceeded');
+      throw new PolicyRejection('Model context limit exceeded');
+    // Everything from this re-read to the reservation is synchronous, so concurrent calls serialize on the row.
+    const row = this.ctx.storage.sql.exec<Row>('SELECT * FROM jobs WHERE run_id = ?', runId).toArray()[0];
     const now = Date.now();
-    if (row.model_calls >= maxCalls || (row.model_started_at !== null && now - row.model_started_at >= MODEL_MS))
-      throw new Error('Model phase call or deadline limit exceeded');
+    if (
+      !row ||
+      row.status !== 'leased' ||
+      row.lease_hash !== leased.lease_hash ||
+      now >= row.lease_expires! ||
+      now >= row.deadline_at!
+    )
+      throw new Error('Expired or invalid executor lease');
+    const windowExceeded = row.model_started_at !== null && now - row.model_started_at >= budget.generationMs;
+    if (row.model_calls >= budget.calls || windowExceeded)
+      throw new PolicyRejection(
+        `Model phase call or deadline limit exceeded (${budget.calls} calls, ${budget.generationMs / 60_000} min)`,
+      );
+    const remainingOutput = budget.outputTokens - row.model_output_tokens;
+    if (remainingOutput < 1) throw new PolicyRejection(`Model output budget exhausted (${budget.outputTokens} tokens)`);
+    // The forwarded max_tokens is clamped to what is left; the executor sees stop_reason max_tokens, never a reset.
+    const bounded: ModelRequest = { ...request, maxTokens: Math.min(request.maxTokens, remainingOutput) };
+    const inputEstimate = encoder.encode(providerBody(bounded, mode)).length + INPUT_OVERHEAD_TOKENS;
+    if (row.model_input_tokens + inputEstimate > budget.inputTokens)
+      throw new PolicyRejection(`Model input budget exhausted (${budget.inputTokens} tokens)`);
     this.ctx.storage.sql.exec(
-      `UPDATE jobs SET model_calls = model_calls + 1, model_started_at = COALESCE(model_started_at, ?)
-       WHERE run_id = ? AND status = 'leased' AND lease_expires > ? AND deadline_at > ?
-       AND model_calls < ? AND (model_started_at IS NULL OR model_started_at > ?)`,
+      `UPDATE jobs SET model_calls = model_calls + 1, model_started_at = COALESCE(model_started_at, ?),
+         model_input_tokens = model_input_tokens + ?, model_output_tokens = model_output_tokens + ?
+       WHERE run_id = ? AND status = 'leased' AND lease_hash = ? AND lease_expires > ? AND deadline_at > ?
+         AND model_calls < ? AND (model_started_at IS NULL OR model_started_at > ?)
+         AND model_input_tokens + ? <= ? AND model_output_tokens + ? <= ?`,
       now,
+      inputEstimate,
+      bounded.maxTokens,
       runId,
+      row.lease_hash,
       now,
       now,
-      maxCalls,
-      now - MODEL_MS,
+      budget.calls,
+      now - budget.generationMs,
+      inputEstimate,
+      budget.inputTokens,
+      bounded.maxTokens,
+      budget.outputTokens,
     );
     const current = this.ctx.storage.sql
       .exec<{ status: Status; model_calls: number }>('SELECT status, model_calls FROM jobs WHERE run_id = ?', runId)
       .toArray()[0];
     if (current?.status !== 'leased' || current.model_calls !== row.model_calls + 1)
       throw new Error('Model phase no longer owns the lease');
+    // The reservation is durable before the upstream call: a failure or restart keeps it consumed.
     await this.ctx.storage.sync();
-    const response = await invokeModel(this.env, request, mode);
+    // Bounded by the remaining generation window as well as the per-call ceiling; body read included.
+    const windowRemaining = (row.model_started_at ?? now) + budget.generationMs - now;
+    const response = await invokeModel(this.env, bounded, mode, Math.min(CALL_TIMEOUT_MS[mode], windowRemaining));
+    const usage = trustworthyUsage(response);
+    if (usage) {
+      this.ctx.storage.sql.exec(
+        `UPDATE jobs SET model_input_tokens = model_input_tokens - ? + ?, model_output_tokens = model_output_tokens - ? + ?
+         WHERE run_id = ?`,
+        inputEstimate,
+        usage.input,
+        bounded.maxTokens,
+        usage.output,
+        runId,
+      );
+      await this.ctx.storage.sync();
+    }
     await this.leased(runId, leaseToken);
     return response;
   }

@@ -14,6 +14,8 @@ export interface Bindings {
   COMMUNITY_CHAT: DurableObjectNamespace;
   JOBS: Queue<Job>;
   ENVIRONMENT: 'development' | 'preview' | 'production';
+  /** 업무 API 실행 여부. 정확히 'true'일 때만 실행하며 그 외는 비활성(기본). 판정은 api-gate.ts의 isApiEnabled. */
+  API_ENABLED?: string;
   SERIALIZED?: boolean;
   JWT_SECRET?: string;
   WEB_CSRF_SECRET?: string;

@@ -102,6 +102,7 @@ function fixture() {
       },
     },
     ENVIRONMENT: 'development',
+    API_ENABLED: 'true',
     SERIALIZED: true,
   } as unknown as Bindings;
   const app = new Hono<ApiEnv>();

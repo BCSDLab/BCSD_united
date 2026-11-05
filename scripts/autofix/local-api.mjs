@@ -48,7 +48,13 @@ export async function prepareWebApi() {
   const original = await readFile(resolve('apps/api/wrangler.jsonc'), 'utf8');
   const main = '"main": "src/index.ts"';
   const migrations = '"migrations_dir": "drizzle"';
-  if (original.split(main).length !== 2 || original.split(migrations).length !== 3)
+  // 최상위 vars와 previews.vars 양쪽이 "false"인 배포 설정만 허용하고, 보조 Worker 사본에서만 "true"로 바꾼다.
+  if (
+    original.split(main).length !== 2 ||
+    original.split(migrations).length !== 3 ||
+    original.split(apiEnabledDisabled).length !== 3 ||
+    original.includes(apiEnabledForced)
+  )
     throw new Error('API configuration changed; offline auxiliary Worker needs review');
   const gated = declaresApiGate(original);
   await writeFile(join(directory, 'index.mjs'), instrumentedApi);
@@ -193,6 +199,7 @@ export async function startLocalApi({ gate = 'enabled' } = {}) {
     }
     const entry = join(entryDirectory, 'index.mjs');
     await writeFile(entry, instrumentedApi);
+    // `--var`는 이 로컬 wrangler dev 프로세스의 env에만 적용된다(DO·Queue 핸들러 포함).
     runtime = startProcess(
       'pnpm',
       [

@@ -136,7 +136,9 @@ export interface Env {
   CLOUDFLARE_DIAGNOSTICS_TOKEN?: string;
   DIAGNOSTICS_READ_TOKEN: string;
   ERROR_PROJECT_DOMAINS: string;
-  ANTHROPIC_API_KEY?: string;
+  /** The only model upstream: bare HTTPS origin of the operator's omp auth-gateway bridge, paired with its bearer. */
+  OMP_GATEWAY_ORIGIN?: string;
+  OMP_GATEWAY_TOKEN?: string;
   GITHUB_OWNER: string;
   GITHUB_REPOSITORY: string;
   GITHUB_DISPATCH_APP_ID: string;

@@ -64,7 +64,8 @@ function harness(t) {
     GITHUB_DISPATCH_INSTALLATION_ID: '176455083',
     AUTOFIX_EXECUTOR_ID: 'koin-rocky-umpc',
     AUTOFIX_EXECUTOR_TOKEN: 'local-dedicated-executor-secret-32-characters',
-    ANTHROPIC_API_KEY: 'local-test-only-anthropic-key',
+    OMP_GATEWAY_ORIGIN: 'https://bridge.example',
+    OMP_GATEWAY_TOKEN: 'local-gateway-bearer-0123456789abcdef',
     ERROR_ISSUES: {
       idFromName: (name) => name,
       get() {
@@ -102,15 +103,15 @@ function harness(t) {
       return Response.json([{ number: 9, body: marker, user: { login: 'bcsd-united-error-publisher[bot]' } }]);
     if (href.includes('/pulls?')) return Response.json([]);
     if (href.endsWith('/issues/9/comments') && options.method === 'POST') return Response.json({ id: 9001 });
-    if (href === 'https://api.anthropic.com/v1/messages') {
-      assert.equal(options.headers['x-api-key'], env.ANTHROPIC_API_KEY);
+    if (href === 'https://bridge.example/v1/messages') {
+      assert.equal(options.headers.Authorization, `Bearer ${env.OMP_GATEWAY_TOKEN}`);
       assert.deepEqual(
         JSON.parse(options.body).tools.map((tool) => tool.name),
         ['Read', 'Edit', 'Write', 'Glob', 'Grep'],
       );
       return Response.json({
         type: 'message',
-        model: 'claude-fable-5-1',
+        model: 'claude-sonnet-5-5',
         content: [{ type: 'text', text: 'investigating' }],
         stop_reason: 'end_turn',
       });
@@ -190,7 +191,7 @@ test('claimed model assertions are never treated as verification proof; expired 
   const claim = await h.queue.claim('f'.repeat(64));
   await assert.rejects(h.queue.verificationStart(claim.runId, claim.leaseToken), /model generation/);
   const request = {
-    model: 'claude-fable-5-1',
+    model: 'claude-sonnet-5-5',
     maxTokens: 4096,
     tools: ['Read', 'Edit', 'Write', 'Glob', 'Grep'],
     messages: [{ role: 'user', content: 'Find observed bug' }],

@@ -77,6 +77,7 @@ function fixture(
   const env = {
     DB: binding,
     ENVIRONMENT: 'development',
+    API_ENABLED: 'true',
     SOURCE_SYNC_SECRET: secret,
     SOURCE_SYNC_ENABLED: syncEnabled ?? undefined,
     JOBS: { sendBatch: async () => {} },
