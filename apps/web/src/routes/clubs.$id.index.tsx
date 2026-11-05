@@ -40,7 +40,7 @@ import { stringifySearch } from 'utils/routing/search';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { copyToClipboard } from 'utils/ts/copyToClipboard';
 import { formatPhoneNumber } from 'utils/ts/formatPhoneNumber';
-import { backButtonTapped } from 'utils/ts/iosBridge';
+import { backButtonTapped } from 'utils/ts/nativeBridge';
 import showToast from 'utils/ts/showToast';
 
 import styles from 'pages/clubs/[id]/ClubDetailPage.module.scss';
