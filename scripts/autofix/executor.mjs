@@ -39,6 +39,7 @@ const TRUSTED_FILES = [
   'security.test.mjs',
   'source-graph.mjs',
   'workspace-typecheck.mjs',
+  'bbot-build.mjs',
 ];
 const PR_REF = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$/;
 const RUN_ID = /^autofix-[a-f0-9]{64}$/;

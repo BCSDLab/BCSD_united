@@ -106,6 +106,8 @@ B-BOT native fixture 단계만 `node_modules/.vitest-cache`(변환 캐시)와 `a
 
 타입 검사는 신뢰 `workspace-typecheck.mjs`가 각 workspace의 기존 `typecheck` 스크립트(예: `nitro prepare && tsc --noEmit`)를 그대로 실행하되, 증분 캐시를 workspace 경로 해시별 `/tmp/*.tsbuildinfo`로 지정한다. 소스를 쓰기 가능하게 만들거나 타입 검사를 생략하지 않으며 병렬 workspace가 같은 캐시 파일을 공유하지 않는다.
 
+B-BOT은 신뢰 `bbot-build.mjs`가 실제 Nitro API의 public asset 복사·prerender·production build·close를 실행한다. `.output` 마운트 자체를 지우는 대신 내용만 완전히 비우고 같은 server/public 디렉터리를 준비한다. build 스크립트·출력 배치가 달라지거나 출력 안에 보존해야 할 public asset이 있으면 실패한다. Wrangler dry-run은 원본 설정의 모든 바인딩을 유지한 사본에서 이미 수행한 custom build 훅만 제거하고 main/assets 경로를 절대 경로로 고정한다. 실제 배포하지 않으며 원본 설정·소스는 바꾸지 않는다.
+
 PR 모드의 온라인 설치에는 `--ignore-pnpmfile`도 강제합니다. `--ignore-scripts`만으로는 `.pnpmfile.cjs` 및 config dependency의 JavaScript 훅 실행이 차단되지 않습니다. 승인된 lifecycle과 후보 코드 실행은 네트워크를 끊은 뒤에만 허용합니다.
 
 런타임 프로필은 changedFiles에서만 도출하는 allowlist다(PR 본문·설정이 명령을 바꾸지 못한다):
