@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { isKoinError } from '@bcsdlab/koin';
 import { captureError } from '@koin/telemetry/runtime';
 import {
   keepPreviousData,
@@ -12,6 +11,7 @@ import {
 
 import { postLeaveLostItemChatroomV2, postLostItemChatroomMessageV2 } from 'api/articles';
 import { articleQueries, articleQueryKeys } from 'api/articles/queries';
+import { isKoinError } from 'interfaces/APIError';
 import { getCachedMessages, cacheMessages, clearChatroomCache } from 'utils/db/chatDB';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import showToast from 'utils/ts/showToast';

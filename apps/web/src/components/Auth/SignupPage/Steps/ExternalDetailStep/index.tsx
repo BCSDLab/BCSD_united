@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { isKoinError } from '@bcsdlab/koin';
 import { cn, sha256 } from '@bcsdlab/utils';
 import { useMutation } from '@tanstack/react-query';
 import { Controller, type FieldError, useFormContext, useFormState, useWatch } from 'react-hook-form';
@@ -7,6 +6,7 @@ import { Controller, type FieldError, useFormContext, useFormState, useWatch } f
 import { checkId, emailDuplicateCheck, nicknameDuplicateCheck, signupGeneral } from 'api/auth';
 import BackIcon from 'assets/svg/arrow-back.svg';
 import PCCustomInput from 'components/Auth/SignupPage/components/PCCustomInput';
+import { isKoinError } from 'interfaces/APIError';
 import type { InputMessage } from 'interfaces/InputMessage';
 import { REGEX, MESSAGES } from 'static/auth';
 import useBooleanState from 'utils/hooks/state/useBooleanState';

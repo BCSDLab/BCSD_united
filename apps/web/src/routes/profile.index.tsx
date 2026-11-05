@@ -1,6 +1,5 @@
 import type { ComponentType, SVGProps } from 'react';
 import { Suspense } from 'react';
-import { isKoinError } from '@bcsdlab/koin';
 import { dehydrate, QueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
@@ -17,6 +16,7 @@ import AuthenticateUserModal from 'components/AuthenticateUserModal';
 import HomeLayout from 'components/layout/HomeLayout';
 import { LoggedInTimetablePreview, ProfileTimetableGrid } from 'components/ProfilePage/TimetablePreview';
 import IconBox from 'components/ui/IconBox';
+import { isKoinError } from 'interfaces/APIError';
 import ROUTES from 'static/routes';
 import { TIMETABLE_SEMESTER_COOKIE_KEY } from 'static/url';
 import useLogger from 'utils/hooks/analytics/useLogger';

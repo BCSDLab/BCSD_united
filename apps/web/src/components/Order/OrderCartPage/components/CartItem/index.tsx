@@ -1,4 +1,3 @@
-import { isKoinError } from '@bcsdlab/koin';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
 
@@ -8,6 +7,7 @@ import MinusIcon from 'assets/svg/Order/Cart/minus-icon.svg';
 import PlusIcon from 'assets/svg/Order/Cart/plus-icon.svg';
 import TrashIcon from 'assets/svg/Order/Cart/trash-icon.svg';
 import Button from 'components/ui/Button';
+import { isKoinError } from 'interfaces/APIError';
 import ROUTES from 'static/routes';
 import { formatNumber } from 'utils/ts/formatPrice';
 import showToast from 'utils/ts/showToast';

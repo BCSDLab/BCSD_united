@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { isKoinError } from '@bcsdlab/koin';
 import { useMutation } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
 
@@ -11,6 +10,7 @@ import {
   idExists,
   idMatchEmail,
 } from 'api/auth';
+import { isKoinError } from 'interfaces/APIError';
 import type { InputMessage } from 'interfaces/InputMessage';
 import { MESSAGES, STORAGE_KEY } from 'static/auth';
 import ROUTES from 'static/routes';

@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { isKoinError } from '@bcsdlab/koin';
 import { cn } from '@bcsdlab/utils';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
@@ -12,6 +11,7 @@ import Bike from 'assets/svg/Order/Checkout/agriculture.svg';
 import PickupIcon from 'assets/svg/Order/Checkout/bucket.svg';
 import Badge from 'components/ui/Badge';
 import Button from 'components/ui/Button';
+import { isKoinError } from 'interfaces/APIError';
 import ROUTES from 'static/routes';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
