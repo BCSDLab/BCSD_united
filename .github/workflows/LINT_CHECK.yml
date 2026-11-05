@@ -3,11 +3,9 @@ on:
   push:
     branches:
       - develop
-      - preview
   pull_request:
     branches:
       - develop
-      - preview
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

@@ -52,7 +52,7 @@ UI 변경은 실제 화면, API 변경은 실제 HTTP/D1 경로도 확인합니�
 
 ## 운영 안전
 
-운영 정책에서 웹·API·오류 자동화의 production branch는 모두 `develop`으로 맞춥니다. 기능 PR을 `develop`에 병합하면 Workers Builds가 검사 후 자동으로 운영 배포하며, `preview`는 웹·API의 고정 native Preview를 위한 선택적 비운영 브랜치입니다. 필수 승격 단계를 만들거나 운영용 `main` 병합을 요구하지 않습니다. 운영 브랜치 변수는 `KOIN_PRODUCTION_BRANCH`(기본 `develop`)이며 기존 `KOIN_MAIN_BRANCH`를 대체합니다. PR과 Workers Builds를 통해 배포하며, API·웹·오류 자동화에 별도 stage/test Worker나 중복 GitHub Actions 배포를 만들지 않습니다. 웹·API의 비운영 명령은 `wrangler preview`이고 `wrangler versions upload`나 `--env preview`가 아닙니다. 저장소의 `previews` 설정과 Cloudflare GitHub 연결·빌드 명령을 함께 유지하고, 원격 설정 적용·실제 배포는 별도로 확인합니다.
+운영 정책에서 웹·API·오류 자동화의 production branch는 모두 `develop`입니다. 기능 PR을 `develop`에 병합하면 Workers Builds가 검사 후 자동으로 운영 배포합니다. 별도 `main`·`preview` Git 브랜치나 승격 단계는 사용하지 않습니다. 운영 브랜치 변수는 `KOIN_PRODUCTION_BRANCH`(기본 `develop`)입니다. 비운영 브랜치는 검사만 실행하며 기존 `stage` native Preview를 자동으로 덮어쓰지 않습니다. `stage.koreatech.in`과 `previews` 런타임 설정은 유지하고, 필요할 때 명시적으로 stage를 갱신합니다. PR과 Workers Builds를 통해 운영 배포하며, API·웹·오류 자동화에 별도 stage/test Worker나 중복 GitHub Actions 배포를 만들지 않습니다. Preview 명령은 `wrangler preview`이고 `wrangler versions upload`나 `--env preview`가 아닙니다. Git 브랜치 삭제와 native Preview 삭제는 별개이므로 Preview·저장소 데이터를 함께 삭제하지 않습니다.
 
 API 테스트 명령에는 TypeScript 회귀와 `.mjs` 데이터·파일 이관 동작 테스트가 모두 포함됩니다. Preview 검증은 HTTP 경로만 대상으로 합니다. Queue consumer·Cron은 Preview에서 실행하지 않으므로 알림·예약의 enqueue를 실행 완료로 보고하지 않습니다. 전환 중 기존 테스트 Worker의 consumer가 제거됐는지도 운영 담당자가 별도로 확인해야 합니다.
 
