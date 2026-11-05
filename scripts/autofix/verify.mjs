@@ -631,7 +631,15 @@ const workspaceCommand = (script) =>
         'node',
         '/automation/workspace-typecheck.mjs',
       ]
-    : ['pnpm', '-r', '--workspace-concurrency=1', ...packageFilters, '--if-present', script];
+    : [
+        'pnpm',
+        '-r',
+        '--workspace-concurrency=1',
+        ...packageFilters,
+        ...(script === 'build' && profiles.has('b-bot') ? ['--filter', '!@koin/b-bot'] : []),
+        '--if-present',
+        script,
+      ];
 const lintDirectories = prMode
   ? ['apps/api', 'packages/telemetry', 'scripts/autofix', ...(profiles.has('web') ? ['apps/web'] : []), ...related]
   : ['apps/api', 'packages/telemetry', 'scripts/autofix', ...(context.app === 'web' ? ['apps/web'] : [])];
@@ -655,8 +663,12 @@ const checks = offlineSmoke
         ...(profiles.has('b-bot')
           ? [
               [
+                'B-BOT production build',
+                ['pnpm', '--filter', '@koin/b-bot', 'exec', 'node', '/automation/bbot-build.mjs'],
+              ],
+              [
                 'B-BOT deploy dry run',
-                ['pnpm', '--filter', '@koin/b-bot', 'exec', 'wrangler', 'deploy', '--dry-run', '--outdir', 'dist'],
+                ['pnpm', '--filter', '@koin/b-bot', 'exec', 'node', '/automation/bbot-build.mjs', 'dry-run'],
               ],
             ]
           : []),
@@ -741,16 +753,15 @@ for (const [label, command] of checks) {
     continue;
   }
   const result = docker(command, {
-    writable:
-      label === 'Production build' || label === 'B-BOT deploy dry run'
-        ? scratch
-        : label === 'Runtime route smoke'
-          ? runtimeScratch
-          : label === 'Typecheck'
-            ? [...bbotBuildScratch, ...bbotRuntimeScratch]
-            : label === 'Native fixture tests'
-              ? [...bbotBuildScratch, ...bbotRuntimeScratch, ...bbotTestScratch]
-              : [],
+    writable: ['Production build', 'B-BOT production build', 'B-BOT deploy dry run'].includes(label)
+      ? scratch
+      : label === 'Runtime route smoke'
+        ? runtimeScratch
+        : label === 'Typecheck'
+          ? [...bbotBuildScratch, ...bbotRuntimeScratch]
+          : label === 'Native fixture tests'
+            ? [...bbotBuildScratch, ...bbotRuntimeScratch, ...bbotTestScratch]
+            : [],
     offlineWeb: profiles.has('web') && ['Production build', 'Runtime route smoke'].includes(label),
     offlineStandalone: offlineSmoke && label === 'Runtime route smoke',
   });
