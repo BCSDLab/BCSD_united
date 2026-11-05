@@ -1,7 +1,7 @@
 import React from 'react';
 import { captureError } from '@koin/telemetry/runtime';
-import type { AxiosError } from 'axios';
 
+import { isHttpError } from 'interfaces/APIError';
 import showToast from 'utils/ts/showToast';
 
 interface Props {
@@ -14,14 +14,12 @@ interface State {
   eventId?: string;
 }
 
-interface AxiosErrorData {
-  error?: {
-    message?: string;
-  };
-}
+function getPayloadErrorMessage(data: unknown): string | undefined {
+  if (data === null || typeof data !== 'object' || !('error' in data)) return undefined;
+  const { error } = data;
+  if (error === null || typeof error !== 'object' || !('message' in error)) return undefined;
 
-function isAxiosError(error: AxiosError<AxiosErrorData> | Error): error is AxiosError<AxiosErrorData> {
-  return 'response' in error;
+  return typeof error.message === 'string' ? error.message : undefined;
 }
 
 export default class ErrorBoundary extends React.Component<Props, State> {
@@ -38,10 +36,10 @@ export default class ErrorBoundary extends React.Component<Props, State> {
   }
 
   // 이후에 사용시 해제
-  // componentDidCatch(error: AxiosError<AxiosErrorData> | Error, __: ErrorInfo) {
-  componentDidCatch(error: AxiosError<AxiosErrorData> | Error) {
-    const errorMessage = isAxiosError(error)
-      ? (error.response?.data?.error?.message ?? '알 수 없는 오류가 발생했습니다.')
+  // componentDidCatch(error: Error, __: ErrorInfo) {
+  componentDidCatch(error: Error) {
+    const errorMessage = isHttpError(error)
+      ? (getPayloadErrorMessage(error.data) ?? '알 수 없는 오류가 발생했습니다.')
       : error.message;
     showToast('error', errorMessage);
     const eventId = captureError(error);

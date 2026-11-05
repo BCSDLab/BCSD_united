@@ -1,9 +1,9 @@
-import { isKoinError } from '@bcsdlab/koin';
 import { captureError } from '@koin/telemetry/runtime';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { timetableMutations } from 'api/timetable/mutations';
 import showMobileToast from 'components/feedback/Toast/showMobileToast';
+import { isKoinError } from 'interfaces/APIError';
 
 export default function useApplySemesterChanges(isLoggedIn: boolean) {
   const queryClient = useQueryClient();

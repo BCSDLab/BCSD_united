@@ -1,4 +1,3 @@
-import { isKoinError } from '@bcsdlab/koin';
 import { captureError } from '@koin/telemetry/runtime';
 import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
@@ -6,6 +5,7 @@ import { useRouter } from '@tanstack/react-router';
 import { deleteClubQnA, postClubQnA } from 'api/club';
 import type { ClubNewQnA } from 'api/club/entity';
 import { clubQueries } from 'api/club/queries';
+import { isKoinError } from 'interfaces/APIError';
 import ROUTES from 'static/routes';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import showToast from 'utils/ts/showToast';

@@ -1,8 +1,8 @@
 import { useMutation } from '@tanstack/react-query';
-import type { AxiosError } from 'axios';
 
 import { updateUser, updateGeneralUser } from 'api/auth';
 import type { UserUpdateRequest, GeneralUserUpdateRequest } from 'api/auth/entity';
+import { isHttpError, isKoinError } from 'interfaces/APIError';
 import type { UserType } from 'utils/auth/session';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import showToast from 'utils/ts/showToast';
@@ -14,11 +14,7 @@ interface UserUpdateOption {
 
 const useUserInfoUpdate = <T = unknown>(userType: UserType | null, options: UserUpdateOption = {}) => {
   const logger = useLogger();
-  const { status, mutate } = useMutation<
-    T,
-    AxiosError<{ message?: string }>,
-    UserUpdateRequest | GeneralUserUpdateRequest
-  >({
+  const { status, mutate } = useMutation<T, unknown, UserUpdateRequest | GeneralUserUpdateRequest>({
     mutationFn: (data) =>
       userType === 'STUDENT' ? (updateUser(data) as Promise<T>) : (updateGeneralUser(data) as Promise<T>),
     onSuccess: () => {
@@ -29,9 +25,9 @@ const useUserInfoUpdate = <T = unknown>(userType: UserType | null, options: User
         team: 'USER',
       });
     },
-    onError: (error: AxiosError<{ message?: string }>) => {
-      if (error.message) {
-        showToast('error', error.message || '에러가 발생했습니다.');
+    onError: (error) => {
+      if (isKoinError(error) || isHttpError(error) || error instanceof Error) {
+        if (error.message) showToast('error', error.message);
       }
       options.onError?.();
       logger.actionEventClick({

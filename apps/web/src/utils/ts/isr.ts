@@ -1,5 +1,6 @@
-import { isKoinError } from '@bcsdlab/koin';
 import { traceOperation } from '@koin/telemetry/runtime';
+
+import { isHttpError, isKoinError } from 'interfaces/APIError';
 
 export const ARTICLE_DETAIL_ISR_REVALIDATE_SECONDS = 60 * 10;
 export const BUS_SHUTTLE_ISR_REVALIDATE_SECONDS = 60 * 30;
@@ -15,28 +16,15 @@ export function isNotFoundKoinError(error: unknown): boolean {
   return isKoinError(error) && error.status === 404;
 }
 
-function hasAxiosErrorResponse(error: object): error is {
-  type: 'AXIOS_ERROR';
-  response?: {
-    status?: number;
-  };
-} {
-  return 'type' in error && error.type === 'AXIOS_ERROR';
-}
-
 function isRetryableStaticFetchError(error: unknown): boolean {
   if (isKoinError(error)) {
     return error.status === 429 || error.status >= 500;
   }
 
-  if (typeof error === 'object' && error !== null && hasAxiosErrorResponse(error)) {
-    const status = error.response?.status;
+  if (isHttpError(error)) {
+    const { status } = error;
 
-    if (typeof status === 'number') {
-      return status === 429 || status >= 500;
-    }
-
-    return true;
+    return status === undefined || status === 429 || status >= 500;
   }
 
   return true;
@@ -45,9 +33,7 @@ function isRetryableStaticFetchError(error: unknown): boolean {
 function getStaticFetchStatus(error: unknown): number | 'network' | 'unknown' {
   if (isKoinError(error)) return error.status;
 
-  if (typeof error === 'object' && error !== null && hasAxiosErrorResponse(error)) {
-    return error.response?.status ?? 'network';
-  }
+  if (isHttpError(error)) return error.status ?? 'network';
 
   return 'unknown';
 }

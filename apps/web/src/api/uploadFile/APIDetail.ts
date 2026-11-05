@@ -33,8 +33,6 @@ export class UploadToS3<R extends APIResponse> implements APIRequest<R> {
 
   headers: Record<string, string>;
 
-  convertBody = (data: unknown) => data as string;
-
   constructor(presignedUrl: string, file: Blob) {
     this.path = presignedUrl;
     this.data = file;

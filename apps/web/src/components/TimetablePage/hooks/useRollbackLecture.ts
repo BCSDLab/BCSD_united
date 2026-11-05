@@ -1,8 +1,8 @@
-import { isKoinError } from '@bcsdlab/koin';
 import { captureError } from '@koin/telemetry/runtime';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { timetableMutations } from 'api/timetable/mutations';
+import { isKoinError } from 'interfaces/APIError';
 import showToast from 'utils/ts/showToast';
 
 export default function useRollbackLecture(isLoggedIn: boolean, timetableFrameId: number) {

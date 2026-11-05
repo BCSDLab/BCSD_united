@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { isKoinError } from '@bcsdlab/koin';
 import { useMutation } from '@tanstack/react-query';
 import { Controller, useFormContext, useFormState, useWatch } from 'react-hook-form';
 
 import { checkPhone, smsSend, smsVerify } from 'api/auth';
 import type { SmsSendResponse } from 'api/auth/entity';
 import CustomInput from 'components/Auth/SignupPage/components/CustomInput';
+import { isKoinError } from 'interfaces/APIError';
 import type { InputMessage } from 'interfaces/InputMessage';
 import { GENDER_OPTIONS, MESSAGES, REGEX } from 'static/auth';
 import ROUTES from 'static/routes';

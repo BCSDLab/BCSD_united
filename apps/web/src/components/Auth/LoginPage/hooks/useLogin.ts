@@ -1,10 +1,10 @@
-import { isKoinError } from '@bcsdlab/koin';
 import { sha256 } from '@bcsdlab/utils';
 import { captureError } from '@koin/telemetry/runtime';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { webLogin } from 'api/auth';
 import type { WebAuthResponse } from 'api/auth/entity';
+import { isKoinError } from 'interfaces/APIError';
 import { authenticatedSession, SESSION_QUERY_KEY } from 'utils/auth/session';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import { useLoginRedirect } from 'utils/hooks/auth/useLoginRedirect';
