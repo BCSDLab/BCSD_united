@@ -524,7 +524,10 @@ async function generate(cfg, claim, modelRoot, signal) {
           cfg,
           `/executor/jobs/${claim.runId}/model`,
           request,
-          AbortSignal.timeout(100_000),
+          AbortSignal.any([
+            signal,
+            AbortSignal.timeout(Math.max(1, Math.min(pullRequest ? 190_000 : 100_000, windowEndsAt - Date.now()))),
+          ]),
           pullRequest ? 1_000_000 : 256_000,
         ),
       windowEndsAt,
