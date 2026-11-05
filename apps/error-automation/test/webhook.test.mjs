@@ -358,7 +358,7 @@ test('model route maps only a structurally reconstructed ModelRateLimited to 429
     version: 1,
     executorId: 'koin-rocky-umpc',
     leaseToken: 'b'.repeat(64),
-    model: 'claude-fable-5-1',
+    model: 'claude-sonnet-5-5',
     maxTokens: 4096,
     tools: ['Read', 'Edit', 'Write', 'Glob', 'Grep'],
     messages: [{ role: 'user', content: 'Read observed source' }],
@@ -784,8 +784,18 @@ test('unconfigured provider and executor secrets fail closed while exact authent
   h.env.SENTRY_PROJECT_APPS = '';
   assert.equal((await h.send(signed())).status, 503);
   h.env.SENTRY_PROJECT_APPS = '{"koin-united-prod":"web"}';
+  const executorToken = h.env.AUTOFIX_EXECUTOR_TOKEN;
   h.env.AUTOFIX_EXECUTOR_TOKEN = '';
   assert.equal((await h.send(signed())).status, 503);
+  h.env.AUTOFIX_EXECUTOR_TOKEN = executorToken;
+  // A gateway token without its origin (or vice versa) is a deployment defect, never a silent API-key fallback.
+  h.env.OMP_GATEWAY_TOKEN = 'local-gateway-bearer-0123456789abcdef';
+  assert.equal((await h.send(signed())).status, 503);
+  delete h.env.OMP_GATEWAY_TOKEN;
+  h.env.OMP_GATEWAY_ORIGIN = 'https://bridge.example/v1';
+  assert.equal((await h.send(signed())).status, 503);
+  delete h.env.OMP_GATEWAY_ORIGIN;
+  h.env.AUTOFIX_EXECUTOR_TOKEN = '';
   assert.equal(
     (
       await h.send(

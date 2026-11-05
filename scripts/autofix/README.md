@@ -1,6 +1,6 @@
 # 오류 알림 → 이슈 → 독립 검증 → PR
 
-`apps/error-automation` Worker가 인증한 Sentry/Cloudflare 알림을 SQLite DO에 기록하고, 고정 Rocky/UMPC 전용 실행기가 **아웃바운드 HTTPS polling**으로 작업을 받는다. GitHub Actions dispatch나 Cloudflare 유료 Container/Workflow는 실행 경로가 아니다. Worker가 고정 `claude-fable-5-1` 모델 요청만 중계하고, 실행기는 파일 도구만 사용해 후보를 만든 뒤 별도 Docker 검증 결과를 Worker에 제출한다. 자동 승인·merge·배포는 없다. 호스트 설치·비밀 등록·실제 모델/PR 호출은 운영 승인과 실제 통합 확인 전에는 완료된 것으로 간주하지 않는다.
+`apps/error-automation` Worker가 인증한 Sentry/Cloudflare 알림을 SQLite DO에 기록하고, 고정 Rocky/UMPC 전용 실행기가 **아웃바운드 HTTPS polling**으로 작업을 받는다. GitHub Actions dispatch나 Cloudflare 유료 Container/Workflow는 실행 경로가 아니다. Worker가 작업 종류별 고정 모델 요청만 중계하고(오류 수정 `claude-sonnet-5-5`, PR 검토 `claude-opus-5-5`), 실행기는 파일 도구만 사용해 후보를 만든 뒤 별도 Docker 검증 결과를 Worker에 제출한다. 자동 승인·merge·배포는 없다. 호스트 설치·비밀 등록·실제 모델/PR 호출은 운영 승인과 실제 통합 확인 전에는 완료된 것으로 간주하지 않는다.
 
 ## 지원 범위와 현재 제한
 
@@ -51,19 +51,21 @@ Sentry는 `https://sentry.io/api/0/organizations/<org>/issues/<id>/` 및 `events
 
 ## Worker 비밀과 실행기 계약
 
-Worker secret은 웹훅별 `SENTRY_CLIENT_SECRET`/`CLOUDFLARE_WEBHOOK_SECRET`, canonical Sentry read 전용 `SENTRY_READ_TOKEN`, 진단 읽기 전용 `DIAGNOSTICS_READ_TOKEN`, 단일 GitHub App의 기존 `GITHUB_DISPATCH_APP_PRIVATE_KEY`, Anthropic `ANTHROPIC_API_KEY`, 전용 `AUTOFIX_EXECUTOR_TOKEN`이다. 전용 실행기는 마지막 토큰만 안전한 host 설정 파일에서 사용하고 GitHub/Anthropic/provider 비밀을 받지 않는다. 기존 App 이름 `GITHUB_DISPATCH_*`은 저장된 한 App의 배포 설정명일 뿐 GitHub dispatch 실행을 뜻하지 않는다. App은 **BCSDLab/BCSD_united 하나**에만 설치되며 Worker가 역할별 contents/issues/pull requests read 또는 write 범위의 설치 토큰을 필요한 순간 발급한다.
+Worker secret은 웹훅별 `SENTRY_CLIENT_SECRET`/`CLOUDFLARE_WEBHOOK_SECRET`, canonical Sentry read 전용 `SENTRY_READ_TOKEN`, 진단 읽기 전용 `DIAGNOSTICS_READ_TOKEN`, 단일 GitHub App의 기존 `GITHUB_DISPATCH_APP_PRIVATE_KEY`, 모델 게이트웨이 접속용 `OMP_GATEWAY_TOKEN`(env `OMP_GATEWAY_ORIGIN`과 짝), 전용 `AUTOFIX_EXECUTOR_TOKEN`이다. Anthropic API key는 더 이상 Worker secret이 아니며 직접 제공자 호출 경로도 없다. 모델 추론은 아래 [로컬 omp 게이트웨이](#로컬-omp-게이트웨이)로만 이뤄지고, 게이트웨이 bearer는 연결 인증용 비밀일 뿐 provider 자격증명이 아니다. 전용 실행기는 마지막 토큰만 안전한 host 설정 파일에서 사용하고 GitHub/게이트웨이/provider 비밀을 받지 않는다. 기존 App 이름 `GITHUB_DISPATCH_*`은 저장된 한 App의 배포 설정명일 뿐 GitHub dispatch 실행을 뜻하지 않는다. App은 **BCSDLab/BCSD_united 하나**에만 설치되며 Worker가 역할별 contents/issues/pull requests read 또는 write 범위의 설치 토큰을 필요한 순간 발급한다.
 
 `AUTOFIX_EXECUTOR_ID=koin-rocky-umpc`로 고정한다. 실행기는 고정 HTTPS Worker origin에만 `Authorization: Bearer <AUTOFIX_EXECUTOR_TOKEN>` 및 `X-Executor-Id: koin-rocky-umpc`를 보내며 호스트 인바운드 네트워크 포트를 열지 않는다. `/executor/claim`의 `claimNonce` 64자리 hex를 비밀 파일과 분리해 먼저 영속하고, 응답 유실 때 같은 nonce로 동일 lease를 재요청한다. 204는 대기 작업 없음, 200은 고정 repo/base SHA/diagnostics/context/issue/lease. 2분 rolling heartbeat·90분 절대 기한·동시 한 작업을 적용한다. claim(신규·재개 모두)은 Worker가 확인한 `leaseExpiresAt`(안전 정수, 미래, `deadlineAt` 이하)을 반드시 포함하며, 실행기는 이를 마지막 확인 만료로 삼아 시작한다.
 
 실행기 lease 유지(`keepLease`): heartbeat는 45초 간격이며 한 번에 하나만 보낸다. Worker가 확인한 마지막 `leaseExpiresAt`만 사실로 취급하고, 확인되지 않은 heartbeat는 lease를 연장한 것으로 간주하지 않는다. 연결 시간 초과·연결 거부/재설정·네트워크 도달 불가·30초 요청 시간 초과 같은 전송 계층 실패만 5초 뒤 재시도하되, 마지막 확인 만료에서 15초 안전 여유를 뺀 시점 안에 재시도가 들어갈 때만 한다. HTTP 상태 거부(인증·정책·409 등), TLS 실패, 잘못된 응답 본문, `deadlineAt` 불일치, 15초 여유보다 짧은 만료는 즉시 작업을 중단한다. 독립 fail-closed 타이머가 확인 만료 − 15초에 작업을 중단하므로 heartbeat 요청이 멈춰도 알려진 lease를 넘겨 실행하지 않으며, 그때 진행 중인 heartbeat 요청도 취소한다. 작업 완료·종료 시 타이머와 진행 중 요청을 모두 정리해 늦게 도착한 응답이 다음 작업에 영향을 주지 않는다. 확인 만료가 이미 절대 기한과 같으면 더 연장할 수 없으므로 heartbeat를 보내지 않는다.
 
-`/executor/jobs/<runId>/model`은 살아 있는 generation lease에서만 요청한다. Worker가 정적 system prompt/고정 Fable 모델/Read·Edit·Write·Glob·Grep JSON schema만 Anthropic `/v1/messages`로 전송하고 API key를 Worker 밖에 내보내지 않는다. 모델 메시지의 파일 요청은 실행기에서 허용 경로·symlink·앱 경계를 다시 검사한다. 단일 오류 수정은 모델 40회·80개 메시지·256 KB context, PR 검토는 모델 80회·160개 메시지·1 MB context로 제한한다. generation 20분과 응답 256 KB 한도는 공통이다. 파일 도구는 단일 오류 수정에서 40회, 여러 파일의 diff와 관련 코드를 검토하는 PR에서 256회까지 허용한다. PR 검토는 diff 중심의 좁은 줄 범위와 독립 읽기 묶음을 사용한다. 후보 workspace는 이슈 진단을 **자료**로만 다루며 shell/network/MCP/GitHub credential을 사용할 수 없다.
+`/executor/jobs/<runId>/model`은 살아 있는 generation lease에서만 요청한다. Worker가 정적 system prompt/작업 종류별 고정 모델(오류 수정 `claude-sonnet-5-5`, PR 검토 `claude-opus-5-5`)/Read·Edit·Write·Glob·Grep JSON schema만 설정된 게이트웨이 `/v1/messages`로 전송하고 게이트웨이 bearer를 Worker 밖에 내보내지 않는다. 모델 메시지의 파일 요청은 실행기에서 허용 경로·symlink·앱 경계를 다시 검사한다. 단일 오류 수정은 80개 메시지·256 KB context, PR 검토는 160개 메시지·1 MB context로 제한하며 응답 256 KB 한도는 공통이다. 파일 도구는 단일 오류 수정에서 40회, 여러 파일의 diff와 관련 코드를 검토하는 PR에서 256회까지 허용한다. PR 검토는 diff 중심의 좁은 줄 범위와 독립 읽기 묶음을 사용한다. 후보 workspace는 이슈 진단을 **자료**로만 다루며 shell/network/MCP/GitHub credential을 사용할 수 없다.
 
-요청당 출력 토큰은 오류 수정 4,096개, PR 검토 16,384개까지 허용한다. 큰 수정 응답이 중단되면 제공자의 `stop_reason`만 제한된 진단에 남기며, 거절·중단을 승인으로 취급하지 않는다.
+작업당 모델 비용 상한(hard cap)은 Worker가 durable하게 집행하고 실행기도 같은 값을 자체 적용한다. 오류 수정: 모델 호출 6회, generation 4분, 입력 50k·출력 8k 토큰, 요청당 `max_tokens` 4,096. PR 검토: 호출 12회, generation 8분, 입력 150k·출력 16k 토큰, 요청당 `max_tokens` 8,192. Worker는 provider 전송 전에 실제 payload UTF-8 바이트와 `max_tokens`를 예약하고 응답의 실제 usage로 정산하며(usage가 없으면 예약을 그대로 유지), 상한을 넘는 요청은 거절한다. 실행기는 `generate`에서 호출 횟수·창·`max_tokens`를 같은 값으로 제한하고(`MODEL_BUDGET`), 상한 초과는 **최종 실패**다. 자동 재설정·재시도·대체 모델은 없으며, 429 재시도도 호출 상한에 계산된다. 독립 검증(Docker verifier)의 자원·시간 한도는 이와 별개로 바뀌지 않는다. 큰 수정 응답이 중단되면 제공자의 `stop_reason`만 제한된 진단에 남기며, 거절·중단을 승인으로 취급하지 않는다.
 
-PR 모델 요청은 Worker에서 최대 180초, 실행기에서 최대 190초까지 기다리되 실행기는 남은 19분 generation 시간으로 다시 제한한다. 오류 수정의 기존 90초/100초 한도는 유지한다. 모든 실행기 모델 요청은 작업 abort와 연결되어 lease 상실·종료 시 취소되며, 호출 시간 초과를 자동 재시도하거나 검증 성공으로 처리하지 않는다.
+실행기는 첫 사용자 메시지에 이 상한(호출 횟수·분·요청당 출력 토큰·파일 도구 횟수·도구 결과 10,000자 절단)을 그대로 명시하고, 독립 읽기를 한 턴에 묶고 좁은 줄 범위를 쓰며 마지막 호출을 완결된 답변에 남겨 두라고 지시한다(`budgetNotice`). Worker의 예산 거절(422)은 재시도 없이 그 작업의 최종 실패다.
 
-제공자 429 처리(`requestModel`): Worker는 upstream Anthropic 429가 숫자 `Retry-After`를 싣고 spend cap(`enforced_spend_limit_reached`)이 아닐 때만 `/model`에 429와 canonical 십진 정수 `Retry-After`(1~3600초)를 돌려준다. 실행기는 그 429에 한해 **같은 요청 바이트**(대화 transcript 무변경)를 최대 3회 재전송하되, 서버 지연 이상을 기다리고 대기가 남은 19분 generation 창 안에 끝날 때만 한다. 창을 넘는 지연은 더 짧게 기다리지 않고 즉시 실패하며, 대기 중 작업 abort(기한·lease 상실·종료)는 재시도를 취소한다. 헤더가 없거나 잘못된 429, spend cap, 400/401/403, 503, TLS/전송 실패, 잘못된 본문은 재시도하지 않는다. lease heartbeat는 대기와 무관하게 독립적으로 이어지고, 429로 끝난 요청도 Worker의 모델 호출 상한에 그대로 계산된다. 운영 로그에는 `retryAfterSeconds`와 재시도 횟수만 남기고 제공자 응답 본문은 기록하지 않는다.
+PR 모델 요청은 Worker에서 최대 180초, 실행기에서 최대 190초까지 기다리되 실행기는 남은 8분 generation 창으로 다시 제한한다. 오류 수정은 90초/100초 한도와 4분 창을 적용한다. 모든 실행기 모델 요청은 작업 abort와 연결되어 lease 상실·종료 시 취소되며, 호출 시간 초과를 자동 재시도하거나 검증 성공으로 처리하지 않는다.
+
+제공자 429 처리(`requestModel`): Worker는 게이트웨이 429가 숫자 `Retry-After`를 싣고 `rate_limit_error`이며 spend cap(`enforced_spend_limit_reached`)이 아닐 때만 `/model`에 429와 canonical 십진 정수 `Retry-After`(1~3600초)를 돌려준다. 실행기는 그 429에 한해 **같은 요청 바이트**(대화 transcript 무변경)를 최대 3회 재전송하되, 서버 지연 이상을 기다리고 대기가 남은 generation 창 안에 끝날 때만 한다. 창을 넘는 지연은 더 짧게 기다리지 않고 즉시 실패하며, 대기 중 작업 abort(기한·lease 상실·종료)는 재시도를 취소한다. 헤더가 없거나 잘못된 429, 예산 초과 거절, spend cap, 400/401/403, 503, TLS/전송 실패, 잘못된 본문은 재시도하지 않는다. 로컬 omp 게이트웨이의 429에는 `Retry-After`가 없으므로 현재 구성에서는 재시도가 일어나지 않는다. lease heartbeat는 대기와 무관하게 독립적으로 이어지고, 429로 끝난 요청도 Worker의 모델 호출 상한에 그대로 계산된다. 운영 로그에는 `retryAfterSeconds`와 재시도 횟수만 남기고 제공자 응답 본문은 기록하지 않는다.
 
 자원 프로필은 검증 컨테이너당 RAM 최대 **3 GiB**, CPU 2개다. 시작 시 가용 메모리 **5 GiB**를 확인해 검증기 상한 외에 2 GiB 여유를 둔다. 컨트롤러의 기존 2 GiB 상한은 유지하고, workspace 타입 검사·테스트·빌드는 하나씩 실행해 중첩 메모리 피크를 줄인다. 한도 초과로 검증 프로세스가 종료되면 실패로 처리하며 검증 생략·자동 한도 상향·다른 서비스 중지는 하지 않는다.
 
@@ -84,6 +86,30 @@ heartbeat 실패 원인(원인 체인의 오류 코드 포함)과 중단·실패
 1. **검증 격리:** 별도 깨끗한 worktree에서 24개 파일/파일당 256KB/총 1MB/일반 파일/앱 경계/baseline SHA256을 검사한다. 기본 코드에 frozen install을 끝낸 다음 후보를 적용한다. 이후 모든 실행은 네트워크·자격증명·Docker socket 없이 non-root/capability 제거/resource 제한 컨테이너에서 수행한다. 소스/설정/테스트/의존성은 read-only이며 빌드·런타임 출력 디렉터리만 명시적으로 쓸 수 있다.
 2. 새 `tests/autofix/*.test.mjs`는 수정 전 실제 assertion 실패, 수정 후 통과해야 한다. loader/setup 실패는 재현이 아니다. API 후보는 `@koin/api...`, 웹 후보는 추가로 `@koin/web...` 의존성 범위의 기존 native fixtures·타입·빌드를 검사하고 autofix 보안 테스트와 해당 범위 lint를 수행한다. B-BOT의 별도 PostgreSQL 런타임은 이 자동 수정 대상이 아니며 저장소 전체 검증에서 따로 검사한다. 기존 fixture/test 파일은 패치에서 수정할 수 없다.
 3. 웹은 정적 route/import graph에서 모든 변경 소스가 관측 경로에 도달하는지 확인한다. 웹 검증 전 로컬 D1 migration을 적용하고, Vite 빌드에 검증 전용 `koin-api` auxiliary Worker를 포함하여 SSR service binding과 브라우저 gateway가 동일한 실제 로컬 API/D1을 사용하게 한다. API smoke는 별도 실제 Wrangler Worker에서 관측된 GET endpoint 실행과 2xx/JSON을 확인한다. API 요청 로그와 SSR 전후 요청 수, 브라우저 응답 본문을 대조한다. 데스크톱 후 앱 문서를 떠난 다음 390px 모바일 문서를 새로 열어 실제 홈 인사·식단 위젯·gateway와 콘솔/HTTP 오류를 확인한다. 빈 로컬 D1에서 `/weather` 503과 `/coopshop/1` 404는 정확한 API 오류 코드와 명시적 unavailable/빈 식단 UI를 모두 확인한 경우에만 허용한다. 임시 entrypoint·registry·브라우저 프로필·프로세스·컨테이너·source snapshot을 정리한다. mutating 요청/인증/필수 query/운영 데이터 의존은 자동 재생하지 않으며 운영 데이터나 가짜 fallback을 사용하지 않는다.
+
+## 로컬 omp 게이트웨이
+
+Worker의 **유일한** 모델 인증 경로다. 직접 Anthropic API key 호출 경로는 제거되었고 복원용 fallback도 없다. Worker는 env `OMP_GATEWAY_ORIGIN`(HTTPS origin만)과 secret `OMP_GATEWAY_TOKEN`이 모두 설정된 경우에만 고정 system/tools/model 본문을 `POST <origin>/v1/messages`에 `Authorization: Bearer <OMP_GATEWAY_TOKEN>`으로 보내며 redirect를 따르지 않는다. 둘 중 하나라도 없으면 모델 호출은 설정 오류로 실패하고 작업은 종료된다. 운영자 기기에서는 `scripts/autofix/local-omp-gateway.mjs`가 `127.0.0.1`에만 바인딩되어 요청마다 공식 `omp auth-gateway stdio` 자식 한 개를 띄워 추론만 위임한다. omp는 이미 로그인된 자체 자격증명(또는 설정된 broker)을 쓰며, access/refresh token·API key를 읽거나 복사하거나 내보내지 않고, 계정 회전이나 한도 우회를 하지 않는다. 개인 omp 한도가 소진되면 요청은 그대로 실패한다.
+
+```sh
+(umask 077 && mkdir -p ~/.config/koin-autofix && node -e 'process.stdout.write(require("node:crypto").randomBytes(32).toString("hex"))' > ~/.config/koin-autofix/omp-gateway.token)
+OMP_GATEWAY_TOKEN_FILE=~/.config/koin-autofix/omp-gateway.token OMP_GATEWAY_PORT=43129 node scripts/autofix/local-omp-gateway.mjs
+cloudflared tunnel --url http://127.0.0.1:43129   # 출력된 https://*.trycloudflare.com 을 Worker의 OMP_GATEWAY_ORIGIN으로, 같은 토큰을 OMP_GATEWAY_TOKEN secret으로 등록
+```
+
+브리지 계약:
+
+- `OMP_GATEWAY_TOKEN_FILE`은 현재 uid 소유의 **0600 일반 파일**(symlink 불가)이어야 하며 32–512자 URL-safe 토큰 한 줄을 담는다. 조건이 하나라도 어긋나면 시작하지 않는다. `OMP_GATEWAY_PORT` 기본값은 `43129`다.
+- 정확히 `POST /v1/messages`만 받는다(query 포함 다른 경로 404, 다른 메서드 405). bearer는 시간 일정 비교로 먼저 검사하며(실패 401), 인증 전에는 omp를 실행하지 않는다. broker/usage/models 등 다른 게이트웨이 경로는 노출하지 않는다.
+- 요청 본문은 1 MiB까지(초과 시 즉시 413 후 연결 종료, 나머지 바이트는 버퍼링하지 않음) JSON 객체여야 하고 `model`은 정확히 `claude-sonnet-5-5` 또는 `claude-opus-5-5`, `max_tokens`는 1–8,192만 허용한다. 퍼지 이름·role(`@smol`)·provider 접두사·`stream`·provider 실행 도구(`type`이 `custom`이 아닌 tool)·알 수 없는 필드는 400이다. 브리지는 도구를 실행하지 않으며 본문을 해석·수정하지 않고 `model`만 `anthropic/<같은 id>`로 바꿔 전달한다.
+- 응답은 요청한 모델이 실제로 답한 `message` envelope(`anthropic/<요청 id>` 또는 bare id)일 때만 200이며 `model`을 요청한 bare id로 정규화한다. 다른 모델·fallback chain이 답하면 502다. omp 상위 429는 `rate_limit_error`로 429를 돌려주되 `Retry-After`는 붙이지 않고(stdio는 헤더를 주지 않음), 그 밖의 상위 실패는 상위 오류 문구 없이 502 `upstream_error`다. omp의 오류 문구와 자식 stderr는 로컬 경로·계정 정보를 담을 수 있어 응답·로그 어디에도 쓰지 않는다.
+- 동시 요청은 하나만 처리한다(진행 중이면 503 + `Retry-After: 5`, Worker는 이를 종료 실패로 취급). 요청당 180초 기한은 본문 수신부터 적용되어 본문이 멈추거나 추론이 늦으면 504이며, 기한 초과·클라이언트 연결 종료·종료 신호 때 브리지가 띄운 omp 자식을 SIGKILL하고 슬롯을 즉시 비운다. 자식 stdout은 4 MiB까지만 읽고 초과 시 자식을 종료한다. shell을 거치지 않고 `omp auth-gateway stdio`를 직접 실행한다.
+- 로그는 경로 분류·상태·소요 시간만 남긴다.
+- **자식 환경과 재시도 차단:** omp 자식은 허용 목록 환경만 받는다(`PATH`/`HOME`/`USER`/`TMPDIR`/`LANG`/`LC_*`/`XDG_*`/`PI_CONFIG_DIR`/`PI_PROXY`/proxy 변수/`NODE_EXTRA_CA_CERTS`/`OMP_AUTH_BROKER_*`). `ANTHROPIC_API_KEY`·`ANTHROPIC_OAUTH_TOKEN`·`ANTHROPIC_BASE_URL`·`CLAUDE_CODE_*`·다른 `*_API_KEY`와 운영자의 `PI_CONFIG_FILES`는 전달되지 않으므로 브리지 환경으로 요청을 다른 endpoint나 key로 돌릴 수 없다. 브리지는 시작 시 0600 임시 overlay(`PI_CONFIG_FILES`)로 `retry.enabled=false`, `maxRetries=0`, `modelFallback=false`, `usageAwareFallback=false`, `waitForUsageReset=false`, `rateLimitWalksChain=false`, 두 모델의 `fallbackChains=[]`를 자식 프로세스에만 적용한다(사용자 전역 `config.yml`은 수정하지 않음). 따라서 Worker가 예산에 계산하는 게이트웨이 호출 한 번은 provider 시도 한 번이며, 같은 모델 재시도·다른 모델 fallback·usage reset 대기는 일어나지 않는다. overlay가 stdio에 적용되는 것은 `disabledProviders` overlay로 `/v1/models` 결과가 바뀌는 것으로 확인했고, 실패 상황에서의 fallback 억제 자체는 실제 오류를 유발하지 않고는 관측하지 않았다.
+- **시작 게이트:** 시작 시 `GET /v1/models`(quota 소비 없음)로 `anthropic/claude-sonnet-5-5`와 `anthropic/claude-opus-5-5`가 omp의 자격증명 선택에 따라 실제 서비스되는지 확인하고, 하나라도 없으면 listen하지 않고 종료한다. 로그인 만료 등은 요청 시점에 502로 드러나며 브리지가 로그인을 대신 수행하지 않는다.
+- **인증 방식 한계:** `omp auth-gateway stdio`는 다른 omp 명령과 같은 자격증명 사다리(runtime key → `models.yml` `apiKey` → 저장된 OAuth → 로그인 저장 key → env → 기타 저장 key)를 쓴다. 저장된 OAuth 로그인이 있으면 env key보다 우선하지만, 브리지가 **OAuth 전용을 강제할 수는 없다**: `apiKeys:false` 계정 풀은 broker 모드 전용이고 로컬 저장소에는 같은 스위치가 없다. 따라서 "OAuth-only"가 아니라 "운영자의 기존 omp 로그인 선택을 그대로 사용"이 정확한 표현이다. 같은 provider의 다른 계정으로의 credential 회전은 설정으로 끄는 항목이 아니며 현재 Anthropic 로그인이 하나뿐이라 발생하지 않는다; 계정을 추가하면 이 전제가 깨진다. 브리지는 로컬 자격증명을 읽거나 삭제·수정하지 않는다.
+
+제한과 해제: 임시 Cloudflare quick tunnel URL은 공개 주소이므로 bearer만이 접근을 막는다. 게이트웨이 bearer는 연결 인증용 비밀이며 provider 자격증명이 아니다. 해제할 때는 터널과 브리지를 내리고 토큰 파일을 삭제한 뒤 Worker의 `OMP_GATEWAY_ORIGIN`/`OMP_GATEWAY_TOKEN`을 제거한다. 그 시점부터 새 인증 게이트웨이를 설정할 때까지 **모델 처리는 불가능**하며(모델 호출이 설정 오류로 실패), API key를 다시 등록하는 복구 경로는 없다. 브리지는 운영자 기기와 omp 로그인 상태에 의존하고, 모델 호출 외의 어떤 Worker 동작(발행·검증·merge)도 바꾸지 않는다.
 
 ## 기존 PR 검토·수정 모드 (`mode: 'pull-request'`)
 
@@ -135,12 +161,12 @@ Worker의 정적 source-only system prompt는 아래 공개 구현에서 **원�
 - [OpenHands Datadog debugging prompt](https://github.com/OpenHands/software-agent-sdk/blob/46b1fa5cb91ada17e6ec938c7e8624a4fa19fa98/examples/03_github_workflows/04_datadog_debugging/debug_prompt.jinja) 및 [integration](https://github.com/OpenHands/software-agent-sdk/blob/46b1fa5cb91ada17e6ec938c7e8624a4fa19fa98/examples/03_github_workflows/04_datadog_debugging/datadog_debugging.py): 오류 데이터→관련 코드→원인 가설→재현→수정 또는 정직한 조사 결과 흐름. upstream의 curl/credential/repo clone/모델 PR 발행 권한은 채택하지 않았다.
 - [OpenHands basic agent](https://github.com/OpenHands/software-agent-sdk/blob/46b1fa5cb91ada17e6ec938c7e8624a4fa19fa98/examples/03_github_workflows/01_basic_action/agent_script.py) 및 [workflow](https://github.com/OpenHands/software-agent-sdk/blob/46b1fa5cb91ada17e6ec938c7e8624a4fa19fa98/examples/03_github_workflows/01_basic_action/workflow.yml): 명시적인 task/model/API key 연결을 참고하되 upstream runtime URL fetch/광범위 GitHub write 권한은 채택하지 않았다.
 - [Sweep planning prompts](https://github.com/sweepai/sweep/blob/a8b8b67bda4f89faac9314d34e7c7d5a64f76046/sweepai/core/planning_prompts.py): 파일·함수 이름을 명시한 원자적 최소 변경, 기존 helper 재사용, placeholder 금지. upstream의 테스트 제외 지침 및 speculative 범위 확대는 채택하지 않았다.
-- [Claude Fable 5.1 공식 모델 ID](https://platform.claude.com/docs/en/models/fable-5-1/overview), [Anthropic Messages API](https://platform.claude.com/docs/en/api/messages/create): Worker가 `claude-fable-5-1`과 다섯 파일 도구 schema 및 `ANTHROPIC_API_KEY`를 고정한다.
+- [Anthropic 모델 개요](https://platform.claude.com/docs/en/models/overview), [Anthropic Messages API](https://platform.claude.com/docs/en/api/messages/create): Worker가 작업 종류별 정확한 모델 ID(`claude-sonnet-5-5`/`claude-opus-5-5`)와 다섯 파일 도구 schema를 고정하고, 설정된 omp 게이트웨이로만 호출한다.
 - [Cloudflare Issues automations](https://developers.cloudflare.com/workers/observability/issues/automations/), [Notifications webhook envelope](https://developers.cloudflare.com/notifications/reference/webhook-payload-schema/), [공유 비밀 인증](https://developers.cloudflare.com/notifications/get-started/configure-webhooks/).
 
 ## 검증 명령
 
-로컬 결정적 행동 검사는 `node --test scripts/autofix/security.test.mjs scripts/autofix/executor.test.mjs scripts/autofix/executor-model.test.mjs scripts/autofix/pr-review.test.mjs`이다. 전체 독립 verifier는 Linux/WSL2 + Docker, 커밋된 base SHA, 실제 `error-input/context.json`과 `error-patch/patch.json`이 필요하다.
+로컬 결정적 행동 검사는 `node --test scripts/autofix/security.test.mjs scripts/autofix/executor.test.mjs scripts/autofix/executor-model.test.mjs scripts/autofix/pr-review.test.mjs scripts/autofix/local-omp-gateway.test.mjs`이다. 전체 독립 verifier는 Linux/WSL2 + Docker, 커밋된 base SHA, 실제 `error-input/context.json`과 `error-patch/patch.json`이 필요하다.
 
 ```sh
 docker build --tag koin-error-verifier --file scripts/autofix/Dockerfile scripts/autofix
