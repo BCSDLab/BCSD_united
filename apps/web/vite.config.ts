@@ -67,15 +67,15 @@ function workerConfigOverride({
 export default defineConfig(({ command, mode, isPreview }) => {
   const env = loadEnv(mode, root, '');
   const branch = env.WORKERS_CI_BRANCH;
-  const mainBranch = env.KOIN_MAIN_BRANCH || 'main';
+  const productionBranch = env.KOIN_PRODUCTION_BRANCH || 'develop';
   const previewBranch = env.KOIN_PREVIEW_BRANCH || 'preview';
-  if (env.WORKERS_CI === '1' && branch !== mainBranch && branch !== previewBranch) {
-    throw new Error('The stable preview deployment only accepts KOIN_MAIN_BRANCH or KOIN_PREVIEW_BRANCH.');
+  if (env.WORKERS_CI === '1' && branch !== productionBranch && branch !== previewBranch) {
+    throw new Error('The stable preview deployment only accepts KOIN_PRODUCTION_BRANCH or KOIN_PREVIEW_BRANCH.');
   }
   env.NEXT_PUBLIC_API_PATH = '/api';
   const offlineSmoke = env.AUTOFIX_OFFLINE_SMOKE === '1' && env.WORKERS_CI !== '1';
   const devServer = command === 'serve' && !isPreview;
-  env.NEXT_PUBLIC_SENTRY_ENVIRONMENT = branch === mainBranch ? 'production' : 'preview';
+  env.NEXT_PUBLIC_SENTRY_ENVIRONMENT = branch === productionBranch ? 'production' : 'preview';
   env.NEXT_PUBLIC_SENTRY_RELEASE ||= env.WORKERS_CI_COMMIT_SHA;
 
   return {
@@ -107,7 +107,7 @@ export default defineConfig(({ command, mode, isPreview }) => {
       react({ compiler: true }),
       sentryVitePlugin({
         org: env.SENTRY_ORG || 'bcsd',
-        project: env.SENTRY_PROJECT || (branch === mainBranch ? 'koin-united-prod' : 'koin-united-preview'),
+        project: env.SENTRY_PROJECT || (branch === productionBranch ? 'koin-united-prod' : 'koin-united-preview'),
         authToken: env.SENTRY_AUTH_TOKEN,
         release: {
           name: env.NEXT_PUBLIC_SENTRY_RELEASE,

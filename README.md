@@ -63,6 +63,8 @@ pnpm dev:b-bot
 
 웹의 `NEXT_PUBLIC_API_PATH`는 실행할 API 주소로 설정합니다. 기존 공개 환경 변수 이름은 유지하지만 Next.js 런타임을 사용하지 않습니다. `NEXT_PUBLIC_*` 값은 브라우저에 노출될 수 있으므로 비밀 키를 넣으면 안 됩니다.
 
+이미지는 `components/ui/Image`가 `/api/image?url=...&w=...&q=...`와 반응형 `srcset`을 생성하고 Cloudflare Images binding이 변환합니다. 원본 `KOIN_WEB_RECODE`의 `next/image`와 같은 선택 방식이며, `sizes="672px"`처럼 고정 크기를 지정해도 후보 URL 여러 개가 나오는 것은 정상입니다. 브라우저는 화면 밀도에 맞는 후보를 선택합니다. 허용된 원본 호스트·리디렉션 검증과 20 MiB 스트림 제한은 유지하며, 업로드 서버의 잘못된 `Content-Type` 목록 때문에 정상 사진을 거부하지 않도록 실제 이미지 디코더가 바이트를 검증합니다. 원본 응답을 그대로 전달하지 않고 AVIF/WebP/JPEG로 변환한 결과만 반환합니다. PC 학식 확대 사진은 중첩된 고정 높이 컨테이너 없이 원본 비율과 화면 최대 크기에 맞춰 표시합니다.
+
 API 로그인에는 `JWT_SECRET`, `WEB_CSRF_SECRET`, `AUTH_ALLOWED_ORIGINS`가 필요합니다. 네이티브 앱 토큰 발급에는 `NATIVE_ACCESS_TTL_SECONDS`도 필요합니다. 파일·문자·메일·결제·푸시 연동은 해당 공급자의 실제 설정이 있어야 동작하며, 누락된 설정을 가짜 성공 응답으로 대체하지 않습니다.
 
 `.env*`, `.dev.vars*`, PEM, 데이터 스냅샷, `.claude`, `.vscode`는 공개 커밋 대상이 아닙니다. 운영 시크릿은 Wrangler secret 또는 GitHub Actions secret에 저장합니다.
@@ -142,21 +144,23 @@ v2 API는 변경된 엔터티만 페이지별 원자 배치로 반영합니다. 
 
 ### Workers Builds와 브랜치
 
-GitHub 저장소는 [BCSDLab/BCSD_united](https://github.com/BCSDLab/BCSD_united)입니다. 웹·API는 작업 커밋 `develop`, 통합 검증 `preview`, 운영 배포 `main`을 사용하며 검증한 동일 커밋을 `develop → preview → main` 순서로 승격합니다. 오류 자동화 Worker만 운영 브랜치가 `develop`이며, 자동화 변경을 배포하려고 웹·API를 함께 승격하지 않습니다. 브랜치마다 같은 변경을 다시 커밋하거나 cherry-pick하지 않습니다. 각 Worker(`koin-web`, `koin-api`, `bcsd-error-automation`)를 같은 저장소의 Cloudflare **Workers Builds**에 연결합니다. API를 `api-test`/`stage`/`prod`라는 별도 Worker로 나누지 않고, 웹·API Worker 안에서 production과 **native Preview**를 구분합니다.
+GitHub 저장소는 [BCSDLab/BCSD_united](https://github.com/BCSDLab/BCSD_united)입니다. 기능 브랜치의 PR을 `develop`에 병합하면 웹·API·오류 자동화 Worker의 운영 배포가 자동으로 시작되는 정책을 사용합니다. `preview`는 필요할 때 안정적인 통합 검증에 사용하는 선택적 비운영 브랜치이며, 운영 배포를 위한 필수 승격 단계가 아닙니다. 브랜치마다 같은 변경을 다시 커밋하거나 cherry-pick하지 않습니다. 각 Worker(`koin-web`, `koin-api`, `bcsd-error-automation`)를 같은 저장소의 Cloudflare **Workers Builds**에 연결합니다. API를 `api-test`/`stage`/`prod`라는 별도 Worker로 나누지 않고, 웹·API Worker 안에서 production과 **native Preview**를 구분합니다.
 
-Workers Builds의 Root directory는 각 앱 폴더로 설정합니다. pnpm은 상위 workspace의 lockfile과 공용 패키지를 사용하며, 아래 명령은 해당 앱 폴더에서 실행됩니다. 운영 배포는 `wrangler deploy`, 비운영 배포는 `wrangler preview`입니다. `wrangler versions upload`, `--env test`, `--env stage`, `env.preview`는 이 배포 모델이 아닙니다. 로컬 수동 배포를 평상시 작업 흐름으로 사용하거나 같은 앱을 배포하는 GitHub Actions를 추가하지 않습니다. 기존 B-BOT 배포는 별도 운영 범위입니다.
+Workers Builds의 Root directory는 각 앱 폴더로 설정합니다. pnpm은 상위 workspace의 lockfile과 공용 패키지를 사용하며, 아래 명령은 해당 앱 폴더에서 실행됩니다. 운영 배포는 `wrangler deploy`, 선택적 비운영 배포는 `wrangler preview`입니다. `wrangler versions upload`, `--env test`, `--env stage`, `env.preview`는 이 배포 모델이 아닙니다. 로컬 수동 배포를 평상시 작업 흐름으로 사용하거나 같은 앱을 배포하는 GitHub Actions를 추가하지 않습니다. 기존 B-BOT 배포는 별도 운영 범위입니다.
 
-| Worker                  | Root directory          | 검증·빌드 명령                 | 운영 배포 명령            | `preview` 배포 명령                  |
-| ----------------------- | ----------------------- | ------------------------------ | ------------------------- | ------------------------------------ |
-| `koin-web`              | `apps/web`              | `pnpm typecheck && pnpm build` | `pnpm deploy`             | `pnpm deploy:preview`                |
-| `koin-api`              | `apps/api`              | `pnpm typecheck && pnpm test`  | `pnpm deploy`             | `pnpm deploy:preview --name preview` |
-| `bcsd-error-automation` | `apps/error-automation` | `pnpm typecheck && pnpm test`  | `pnpm deploy` (`develop`) | 검사만 실행, 배포 없음               |
+| Worker                  | Root directory          | 검증·빌드 명령                 | 운영 배포 명령 | 선택적 `preview` 배포 명령           |
+| ----------------------- | ----------------------- | ------------------------------ | -------------- | ------------------------------------ |
+| `koin-web`              | `apps/web`              | `pnpm typecheck && pnpm build` | `pnpm deploy`  | `pnpm deploy:preview`                |
+| `koin-api`              | `apps/api`              | `pnpm typecheck && pnpm test`  | `pnpm deploy`  | `pnpm deploy:preview --name preview` |
+| `bcsd-error-automation` | `apps/error-automation` | `pnpm typecheck && pnpm test`  | `pnpm deploy`  | 검사만 실행, 배포 없음               |
 
-웹·API Workers Builds의 production branch는 `main`입니다. 비운영 브랜치에서는 검사를 실행하지만, 배포 명령은 `if [ "$WORKERS_CI_BRANCH" = "preview" ]; then <위 표의 preview 배포 명령>; else printf "Checks only: no deployment for %s\n" "$WORKERS_CI_BRANCH"; fi`로 제한합니다. 따라서 `develop`이나 기능 브랜치가 고정 `preview` 환경을 덮어쓰지 않습니다. 웹의 비운영 빌드 명령은 `pnpm typecheck && if [ "$WORKERS_CI_BRANCH" = "preview" ]; then pnpm build; fi`입니다. 웹 번들 생성 자체도 `main`/`preview`만 허용합니다. 오류 자동화는 production branch `develop`에서 검사 후 `pnpm deploy`를 실행하고, 나머지 브랜치는 검사만 합니다. 기존 develop Preview의 자동 빌드는 꺼서 같은 커밋을 중복 처리하지 않습니다.
+웹·API·오류 자동화 Workers Builds의 production branch를 모두 `develop`으로 맞춥니다. `develop`의 검사 성공 후 운영 배포를 실행하며, 비운영 브랜치에서는 검사를 실행하되 배포 명령을 웹·API의 `preview`에만 `if [ "$WORKERS_CI_BRANCH" = "preview" ]; then <위 표의 preview 배포 명령>; else printf "Checks only: no deployment for %s\n" "$WORKERS_CI_BRANCH"; fi`로 제한합니다. 따라서 기능 브랜치가 고정 `preview` 환경을 덮어쓰지 않습니다. 웹의 비운영 빌드 명령은 `pnpm typecheck && if [ "$WORKERS_CI_BRANCH" = "preview" ]; then pnpm build; fi`입니다. 웹 번들 생성 자체도 `develop`/`preview`만 허용합니다. 오류 자동화는 기존과 같이 비운영 브랜치에서 검사만 합니다. 기존 develop Preview의 자동 빌드는 꺼서 같은 커밋을 중복 처리하지 않습니다.
 
-브랜치명을 바꾸면 `KOIN_MAIN_BRANCH`/`KOIN_PREVIEW_BRANCH`와 Workers Builds의 조건을 함께 바꿔야 합니다. 브랜치별 Preview를 추가하려면 이름·빌드 분기 정책과 대응 API Preview 주소·허용 Origin을 먼저 정해야 합니다. 저장소 Quality workflow와 앱별 검증 명령을 유지하며, GitHub 연결·푸시·빌드 시작을 배포 성공으로 취급하지 않습니다.
+웹의 `preview` Git 브랜치는 `pnpm deploy:preview`(`wrangler preview --name stage`)로 이름이 `stage`인 native Preview를 갱신합니다. `koreatech.in` 맞춤 도메인의 Preview를 활성화해 `stage.koreatech.in`으로 제공하며, workers.dev 주소는 `stage-koin-web.bcsdlab.workers.dev`입니다. 기존 nginx/Next.js의 stage DNS 레코드는 새 Preview의 실제 응답과 인증서를 확인한 뒤 전환합니다. `api.stage.koreatech.in`은 기존 Java API로 유지합니다. 브랜치 이름 `preview`와 Preview 배포 이름 `stage`를 혼동하지 않습니다.
 
-Cloudflare GitHub App의 저장소 접근 승인, Worker별 저장소 연결, production branch와 비운영 배포 조건, Preview 전용 시크릿 및 API/웹 Origin 설정은 실제 계정에 적용해야 합니다. 배포된 URL의 HTTP 응답까지 확인한 후 운영 브랜치로 승격합니다.
+운영 브랜치 변수는 `KOIN_PRODUCTION_BRANCH`(기본 `develop`)이며 기존 `KOIN_MAIN_BRANCH`를 대체합니다. 선택적 staging 브랜치는 `KOIN_PREVIEW_BRANCH`(기본 `preview`)입니다. 런타임의 `KOIN_ENVIRONMENT='main'`은 논리적 운영 환경을 가리키는 기존 값으로 브랜치 이름과 무관하게 유지합니다. 브랜치명을 바꾸면 브랜치 변수와 Workers Builds의 조건을 함께 바꿔야 합니다. 브랜치별 Preview를 추가하려면 이름·빌드 분기 정책과 대응 API Preview 주소·허용 Origin을 먼저 정해야 합니다. 저장소 Quality workflow와 앱별 검증 명령을 유지하며, GitHub 연결·푸시·빌드 시작을 배포 성공으로 취급하지 않습니다.
+
+Cloudflare GitHub App의 저장소 접근 승인, Worker별 저장소 연결, production branch와 비운영 배포 조건, Preview 전용 시크릿 및 API/웹 Origin 설정은 실제 계정에 적용하고 확인해야 합니다. `develop` 병합 전에 필요한 운영 전제조건을 확인하고, 배포 뒤에는 실제 URL의 HTTP 응답을 확인합니다. 저장소 정책 변경만으로 원격 설정 변경이나 운영 배포가 완료된 것은 아닙니다.
 
 ### Preview 리소스와 검증 범위
 
@@ -171,7 +175,7 @@ Preview 설정은 각 Wrangler 파일의 `previews` 블록에 명시하며 운�
 
 **Preview는 HTTP-only입니다. Queue producer만 테스트 큐에 연결하고 Queue consumer와 Cron Trigger를 두지 않습니다.** 따라서 HTTP 요청이나 작업 enqueue 성공은 알림 발송·예약 실행·정기 복구 성공을 뜻하지 않습니다. 이 동작은 Preview에서 검증하지 않습니다. 기존 `koin-api-test` Worker와 해당 테스트 큐 consumer 연결은 제거했으며, Preview가 사용하는 `-test` D1·R2·Queue는 유지합니다.
 
-**웹은 KOIN_API_V2(Java) 서버를 사용합니다.** 브라우저는 웹 Worker의 same-origin `/api` gateway를 호출하며, gateway와 SSR 모두 런타임 `KOIN_API_ORIGIN`으로 HTTP 전달합니다. 운영은 `https://api.koreatech.in`, Preview와 로컬 개발 서버(`pnpm dev`)는 stage 서버 `https://api.stage.koreatech.in`입니다. Java 서버는 로그인 요청의 `Origin`을 `CORS_ALLOWED_ORIGINS`와 정확히 비교하므로, 운영에는 `https://koin-web.bcsdlab.workers.dev`, stage에는 `https://preview-koin-web.bcsdlab.workers.dev`가 등록돼 있어야 합니다. gateway는 Cloudflare가 확인한 사용자 IP(`CF-Connecting-IP`)를 `X-Forwarded-For`로 전달합니다. 빌드 시 공개 API 경로는 `/api`이고, Preview는 운영 API로 폴백하지 않습니다. `koin-api` service binding은 오류 자동화의 오프라인 검증 빌드에서만 로컬 API에 연결하는 데 사용합니다.
+**웹은 KOIN_API_V2(Java) 서버를 사용합니다.** 브라우저는 웹 Worker의 same-origin `/api` gateway를 호출하며, gateway와 SSR 모두 런타임 `KOIN_API_ORIGIN`으로 HTTP 전달합니다. 운영은 `https://api.koreatech.in`, Preview와 로컬 개발 서버(`pnpm dev`)는 stage 서버 `https://api.stage.koreatech.in`입니다. Java 서버는 로그인 요청의 `Origin`을 `CORS_ALLOWED_ORIGINS`와 정확히 비교하므로, 운영에는 `https://koreatech.in`·`https://koin-web.bcsdlab.workers.dev`, stage에는 `https://stage.koreatech.in`·`https://stage-koin-web.bcsdlab.workers.dev`가 등록돼 있어야 합니다. gateway는 Cloudflare가 확인한 사용자 IP(`CF-Connecting-IP`)를 `X-Forwarded-For`로 전달합니다. 빌드 시 공개 API 경로는 `/api`이고, Preview는 운영 API로 폴백하지 않습니다. `koin-api` service binding은 오류 자동화의 오프라인 검증 빌드에서만 로컬 API에 연결하는 데 사용합니다.
 
 `workers.dev` Preview 주소는 `preview_urls: true`로 활성화합니다. 웹 Worker는 `global_fetch_strictly_public`을 사용해 API를 공개 경로로 호출합니다. 근거: [Preview URL 활성화](https://developers.cloudflare.com/workers/previews/custom-domains/#enable-workersdev-preview-urls), [공개 경로 fetch](https://developers.cloudflare.com/workers/configuration/compatibility-flags/#global-fetch-strictly-public).
 
@@ -181,7 +185,7 @@ Cloudflare 근거: [Preview 설정](https://developers.cloudflare.com/workers/pr
 
 ### 레거시 Worker API 비활성화와 복원
 
-업무 API는 기존 Java 서버를 유지합니다. `koin-api` Worker는 삭제·정리하지 않고 **비활성(disabled) 상태로 보존**합니다. 코드, `apps/api/drizzle` 마이그레이션, D1(`koin-api-import-20261029`, `koin-api-test-import-20261029`), R2, Queue(`koin-api-jobs`, DLQ, `-test`), DO 클래스와 consumer 정의, 테스트 fixture는 모두 그대로 둡니다. 비활성 전환의 근거는 설정값 하나이며 되돌릴 수 있습니다.
+업무 API는 기존 Java 서버를 유지합니다. `koin-api` Worker는 삭제·정리하지 않고 저장소 설정에서 **비활성(disabled) 상태로 보존**합니다. 코드, `apps/api/drizzle` 마이그레이션, D1(`koin-api-import-20261029`, `koin-api-test-import-20261029`), R2, Queue(`koin-api-jobs`, DLQ, `-test`), DO 클래스와 consumer 정의, 테스트 fixture는 모두 그대로 둡니다. 비활성 전환의 근거는 설정값 하나이며 되돌릴 수 있습니다. 원격 적용 상태는 별도로 확인합니다.
 
 | 게이트                     | 현재 저장소 값                                      | 비활성 동작                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | -------------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -190,23 +194,23 @@ Cloudflare 근거: [Preview 설정](https://developers.cloudflare.com/workers/pr
 | `triggers.crons`           | `[]`(이전부터 유지)                                 | Cloudflare Cron 호출 없음.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | 원본 호스트 `sync-enabled` | 없음, `sync-paused` 있음(2026-11-04 읽기 전용 확인) | `source-sync-cron.sh`가 자식 동기화를 실행하지 않음. `sync-paused`가 있으면 항상 우선. 같은 날 crontab 등록 0건, 실행 중인 동기화 프로세스 없음을 확인했으며 추가 삭제·cron 수정은 불필요. 재승인 전 `sync-enabled`를 만들지 않습니다.                                                                                                                                                                                                                                                                                                                     |
 
-**원격 Worker 비활성은 Java 전환 후에 반영합니다.** 이 저장소 변경은 `develop → preview → main` 승격과 Workers Builds 배포를 거쳐야 실제 Worker에 적용됩니다. 2026-11-04 기준 `koin-api` production·preview의 `/health`는 여전히 `status: ok`입니다. 브라우저 대시보드 접근을 복구해 production의 `SOURCE_SYNC_ENABLED: false`와 Cron 없음, 운영 웹의 기존 API Worker 연결을 확인했습니다. 사용자는 현재 웹을 유지하고 Java 전환 후 비활성화하도록 결정했으므로 원격 Worker·Queue 설정은 변경하지 않았습니다. 원본 호스트 동기화 중지도 읽기 전용 접속으로 확인했습니다. 저장소 값과 원격 상태를 같은 것으로 보고하지 않습니다.
+**저장소 설정과 원격 적용 상태를 구분합니다.** 2026-11-04의 읽기 전용 확인 당시 `koin-api` production·preview의 `/health`는 `status: ok`였고, production의 `SOURCE_SYNC_ENABLED: false`와 Cron 없음, 당시 운영 웹의 레거시 API Worker 연결이 확인됐습니다. 그때 원격 Worker·Queue 설정을 변경하지 않았습니다. 이후 웹의 Java API 전환 PR #9는 병합됐고, 2026-11-05T09:49Z 운영 웹 배포에서 Wrangler 버전 `72c3b223`과 메시지 `Web-only release 3b364286: Java API; orders disabled; DNS and legacy API unchanged`가 확인됐습니다. 이는 웹 배포의 증거이지 현재 원격 `koin-api`의 `API_ENABLED` 값이나 Queue 전달 상태의 증거가 아닙니다. DNS·레거시 API가 그 웹 전용 배포에서 변경됐다고 주장하지 않습니다.
 
-**배포 전 장애 위험.** 웹 Worker의 Java API 전환(#9)은 아직 `develop`에 병합되지 않았으며, 운영 웹은 `KOIN_API_ORIGIN=https://koin-api.bcsdlab.workers.dev`와 `KOIN_API → koin-api` 서비스 바인딩을 사용 중입니다. 이 상태에서 `API_ENABLED: "false"`를 원격에 배포하면 웹의 업무 요청이 전부 `503`이 됩니다. 원격 비활성 배포는 웹의 Java API 전환과 Java 서버의 CORS/허용 Origin 설정이 끝나 웹이 레거시 Worker를 호출하지 않음을 확인한 뒤에만 승격합니다.
+**배포 전 장애 위험.** API Worker를 비활성화하기 전 운영 웹이 실제로 Java API만 호출하고 Java 서버의 CORS·허용 Origin이 맞는지 확인해야 합니다. PR #9 병합과 웹 배포 기록만으로 모든 업무 경로의 전환을 추정하지 않습니다. 웹이 레거시 Worker를 호출하는 동안 `API_ENABLED: "false"`를 원격에 반영하면 해당 요청이 `503`이 됩니다. 아래 조건과 Queue 일시 중지를 확인한 뒤에만 비활성 설정을 `develop`에 병합합니다.
 
 **Queue는 `retryAll()`만으로 멈추지 않습니다.** 비활성 상태의 consumer는 메시지를 버리지 않도록 최대 지연으로 재시도만 하므로, 배포 후 메시지가 남아 있으면 재전달마다 시도 횟수가 쌓여 `max_retries`(5) 이후 `koin-api-jobs-dlq`로 이동합니다. 원격 비활성 배포 전후에 운영 담당자가 `wrangler queues pause-delivery koin-api-jobs`로 전달을 실제로 중지해야 하며, 복원 시 `wrangler queues resume-delivery koin-api-jobs`로 재개합니다. 일시 중지 중에도 producer의 메시지는 보관되며 보존 기간 만료에는 그대로 적용됩니다. 근거: [Queues Pause and Purge](https://developers.cloudflare.com/queues/configuration/pause-purge/), [Queues Limits](https://developers.cloudflare.com/queues/platform/limits/). `purge`는 메시지를 영구 삭제하므로 사용하지 않습니다.
 
 비활성 반영 절차(운영 담당자, 각 단계는 실제 확인 후 다음 단계로):
 
-1. 웹이 Java API만 호출하는지 확인합니다(#9 병합·배포, Java CORS). 미완료면 중단합니다.
-2. `wrangler queues pause-delivery koin-api-jobs`로 전달을 중지하고 `wrangler queues list`로 상태를 확인합니다.
-3. `API_ENABLED: "false"` 커밋을 `preview`로 승격해 Preview URL에서 `/health`를 포함한 모든 경로가 `503 API_DISABLED`(`Cache-Control: no-store`)로 응답하는지 확인합니다.
-4. `main`으로 승격한 뒤 운영 URL에서 같은 응답과 Cloudflare Observability의 오류율을 확인합니다. `wrangler deploy`는 저장소 `vars`를 그대로 올리므로 대시보드에서 따로 값을 바꾸지 않습니다.
+1. 운영 웹이 Java API만 호출하는지 실제 경로와 Java CORS로 확인합니다(#9 병합·웹 배포 기록만으로 대체하지 않음). 미완료면 중단합니다.
+2. `wrangler queues pause-delivery koin-api-jobs`로 전달을 중지하고 `wrangler queues list`로 상태를 확인합니다. 병합 전후 중지 상태를 유지합니다.
+3. 선택적으로 비활성 커밋을 `preview`에서 검증해 Preview URL의 `/health`를 포함한 모든 경로가 `503 API_DISABLED`(`Cache-Control: no-store`)로 응답하는지 확인합니다. 이 단계는 운영 병합의 필수 경유지가 아닙니다.
+4. 전제조건을 모두 충족한 커밋을 PR로 `develop`에 병합해 Workers Builds 운영 배포를 시작하고, 운영 URL에서 같은 응답과 Cloudflare Observability의 오류율 및 Queue 중지 상태를 확인합니다. `wrangler deploy`는 저장소 `vars`를 그대로 올리므로 대시보드에서 따로 값을 바꾸지 않습니다. 병합 또는 빌드 시작만으로 원격 비활성을 완료했다고 보고하지 않습니다.
 5. D1·R2·Queue·DO namespace는 삭제하지 않습니다. 과금 축소가 필요하면 데이터 보존을 전제로 별도 승인합니다.
 
 복원 절차(레거시 Worker를 다시 써야 할 때):
 
-1. `apps/api/wrangler.jsonc`의 운영 `vars.API_ENABLED`와 필요 시 `previews.vars.API_ENABLED`를 `"true"`로 바꾸고 같은 승격 경로로 배포합니다. 운영과 Preview 중 하나만 복원할 수도 있습니다.
+1. `apps/api/wrangler.jsonc`의 운영 `vars.API_ENABLED`와 필요 시 `previews.vars.API_ENABLED`를 `"true"`로 바꾸고, 필요한 검증 후 PR을 `develop`에 병합해 배포합니다. `preview` 검증은 선택적이며 운영과 Preview 중 하나만 복원할 수도 있습니다.
 2. 복원 후 `/health`와 실제 업무 경로의 2xx를 확인한 다음 `wrangler queues resume-delivery koin-api-jobs`로 전달을 재개합니다. 재개 전 DLQ에 쌓인 메시지는 수동으로 검토합니다.
 3. 원본 동기화(`SOURCE_SYNC_ENABLED`, `triggers.crons`, 원본 호스트 `sync-enabled`)는 이 절차와 무관하며 비용 검토와 사용자 재승인 전에는 비활성 상태를 유지합니다.
 

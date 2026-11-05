@@ -46,13 +46,15 @@ export default function DetailModal({ dining, closeModal }: DetailModalProps) {
             <CloseIcon />
           </button>
         </div>
-        <div className={styles.modal__imageWrap}>
-          {dining.image_url && (
-            <div className={styles.modal__imageWrap}>
-              <Image src={dining.image_url} alt="menu" fill priority sizes="672px" className={styles.modal__image} />
-            </div>
-          )}
-        </div>
+        {dining.image_url && (
+          <Image
+            src={dining.image_url}
+            alt={`${dining.place} 식단 상세`}
+            priority
+            sizes="(max-width: 740px) calc(100vw - 68px), 672px"
+            className={styles.modal__image}
+          />
+        )}
       </div>
     </div>
   );

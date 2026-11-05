@@ -6,7 +6,7 @@
   "scripts": {
     "preview": "vite preview",
     "deploy": "wrangler deploy",
-    "deploy:preview": "wrangler preview --name preview",
+    "deploy:preview": "wrangler preview --name stage",
     "cf:typegen": "wrangler types",
     "typecheck": "tsc --noEmit",
     "build": "vite build && node scripts/generate-sitemap.mjs",

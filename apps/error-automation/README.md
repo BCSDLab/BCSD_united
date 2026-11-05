@@ -8,7 +8,7 @@
 
 ### Git 자동 배포
 
-이 Worker만 Cloudflare Workers Builds의 production branch를 `develop`으로 사용한다. 루트 디렉터리는 `apps/error-automation`, 빌드 명령은 `pnpm typecheck && pnpm test`, 배포 명령은 `pnpm deploy`다. 빌드 환경은 Node `24.22.1`·pnpm `12.16.1`로 고정한다. 웹·API의 `main` 운영 정책과 DNS는 변경하지 않는다.
+운영 정책에서 웹·API·오류 자동화 Worker의 Cloudflare Workers Builds production branch를 모두 `develop`으로 맞춘다. 기능 PR을 `develop`에 병합하면 검사 후 각 Worker의 운영 배포가 시작된다. 이 Worker의 루트 디렉터리는 `apps/error-automation`, 빌드 명령은 `pnpm typecheck && pnpm test`, 배포 명령은 `pnpm deploy`다. 빌드 환경은 Node `24.22.1`·pnpm `12.16.1`로 고정한다. 오류 자동화의 기존 배포·권한 흐름, DNS, 다른 Worker의 런타임 설정은 이 정책만으로 변경되지 않으며 실제 Workers Builds 브랜치 설정은 별도로 확인한다.
 
 다른 브랜치의 Preview 빌드는 검사 후 `printf "Checks only: no deployment for %s\n" "$WORKERS_CI_BRANCH"`만 실행한다. 기존 `develop` Preview는 `auto_build: false`로 둬 production 빌드와 중복되지 않게 한다. Preview에 운영 인증 정보를 복사하거나 존재하지 않는 `deploy:preview` 스크립트를 실행하지 않는다.
 
@@ -16,15 +16,15 @@
 
 설정값:
 
-| 이름                                          | 의미                                                                                                                                                            |
-| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SENTRY_ORGANIZATION` / `SENTRY_PROJECT_APPS` | 허용 조직과 `{"koin-united-prod":"web","koin-united-preview":"web"}`처럼 브라우저 프로젝트만 매핑                                                               |
-| `SENTRY_PROJECT_HOSTS`                        | 기존 `koreatech.in`/`stage.koreatech.in`과 실제 확인된 `koin-web.bcsdlab.workers.dev`/`preview-koin-web.bcsdlab.workers.dev`만 각 프로젝트의 경로 호스트로 허용 |
-| `CLOUDFLARE_SOURCES`                          | 실제 Issues policy의 accountId/policyId/workerName/app 정확한 매핑. 고정 계정의 `koin-web`/`koin-api`만 등록; 미설정이면 `[]`                                   |
-| `ERROR_PROJECT_DOMAINS`                       | 프로젝트별 GitHub 이슈 제목 분류. 허용 값은 `캠퍼스`, `비즈니스`, `유저`, `공통`                                                                                |
-| `AUTOFIX_EXECUTOR_ID`                         | `koin-rocky-umpc`만 허용. 이벤트나 요청 본문에서 변경 불가                                                                                                      |
-| `PR_REVIEW_ENABLED`                           | 기본 `"false"`. 정확히 문자열 `"true"`일 때만 `/executor/pull-requests/*` 입력을 받는다                                                                         |
-| `PR_REVIEW_ALLOWED_PRS`                       | 기본 `""`. 쉼표로 구분한 명시적 PR 번호만 리뷰 대상. 비어 있으면 어떤 PR도 받지 않는다                                                                          |
+| 이름                                          | 의미                                                                                                                                         |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SENTRY_ORGANIZATION` / `SENTRY_PROJECT_APPS` | 허용 조직과 `{"koin-united-prod":"web","koin-united-preview":"web"}`처럼 브라우저 프로젝트만 매핑                                            |
+| `SENTRY_PROJECT_HOSTS`                        | `koreatech.in`/`stage.koreatech.in`과 `koin-web.bcsdlab.workers.dev`/`stage-koin-web.bcsdlab.workers.dev`만 각 프로젝트의 경로 호스트로 허용 |
+| `CLOUDFLARE_SOURCES`                          | 실제 Issues policy의 accountId/policyId/workerName/app 정확한 매핑. 고정 계정의 `koin-web`/`koin-api`만 등록; 미설정이면 `[]`                |
+| `ERROR_PROJECT_DOMAINS`                       | 프로젝트별 GitHub 이슈 제목 분류. 허용 값은 `캠퍼스`, `비즈니스`, `유저`, `공통`                                                             |
+| `AUTOFIX_EXECUTOR_ID`                         | `koin-rocky-umpc`만 허용. 이벤트나 요청 본문에서 변경 불가                                                                                   |
+| `PR_REVIEW_ENABLED`                           | 기본 `"false"`. 정확히 문자열 `"true"`일 때만 `/executor/pull-requests/*` 입력을 받는다                                                      |
+| `PR_REVIEW_ALLOWED_PRS`                       | 기본 `""`. 쉼표로 구분한 명시적 PR 번호만 리뷰 대상. 비어 있으면 어떤 PR도 받지 않는다                                                       |
 
 `CLOUDFLARE_SOURCES`에는 BCSD 계정 `abe06b869950de952decf9df29c6f1a3`의 실제 Issues policy `3bcbfa2a0c04416ca7e3da038f77ac37`와 명시적 `koin-web:web`/`koin-api:api` 쌍만 등록한다. 두 Worker의 발생 1회 규칙은 같은 `KOIN Issues Autofix` destination/policy를 공유한다. 정책·Worker 쌍은 계정 전체에서 유일해야 하며, 서명된 제공자 알림의 정확히 한 `data.issue.services[].name`과 일치하지 않으면 거부한다. `text`/제목/임의 `data` 값에서 Worker를 추측하지 않는다.
 
