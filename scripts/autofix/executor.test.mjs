@@ -1,6 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isPullRequest, keepLease, parseAssistantBlocks, parseClaim } from './executor.mjs';
+import {
+  isPullRequest,
+  keepLease,
+  parseAssistantBlocks,
+  parseClaim,
+  parseRetryAfterSeconds,
+  requestModel,
+} from './executor.mjs';
 
 const valid = () => ({
   version: 1,
@@ -336,4 +343,155 @@ test('lease keeper heartbeats early for a short resumed lease and rests once the
   t.mock.timers.tick(1);
   assert.equal(Date.now(), deadlineAt - 15_000);
   assert.equal(lost.mock.callCount(), 1);
+});
+
+const throttled = (retryAfterSeconds) =>
+  Object.assign(denied(429), retryAfterSeconds === undefined ? {} : { retryAfterSeconds });
+const WINDOW = 19 * 60_000;
+
+/** Records real retry scheduling while each simulated request is settled explicitly. */
+function model(t, overrides = {}) {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: START });
+  t.mock.method(console, 'error', () => {});
+  const controller = new AbortController();
+  const attempts = [];
+  const outcome = requestModel({
+    runId: `autofix-${'a'.repeat(64)}`,
+    send: () => {
+      const attempt = Promise.withResolvers();
+      attempts.push(attempt);
+      return attempt.promise;
+    },
+    windowEndsAt: START + WINDOW,
+    signal: controller.signal,
+    ...overrides,
+  });
+  outcome.catch(() => {});
+  return { attempts, controller, outcome };
+}
+
+test('Retry-After is accepted only as canonical nonnegative numeric seconds', () => {
+  assert.equal(parseRetryAfterSeconds('7'), 7);
+  assert.equal(parseRetryAfterSeconds('0'), 1);
+  assert.equal(parseRetryAfterSeconds('2.25'), 3);
+  assert.equal(parseRetryAfterSeconds('99999'), undefined);
+  assert.equal(parseRetryAfterSeconds(' 12 '), 12);
+  for (const header of [null, undefined, '', '-1', '1e3', 'Wed, 21 Oct 2026 07:28:00 GMT', '5s', 'NaN', 'Infinity'])
+    assert.equal(parseRetryAfterSeconds(header), undefined, String(header));
+});
+
+test('model request honours the full relayed server delay before retrying', async (t) => {
+  const { attempts, outcome } = model(t);
+  await flush();
+  assert.equal(attempts.length, 1);
+  attempts[0].reject(throttled(7));
+  await flush();
+  // Nothing is sent before the full server delay has elapsed.
+  t.mock.timers.tick(6_999);
+  await flush();
+  assert.equal(attempts.length, 1);
+  t.mock.timers.tick(1);
+  await flush();
+  assert.equal(attempts.length, 2);
+  assert.equal(Date.now(), START + 7_000);
+  const response = { ok: true };
+  attempts[1].resolve(response);
+  await outcome;
+});
+
+test('model request returns a first successful response without waiting', async (t) => {
+  const { attempts, outcome } = model(t);
+  await flush();
+  const response = { content: [] };
+  attempts[0].resolve(response);
+  await outcome;
+  assert.equal(attempts.length, 1);
+  assert.equal(Date.now(), START);
+});
+
+test('model request aborted during the throttle wait stops without another attempt', async (t) => {
+  const { attempts, controller, outcome } = model(t);
+  await flush();
+  attempts[0].reject(throttled(30));
+  await flush();
+  t.mock.timers.tick(10_000);
+  controller.abort();
+  await assert.rejects(outcome, { name: 'AbortError' });
+  t.mock.timers.tick(30_000);
+  await flush();
+  assert.equal(attempts.length, 1);
+});
+
+test('model request refuses a delay that ends past the remaining generation window', async (t) => {
+  const { attempts, outcome } = model(t, { windowEndsAt: START + 10_000 });
+  await flush();
+  const error = throttled(10);
+  attempts[0].reject(error);
+  await assert.rejects(outcome, (thrown) => {
+    assert.match(thrown.message, /beyond the remaining generation window/);
+    assert.equal(thrown.cause, error);
+    return true;
+  });
+  // No shorter wait is substituted and nothing else is sent.
+  t.mock.timers.tick(WINDOW);
+  await flush();
+  assert.equal(attempts.length, 1);
+});
+
+test('model request does not retry when a delayed wakeup crosses the generation deadline', async (t) => {
+  const { attempts, outcome } = model(t, { windowEndsAt: START + 10_000 });
+  await flush();
+  attempts[0].reject(throttled(2));
+  await flush();
+  t.mock.timers.tick(12_000);
+  await assert.rejects(outcome, /window expired/);
+  assert.equal(attempts.length, 1);
+});
+
+test('model request gives up after three throttled retries', async (t) => {
+  const { attempts, outcome } = model(t);
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await flush();
+    assert.equal(attempts.length, attempt + 1);
+    attempts[attempt].reject(throttled(2));
+    await flush();
+    t.mock.timers.tick(2_000);
+  }
+  await flush();
+  assert.equal(attempts.length, 4);
+  assert.equal(Date.now(), START + 6_000);
+  const last = throttled(2);
+  attempts[3].reject(last);
+  await assert.rejects(outcome, (thrown) => {
+    assert.match(thrown.message, /after 3 retries/);
+    assert.equal(thrown.cause, last);
+    return true;
+  });
+  t.mock.timers.tick(10_000);
+  await flush();
+  assert.equal(attempts.length, 4);
+});
+
+test('model request fails at once on a 429 without a delay or any other failure', async (t) => {
+  for (const failure of [
+    throttled(undefined),
+    Object.assign(denied(429), { retryAfterSeconds: '7' }),
+    Object.assign(denied(429), { retryAfterSeconds: 0 }),
+    Object.assign(denied(429), { retryAfterSeconds: 3601 }),
+    Object.assign(denied(503), { retryAfterSeconds: 30 }),
+    denied(401),
+    denied(403),
+    denied(400),
+    transport('UND_ERR_CONNECT_TIMEOUT'),
+    new DOMException('The operation was aborted due to timeout', 'TimeoutError'),
+  ])
+    await t.test(`${failure.status ?? failure.name}: ${failure.message}`, async (t) => {
+      const { attempts, outcome } = model(t);
+      await flush();
+      attempts[0].reject(failure);
+      await assert.rejects(outcome, (thrown) => thrown === failure);
+      t.mock.timers.tick(WINDOW);
+      await flush();
+      assert.equal(attempts.length, 1);
+    });
 });

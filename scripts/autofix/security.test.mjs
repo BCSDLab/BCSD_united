@@ -13,10 +13,26 @@ import {
   validateChangedFiles,
   validateReviewContext,
 } from './common.mjs';
-import { applyManifest, assertSnapshotMatchesTree, exportTree, validateManifest } from './patch.mjs';
+import { applyManifest, assertSnapshotMatchesTree, exportTree, prepareScratch, validateManifest } from './patch.mjs';
 import { matchesRoute } from './source-graph.mjs';
 import { parseJsonc, smokeConfiguration } from './bbot-smoke.mjs';
 import { declaresApiGate } from './local-api.mjs';
+
+test('scratch preparation rejects traversal and symlink parents before creating external paths', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'scratch-boundary-'));
+  const outside = await mkdtemp(join(tmpdir(), 'scratch-outside-'));
+  try {
+    await prepareScratch(root, ['node_modules/.vite-temp']);
+    assert.equal((await lstat(join(root, 'node_modules/.vite-temp'))).isDirectory(), true);
+    await symlink(outside, join(root, 'node_modules/escape'));
+    await assert.rejects(prepareScratch(root, ['node_modules/escape/created']), /not a directory/);
+    await assert.rejects(prepareScratch(root, ['../created']), /Unsafe scratch/);
+    assert.deepEqual(await readdir(outside), []);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+    await rm(outside, { recursive: true, force: true });
+  }
+});
 
 test('patch scope excludes configuration, symlinks, generated files and oversized data', () => {
   assert.equal(allowedPath('apps/web/src/routes/shop.$id.tsx'), true);

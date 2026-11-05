@@ -344,6 +344,57 @@ test('dedicated executor polling requires scoped token and fixed Rocky identity'
   );
 });
 
+test('model route maps only a structurally reconstructed ModelRateLimited to 429 with Retry-After', async (t) => {
+  const h = harness(t);
+  const actual = h.env.AUTOFIX_QUEUE.getByName('bcsdlab/bcsd_united');
+  let thrown;
+  h.env.AUTOFIX_QUEUE.getByName = () => ({
+    ...actual,
+    async model() {
+      throw thrown;
+    },
+  });
+  const body = {
+    version: 1,
+    executorId: 'koin-rocky-umpc',
+    leaseToken: 'b'.repeat(64),
+    model: 'claude-fable-5-1',
+    maxTokens: 4096,
+    tools: ['Read', 'Edit', 'Write', 'Glob', 'Grep'],
+    messages: [{ role: 'user', content: 'Read observed source' }],
+  };
+  const send = () =>
+    h.send(executor('/executor/jobs/autofix-' + 'a'.repeat(64) + '/model', h.env.AUTOFIX_EXECUTOR_TOKEN, body));
+  // RPC keeps name and serializable own fields of the queue's error but never its prototype.
+  thrown = Object.assign(new Error('Anthropic rate limited fixed model invocation; retry after 7s'), {
+    name: 'ModelRateLimited',
+    retryAfterSeconds: 7,
+  });
+  let response = await send();
+  assert.equal(response.status, 429);
+  assert.equal(response.headers.get('Retry-After'), '7');
+  assert.equal(response.headers.get('Cache-Control'), 'no-store');
+  const json = await response.json();
+  assert.equal(json.retryAfterSeconds, 7);
+  assert.equal(typeof json.error, 'string');
+  assert.equal(JSON.stringify(json).includes('Anthropic'), false);
+  for (const bad of [
+    Object.assign(new Error('forged'), { name: 'ModelRateLimited' }),
+    Object.assign(new Error('forged'), { name: 'ModelRateLimited', retryAfterSeconds: '7' }),
+    Object.assign(new Error('forged'), { name: 'ModelRateLimited', retryAfterSeconds: 0 }),
+    Object.assign(new Error('forged'), { name: 'ModelRateLimited', retryAfterSeconds: 3601 }),
+    new Error('Anthropic declined fixed model invocation (429)'),
+    new Error('Anthropic declined fixed model invocation (401)'),
+  ]) {
+    thrown = bad;
+    response = await send();
+    assert.equal(response.status, 503);
+    assert.equal(response.headers.get('Retry-After'), '30');
+  }
+  thrown = new Error('Expired or invalid executor lease');
+  assert.equal((await send()).status, 409);
+});
+
 test('authenticated Cloudflare exact provision probe returns 204 without queue admission', async (t) => {
   const h = harness(t);
   for (const ending of ['properly.', 'correctly.']) {

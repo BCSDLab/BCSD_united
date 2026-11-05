@@ -1,6 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
 import { trustedDiagnostics } from './diagnostics';
-import { parseModelRequest } from './model';
+import { modelRateLimit, parseModelRequest } from './model';
 import { extractTailEvidence, tailKey } from './tail';
 import type { App, Diagnostic, Env, Identity, PatchManifest } from './types';
 export type { Env } from './types';
@@ -147,12 +147,16 @@ export function configuration(env: Env): Configuration {
   }
 }
 
-function reply(status: number, body: Record<string, string | number>): Response {
+function reply(
+  status: number,
+  body: Record<string, string | number>,
+  retryAfterSeconds: number | null = status >= 500 ? 30 : null,
+): Response {
   return Response.json(body, {
     status,
     headers: {
       'Cache-Control': 'no-store',
-      ...(status >= 500 ? { 'Retry-After': '30' } : {}),
+      ...(retryAfterSeconds === null ? {} : { 'Retry-After': String(retryAfterSeconds) }),
     },
   });
 }
@@ -607,7 +611,7 @@ async function executorRequest(request: Request, env: Env, url: URL): Promise<Re
     url.pathname,
   );
   if (url.pathname !== '/executor/claim' && !path) throw new RequestError(404, 'Not found.');
-  const maxBytes = path?.[2] === 'result' ? 4_000_000 : path?.[2] === 'model' ? 256_000 : 4096;
+  const maxBytes = path?.[2] === 'result' ? 4_000_000 : path?.[2] === 'model' ? 1_000_000 : 4096;
   const bytes = await boundedBody(request, maxBytes);
   let data: Record<string, unknown>;
   try {
@@ -669,6 +673,14 @@ async function executorRequest(request: Request, env: Env, url: URL): Promise<Re
     } catch (error) {
       if (error instanceof Error && error.message === 'Expired or invalid executor lease')
         throw new RequestError(409, 'Expired or invalid lease.');
+      // RPC reconstructs the queue's ModelRateLimited as a plain Error keeping only name and serializable own fields.
+      const rateLimit = modelRateLimit(error);
+      if (rateLimit)
+        return reply(
+          429,
+          { error: 'Model provider rate limited; retry this exact request after Retry-After.', ...rateLimit },
+          rateLimit.retryAfterSeconds,
+        );
       throw error;
     }
   }

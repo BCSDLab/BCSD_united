@@ -27,6 +27,8 @@ interface OrderState {
 }
 
 interface OrderActions {
+  // 주문이 만들어진 뒤 메모리의 값도 기본값으로 되돌린다. clearStorage()는 저장소만 비우므로 SPA 이동 뒤 값이 남는다
+  reset: () => void;
   setOrderType: (type: OrderType) => void;
   setDeliveryType: (type: DeliveryType) => void;
   setCampusAddress: (address: CampusAddress) => void;
@@ -50,18 +52,23 @@ const EMPTY_OUTSIDE_ADDRESS: OffCampusDeliveryAddressRequest = {
   latitude: 0,
 };
 
+const INITIAL_STATE: OrderState = {
+  orderType: 'DELIVERY',
+  deliveryType: 'CAMPUS',
+  campusAddress: undefined,
+  outsideAddress: EMPTY_OUTSIDE_ADDRESS,
+  userPhoneNumber: '',
+  ownerRequest: '',
+  deliveryRequest: '',
+  // order 기본값: 수저·포크 안 받기
+  isCutleryDeclined: true,
+};
+
 export const useOrderStore = create<OrderState & OrderActions>()(
   persist(
     (set) => ({
-      orderType: 'DELIVERY',
-      deliveryType: 'CAMPUS',
-      campusAddress: undefined,
-      outsideAddress: EMPTY_OUTSIDE_ADDRESS,
-      userPhoneNumber: '',
-      ownerRequest: '',
-      deliveryRequest: '',
-      // order 기본값: 수저·포크 안 받기
-      isCutleryDeclined: true,
+      ...INITIAL_STATE,
+      reset: () => set(INITIAL_STATE),
       setOrderType: (type) => set({ orderType: type }),
       setDeliveryType: (type) => set({ deliveryType: type }),
       setCampusAddress: (address) => set({ campusAddress: address }),
