@@ -63,6 +63,8 @@ Worker secret은 웹훅별 `SENTRY_CLIENT_SECRET`/`CLOUDFLARE_WEBHOOK_SECRET`, c
 
 제공자 429 처리(`requestModel`): Worker는 upstream Anthropic 429가 숫자 `Retry-After`를 싣고 spend cap(`enforced_spend_limit_reached`)이 아닐 때만 `/model`에 429와 canonical 십진 정수 `Retry-After`(1~3600초)를 돌려준다. 실행기는 그 429에 한해 **같은 요청 바이트**(대화 transcript 무변경)를 최대 3회 재전송하되, 서버 지연 이상을 기다리고 대기가 남은 19분 generation 창 안에 끝날 때만 한다. 창을 넘는 지연은 더 짧게 기다리지 않고 즉시 실패하며, 대기 중 작업 abort(기한·lease 상실·종료)는 재시도를 취소한다. 헤더가 없거나 잘못된 429, spend cap, 400/401/403, 503, TLS/전송 실패, 잘못된 본문은 재시도하지 않는다. lease heartbeat는 대기와 무관하게 독립적으로 이어지고, 429로 끝난 요청도 Worker의 모델 호출 상한에 그대로 계산된다. 운영 로그에는 `retryAfterSeconds`와 재시도 횟수만 남기고 제공자 응답 본문은 기록하지 않는다.
 
+자원 프로필은 검증 컨테이너당 RAM 최대 **3 GiB**, CPU 2개다. 시작 시 가용 메모리 **5 GiB**를 확인해 검증기 상한 외에 2 GiB 여유를 둔다. 컨트롤러의 기존 2 GiB 상한은 유지하고, workspace 타입 검사·테스트·빌드는 하나씩 실행해 중첩 메모리 피크를 줄인다. 한도 초과로 검증 프로세스가 종료되면 실패로 처리하며 검증 생략·자동 한도 상향·다른 서비스 중지는 하지 않는다.
+
 실행기는 공개 저장소의 검증된 고정 SHA를 각 작업의 별도 model/verifier git worktree로 준비한다. verifier image는 미리 빌드해 재사용하되, 후보 소스는 독립적인 새 검증 작업공간/매번 disposable Docker 실행으로 검증한다. `/verification-start` 이후 모델 프록시는 닫힌다. source-only 모델이 낸 manifest는 최대 24 text 파일, 파일당 256 KB, 합계 1 MB이며 수정 앱 src와 새 `tests/autofix/*.test.mjs`로만 제한한다. 기존 테스트/설정/lockfile/schema/generated 변경과 다른 앱 변경은 거부한다.
 
 독립 검증은 수정 전 새 assertion 실패/수정 후 통과, 기존 native fixtures와 autofix 보안 테스트, 타입/lint/build, 실제 로컬 API+D1+SSR+Chromium/390px 모바일 smoke를 수행한다. 네트워크 없는 Docker, 비루트/capability 제거, read-only source/dependencies와 제한된 scratch를 사용한다. proof는 base SHA·검증된 manifest SHA256·정확한 필수 check 목록에 결속한다. Worker는 원본 기본 브랜치 SHA가 전진하지 않았는지 재조회하고 verified bytes만 Git tree/commit/PR로 발행한다. force push, 자동 merge/배포는 없다. 실행·검증 실패나 무변경은 verified PR로 표시하지 않고 이슈에 원문 비밀 없이 사실만 남긴다.

@@ -249,11 +249,11 @@ function cleanupSnapshot() {
   }
   rmSync(root, { recursive: true, force: true });
 }
-const limits = ['--cap-drop=ALL', '--security-opt=no-new-privileges', '--pids-limit=512', '--memory=6g', '--cpus=2'];
+const limits = ['--cap-drop=ALL', '--security-opt=no-new-privileges', '--pids-limit=512', '--memory=3g', '--cpus=2'];
 const user = process.getuid() === 0 ? '1000:1000' : `${process.getuid()}:${process.getgid()}`;
 // A PR head's lockfile and approved lifecycle scripts are untrusted, so PR mode
-// never runs the installer as container root: the snapshot is handed to the
-// unprivileged candidate UID first. The error path keeps its existing identity.
+// never runs the installer as container root: only dependency directories belong
+// to the candidate UID. The error path keeps its existing installer identity.
 const installerUser = prMode ? user : `${process.getuid()}:${process.getgid()}`;
 const executorRun = process.env.AUTOFIX_EXECUTOR_RUN_ID;
 if (executorRun && !/^autofix-[a-f0-9]{64}$/.test(executorRun))
@@ -612,8 +612,16 @@ if (prMode) {
 } else packageFilters.push('--filter', '@koin/api...', ...(context.app === 'web' ? ['--filter', '@koin/web...'] : []));
 const workspaceCommand = (script) =>
   script === 'typecheck'
-    ? ['pnpm', '-r', ...packageFilters, 'exec', 'node', '/automation/workspace-typecheck.mjs']
-    : ['pnpm', '-r', ...packageFilters, '--if-present', script];
+    ? [
+        'pnpm',
+        '-r',
+        '--workspace-concurrency=1',
+        ...packageFilters,
+        'exec',
+        'node',
+        '/automation/workspace-typecheck.mjs',
+      ]
+    : ['pnpm', '-r', '--workspace-concurrency=1', ...packageFilters, '--if-present', script];
 const lintDirectories = prMode
   ? ['apps/api', 'packages/telemetry', 'scripts/autofix', ...(profiles.has('web') ? ['apps/web'] : []), ...related]
   : ['apps/api', 'packages/telemetry', 'scripts/autofix', ...(context.app === 'web' ? ['apps/web'] : [])];
