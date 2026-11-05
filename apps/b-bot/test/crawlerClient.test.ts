@@ -67,7 +67,7 @@ describe('Pi HTTP enqueue boundary', () => {
     expect(url).toBe('https://crawler.example.com/jobs');
     expect(init).toMatchObject({
       method: 'POST',
-      redirect: 'error',
+      redirect: 'manual',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${'a'.repeat(32)}`,

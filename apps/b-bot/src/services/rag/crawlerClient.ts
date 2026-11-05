@@ -174,7 +174,8 @@ export async function enqueueCrawlerJob(request: CrawlerJobRequest): Promise<Cra
         'CF-Access-Client-Secret': clientSecret,
       },
       body: JSON.stringify(request),
-      redirect: 'error',
+      // Workers는 'error' 모드를 지원하지 않는다. manual로 받고 3xx는 아래 상태 검사에서 거부한다.
+      redirect: 'manual',
       signal: AbortSignal.timeout(10_000),
     });
   } catch {
