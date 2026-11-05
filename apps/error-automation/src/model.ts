@@ -288,76 +288,96 @@ export async function invokeModel(
   mode: ModelMode = 'error',
 ): Promise<Record<string, unknown>> {
   if (!env.ANTHROPIC_API_KEY) throw new Error('Anthropic Worker secret unavailable');
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    redirect: 'manual',
-    signal: AbortSignal.timeout(90000),
-    headers: {
-      'x-api-key': env.ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'claude-fable-5-1',
-      max_tokens: request.maxTokens,
-      system: system[mode],
-      messages: request.messages,
-      tools,
-    }),
-  });
-  if (!response.ok) {
-    // Read the documented delay from headers before the bounded body read consumes the stream.
-    const retryAfterSeconds =
-      response.status === 429 ? parseRetryAfterSeconds(response.headers.get('Retry-After')) : null;
-    const metadata = await modelFailureMetadata(response);
-    await response.body?.cancel();
-    // A spend cap is a 429 without retry-after; a forged header never makes it retryable.
-    const retryable =
-      retryAfterSeconds !== null &&
-      metadata.type === 'rate_limit_error' &&
-      metadata.errorCode !== 'enforced_spend_limit_reached';
-    console.error('Model provider rejected', { ...metadata, retryAfterSeconds, retryable });
-    if (retryable) throw new ModelRateLimited(retryAfterSeconds);
-    throw new Error(`Anthropic declined fixed model invocation (${response.status})`);
-  }
-  if (!response.body) throw new Error('Anthropic response missing');
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let length = 0;
+  const startedAt = Date.now();
+  let providerRejected = false;
   try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      length += value.byteLength;
-      if (length > 256000) {
-        await reader.cancel();
-        throw new Error('Anthropic response exceeded 256 KB');
-      }
-      chunks.push(value);
-    }
-  } finally {
-    reader.releaseLock();
-  }
-  const bytes = new Uint8Array(length);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  const parsed = JSON.parse(new TextDecoder('utf-8', { fatal: true, ignoreBOM: false }).decode(bytes));
-  const result = record(parsed);
-  if (
-    result.type !== 'message' ||
-    result.model !== 'claude-fable-5-1' ||
-    !Array.isArray(result.content) ||
-    !['end_turn', 'tool_use', 'max_tokens'].includes(String(result.stop_reason))
-  ) {
-    console.error('Model provider returned an unexpected envelope', {
-      type: typeof result.type === 'string' && /^[a-z_]{1,64}$/.test(result.type) ? result.type : 'unknown',
-      model:
-        typeof result.model === 'string' && /^claude-[a-z0-9_.-]{1,90}$/.test(result.model) ? result.model : 'unknown',
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      redirect: 'manual',
+      signal: AbortSignal.timeout(mode === 'pull-request' ? 180_000 : 90_000),
+      headers: {
+        'x-api-key': env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'claude-fable-5-1',
+        max_tokens: request.maxTokens,
+        system: system[mode],
+        messages: request.messages,
+        tools,
+      }),
     });
-    throw new Error('Unexpected Anthropic model response');
+    if (!response.ok) {
+      // Read the documented delay from headers before the bounded body read consumes the stream.
+      const retryAfterSeconds =
+        response.status === 429 ? parseRetryAfterSeconds(response.headers.get('Retry-After')) : null;
+      const metadata = await modelFailureMetadata(response);
+      await response.body?.cancel();
+      // A spend cap is a 429 without retry-after; a forged header never makes it retryable.
+      const retryable =
+        retryAfterSeconds !== null &&
+        metadata.type === 'rate_limit_error' &&
+        metadata.errorCode !== 'enforced_spend_limit_reached';
+      console.error('Model provider rejected', { ...metadata, retryAfterSeconds, retryable });
+      providerRejected = true;
+      if (retryable) throw new ModelRateLimited(retryAfterSeconds);
+      throw new Error(`Anthropic declined fixed model invocation (${response.status})`);
+    }
+    if (!response.body) throw new Error('Anthropic response missing');
+    const reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let length = 0;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        length += value.byteLength;
+        if (length > 256000) {
+          await reader.cancel();
+          throw new Error('Anthropic response exceeded 256 KB');
+        }
+        chunks.push(value);
+      }
+    } finally {
+      reader.releaseLock();
+    }
+    const bytes = new Uint8Array(length);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    const parsed = JSON.parse(new TextDecoder('utf-8', { fatal: true, ignoreBOM: false }).decode(bytes));
+    const result = record(parsed);
+    if (
+      result.type !== 'message' ||
+      result.model !== 'claude-fable-5-1' ||
+      !Array.isArray(result.content) ||
+      !['end_turn', 'tool_use', 'max_tokens'].includes(String(result.stop_reason))
+    ) {
+      console.error('Model provider returned an unexpected envelope', {
+        type: typeof result.type === 'string' && /^[a-z_]{1,64}$/.test(result.type) ? result.type : 'unknown',
+        model:
+          typeof result.model === 'string' && /^claude-[a-z0-9_.-]{1,90}$/.test(result.model)
+            ? result.model
+            : 'unknown',
+      });
+      throw new Error('Unexpected Anthropic model response');
+    }
+    return result;
+  } catch (error) {
+    if (!providerRejected) {
+      const errorClass =
+        typeof error === 'object' &&
+        error !== null &&
+        'name' in error &&
+        typeof error.name === 'string' &&
+        /^[A-Za-z]{1,64}$/.test(error.name)
+          ? error.name
+          : 'unknown';
+      console.error('Model invocation interrupted', { errorClass, elapsedMs: Date.now() - startedAt });
+    }
+    throw error;
   }
-  return result;
 }
