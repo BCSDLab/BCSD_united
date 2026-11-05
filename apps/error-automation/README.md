@@ -6,6 +6,14 @@
 
 `wrangler.jsonc`는 `ENVIRONMENT=production`, `GITHUB_OWNER=BCSDLab`, `GITHUB_REPOSITORY=BCSD_united`, 단일 GitHub App ID `5522353`/설치 ID `176455083`, `AUTOFIX_EXECUTOR_ID=koin-rocky-umpc`를 고정한다. Preview URL은 비활성화하며 다른 저장소·App·설치·환경으로 자동화를 바꾸는 입력은 없다. 운영 외 배포는 503으로 닫힌다. 이 Worker에 대한 PR preview/별도 GitHub Actions 실행 경로를 자동화 진입점으로 사용하지 않는다.
 
+### Git 자동 배포
+
+이 Worker만 Cloudflare Workers Builds의 production branch를 `develop`으로 사용한다. 루트 디렉터리는 `apps/error-automation`, 빌드 명령은 `pnpm typecheck && pnpm test`, 배포 명령은 `pnpm deploy`다. 빌드 환경은 Node `24.22.1`·pnpm `12.16.1`로 고정한다. 웹·API의 `main` 운영 정책과 DNS는 변경하지 않는다.
+
+다른 브랜치의 Preview 빌드는 검사 후 `printf "Checks only: no deployment for %s\n" "$WORKERS_CI_BRANCH"`만 실행한다. 기존 `develop` Preview는 `auto_build: false`로 둬 production 빌드와 중복되지 않게 한다. Preview에 운영 인증 정보를 복사하거나 존재하지 않는 `deploy:preview` 스크립트를 실행하지 않는다.
+
+대시보드의 production 빌드와 branch Preview 빌드는 별도의 Worker tag/빌드 이력을 갖는다. Preview 검사 성공을 운영 배포 성공으로 판단하지 않는다. 실제 production tag는 Workers Scripts 목록의 `bcsd-error-automation`에서 확인하고, 해당 tag의 빌드 로그에 `pnpm deploy` 성공과 새 활성 버전이 기록되는지 확인한다. 실패 이력이나 Worker·DO 데이터는 표시를 없애기 위해 삭제하지 않는다. 로그인 게이트웨이 시크릿은 런타임 설정으로 보존하고 빌드 변수·Git 저장소에는 넣지 않는다.
+
 설정값:
 
 | 이름                                          | 의미                                                                                                                                                            |

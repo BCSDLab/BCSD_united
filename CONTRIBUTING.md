@@ -52,7 +52,7 @@ UI 변경은 실제 화면, API 변경은 실제 HTTP/D1 경로도 확인합니�
 
 ## 운영 안전
 
-`main`이 기본·운영 브랜치이고 `preview`는 고정 native Preview를 위한 비운영 브랜치입니다. PR과 Workers Builds를 통해 배포하며, API·웹·오류 자동화에 별도 stage/test Worker나 중복 GitHub Actions 배포를 만들지 않습니다. 비운영 명령은 `wrangler preview`이고 `wrangler versions upload`나 `--env preview`가 아닙니다. 저장소의 `previews` 설정과 Cloudflare GitHub 연결·빌드 명령을 함께 유지합니다.
+웹·API는 `main`이 운영 브랜치이고 `preview`는 고정 native Preview를 위한 비운영 브랜치입니다. 오류 자동화 Worker는 예외로 `develop` 머지 후 검사·운영 배포하며, 다른 브랜치에서는 검사만 합니다. 자동화 배포를 위해 웹·API를 `main`으로 승격하지 않습니다. PR과 Workers Builds를 통해 배포하며, API·웹·오류 자동화에 별도 stage/test Worker나 중복 GitHub Actions 배포를 만들지 않습니다. 웹·API의 비운영 명령은 `wrangler preview`이고 `wrangler versions upload`나 `--env preview`가 아닙니다. 저장소의 `previews` 설정과 Cloudflare GitHub 연결·빌드 명령을 함께 유지합니다.
 
 API 테스트 명령에는 TypeScript 회귀와 `.mjs` 데이터·파일 이관 동작 테스트가 모두 포함됩니다. Preview 검증은 HTTP 경로만 대상으로 합니다. Queue consumer·Cron은 Preview에서 실행하지 않으므로 알림·예약의 enqueue를 실행 완료로 보고하지 않습니다. 전환 중 기존 테스트 Worker의 consumer가 제거됐는지도 운영 담당자가 별도로 확인해야 합니다.
 
