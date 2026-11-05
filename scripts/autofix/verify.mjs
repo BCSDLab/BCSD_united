@@ -191,6 +191,7 @@ const bbotRuntimeScratch = profiles.has('b-bot')
     ]
   : [];
 const bbotBuildScratch = profiles.has('b-bot') ? ['apps/b-bot/.nitro', 'apps/b-bot/.output', 'apps/b-bot/dist'] : [];
+const bbotTestScratch = profiles.has('b-bot') ? ['node_modules/.vitest-cache', 'apps/b-bot/.data'] : [];
 const runtimeScratch = [
   'apps/web/.wrangler',
   'apps/web/node_modules/.vite-temp',
@@ -199,12 +200,16 @@ const runtimeScratch = [
   ...bbotRuntimeScratch,
 ];
 const scratch = [...runtimeScratch, 'apps/web/dist', 'apps/web/.tanstack', 'apps/api/dist', ...bbotBuildScratch];
+const preparedScratch = [...scratch, ...bbotTestScratch];
 const insideDependency = (directory) =>
   dependencyMounts.some((dependency) => directory === dependency || directory.startsWith(`${dependency}/`));
 function cleanupSnapshot() {
   if (process.getuid() === 0) {
     const scoped = [];
-    for (const directory of [...scratch.filter((directory) => !insideDependency(directory)), ...dependencyMounts]) {
+    for (const directory of [
+      ...preparedScratch.filter((directory) => !insideDependency(directory)),
+      ...dependencyMounts,
+    ]) {
       const source = `${root}/${directory}`;
       let stat;
       try {
@@ -517,7 +522,11 @@ requireSuccess(
 // after acquisition and lifecycle builds: no pinned byte changed, nothing was
 // added outside dependency directories.
 if (prMode) await assertSnapshotMatchesTree(snapshot, root, dependencyDirectory);
-const dependencyScratch = scratch.filter(insideDependency);
+for (const directory of bbotTestScratch) {
+  if (snapshot?.some((entry) => entry.path === directory || entry.path.startsWith(`${directory}/`)))
+    throw new Error(`Test scratch overlaps pinned source: ${directory}`);
+}
+const dependencyScratch = preparedScratch.filter(insideDependency);
 if (dependencyScratch.length) {
   requireSuccess(
     docker(['node', '/automation/patch.mjs', 'prepare-scratch', '/work', ...dependencyScratch], {
@@ -526,7 +535,7 @@ if (dependencyScratch.length) {
     'Candidate-owned dependency scratch preparation',
   );
 }
-for (const directory of scratch) {
+for (const directory of preparedScratch) {
   if (insideDependency(directory)) continue;
   const parts = directory.split('/');
   let relative = '';
@@ -545,7 +554,7 @@ for (const directory of scratch) {
 }
 if (process.getuid() === 0)
   chownToCandidate(
-    scratch.filter((directory) => !insideDependency(directory)),
+    preparedScratch.filter((directory) => !insideDependency(directory)),
     'Scoped scratch ownership',
   );
 const identity = docker(['id', '-u']);
@@ -737,9 +746,11 @@ for (const [label, command] of checks) {
         ? scratch
         : label === 'Runtime route smoke'
           ? runtimeScratch
-          : label === 'Typecheck' || label === 'Native fixture tests'
+          : label === 'Typecheck'
             ? [...bbotBuildScratch, ...bbotRuntimeScratch]
-            : [],
+            : label === 'Native fixture tests'
+              ? [...bbotBuildScratch, ...bbotRuntimeScratch, ...bbotTestScratch]
+              : [],
     offlineWeb: profiles.has('web') && ['Production build', 'Runtime route smoke'].includes(label),
     offlineStandalone: offlineSmoke && label === 'Runtime route smoke',
   });

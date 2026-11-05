@@ -102,6 +102,8 @@ claim의 PR 작업 형태: `{mode:'pull-request', owner:'BCSDLab', repository:'B
 
 `node_modules` 안의 `.vite-temp` 같은 scratch도 그 디렉터리 소유자 UID의 무권한·오프라인 도우미가 경로별 symlink 검사를 거쳐 만든다. 웹 Vite와 B-BOT Vitest의 설정 번들용 `.vite-temp`를 각각 허용하여 설정 파일 옆에 임시 모듈을 쓰지 않게 한다. 컨트롤러가 후보 소유 디렉터리에 직접 mkdir/chmod하거나 이를 위해 권한을 넓히지 않는다. 정리는 상위 의존성 마운트에서 한 번만 수행한다.
 
+B-BOT native fixture 단계만 `node_modules/.vitest-cache`(변환 캐시)와 `apps/b-bot/.data`(기존 검토 HTML 테스트 산출물)를 추가로 쓸 수 있다. 해당 경로가 pinned 소스에 포함되면 거부하며, 모델·타입 검사·빌드·런타임 smoke에 새 쓰기 권한을 주지 않는다. 테스트 종료 후 다른 scratch와 함께 회수한다.
+
 타입 검사는 신뢰 `workspace-typecheck.mjs`가 각 workspace의 기존 `typecheck` 스크립트(예: `nitro prepare && tsc --noEmit`)를 그대로 실행하되, 증분 캐시를 workspace 경로 해시별 `/tmp/*.tsbuildinfo`로 지정한다. 소스를 쓰기 가능하게 만들거나 타입 검사를 생략하지 않으며 병렬 workspace가 같은 캐시 파일을 공유하지 않는다.
 
 PR 모드의 온라인 설치에는 `--ignore-pnpmfile`도 강제합니다. `--ignore-scripts`만으로는 `.pnpmfile.cjs` 및 config dependency의 JavaScript 훅 실행이 차단되지 않습니다. 승인된 lifecycle과 후보 코드 실행은 네트워크를 끊은 뒤에만 허용합니다.
