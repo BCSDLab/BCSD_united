@@ -1,8 +1,8 @@
-import { isKoinError } from '@bcsdlab/koin';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { orderMutations } from 'api/order/mutations';
 import ConfirmModal from 'components/Store/mobile/common/ConfirmModal';
+import { isKoinError } from 'interfaces/APIError';
 import showToast from 'utils/ts/showToast';
 
 // KOIN_ORDER_WEBVIEW pages/Cart/components/ResetModal 이전. 헤더의 전체삭제에서 장바구니를 비울지 묻는다

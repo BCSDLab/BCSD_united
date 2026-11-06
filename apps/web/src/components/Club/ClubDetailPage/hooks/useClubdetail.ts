@@ -1,10 +1,10 @@
-import { isKoinError } from '@bcsdlab/koin';
 import { captureError } from '@koin/telemetry/runtime';
 import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 
 import { putClubInroduction } from 'api/club';
 import type { ClubIntroductionData } from 'api/club/entity';
 import { clubQueries } from 'api/club/queries';
+import { isKoinError } from 'interfaces/APIError';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import showToast from 'utils/ts/showToast';
 

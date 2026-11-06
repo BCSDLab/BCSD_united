@@ -1,5 +1,4 @@
 import React, { Suspense, useEffect, useImperativeHandle, useReducer, useState } from 'react';
-import { isKoinError } from '@bcsdlab/koin';
 import { cn, sha256 } from '@bcsdlab/utils';
 import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router';
@@ -28,6 +27,7 @@ import useNicknameDuplicateCheck from 'components/Auth/SignupPage/hooks/useNickn
 import LoadingSpinner from 'components/feedback/LoadingSpinner';
 import Layout from 'components/layout';
 import type { Portal } from 'components/modal/Modal/PortalProvider';
+import { isKoinError } from 'interfaces/APIError';
 import { REGEX, STORAGE_KEY, COMPLETION_STATUS, MESSAGES } from 'static/auth';
 import ROUTES from 'static/routes';
 import useSession from 'utils/hooks/auth/useSession';

@@ -1,9 +1,9 @@
 import type { Env, Identity, PatchManifest, PreparedJob, Verification } from './types';
 
 const encoder = new TextEncoder();
-const HEX = /^[a-f0-9]{40}$/;
-const SHA256 = /^[a-f0-9]{64}$/;
-const BRANCH_NAME = new RegExp('^[A-Za-z0-9_./-]{1,100}$');
+export const HEX = /^[a-f0-9]{40}$/;
+export const SHA256 = /^[a-f0-9]{64}$/;
+export const BRANCH_NAME = new RegExp('^[A-Za-z0-9_./-]{1,100}$');
 const CHECKS = [
   'regression-fails-on-base',
   'regression-passes-on-fix',
@@ -17,7 +17,7 @@ const CHECKS = [
 
 type Permission = 'read' | 'publish';
 
-function base64(bytes: Uint8Array): string {
+export function base64(bytes: Uint8Array): string {
   let encoded = '';
   // Fixed multiples of three avoid both call-stack exhaustion and intermediate padding.
   for (let i = 0; i < bytes.length; i += 12288) {
@@ -67,7 +67,7 @@ export async function installationToken(env: Env, role: Permission): Promise<str
     `https://api.github.com/app/installations/${env.GITHUB_DISPATCH_INSTALLATION_ID}/access_tokens`,
     {
       method: 'POST',
-      redirect: 'error',
+      redirect: 'manual',
       signal: AbortSignal.timeout(8000),
       headers: {
         Authorization: `Bearer ${jwt}`,
@@ -105,7 +105,7 @@ export async function installationToken(env: Env, role: Permission): Promise<str
 export async function github<T>(env: Env, token: string, path: string, method = 'GET', body?: unknown): Promise<T> {
   const init: RequestInit = {
     method,
-    redirect: 'error',
+    redirect: 'manual',
     signal: AbortSignal.timeout(30000),
     headers: {
       Authorization: `Bearer ${token}`,
@@ -143,8 +143,16 @@ export function marker(identity: Identity): string {
       : `${identity.scope.accountId}:${identity.scope.policyId}`;
   return `<!-- error-autofix:${identity.source}:${scope}:${identity.project}:${identity.sourceId} -->`;
 }
-export function branch(identity: Identity, issue: number): string {
-  return `fix/#${issue}/${identity.source}-${identity.sourceId}`;
+/** Mirror identityKey's canonical provider scope without importing the Worker entrypoint. */
+export async function branch(identity: Identity): Promise<string> {
+  const key =
+    identity.source === 'sentry'
+      ? `sentry/${identity.scope.organization}/${identity.project}/${identity.sourceId}`
+      : `cloudflare/${identity.scope.accountId}/${identity.scope.policyId}/${identity.project}/${identity.sourceId}`;
+  let digest = '';
+  for (const byte of new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode(key))))
+    digest += byte.toString(16).padStart(2, '0');
+  return `fix/${identity.source}-${digest}`;
 }
 export function allowedPath(path: string): boolean {
   if (
@@ -228,12 +236,6 @@ interface Commit {
   sha: string;
   commit: { tree: { sha: string } };
 }
-interface Issue {
-  number: number;
-  body: string;
-  user?: { login: string };
-  pull_request?: unknown;
-}
 interface Pull {
   html_url: string;
 }
@@ -252,20 +254,6 @@ export async function baseRepository(
   if (!HEX.test(commit.sha) || !HEX.test(commit.commit.tree.sha)) throw new Error('Invalid base commit');
   return { baseBranch: repo.default_branch, baseSha: commit.sha, baseTree: commit.commit.tree.sha };
 }
-export async function findIssue(env: Env, token: string, identity: Identity): Promise<Issue | null> {
-  for (let page = 1; page <= 100; page++) {
-    const issues = await github<Issue[]>(env, token, `/issues?state=all&per_page=100&page=${page}`);
-    const issue = issues.find(
-      (item) =>
-        !item.pull_request &&
-        item.body?.includes(marker(identity)) &&
-        ['github-actions[bot]', 'bcsd-united-error-publisher[bot]'].includes(item.user?.login ?? ''),
-    );
-    if (issue) return issue;
-    if (issues.length < 100) return null;
-  }
-  throw new Error('Issue dedup scan exceeded 10000 records');
-}
 export async function existingPull(env: Env, token: string, job: Pick<PreparedJob, 'branch'>): Promise<Pull | null> {
   const pulls = await github<Pull[]>(
     env,
@@ -280,8 +268,7 @@ export async function publish(env: Env, job: PreparedJob, verification: Verifica
   const base = await baseRepository(env, token);
   if (base.baseBranch !== job.baseBranch || base.baseSha !== job.baseSha)
     throw new Error('Default branch advanced since independent verification');
-  const issue = await github<Issue>(env, token, `/issues/${job.issueNumber}`);
-  if (!issue.body?.includes(marker(job.identity))) throw new Error('Issue identity changed');
+  if (job.branch !== (await branch(job.identity))) throw new Error('Prepared branch identity mismatch');
   const existing = await existingPull(env, token, job);
   if (existing)
     throw new Error('A PR already exists for this identity; never label another head as independently verified');
@@ -330,7 +317,11 @@ export async function publish(env: Env, job: PreparedJob, verification: Verifica
     )
       throw new Error('Existing branch differs: never overwrite human changes');
   }
-  const body = `- Close #${job.issueNumber}\n\n${marker(job.identity)}\n\n## What is this PR?\n\n- 기능 : ${job.identity.source} ${job.identity.sourceId} 오류 수정\n- issue : #${job.issueNumber}\n\n## Changes\n\n${verification.verifiedManifest.files.map((file) => `- \`${file.path}\``).join('\n')}\n\n## Test CheckList\n\n${verification.passedChecks.map((check) => `- [x] ${check}`).join('\n')}\n\n## Precaution\n\n- Cloudflare Workflow에서 독립 생성/검증; 자동 merge/배포는 하지 않습니다. 실제 사용자 데이터와 인증된 화면은 검증하지 않았습니다.\n- 오류 문자열과 생성 코드는 신뢰할 수 없는 입력입니다. 원인 및 테스트 타당성을 리뷰해 주세요.\n`;
+  const source =
+    job.identity.source === 'sentry'
+      ? `[Sentry issue](https://${job.identity.scope.organization}.sentry.io/issues/${job.identity.sourceId}/)`
+      : `[Cloudflare account dashboard](https://dash.cloudflare.com/${job.identity.scope.accountId}/) (Issue ID: \`${job.identity.sourceId}\`, policy: \`${job.identity.scope.policyId}\`)`;
+  const body = `${marker(job.identity)}\n\n## What is this PR?\n\n- Source: ${source}\n- Project: \`${job.identity.project}\`\n- App: \`apps/${job.context.app}\`\n- Verified request: \`${job.context.requestMethod} ${job.context.route}\`\n- Verified base: \`${job.baseBranch}\` at \`${job.baseSha}\`\n\n## Changes\n\n${verification.verifiedManifest.files.map((file) => `- \`${file.path}\``).join('\n')}\n\n## Independent checks\n\n${verification.passedChecks.map((check) => `- [x] ${check}`).join('\n')}\n\n## Precaution\n\n- Cloudflare Workflow에서 독립 생성/검증; 자동 merge/배포는 하지 않습니다. 실제 사용자 데이터와 인증된 화면은 검증하지 않았습니다.\n- 오류 문자열과 생성 코드는 신뢰할 수 없는 입력입니다. 원인 및 테스트 타당성을 리뷰해 주세요.\n`;
   let pr: Pull;
   try {
     pr = await github<Pull>(env, token, '/pulls', 'POST', {
@@ -346,8 +337,5 @@ export async function publish(env: Env, job: PreparedJob, verification: Verifica
     if (raced) throw new Error('A PR appeared concurrently; reconcile its head before claiming publication');
     throw error;
   }
-  await github(env, token, `/issues/${job.issueNumber}/comments`, 'POST', {
-    body: `독립 검증을 통과한 수정 PR: ${pr.html_url}\n자동 merge/배포는 하지 않습니다.`,
-  });
   return pr.html_url;
 }

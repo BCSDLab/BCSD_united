@@ -1,5 +1,14 @@
 import type { Diagnostic, Env, Identity } from './types';
-import { SOURCE_HOSTS, tailKey } from './tail';
+import { extractStackFrames, isBundlePath, SOURCE_HOSTS, sourcePath, tailKey } from './tail';
+import { mappedTailFrames } from './source-maps';
+
+export class DiagnosticProviderError extends Error {
+  readonly status: number;
+  constructor(status: number) {
+    super('Diagnostic provider request failed');
+    this.status = status;
+  }
+}
 
 function object(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Expected provider object');
@@ -30,7 +39,7 @@ export function redact(value: unknown, max = 2000): string | null {
 async function boundedJson(response: Response, max = 2_000_000): Promise<Record<string, unknown>> {
   if (!response.ok) {
     await response.body?.cancel();
-    throw new Error(`Diagnostic provider returned ${response.status}`);
+    throw new DiagnosticProviderError(response.status);
   }
   if (!response.body) throw new Error('Missing diagnostic response');
   const reader = response.body.getReader();
@@ -58,7 +67,7 @@ async function boundedJson(response: Response, max = 2_000_000): Promise<Record<
   }
   return object(JSON.parse(new TextDecoder('utf-8', { fatal: true, ignoreBOM: false }).decode(bytes)));
 }
-function safeRoute(value: unknown, hosts: string[]): string | null {
+function safeRoute(value: unknown, hosts: readonly string[]): string | null {
   try {
     if (typeof value !== 'string') return null;
     const url = new URL(value);
@@ -108,7 +117,7 @@ async function cloudflareEvidence(
   // account dashboard. It is beta/undocumented: any contract drift fails closed.
   const response = await fetch(`${api}/workers/observability/issues/${issueId}/occurrences?per_page=5`, {
     headers,
-    redirect: 'error',
+    redirect: 'manual',
     signal: AbortSignal.timeout(15_000),
   });
   const body = await boundedJson(response, 500_000);
@@ -120,7 +129,7 @@ async function cloudflareEvidence(
     const worker = object(occurrence.worker);
     const invocation = object(occurrence.invocation);
     const scriptVersion = object(worker.scriptVersion).id;
-    const route = safeRoute(invocation.url, [SOURCE_HOSTS[identity.project]]);
+    const route = safeRoute(invocation.url, SOURCE_HOSTS[identity.project] ?? []);
     const timestamp = occurrence.timestamp;
     if (
       worker.scriptName !== identity.project ||
@@ -129,6 +138,8 @@ async function cloudflareEvidence(
       invocation.method !== 'GET' ||
       route === null ||
       route.includes('REDACTED') ||
+      new URL(invocation.url as string).protocol !== 'https:' ||
+      new URL(invocation.url as string).port !== '' ||
       invocation.path !== route ||
       typeof invocation.rayId !== 'string' ||
       !RAY_ID.test(invocation.rayId) ||
@@ -142,47 +153,59 @@ async function cloudflareEvidence(
 
     const stub = env.ERROR_ISSUES.get(env.ERROR_ISSUES.idFromName(tailKey(identity.project, invocation.rayId)));
     const storedTail = await stub.fetch('https://error-dispatch.internal/tail');
-    if (!storedTail.ok) {
+    let frames: Record<string, unknown>[];
+    const recovered = storedTail.status === 404;
+    if (recovered) {
       await storedTail.body?.cancel();
-      continue;
+      const stack = object(occurrence.error ?? {}).stack;
+      frames = typeof stack === 'string' ? extractStackFrames([stack], identity.app) : [];
+      if (!frames.length || typeof occurrence.id !== 'string' || !occurrence.id || occurrence.id.length > 128) continue;
+    } else {
+      if (!storedTail.ok) {
+        await storedTail.body?.cancel();
+        throw new Error('Tail evidence storage unavailable');
+      }
+      const tail = object(await storedTail.json());
+      if (
+        tail.version !== 1 ||
+        tail.workerName !== identity.project ||
+        tail.rayId !== invocation.rayId ||
+        tail.scriptVersion !== scriptVersion ||
+        tail.route !== route ||
+        !Number.isSafeInteger(tail.eventTimestamp) ||
+        Math.abs((tail.eventTimestamp as number) - (timestamp as number)) > 120_000 ||
+        !Array.isArray(tail.frames) ||
+        tail.frames.length === 0 ||
+        tail.frames.length > 12
+      )
+        continue;
+      frames = tail.frames.map((value) => object(value));
     }
-    const tail = object(await storedTail.json());
-    if (
-      tail.version !== 1 ||
-      tail.workerName !== identity.project ||
-      tail.rayId !== invocation.rayId ||
-      tail.scriptVersion !== scriptVersion ||
-      tail.route !== route ||
-      !Number.isSafeInteger(tail.eventTimestamp) ||
-      Math.abs((tail.eventTimestamp as number) - (timestamp as number)) > 120_000 ||
-      !Array.isArray(tail.frames) ||
-      tail.frames.length === 0 ||
-      tail.frames.length > 12
-    )
-      continue;
-    const frames = tail.frames.map((value) => object(value));
     if (
       frames.some(
         (frame) =>
           typeof frame.path !== 'string' ||
-          !frame.path.startsWith(`apps/${identity.app}/src/`) ||
-          frame.path.includes('..') ||
+          (!sourcePath(frame.path, identity.app) && !isBundlePath(frame.path)) ||
           !Number.isSafeInteger(frame.line) ||
           !Number.isSafeInteger(frame.column),
       )
     )
       continue;
 
-    const version = await fetch(`${api}/workers/workers/${identity.project}/versions/${scriptVersion}`, {
-      headers,
-      redirect: 'error',
-      signal: AbortSignal.timeout(15_000),
-    });
+    const bundled = frames.some((frame) => isBundlePath(frame.path as string));
+    const version = await fetch(
+      `${api}/workers/workers/${identity.project}/versions/${scriptVersion}${bundled ? '?include=modules' : ''}`,
+      {
+        headers,
+        redirect: 'manual',
+        signal: AbortSignal.timeout(15_000),
+      },
+    );
     if (version.status === 404) {
       await version.body?.cancel();
       continue;
     }
-    const versionBody = await boundedJson(version, 100_000);
+    const versionBody = await boundedJson(version, bundled ? 12 * 1024 * 1024 : 100_000);
     if (versionBody.success !== true || object(versionBody.result).id !== scriptVersion)
       throw new Error('CLOUDFLARE_EVIDENCE_UNAVAILABLE: source version mismatch');
 
@@ -203,7 +226,7 @@ async function cloudflareEvidence(
           ],
         },
       }),
-      redirect: 'error',
+      redirect: 'manual',
       signal: AbortSignal.timeout(15_000),
     });
     const telemetry = await boundedJson(telemetryResponse, 500_000);
@@ -220,6 +243,7 @@ async function cloudflareEvidence(
             metadata.account === CF_ACCOUNT &&
             metadata.service === identity.project &&
             metadata.traceId === invocation.traceId &&
+            (!recovered || metadata.id === occurrence.id) &&
             metadata.rayId === invocation.rayId &&
             producer.scriptName === identity.project &&
             object(producer.scriptVersion).id === scriptVersion
@@ -230,6 +254,18 @@ async function cloudflareEvidence(
       })
     )
       continue;
+    const sourceFrames = await mappedTailFrames(
+      identity.project,
+      identity.app,
+      scriptVersion,
+      object(versionBody.result),
+      frames.map((frame) => ({
+        path: frame.path as string,
+        line: frame.line as number,
+        column: frame.column as number,
+      })),
+      env.CLOUDFLARE_DIAGNOSTICS_TOKEN!,
+    );
 
     return {
       route,
@@ -239,8 +275,9 @@ async function cloudflareEvidence(
         issueId: identity.sourceId,
         workerName: identity.project,
         scriptVersion,
+        evidenceSource: recovered ? 'canonical-occurrence-and-telemetry' : 'tail-and-telemetry',
         summary: stored.summary,
-        sourceFrames: frames.map((frame) => ({ path: frame.path, line: frame.line, column: frame.column })),
+        sourceFrames,
       },
     };
   }
@@ -287,7 +324,7 @@ export async function trustedDiagnostics(env: Env, identity: Identity, stored: D
     fetch(url + suffix, {
       headers: { Authorization: `Bearer ${env.SENTRY_READ_TOKEN}` },
       signal: AbortSignal.timeout(30000),
-      redirect: 'error',
+      redirect: 'manual',
     }).then((response) => boundedJson(response));
   const canonical = await get('');
   const event = await get('events/latest/');

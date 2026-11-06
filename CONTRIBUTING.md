@@ -19,12 +19,14 @@ pnpm dev
 
 - 웹은 기존 절대 경로, API는 `@api/*`를 사용합니다.
 - 내부 화면 이동은 TanStack Router와 `ROUTES`를 사용합니다.
-- 웹 mutation 오류는 `isKoinError()`로 좁힌 뒤 `showToast()`로 표시합니다.
+- 웹 mutation 오류는 `interfaces/APIError`의 `isKoinError()`로 좁힌 뒤 `showToast()`로 표시합니다. 업무 오류가 아닌 HTTP·네트워크 오류는 같은 모듈의 `HttpError`를 사용하며, 상태 코드는 `utils/ts/httpError`의 `getErrorStatus()`로 읽습니다.
 - 서버가 아는 기기·인증·시각은 서버 스냅샷으로 전달합니다. 이를 클라이언트 시계나 영속 회원 유형으로 대체하지 않습니다.
 - 요청별 QueryClient·쿠키 전달 컨텍스트를 공유 전역 상태로 바꾸지 않습니다.
+- 웹 HTTP 요청은 `APIClient`의 native `fetch` 경로를 사용합니다. 브라우저는 same-origin `/api`, SSR은 검증된 Worker 대상과 요청별 Cookie/Origin을 사용합니다. 타임아웃은 응답 본문 수신까지 적용하며, 브라우저 401은 세션을 한 번 갱신한 뒤 최신 CSRF 헤더로 한 번만 재시도합니다. 직접 파일 업로드는 원본 Blob을 보내고 서비스 쿠키·CSRF를 제외합니다.
 - D1 변경은 Drizzle의 파라미터화 SQL·원자 배치를 사용합니다. DO 직렬화만으로 DB 원자성이 생기는 것은 아닙니다.
 - Queue 소비자는 중복 전달·중단·재시도를 고려하고, D1의 작업 상태와 fencing을 지킵니다.
 - 주석은 변경 이력이 아니라 코드의 계약·제약을 한국어로 설명합니다.
+- 오류 자동화의 번들 스택은 발생한 Worker 버전의 코드·소스맵을 대조한 뒤 해당 앱의 `src/` 위치로 복원합니다. 과거 Tail이 없으면 인증된 원본 발생의 이벤트 ID·Ray ID·Trace ID·Worker 버전이 telemetry와 모두 일치할 때만 복원합니다. 최신 버전의 맵으로 대체하거나 다른 앱·호스트의 근거를 섞지 않습니다. 원본 코드·소스맵 내용은 진단이나 모델 입력에 저장하지 않습니다.
 - SCSS는 전역 reset과 초기값을 불필요하게 반복하지 않습니다.
 - 별도 reviewer 봇·외부 분석 게이트를 추가하지 않습니다.
 
@@ -51,10 +53,18 @@ UI 변경은 실제 화면, API 변경은 실제 HTTP/D1 경로도 확인합니�
 
 ## 운영 안전
 
-`main`이 기본·운영 브랜치이고 `preview`는 고정 native Preview를 위한 비운영 브랜치입니다. PR과 Workers Builds를 통해 배포하며, API·웹·오류 자동화에 별도 stage/test Worker나 중복 GitHub Actions 배포를 만들지 않습니다. 비운영 명령은 `wrangler preview`이고 `wrangler versions upload`나 `--env preview`가 아닙니다. 저장소의 `previews` 설정과 Cloudflare GitHub 연결·빌드 명령을 함께 유지합니다.
+운영 정책에서 웹·API·오류 자동화의 production branch는 모두 `develop`입니다. 기능 PR을 `develop`에 병합하면 Workers Builds가 검사 후 자동으로 운영 배포합니다. 별도 `main`·`preview` Git 브랜치나 승격 단계는 사용하지 않습니다. 운영 브랜치 변수는 `KOIN_PRODUCTION_BRANCH`(기본 `develop`)입니다. 비운영 브랜치는 검사만 실행하며 기존 `stage` native Preview를 자동으로 덮어쓰지 않습니다. `stage.koreatech.in`과 `previews` 런타임 설정은 유지하고, 필요할 때 명시적으로 stage를 갱신합니다. PR과 Workers Builds를 통해 운영 배포하며, API·웹·오류 자동화에 별도 stage/test Worker나 중복 GitHub Actions 배포를 만들지 않습니다. Preview 명령은 `wrangler preview`이고 `wrangler versions upload`나 `--env preview`가 아닙니다. Git 브랜치 삭제와 native Preview 삭제는 별개이므로 Preview·저장소 데이터를 함께 삭제하지 않습니다.
 
 API 테스트 명령에는 TypeScript 회귀와 `.mjs` 데이터·파일 이관 동작 테스트가 모두 포함됩니다. Preview 검증은 HTTP 경로만 대상으로 합니다. Queue consumer·Cron은 Preview에서 실행하지 않으므로 알림·예약의 enqueue를 실행 완료로 보고하지 않습니다. 전환 중 기존 테스트 Worker의 consumer가 제거됐는지도 운영 담당자가 별도로 확인해야 합니다.
 
-Preview D1/R2/Queue는 `-test` 리소스를 사용하지만 DO namespace는 Preview마다 자동 생성됩니다. 웹 Preview의 SSR·브라우저는 API Preview HTTP origin을 사용합니다. service binding은 production으로 연결되므로 Preview 연결 대안으로 사용하지 않습니다. 오류 자동화 Preview에 운영 GitHub 토큰이나 운영 저장소 쓰기 권한을 주지 않습니다.
+Preview D1/R2/Queue는 `-test` 리소스를 사용하지만 DO namespace는 Preview마다 자동 생성됩니다. 웹 Preview의 SSR·브라우저는 KOIN_API_V2 stage 서버(`https://api.stage.koreatech.in`)를 사용합니다. 오류 자동화 Preview에 운영 GitHub 토큰이나 운영 저장소 쓰기 권한을 주지 않습니다.
 
 실제 계정·결제·파일·메시지·사용자 데이터에 영향을 주는 테스트를 임의로 실행하지 않습니다. 테스트 Worker·D1·R2를 사용하고, 운영 데이터 이관과 도메인 전환은 별도 승인과 복구 절차를 갖춥니다.
+
+### 레거시 Worker API
+
+업무 API의 현재 방향은 기존 Java 서버 유지입니다. `apps/api`의 TypeScript Worker는 레거시로 보존하며 `wrangler.jsonc`의 `API_ENABLED`가 운영·Preview 모두 `"false"`입니다. 코드·D1 데이터·R2·Queue·DO·마이그레이션·테스트 fixture를 정리하거나 삭제하는 PR을 만들지 않습니다. 비활성 전환은 설정값으로만 표현하고, 기존 활성 동작 테스트는 fixture에 `API_ENABLED: 'true'`를 명시해 유지합니다. 비활성 경계(503 `API_DISABLED`, scheduled 무동작, Queue `retryAll`, DO 쓰기 차단) 테스트는 추가할 수 있습니다.
+
+로컬·격리 검증에서 업무 경로가 필요하면 해당 프로세스에만 `wrangler dev --var API_ENABLED:true`를 넣습니다. `scripts/autofix/local-api.mjs`가 이 방식을 사용하며 보조 Worker 사본의 `vars`만 치환합니다. 배포 설정이나 Cloudflare 대시보드 값을 바꾸는 방식으로 테스트를 통과시키지 않습니다. `SOURCE_SYNC_ENABLED`(`"false"`), `triggers.crons`(`[]`), 원본 호스트의 비공개 `sync-enabled` 승인 파일은 기존 게이트이므로 `API_ENABLED`와 묶거나 중복 게이트를 추가하지 않고, 사용자 재승인 전에는 비활성 상태를 유지합니다.
+
+원격 반영은 저장소 커밋과 별개의 운영 절차입니다. 웹의 Java API 전환 PR #9는 병합됐고 운영 웹 배포도 확인됐지만, 현재 원격 레거시 API 비활성 상태는 별도로 확인해야 합니다. Java 서버 CORS와 웹의 실제 Java API 경로 전환을 확인하기 전에 `API_ENABLED: "false"`를 원격에 반영하면 남아 있는 레거시 Worker 호출이 장애를 겪습니다. Queue는 코드의 `retryAll()`로 멈추지 않으므로 배포 전후에 `wrangler queues pause-delivery koin-api-jobs`를 실제로 실행해야 하며, 저장소 값만으로 원격 비활성이 완료됐다고 보고하지 않습니다. 절차는 [README의 레거시 Worker API 비활성화와 복원](./README.md#레거시-worker-api-비활성화와-복원)을 따릅니다.

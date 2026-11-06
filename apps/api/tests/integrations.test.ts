@@ -23,6 +23,7 @@ import { allowedDocumentUrl, extractDocumentText, summarizeArticle, UpstageError
 import { tossConfirm, tossCancel, TossGatewayError } from '@api/integrations/toss';
 
 const env = {
+  API_ENABLED: 'true',
   UPLOAD_SIGNING_SECRET: 'a-32-byte-minimum-signing-secret-for-tests',
   API_PUBLIC_URL: 'https://api.example.test/',
   R2_FILES_PUBLIC_URL: 'https://files.example.test/assets/',

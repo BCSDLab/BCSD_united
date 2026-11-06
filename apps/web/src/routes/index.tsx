@@ -1,4 +1,3 @@
-import { isKoinError } from '@bcsdlab/koin';
 import { dehydrate, QueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
@@ -16,6 +15,7 @@ import { weatherQueries } from 'api/weather/queries';
 import { convertDateToSimpleString, DiningTime } from 'components/cafeteria/utils/time';
 import HomePage from 'components/IndexComponents/HomePage';
 import HomeLayout from 'components/layout/HomeLayout';
+import { isKoinError } from 'interfaces/APIError';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { getRecentSemester, resolveTimetableSemester } from 'utils/timetable/semester';
 import { isUnauthorizedError } from 'utils/ts/httpError';

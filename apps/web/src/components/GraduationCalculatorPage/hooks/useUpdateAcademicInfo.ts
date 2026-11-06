@@ -1,4 +1,3 @@
-import { isKoinError } from '@bcsdlab/koin';
 import { captureError } from '@koin/telemetry/runtime';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
@@ -6,6 +5,7 @@ import { updateAcademicInfo } from 'api/auth';
 import type { UpdateAcademicInfoRequest } from 'api/auth/entity';
 import { authQueryKeys } from 'api/auth/queries';
 import { graduationCalculatorQueryKeys } from 'api/graduationCalculator/queries';
+import { isKoinError } from 'interfaces/APIError';
 import showToast from 'utils/ts/showToast';
 
 import useAgreeGraduationCreidts from './useAgreeGraduationCreidts';

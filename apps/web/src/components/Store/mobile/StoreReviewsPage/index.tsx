@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState, type ChangeEvent } from 'react';
-import { isKoinError } from '@bcsdlab/koin';
 import { captureError } from '@koin/telemetry/runtime';
 import { keepPreviousData, useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { useRouter, useLocation, useSearch } from '@tanstack/react-router';
@@ -21,6 +20,7 @@ import ReviewCard, { type ReviewCardItem } from 'components/Store/mobile/StoreRe
 import SortModal from 'components/Store/mobile/StoreReviewsPage/components/SortModal';
 import { storeReviewsQueries } from 'components/Store/mobile/StoreReviewsPage/queries';
 import { getReviewSortLabel, parseReviewSort } from 'components/Store/mobile/StoreReviewsPage/utils/reviewSort';
+import { isKoinError } from 'interfaces/APIError';
 import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useBooleanState from 'utils/hooks/state/useBooleanState';

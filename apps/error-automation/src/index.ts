@@ -1,11 +1,20 @@
 import { DurableObject } from 'cloudflare:workers';
-import { trustedDiagnostics } from './diagnostics';
-import { parseModelRequest } from './model';
-import { extractTailEvidence, tailKey } from './tail';
+import { DiagnosticProviderError, trustedDiagnostics } from './diagnostics';
+import { SourceMapEvidenceError } from './source-maps';
+import { gatewayTransport, modelRateLimit, parseModelRequest } from './model';
+import { extractTailEvidence, isBundlePath, sourcePath, tailKey } from './tail';
 import type { App, Diagnostic, Env, Identity, PatchManifest } from './types';
 export type { Env } from './types';
 export { AutofixQueue } from './queue';
-import type { ExecutorResult } from './queue';
+import { isPolicyRejection, type AutofixQueue, type ExecutorResult } from './queue';
+import { GitHubError, installationToken } from './github';
+import {
+  PullRequestRejected,
+  assertPinned,
+  inspectPullRequest,
+  parsePullRequestIdentity,
+  pullRequestPolicy,
+} from './pull-request';
 
 interface CloudflareSource {
   accountId: string;
@@ -127,6 +136,8 @@ export function configuration(env: Env): Configuration {
     if (new Set(cloudflare.map((source) => `${source.policyId}/${source.workerName}`)).size !== cloudflare.length) {
       throw new Error('Ambiguous Cloudflare policy and Worker');
     }
+    // A half-configured or malformed omp gateway is a deployment defect; missing both only disables inference.
+    gatewayTransport(env);
     return {
       organization: env.SENTRY_ORGANIZATION,
       projects: new Set(Object.keys(projects)),
@@ -139,12 +150,16 @@ export function configuration(env: Env): Configuration {
   }
 }
 
-function reply(status: number, body: Record<string, string | number>): Response {
+function reply(
+  status: number,
+  body: Record<string, unknown>,
+  retryAfterSeconds: number | null = status >= 500 ? 30 : null,
+): Response {
   return Response.json(body, {
     status,
     headers: {
       'Cache-Control': 'no-store',
-      ...(status >= 500 ? { 'Retry-After': '30' } : {}),
+      ...(retryAfterSeconds === null ? {} : { 'Retry-After': String(retryAfterSeconds) }),
     },
   });
 }
@@ -294,14 +309,14 @@ export function validateIdentity(value: unknown, config: Configuration): Identit
   throw new RequestError(400, 'Unsupported error source.');
 }
 
-function redact(value: unknown, env: Env): string {
+export function redact(value: unknown, env: Env): string {
   if (typeof value !== 'string') return '';
   let text = value;
   for (const secret of [
     env.SENTRY_CLIENT_SECRET,
     env.CLOUDFLARE_WEBHOOK_SECRET,
     env.GITHUB_DISPATCH_APP_PRIVATE_KEY,
-    env.ANTHROPIC_API_KEY,
+    env.OMP_GATEWAY_TOKEN,
     env.SENTRY_READ_TOKEN,
     env.DIAGNOSTICS_READ_TOKEN,
     env.AUTOFIX_EXECUTOR_TOKEN,
@@ -516,6 +531,72 @@ function retrievalIdentity(url: URL, config: Configuration): Identity {
   );
 }
 
+async function pullRequestIntake(request: Request, env: Env, url: URL): Promise<Response> {
+  const bytes = await boundedBody(request, 4096);
+  let data: Record<string, unknown>;
+  try {
+    data = record(JSON.parse(new TextDecoder('utf-8', { fatal: true, ignoreBOM: false }).decode(bytes)));
+  } catch {
+    throw new RequestError(400, 'Invalid executor JSON.');
+  }
+  const keys = Object.keys(data).sort().join(',');
+  if (data.version !== 1 || data.executorId !== env.AUTOFIX_EXECUTOR_ID)
+    throw new RequestError(400, 'Invalid executor contract.');
+  const stub = env.AUTOFIX_QUEUE.getByName('bcsdlab/bcsd_united');
+  let admissionPhase = 'validation';
+  try {
+    if (url.pathname === '/executor/pull-requests/status') {
+      if (
+        keys !== 'executorId,runId,version' ||
+        typeof data.runId !== 'string' ||
+        !/^autofix-[a-f0-9]{64}$/.test(data.runId)
+      )
+        throw new RequestError(400, 'Invalid status fields.');
+      const receipt = await stub.status(data.runId);
+      if (!receipt) throw new RequestError(404, 'Unknown pull request run.');
+      return Response.json(receipt, { headers: { 'Cache-Control': 'no-store' } });
+    }
+    if (keys !== 'baseSha,executorId,headSha,pullNumber,version')
+      throw new RequestError(400, 'Invalid enqueue fields.');
+    const identity = parsePullRequestIdentity(data);
+    const policy = pullRequestPolicy(env);
+    if (!policy.enabled) throw new RequestError(503, 'Pull request review is not enabled.');
+    if (!policy.allowed.has(identity.pullNumber)) throw new RequestError(403, 'Pull request is not allowlisted.');
+    // Canonical GitHub facts decide admission; the request only names a pinned PR of the fixed repository.
+    admissionPhase = 'github-token';
+    const token = await installationToken(env, 'read');
+    admissionPhase = 'canonical-pr';
+    assertPinned(await inspectPullRequest(env, token, identity.pullNumber, policy), identity);
+    admissionPhase = 'queue';
+    const admitted = await stub.enqueuePullRequest(identity);
+    return Response.json(
+      { status: admitted.status, runId: admitted.runId },
+      { headers: { 'Cache-Control': 'no-store' } },
+    );
+  } catch (error) {
+    if (error instanceof PullRequestRejected) throw new RequestError(error.status, error.message);
+    if (!(error instanceof RequestError)) {
+      // 실패 단계와 고정 오류 분류만 남기고 토큰·요청 본문·원문 오류는 기록하지 않는다.
+      let failure = 'unknown';
+      if (error instanceof GitHubError) failure = `github-http-${error.status}`;
+      else if (error instanceof Error) {
+        const tokenStatus = /^GitHub App token rejected \((\d{3})\)$/.exec(error.message)?.[1];
+        if (tokenStatus) failure = `github-token-${tokenStatus}`;
+        else if (error.message === 'GitHub returned an invalid scoped token') failure = 'github-token-contract';
+        else failure = error.name;
+      }
+      const locations =
+        error instanceof Error
+          ? [...(error.stack ?? '').matchAll(/(?:index\.js|github\.ts):(\d+):(\d+)/g)]
+              .slice(0, 3)
+              .map((match) => `${match[1]}:${match[2]}`)
+          : [];
+      console.error('PR admission failed', { phase: admissionPhase, failure, locations });
+    }
+    throw error;
+  }
+}
+
 async function executorRequest(request: Request, env: Env, url: URL): Promise<Response> {
   if (request.method !== 'POST') return new Response('Use POST.', { status: 405, headers: { Allow: 'POST' } });
   if (url.search || url.hash) throw new RequestError(400, 'Executor query parameters are not supported.');
@@ -527,11 +608,13 @@ async function executorRequest(request: Request, env: Env, url: URL): Promise<Re
   await verifySecret(authorization?.startsWith('Bearer ') ? authorization.slice(7) : null, env.AUTOFIX_EXECUTOR_TOKEN);
   if (request.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase() !== 'application/json')
     throw new RequestError(415, 'Content-Type must be application/json.');
+  if (url.pathname === '/executor/pull-requests/enqueue' || url.pathname === '/executor/pull-requests/status')
+    return pullRequestIntake(request, env, url);
   const path = /^\/executor\/jobs\/(autofix-[a-f0-9]{64})\/(heartbeat|verification-start|model|result)$/.exec(
     url.pathname,
   );
   if (url.pathname !== '/executor/claim' && !path) throw new RequestError(404, 'Not found.');
-  const maxBytes = path?.[2] === 'result' ? 4_000_000 : path?.[2] === 'model' ? 256_000 : 4096;
+  const maxBytes = path?.[2] === 'result' ? 4_000_000 : path?.[2] === 'model' ? 1_000_000 : 4096;
   const bytes = await boundedBody(request, maxBytes);
   let data: Record<string, unknown>;
   try {
@@ -593,31 +676,24 @@ async function executorRequest(request: Request, env: Env, url: URL): Promise<Re
     } catch (error) {
       if (error instanceof Error && error.message === 'Expired or invalid executor lease')
         throw new RequestError(409, 'Expired or invalid lease.');
+      // RPC reconstructs the queue's ModelRateLimited as a plain Error keeping only name and serializable own fields.
+      const rateLimit = modelRateLimit(error);
+      if (rateLimit)
+        return reply(
+          429,
+          { error: 'Model provider rate limited; retry this exact request after Retry-After.', ...rateLimit },
+          rateLimit.retryAfterSeconds,
+        );
+      // Budget, tier and shape rejections are terminal for this job: the same request can never succeed later.
+      if (isPolicyRejection(error)) throw new RequestError(422, error.message);
       throw error;
     }
   }
   if (data.outcome === 'verified') {
     if (keys !== 'executorId,leaseToken,manifest,outcome,verification,version')
       throw new RequestError(400, 'Invalid verified-result fields.');
-    const manifest = record(data.manifest),
+    const manifest = parseManifest(data.manifest),
       proof = record(data.verification);
-    if (
-      Object.keys(manifest).sort().join(',') !== 'files,version' ||
-      manifest.version !== 1 ||
-      !Array.isArray(manifest.files) ||
-      manifest.files.length > 24 ||
-      manifest.files.some((file) => {
-        if (!file || typeof file !== 'object' || Array.isArray(file)) return true;
-        const entry = file as Record<string, unknown>;
-        return (
-          Object.keys(entry).sort().join(',') !== 'before,content,path' ||
-          typeof entry.path !== 'string' ||
-          (entry.before !== null && typeof entry.before !== 'string') ||
-          (entry.content !== null && typeof entry.content !== 'string')
-        );
-      })
-    )
-      throw new RequestError(400, 'Invalid manifest structure.');
     if (
       Object.keys(proof).sort().join(',') !== 'baseSha,manifestSha256,passedChecks' ||
       typeof proof.baseSha !== 'string' ||
@@ -626,26 +702,49 @@ async function executorRequest(request: Request, env: Env, url: URL): Promise<Re
       proof.passedChecks.some((check) => typeof check !== 'string')
     )
       throw new RequestError(400, 'Invalid verification proof.');
-    const files = manifest.files as PatchManifest['files'];
-    const result: ExecutorResult = {
+    return submitResult(stub, path![1], {
       version: 1,
       executorId: 'koin-rocky-umpc',
       leaseToken: data.leaseToken,
       outcome: 'verified',
-      manifest: { version: 1, files },
+      manifest,
       verification: {
         baseSha: proof.baseSha,
         manifestSha256: proof.manifestSha256,
         passedChecks: proof.passedChecks as string[],
       },
-    };
-    try {
-      return Response.json(await stub.result(path![1], result), { headers: { 'Cache-Control': 'no-store' } });
-    } catch (error) {
-      if (error instanceof Error && error.message === 'Expired or invalid executor lease')
-        throw new RequestError(409, 'Expired or invalid lease.');
-      throw error;
-    }
+    });
+  }
+  if (data.outcome === 'pr-reviewed') {
+    if (keys !== 'executorId,leaseToken,manifest,outcome,review,verification,version')
+      throw new RequestError(400, 'Invalid reviewed-result fields.');
+    const manifest = parseManifest(data.manifest),
+      proof = record(data.verification);
+    if (
+      Object.keys(proof).sort().join(',') !== 'baseSha,headSha,manifestSha256,passedChecks' ||
+      typeof proof.headSha !== 'string' ||
+      typeof proof.baseSha !== 'string' ||
+      typeof proof.manifestSha256 !== 'string' ||
+      !Array.isArray(proof.passedChecks) ||
+      proof.passedChecks.length > 20 ||
+      proof.passedChecks.some((check) => typeof check !== 'string' || check.length > 60)
+    )
+      throw new RequestError(400, 'Invalid pull request verification proof.');
+    // Review structure and policy are validated by the queue against the leased job.
+    return submitResult(stub, path![1], {
+      version: 1,
+      executorId: 'koin-rocky-umpc',
+      leaseToken: data.leaseToken,
+      outcome: 'pr-reviewed',
+      manifest,
+      review: record(data.review),
+      verification: {
+        headSha: proof.headSha,
+        baseSha: proof.baseSha,
+        manifestSha256: proof.manifestSha256,
+        passedChecks: proof.passedChecks as string[],
+      },
+    });
   }
   if (data.outcome !== 'failed' && data.outcome !== 'no-fix') throw new RequestError(400, 'Invalid executor outcome.');
   if (
@@ -655,18 +754,49 @@ async function executorRequest(request: Request, env: Env, url: URL): Promise<Re
     !data.reason
   )
     throw new RequestError(400, 'Invalid failure fields.');
-  const result: ExecutorResult = {
+  return submitResult(stub, path![1], {
     version: 1,
     executorId: 'koin-rocky-umpc',
     leaseToken: data.leaseToken,
     outcome: data.outcome,
     reason: data.reason,
-  };
+  });
+}
+
+function parseManifest(value: unknown): PatchManifest {
+  const manifest = record(value);
+  if (
+    Object.keys(manifest).sort().join(',') !== 'files,version' ||
+    manifest.version !== 1 ||
+    !Array.isArray(manifest.files) ||
+    manifest.files.length > 24 ||
+    manifest.files.some((file) => {
+      if (!file || typeof file !== 'object' || Array.isArray(file)) return true;
+      const entry = file as Record<string, unknown>;
+      return (
+        Object.keys(entry).sort().join(',') !== 'before,content,path' ||
+        typeof entry.path !== 'string' ||
+        (entry.before !== null && typeof entry.before !== 'string') ||
+        (entry.content !== null && typeof entry.content !== 'string')
+      );
+    })
+  )
+    throw new RequestError(400, 'Invalid manifest structure.');
+  return { version: 1, files: manifest.files as PatchManifest['files'] };
+}
+
+async function submitResult(
+  stub: DurableObjectStub<AutofixQueue>,
+  runId: string,
+  result: ExecutorResult,
+): Promise<Response> {
   try {
-    return Response.json(await stub.result(path![1], result), { headers: { 'Cache-Control': 'no-store' } });
+    return Response.json(await stub.result(runId, result), { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     if (error instanceof Error && error.message === 'Expired or invalid executor lease')
       throw new RequestError(409, 'Expired or invalid lease.');
+    // RPC reconstructs the queue's PolicyRejection as a plain Error carrying only name/message.
+    if (isPolicyRejection(error)) throw new RequestError(422, error.message);
     throw error;
   }
 }
@@ -692,9 +822,16 @@ export default {
           env.DIAGNOSTICS_READ_TOKEN,
         );
         const identity = retrievalIdentity(url, config);
-        return await env.ERROR_ISSUES.get(env.ERROR_ISSUES.idFromName(identityKey(identity))).fetch(
+        const key = identityKey(identity);
+        const response = await env.ERROR_ISSUES.get(env.ERROR_ISSUES.idFromName(key)).fetch(
           'https://error-dispatch.internal/diagnostics',
         );
+        if (!response.ok) return response;
+        const diagnostic = (await response.json()) as Diagnostic;
+        const disposition = await env.AUTOFIX_QUEUE.getByName(
+          `${env.GITHUB_OWNER}/${env.GITHUB_REPOSITORY}`.toLowerCase(),
+        ).errorStatus(key);
+        return reply(200, { ...diagnostic, disposition });
       }
       if (url.search) throw new RequestError(400, 'Webhook query parameters are not supported.');
       if (request.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase() !== 'application/json') {
@@ -732,7 +869,16 @@ export default {
       if (capture.identity.source === 'cloudflare') {
         try {
           capture.details.verifiedEvidence = await trustedDiagnostics(env, capture.identity, capture);
-        } catch {
+        } catch (error) {
+          console.warn('Cloudflare evidence rejected', {
+            workerName: capture.identity.project,
+            sourceId: capture.identity.sourceId,
+            reason: error instanceof SourceMapEvidenceError ? error.message : 'Source evidence unavailable',
+            providerStatus:
+              error instanceof DiagnosticProviderError || error instanceof SourceMapEvidenceError
+                ? (error.status ?? null)
+                : null,
+          });
           return reply(503, { error: 'Authenticated Cloudflare route and mapped source evidence unavailable.' });
         }
       }
@@ -861,7 +1007,7 @@ export class ErrorIssueDispatch extends DurableObject<Env> {
             return (
               Object.keys(frame).sort().join(',') !== 'column,line,path' ||
               typeof frame.path !== 'string' ||
-              !frame.path.startsWith(`apps/${source.app}/src/`) ||
+              (!sourcePath(frame.path, source.app) && !isBundlePath(frame.path)) ||
               frame.path.length > 180 ||
               frame.path.includes('..') ||
               !Number.isSafeInteger(frame.line) ||

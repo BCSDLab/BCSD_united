@@ -1,12 +1,12 @@
-// Google Drive(Docs) 커넥터: 봇 Google 계정(Meet과 동일 OAuth, drive.readonly 스코프 추가)으로
+// Google Drive(Docs) 커넥터: 호출자가 제공한 Google refresh token(drive.readonly 스코프)으로
 // Google Docs를 마크다운 export → 청킹 → 임베딩 → pgvector. 스프레드시트·슬라이드 등은 제외(Docs만).
 // 범위: GDRIVE_FOLDER_IDS(쉼표구분) 지정 시 그 폴더들 재귀, 없으면 계정이 접근 가능한 전체 Docs.
+import { $fetch } from 'ofetch';
 import { getPool, query } from '~/infra/postgres';
 import { embed } from '@koin/b-bot-ai';
 import { chunk } from './chunk';
 import { classifyDocType } from './classify';
 import { googleAccessToken } from '~/services/google/oauth';
-import { GOOGLE_MEET_KEY } from '~/services/google/googleMeet';
 
 const DRIVE = 'https://www.googleapis.com/drive/v3';
 const DOC_MIME = 'application/vnd.google-apps.document';
@@ -26,11 +26,9 @@ function roots(): string[] {
     .filter(Boolean);
 }
 
-// 봇 refresh token(KV, Meet과 공유) → access token.
-async function accessToken(): Promise<string | null> {
-  const storage = useStorage('kvStorage');
-  const refreshToken = await storage.get<string>(GOOGLE_MEET_KEY);
-  if (!refreshToken) return null;
+// Refresh token is provisioned on the crawler host rather than read from Nitro storage.
+async function accessToken(refreshToken: string): Promise<string> {
+  if (!refreshToken.trim()) throw new Error('GOOGLE_REFRESH_TOKEN is required');
   return googleAccessToken(refreshToken);
 }
 
@@ -98,9 +96,10 @@ async function collectDocs(token: string): Promise<DriveFile[]> {
 }
 
 // 봇 계정 Docs를 증분 색인. modifiedTime > 커서만 재임베딩, 사라진 문서는 정리.
-export async function ingestGdrive(): Promise<{ docs: number; changed: number; chunks: number; removed: number }> {
-  const token = await accessToken();
-  if (!token) return { docs: 0, changed: 0, chunks: 0, removed: 0 };
+export async function ingestGdrive(
+  refreshToken: string,
+): Promise<{ docs: number; changed: number; chunks: number; removed: number }> {
+  const token = await accessToken(refreshToken);
   const pool = getPool();
   const runStart = new Date().toISOString();
   const cur = await query(pool, `SELECT last_edited_at FROM sync_cursor WHERE connector = 'gdrive'`);

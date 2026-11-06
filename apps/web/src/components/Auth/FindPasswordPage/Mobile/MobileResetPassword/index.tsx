@@ -1,10 +1,10 @@
-import { isKoinError } from '@bcsdlab/koin';
 import { cn, sha256 } from '@bcsdlab/utils';
 import { useMutation } from '@tanstack/react-query';
 import { Controller, type FieldError, useFormContext, useWatch } from 'react-hook-form';
 
 import { resetPasswordEmail, resetPasswordSms } from 'api/auth';
 import CustomInput from 'components/Auth/SignupPage/components/CustomInput';
+import { isKoinError } from 'interfaces/APIError';
 import type { InputMessage } from 'interfaces/InputMessage';
 import { type ContactType, MESSAGES, REGEX } from 'static/auth';
 import showToast from 'utils/ts/showToast';

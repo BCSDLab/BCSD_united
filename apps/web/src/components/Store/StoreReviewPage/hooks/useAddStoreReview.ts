@@ -1,7 +1,7 @@
-import { isKoinError } from '@bcsdlab/koin';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { reviewMutations } from 'api/review/mutations';
+import { isKoinError } from 'interfaces/APIError';
 import showToast from 'utils/ts/showToast';
 
 export const useAddStoreReview = (id: string) => {

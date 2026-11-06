@@ -1,12 +1,13 @@
 # B-BOT · Cloudflare Worker
 
-[BCSDLab/B_BOT](https://github.com/BCSDLab/B_BOT)의 Slack 봇을 이 모노레포에 통합한 앱이다. Nitro HTTP 라우트와 기존 도메인 로직을 유지하고 Workers·Queues·KV·Workers AI에서 실행한다. 별도 Node 서버나 소켓 모드는 사용하지 않는다.
+[BCSDLab/B_BOT](https://github.com/BCSDLab/B_BOT)의 Slack 봇을 이 모노레포에 통합한 앱이다. Nitro HTTP 라우트와 기존 도메인 로직을 유지하고 Workers·Queues·KV·Workers AI에서 실행한다. Slack HTTP는 Worker에, 기존 업무 API는 Java에 남고, GitHub·Notion·Google Drive 문서 색인만 별도의 동아리방 Raspberry Pi 프로세스가 실행한다. Clarity는 이 분리에 포함되지 않는다.
 
 배포 주소: <https://b-bot-workers.bcsdlab.workers.dev> · 상태 확인: [`GET /health`](https://b-bot-workers.bcsdlab.workers.dev/health).
 
 ## 구성
 
-- `apps/b-bot`: Slack HTTP 수신, 큐 소비, Google OAuth, 검토 페이지, 정적 PDF, 예약 작업.
+- `apps/b-bot`: Slack HTTP 수신, 큐 소비, Google OAuth/Meet, 검토 페이지, 정적 PDF, 예약 작업의 Pi 색인 요청.
+- [`apps/b-bot-crawler`](../b-bot-crawler/README.md): Raspberry Pi의 문서 색인 작업 큐와 크롤러. Java 업무 API를 대체하거나 Worker에 D1을 추가하지 않는다.
 - `packages/b-bot-ai`: Workers AI 호출, 구조화 출력·이미지 입력·SSE·임베딩 검증.
 - `packages/b-bot-database`: 호출 단위 PostgreSQL 연결과 기존 데이터베이스 도구.
 
@@ -79,13 +80,13 @@ pnpm --filter @koin/b-bot exec wrangler secret put WEBHOOK_SECRET
 
 ## Google Meet와 Drive
 
-`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `GOOGLE_AUTH_SECRET`를 설정한다. 콜백은 `<Worker 주소>/auth/google_callback`이며 Google Cloud Console의 허용 리디렉션 URI에도 등록해야 한다. 운영에서는 HTTPS가 필요하다.
+Worker의 Google OAuth/Meet는 기존대로 유지한다. `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `GOOGLE_AUTH_SECRET`를 설정한다. 콜백은 `<Worker 주소>/auth/google_callback`이며 Google Cloud Console의 허용 리디렉션 URI에도 등록해야 한다. 운영에서는 HTTPS가 필요하다.
 
 1. `/auth/google`에 접속해 Basic 인증을 한다. 사용자 이름은 `admin`, 비밀번호는 `GOOGLE_AUTH_SECRET`이다.
 2. Google에서 Meet 생성·Drive 읽기 권한에 동의한다.
-3. 서명된 10분 상태, HttpOnly/SameSite 쿠키, PKCE를 검증하고 refresh token을 `BOT_KV`에 저장한다.
+3. 서명된 10분 상태, HttpOnly/SameSite 쿠키, PKCE를 검증하고 refresh token을 Worker의 `BOT_KV`에 저장한다.
 
-Meet 생성·종료와 Drive 읽기는 REST API를 사용한다. 기존 서버의 토큰 파일이나 파일 기반 KV는 자동 이관하지 않는다. Google 연동은 새 Worker에서 다시 인증해야 한다.
+Meet 생성·종료는 Worker의 REST API를 사용한다. Google Drive **문서 색인**은 Pi에서 실행하며, Pi에 `GOOGLE_REFRESH_TOKEN`을 별도로 안전하게 제공해야 한다([설치 안내](../b-bot-crawler/README.md)). Worker KV의 비공개 refresh token은 Pi로 자동 전송·복사하지 않는다. 기존 서버의 토큰 파일이나 파일 기반 KV도 자동 이관하지 않는다.
 
 ## DB와 예약 작업
 
@@ -99,7 +100,7 @@ pnpm --filter @koin/b-bot-database migrate
 
 마이그레이션은 SQL 파일 체크섬과 적용 이력을 기록하고 트랜잭션으로 실행한다. 기존 추적 정보가 없는 운영 스키마에 자동으로 덮어쓰지 않는다. MySQL 데이터 교체는 별도의 `import:mysql --confirm-destructive` 명령이며 테이블을 비우므로 신규 스키마 생성 명령과 혼동하지 않는다.
 
-`wrangler.jsonc`의 Cron은 초기 배포에서 비워둔다. DB와 필요한 외부 연동을 준비한 뒤에만 다음 스케줄을 활성화한다. `nitro.config.ts`의 작업 이름·Cron 표현식과 함께 맞춘다.
+`wrangler.jsonc`의 Cron은 초기 배포에서 비워둔다. DB, Pi, Cloudflare Tunnel/Access와 필요한 외부 연동을 준비하고 운영 연결을 별도 승인받은 뒤에만 다음 스케줄을 활성화한다. `nitro.config.ts`의 작업 이름·Cron 표현식과 함께 맞춘다.
 
 - 매분: `dining:deliver`. 환경별 최대 5건을 처리하고 종료한다. `DINING_WORKER_ENVS`는 명시적 opt-in이며 로컬에서는 비운다.
 - 5분마다: `bus:versionUpdate`.
@@ -107,7 +108,9 @@ pnpm --filter @koin/b-bot-database migrate
 - 월요일 18:30 UTC: `sync:notion`.
 - 매일 19:00 UTC: `sync:gdrive`.
 
-GitHub·Notion·Drive 색인은 DB와 AI 연결이 모두 필요하다. 장시간 작업에는 Cloudflare의 실행 시간·CPU·서브요청 제한이 적용된다. KOIN 운영 API 주소·서비스 토큰을 설정하기 전에는 운영 반영과 식단 전송을 활성화하지 않는다.
+문서 색인 3종은 Worker에서 크롤링하거나 임베딩하지 않는다. Worker는 HTTPS Tunnel의 정확한 origin(`B_BOT_CRAWLER_ORIGIN`)으로 `POST /jobs`를 보내고, Pi Bearer 토큰(`B_BOT_CRAWLER_TOKEN`, 32자 이상)과 Cloudflare Access 서비스 토큰(`B_BOT_CRAWLER_ACCESS_CLIENT_ID`, `B_BOT_CRAWLER_ACCESS_CLIENT_SECRET`)을 모두 제시한다. 누락·연결 실패 시 로컬 색인으로 대체하지 않는다. 10초 안에 등록 응답을 받고 종료하며 반환된 `queued`/`running`은 완료가 아니다. 같은 UTC 실행 날짜의 작업은 동일 키로 등록하고, Notion은 첫째 주 월요일 full/그 외 incremental 모드를 키에 포함한다. 수동 실행은 `idempotencyKey`와 `full`(Notion만), 필요하면 `scheduledTime`을 payload로 지정할 수 있다. Pi의 작업 상태는 인증된 `GET /jobs/:id`로 별도 확인한다.
+
+Pi에는 DB/AI 자격 증명과 GitHub·Notion·Drive 접근 정보가 별도로 필요하다. Pi Tailscale 접속정보가 아직 없으므로 실제 설치·터널/Access 생성·비밀 등록·운영 크롤링·Slack 연결 변경은 하지 않는다. 자세한 실행과 승인 절차는 [Pi 운영 안내](../b-bot-crawler/README.md)를 따른다. 원본 upstream `BCSDLab/B_BOT`의 `cf92284373d52ed39301a72a7bc576334d3025cf`에서 세 문서 색인 기능이 존재함을 확인했고, 이 변경은 색인 기능을 재작성하는 대신 실행 장소와 전송 경계만 분리한다. KOIN 운영 API 주소·서비스 토큰을 설정하기 전에는 운영 반영과 식단 전송을 활성화하지 않는다.
 
 ## Superset
 
@@ -123,6 +126,6 @@ DB 회귀 테스트는 `DB_HOST`와 `_test`로 끝나는 `DB_NAME`이 있어야 
 pnpm deploy:b-bot
 ```
 
-[앱 전용 GitHub Actions](../../.github/workflows/deploy-b-bot.yml)는 이 앱과 공용 패키지만 검증한다. 실제 배포는 `main`의 수동 실행으로 제한한다. 배포 자격 증명은 GitHub의 `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`이며 봇 실행용 Secrets는 Cloudflare에 별도로 유지한다.
+[앱 전용 GitHub Actions](../../.github/workflows/deploy-b-bot.yml)는 이 앱과 공용 패키지만 검증한다. 실제 배포는 `develop`의 수동 실행으로 제한하며, 웹·API·오류 자동화의 자동 운영 배포와 달리 B-BOT을 자동 배포하지 않는다. 배포 자격 증명은 GitHub의 `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`이며 봇 실행용 Secrets는 Cloudflare에 별도로 유지한다. GitHub Actions의 브랜치 제한이 원격에 반영됐는지는 별도로 확인한다.
 
 원본 기능 계획은 [계획서](./docs/계획서.md)와 [기능명세서](./docs/기능명세서.md)에 보존한다. 해당 문서의 서버·모델 운영 방식과 구현 예정 항목은 현재 런타임의 완료 상태를 뜻하지 않으며, 실행·배포 설정은 이 README와 코드가 기준이다.

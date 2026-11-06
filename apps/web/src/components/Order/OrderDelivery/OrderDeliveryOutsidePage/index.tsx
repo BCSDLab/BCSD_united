@@ -1,5 +1,4 @@
 import { type KeyboardEvent, useState } from 'react';
-import { isKoinError } from '@bcsdlab/koin';
 import { cn } from '@bcsdlab/utils';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
@@ -13,6 +12,7 @@ import SearchIcon from 'assets/svg/Order/Delivery/search-icon.svg';
 import DeliveryPageFrame from 'components/Order/OrderDelivery/components/DeliveryPageFrame';
 import CenterModal from 'components/Store/mobile/common/CenterModal';
 import Button from 'components/ui/Button';
+import { isKoinError } from 'interfaces/APIError';
 import ROUTES from 'static/routes';
 import showToast from 'utils/ts/showToast';
 import { useOrderStore } from 'utils/zustand/order';

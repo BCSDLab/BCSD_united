@@ -5,7 +5,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /var/lib/koin-autofix/jobs /var/lib/koin-autofix/state /opt/autofix
 COPY --from=docker-cli /usr/local/bin/docker /usr/local/bin/docker
-COPY executor.mjs executor-model.mjs verify.mjs patch.mjs common.mjs local-api.mjs smoke.mjs api-smoke.mjs security.test.mjs source-graph.mjs /opt/autofix/
+COPY executor.mjs executor-model.mjs pr-review.mjs verify.mjs patch.mjs common.mjs local-api.mjs smoke.mjs api-smoke.mjs bbot-smoke.mjs bbot-build.mjs crawler-smoke.mjs security.test.mjs source-graph.mjs workspace-typecheck.mjs /opt/autofix/
 ENV CI=true HUSKY=0 RUNNER_TEMP=/var/lib/koin-autofix/jobs
 WORKDIR /opt/autofix
 CMD ["node", "/opt/autofix/executor.mjs"]

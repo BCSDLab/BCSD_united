@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { isKoinError } from '@bcsdlab/koin';
 import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 
 import { reviewMutations } from 'api/review/mutations';
@@ -9,6 +8,7 @@ import ConfirmModal from 'components/Store/mobile/common/ConfirmModal';
 import ReviewForm from 'components/Store/mobile/ReviewFormPage/components/ReviewForm';
 import useReviewFormBase from 'components/Store/mobile/ReviewFormPage/hooks/useReviewFormBase';
 import useReviewImages from 'components/Store/mobile/ReviewFormPage/hooks/useReviewImages';
+import { isKoinError } from 'interfaces/APIError';
 import ROUTES from 'static/routes';
 import useGoBack from 'utils/hooks/routing/useGoBack';
 import showToast from 'utils/ts/showToast';

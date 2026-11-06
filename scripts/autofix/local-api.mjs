@@ -7,6 +7,20 @@ import { stripVTControlCharacters } from 'node:util';
 export const API_ORIGIN = 'http://127.0.0.1:4174';
 export const delay = (ms) => new Promise((done) => setTimeout(done, ms));
 
+// A head may ship the legacy Worker API gated off by default
+// (`"API_ENABLED": "false"` in wrangler.jsonc). Only the isolated local
+// Miniflare copies opt in, so the existing business routes stay verifiable;
+// configs without the gate are left untouched. Remote config never changes.
+const apiEnabledDisabled = '"API_ENABLED": "false"';
+const apiEnabledForced = '"API_ENABLED": "true"';
+
+/** Whether the checked-out API config declares the disabled-by-default gate. */
+export function declaresApiGate(configuration) {
+  const count = configuration.split(apiEnabledDisabled).length - 1;
+  if (configuration.includes(apiEnabledForced) || ![0, 2].includes(count))
+    throw new Error('API_ENABLED gate configuration changed; offline verification needs review');
+  return count === 2;
+}
 const instrumentedApi = `
 import worker from '../../src/index.ts';
 export * from '../../src/index.ts';
@@ -34,12 +48,22 @@ export async function prepareWebApi() {
   const original = await readFile(resolve('apps/api/wrangler.jsonc'), 'utf8');
   const main = '"main": "src/index.ts"';
   const migrations = '"migrations_dir": "drizzle"';
-  if (original.split(main).length !== 2 || original.split(migrations).length !== 3)
+  // 최상위 vars와 previews.vars 양쪽이 "false"인 배포 설정만 허용하고, 보조 Worker 사본에서만 "true"로 바꾼다.
+  if (
+    original.split(main).length !== 2 ||
+    original.split(migrations).length !== 3 ||
+    original.split(apiEnabledDisabled).length !== 3 ||
+    original.includes(apiEnabledForced)
+  )
     throw new Error('API configuration changed; offline auxiliary Worker needs review');
+  const gated = declaresApiGate(original);
   await writeFile(join(directory, 'index.mjs'), instrumentedApi);
   await writeFile(
     join(directory, 'wrangler.jsonc'),
-    original.replace(main, '"main": "index.mjs"').replaceAll(migrations, '"migrations_dir": "../../drizzle"'),
+    original
+      .replace(main, '"main": "index.mjs"')
+      .replaceAll(migrations, '"migrations_dir": "../../drizzle"')
+      .replaceAll(apiEnabledDisabled, gated ? apiEnabledForced : apiEnabledDisabled),
   );
 }
 
@@ -128,7 +152,17 @@ export async function readJsonResponse(url) {
   return response.json();
 }
 
-export async function startLocalApi() {
+/**
+ * Starts the isolated local API Worker. With `gate: 'enabled'` (default) the
+ * local process is always opted in via `--var API_ENABLED:true` (a no-op for a
+ * config without the gate, the only way a gated head serves business routes)
+ * and readiness means the real `/health` ok body; with `gate: 'disabled'` a
+ * gated config is left at its default so readiness means the gate's own 503
+ * `API_DISABLED` answer, proving the disabled flag path without business IO.
+ */
+export async function startLocalApi({ gate = 'enabled' } = {}) {
+  const gated = declaresApiGate(await readFile(resolve('apps/api/wrangler.jsonc'), 'utf8'));
+  if (gate === 'disabled' && !gated) throw new Error('API config declares no API_ENABLED gate to exercise');
   const registry = await mkdtemp(join(tmpdir(), 'autofix-worker-registry-'));
   const env = {
     ...process.env,
@@ -165,6 +199,7 @@ export async function startLocalApi() {
     }
     const entry = join(entryDirectory, 'index.mjs');
     await writeFile(entry, instrumentedApi);
+    // `--var`는 이 로컬 wrangler dev 프로세스의 env에만 적용된다(DO·Queue 핸들러 포함).
     runtime = startProcess(
       'pnpm',
       [
@@ -183,6 +218,7 @@ export async function startLocalApi() {
         '9230',
         '--persist-to',
         persistence,
+        ...(gate === 'enabled' ? ['--var', 'API_ENABLED:true'] : []),
       ],
       env,
     );
@@ -190,8 +226,12 @@ export async function startLocalApi() {
       runtime.assertRunning();
       try {
         const response = await fetch(`${API_ORIGIN}/health`, { signal: AbortSignal.timeout(1000), redirect: 'error' });
-        const health = response.ok ? await response.json() : null;
-        if (health?.status === 'ok' && health.service === 'koin-api') {
+        const json = response.headers.get('content-type')?.includes('application/json') ? await response.json() : null;
+        const ready =
+          gate === 'disabled'
+            ? response.status === 503 && json?.code === 'API_DISABLED' && response.headers.get('retry-after')
+            : response.ok && json?.status === 'ok' && json.service === 'koin-api';
+        if (ready) {
           return {
             ...runtime,
             env,
@@ -203,7 +243,11 @@ export async function startLocalApi() {
               ].filter((match) => (path ? match[1] === path : match[1] !== '/health')).length,
             assertHealthy: () => {
               runtime.assertRunning();
-              if (/\[ERROR\]|uncaught|unhandled rejection|AUTOFIX_API_REQUEST \S+ \S+ [45]\d{2}\b/i.test(runtime.log))
+              const httpErrors =
+                gate === 'disabled'
+                  ? /AUTOFIX_API_REQUEST \S+ \S+ (?!503\b)[45]\d{2}\b/i
+                  : /AUTOFIX_API_REQUEST \S+ \S+ [45]\d{2}\b/i;
+              if (/\[ERROR\]|uncaught|unhandled rejection/i.test(runtime.log) || httpErrors.test(runtime.log))
                 throw new Error(`Local API emitted runtime or HTTP errors\n${runtime.log.slice(-8000)}`);
             },
             cleanup: async () => {

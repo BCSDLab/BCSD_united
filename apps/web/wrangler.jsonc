@@ -4,6 +4,7 @@
   "main": "src/server.ts",
   "workers_dev": true,
   "preview_urls": true,
+  "routes": [{ "pattern": "koreatech.in", "custom_domain": true, "previews_enabled": true }],
   "compatibility_date": "2026-10-26",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "upload_source_maps": true,
@@ -25,19 +26,13 @@
   "tail_consumers": [{ "service": "bcsd-error-automation" }],
   "vars": {
     "KOIN_ENVIRONMENT": "main",
-    "KOIN_API_ORIGIN": "https://koin-api.bcsdlab.workers.dev",
+    "KOIN_API_ORIGIN": "https://api.koreatech.in",
     "NEXT_PUBLIC_SENTRY_ENVIRONMENT": "production",
   },
-  "services": [
-    {
-      "binding": "KOIN_API",
-      "service": "koin-api",
-    },
-  ],
   "previews": {
     "vars": {
       "KOIN_ENVIRONMENT": "preview",
-      "KOIN_API_ORIGIN": "https://preview-koin-api.bcsdlab.workers.dev",
+      "KOIN_API_ORIGIN": "https://api.stage.koreatech.in",
       "NEXT_PUBLIC_SENTRY_ENVIRONMENT": "preview",
     },
     "images": {

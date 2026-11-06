@@ -21,6 +21,7 @@ registerHooks({
   },
 });
 const { default: worker, ErrorIssueDispatch } = await import('../src/index.ts');
+const nativeFetch = globalThis.fetch;
 const sentrySecret = 'local-test-only-sentry-secret';
 const cfAccount = 'abe06b869950de952decf9df29c6f1a3';
 const cfPolicy = '3bcbfa2a0c04416ca7e3da038f77ac37';
@@ -104,6 +105,9 @@ function harness(t) {
             queue.set(key, item);
             return 'queued';
           },
+          async errorStatus() {
+            return null;
+          },
           async claim() {
             return null;
           },
@@ -139,9 +143,13 @@ function harness(t) {
       },
     },
   };
-  const nativeFetch = globalThis.fetch;
+  // Module-level nativeFetch: several harnesses in one test must not chain or leak mocks.
   let mocked = false;
-  async function seedTail(workerName = 'koin-api') {
+  const occurrenceHost = {};
+  const capturedEvidence = { stack: undefined, telemetryEventId: 'captured-error-event', scheme: 'https' };
+  const compiled = 'function handler() {}\n//# sourceMappingURL=handler.js.map';
+  async function seedTail(workerName = 'koin-api', host = `${workerName}.bcsdlab.workers.dev`, sourceFormat = 'full') {
+    occurrenceHost[workerName] = host;
     if (!mocked) {
       mocked = true;
       globalThis.fetch = async (input, init) => {
@@ -158,10 +166,12 @@ function harness(t) {
             success: true,
             result: [
               {
+                id: 'captured-error-event',
+                ...(capturedEvidence.stack ? { error: { stack: capturedEvidence.stack } } : {}),
                 timestamp: Date.now(),
                 worker: { scriptName: project, scriptVersion: { id: cfVersion } },
                 invocation: {
-                  url: `https://${project}.bcsdlab.workers.dev/campus`,
+                  url: `${capturedEvidence.scheme}://${occurrenceHost[project] ?? `${project}.bcsdlab.workers.dev`}/campus`,
                   method: 'GET',
                   path: '/campus',
                   rayId,
@@ -172,7 +182,36 @@ function harness(t) {
           });
         }
         if (url.pathname.endsWith(`/versions/${cfVersion}`))
-          return Response.json({ success: true, result: { id: cfVersion } });
+          return Response.json({
+            success: true,
+            result: {
+              id: cfVersion,
+              ...(url.searchParams.get('include') === 'modules'
+                ? {
+                    modules: [{ name: 'assets/handler.js', content_base64: Buffer.from(compiled).toString('base64') }],
+                  }
+                : {}),
+            },
+          });
+        if (url.pathname.endsWith('/scripts/koin-web') && url.searchParams.get('deployment') === cfVersion) {
+          const parts = new FormData();
+          parts.set(
+            'assets/handler.js',
+            new Blob([compiled], { type: 'application/javascript+module' }),
+            'assets/handler.js',
+          );
+          parts.set(
+            'assets/handler.js.map',
+            JSON.stringify({
+              version: 3,
+              file: 'assets/handler.js',
+              sources: ['src/handler.ts'],
+              names: [],
+              mappings: 'AAWE',
+            }),
+          );
+          return new Response(parts);
+        }
         if (url.pathname.endsWith('/telemetry/query')) {
           const query = JSON.parse(init.body);
           const project = query.parameters.filters.find((filter) => filter.key === '$metadata.service').value;
@@ -184,6 +223,7 @@ function harness(t) {
                 events: [
                   {
                     $metadata: {
+                      id: capturedEvidence.telemetryEventId,
                       account: cfAccount,
                       service: project,
                       traceId: 'c'.repeat(32),
@@ -212,12 +252,15 @@ function harness(t) {
           event: {
             request: {
               method: 'GET',
-              url: `https://${workerName}.bcsdlab.workers.dev/campus?private=sensitive`,
+              url: `https://${host}/campus?private=sensitive`,
               headers: { 'cf-ray': `${rayId}-ICN`, cookie: 'sensitive' },
             },
           },
           exceptions: [
-            { name: 'TypeError', stack: `TypeError: sensitive\\n at handler (apps/${app}/src/handler.ts:12:3)` },
+            {
+              name: 'TypeError',
+              stack: `TypeError: sensitive\n at handler (${sourceFormat === 'bundle' ? 'assets/handler.js:1:1' : `${sourceFormat === 'relative' ? 'src' : `apps/${app}/src`}/handler.ts:12:3`})`,
+            },
           ],
           logs: [],
         },
@@ -226,10 +269,14 @@ function harness(t) {
     );
     const stub = env.ERROR_ISSUES.get(env.ERROR_ISSUES.idFromName(`tail/${workerName}/${rayId}`));
     const storedTail = await stub.fetch('https://error-dispatch.internal/tail');
-    assert.equal(storedTail.status, 200);
+    if (storedTail.status !== 200) return false;
     const persisted = await storedTail.text();
     assert.equal(persisted.includes('sensitive'), false);
-    assert.equal(JSON.parse(persisted).frames[0].path, `apps/${app}/src/handler.ts`);
+    assert.equal(
+      JSON.parse(persisted).frames[0].path,
+      sourceFormat === 'bundle' ? 'assets/handler.js' : `apps/${app}/src/handler.ts`,
+    );
+    return true;
   }
   t.after(() => {
     if (mocked) globalThis.fetch = nativeFetch;
@@ -242,6 +289,8 @@ function harness(t) {
     instances,
     databases,
     queue,
+    occurrenceHost,
+    capturedEvidence,
     seedTail,
     send: (request) => worker.fetch(request, env),
     restartObjects: () => instances.clear(),
@@ -337,6 +386,57 @@ test('dedicated executor polling requires scoped token and fixed Rocky identity'
     ).status,
     409,
   );
+});
+
+test('model route maps only a structurally reconstructed ModelRateLimited to 429 with Retry-After', async (t) => {
+  const h = harness(t);
+  const actual = h.env.AUTOFIX_QUEUE.getByName('bcsdlab/bcsd_united');
+  let thrown;
+  h.env.AUTOFIX_QUEUE.getByName = () => ({
+    ...actual,
+    async model() {
+      throw thrown;
+    },
+  });
+  const body = {
+    version: 1,
+    executorId: 'koin-rocky-umpc',
+    leaseToken: 'b'.repeat(64),
+    model: 'claude-sonnet-5-5',
+    maxTokens: 4096,
+    tools: ['Read', 'Edit', 'Write', 'Glob', 'Grep'],
+    messages: [{ role: 'user', content: 'Read observed source' }],
+  };
+  const send = () =>
+    h.send(executor('/executor/jobs/autofix-' + 'a'.repeat(64) + '/model', h.env.AUTOFIX_EXECUTOR_TOKEN, body));
+  // RPC keeps name and serializable own fields of the queue's error but never its prototype.
+  thrown = Object.assign(new Error('Anthropic rate limited fixed model invocation; retry after 7s'), {
+    name: 'ModelRateLimited',
+    retryAfterSeconds: 7,
+  });
+  let response = await send();
+  assert.equal(response.status, 429);
+  assert.equal(response.headers.get('Retry-After'), '7');
+  assert.equal(response.headers.get('Cache-Control'), 'no-store');
+  const json = await response.json();
+  assert.equal(json.retryAfterSeconds, 7);
+  assert.equal(typeof json.error, 'string');
+  assert.equal(JSON.stringify(json).includes('Anthropic'), false);
+  for (const bad of [
+    Object.assign(new Error('forged'), { name: 'ModelRateLimited' }),
+    Object.assign(new Error('forged'), { name: 'ModelRateLimited', retryAfterSeconds: '7' }),
+    Object.assign(new Error('forged'), { name: 'ModelRateLimited', retryAfterSeconds: 0 }),
+    Object.assign(new Error('forged'), { name: 'ModelRateLimited', retryAfterSeconds: 3601 }),
+    new Error('Anthropic declined fixed model invocation (429)'),
+    new Error('Anthropic declined fixed model invocation (401)'),
+  ]) {
+    thrown = bad;
+    response = await send();
+    assert.equal(response.status, 503);
+    assert.equal(response.headers.get('Retry-After'), '30');
+  }
+  thrown = new Error('Expired or invalid executor lease');
+  assert.equal((await send()).status, 409);
 });
 
 test('authenticated Cloudflare exact provision probe returns 204 without queue admission', async (t) => {
@@ -608,6 +708,123 @@ test('one provider policy keeps web and API issue identities separate', async (t
   assert.equal((await ambiguous.send(cloudflareRequest(ambiguous))).status, 503);
 });
 
+test('app-relative mapped Tail evidence reaches the queue for the authenticated production issue', async (t) => {
+  const h = harness(t);
+  const web = cloudflare({
+    data: { issue: { id: 'e'.repeat(32), services: [{ name: 'koin-web', type: 'worker' }] } },
+  });
+  assert.equal(await h.seedTail('koin-web', 'koreatech.in', 'relative'), true);
+  assert.equal((await h.send(cloudflareRequest(h, web))).status, 200);
+  assert.deepEqual(
+    [...h.queue.values()],
+    [
+      {
+        source: 'cloudflare',
+        sourceId: 'e'.repeat(32),
+        project: 'koin-web',
+        app: 'web',
+        scope: { accountId: cfAccount, policyId: cfPolicy, workerName: 'koin-web' },
+      },
+    ],
+  );
+});
+
+test('bundled Tail locations require the pinned map before the production issue reaches the queue', async (t) => {
+  const h = harness(t);
+  const web = cloudflare({
+    data: { issue: { id: 'e'.repeat(32), services: [{ name: 'koin-web', type: 'worker' }] } },
+  });
+  assert.equal(await h.seedTail('koin-web', 'koreatech.in', 'bundle'), true);
+  assert.equal((await h.send(cloudflareRequest(h, web))).status, 200);
+  const response = await h.send(
+    diagnosticRequest(h, {
+      id: 'e'.repeat(32),
+      query: `project=koin-web&accountId=${cfAccount}&policyId=${cfPolicy}&workerName=koin-web`,
+    }),
+  );
+  const diagnostic = await response.json();
+  assert.deepEqual(diagnostic.details.verifiedEvidence.data.sourceFrames, [
+    { path: 'apps/web/src/handler.ts', line: 12, column: 3 },
+  ]);
+  assert.equal(h.queue.size, 1);
+});
+
+test('historical canonical error recovers missing Tail only with the identical telemetry event and pinned source', async (t) => {
+  const web = cloudflare({
+    data: { issue: { id: 'e'.repeat(32), services: [{ name: 'koin-web', type: 'worker' }] } },
+  });
+  const setup = async () => {
+    const h = harness(t);
+    await h.seedTail('koin-web', 'koreatech.in', 'bundle');
+    h.databases
+      .get(`tail/koin-web/${'a'.repeat(16)}`)
+      .prepare('DELETE FROM tail_evidence')
+      .run();
+    h.capturedEvidence.stack = 'at handler (assets/handler.js:1:1)';
+    return h;
+  };
+  const accepted = await setup();
+  assert.equal((await accepted.send(cloudflareRequest(accepted, web))).status, 200);
+  assert.equal(accepted.queue.size, 1);
+  const diagnostic = await (
+    await accepted.send(
+      diagnosticRequest(accepted, {
+        id: 'e'.repeat(32),
+        query: `project=koin-web&accountId=${cfAccount}&policyId=${cfPolicy}&workerName=koin-web`,
+      }),
+    )
+  ).json();
+  assert.equal(diagnostic.details.verifiedEvidence.data.evidenceSource, 'canonical-occurrence-and-telemetry');
+  assert.deepEqual(diagnostic.details.verifiedEvidence.data.sourceFrames, [
+    { path: 'apps/web/src/handler.ts', line: 12, column: 3 },
+  ]);
+
+  const wrongEvent = await setup();
+  wrongEvent.capturedEvidence.telemetryEventId = 'different-event-in-the-same-trace';
+  assert.equal((await wrongEvent.send(cloudflareRequest(wrongEvent, web))).status, 503);
+  assert.equal(wrongEvent.queue.size, 0);
+  for (const [scheme, host] of [
+    ['https', 'koreatech.in:8443'],
+    ['http', 'koreatech.in'],
+    ['https', 'stage.koreatech.in'],
+  ]) {
+    const wrongOrigin = await setup();
+    wrongOrigin.capturedEvidence.scheme = scheme;
+    wrongOrigin.occurrenceHost['koin-web'] = host;
+    assert.equal((await wrongOrigin.send(cloudflareRequest(wrongOrigin, web))).status, 503);
+    assert.equal(wrongOrigin.queue.size, 0);
+  }
+});
+
+test('koin-web custom domain koreatech.in is accepted exactly; unrelated hosts never admit a job', async (t) => {
+  const web = cloudflare({
+    data: { issue: { id: 'e'.repeat(32), services: [{ name: 'koin-web', type: 'worker' }] } },
+  });
+  const accepted = harness(t);
+  assert.equal(await accepted.seedTail('koin-web', 'koreatech.in'), true);
+  assert.equal((await accepted.send(cloudflareRequest(accepted, web))).status, 200);
+  assert.equal(accepted.queue.size, 1);
+
+  for (const host of ['www.koreatech.in', 'stage.koreatech.in', 'api.koreatech.in', 'koreatech.in.attacker.example']) {
+    const rejected = harness(t);
+    assert.equal(await rejected.seedTail('koin-web', host), false, host);
+    assert.equal((await rejected.send(cloudflareRequest(rejected, web))).status, 503, host);
+    assert.equal(rejected.queue.size, 0, host);
+  }
+
+  // Genuine Tail on the custom domain but canonical occurrence on another host: evidence disagrees.
+  const mismatch = harness(t);
+  assert.equal(await mismatch.seedTail('koin-web', 'koreatech.in'), true);
+  mismatch.occurrenceHost['koin-web'] = 'www.koreatech.in';
+  assert.equal((await mismatch.send(cloudflareRequest(mismatch, web))).status, 503);
+  assert.equal(mismatch.queue.size, 0);
+
+  // The API Worker never gains the web custom domain.
+  const api = harness(t);
+  assert.equal(await api.seedTail('koin-api', 'koreatech.in'), false);
+  assert.equal((await api.send(cloudflareRequest(api))).status, 503);
+});
+
 test('missing mapped Tail context does not admit a job or create a failed tombstone', async (t) => {
   const h = harness(t);
   const scopedToken = h.env.CLOUDFLARE_DIAGNOSTICS_TOKEN;
@@ -646,6 +863,16 @@ test('diagnostic retrieval authenticates exact scope, hides private fields, and 
     },
   });
   assert.equal((await h.send(cloudflareRequest(h, data))).status, 200);
+  let receiptReads = 0;
+  const queue = h.env.AUTOFIX_QUEUE.getByName('bcsdlab/bcsd_united');
+  h.env.AUTOFIX_QUEUE.getByName = () => ({
+    ...queue,
+    async errorStatus(key) {
+      receiptReads++;
+      assert.equal(key, `cloudflare/${cfAccount}/${cfPolicy}/koin-api/${'d'.repeat(32)}`);
+      return { status: 'completed', outcome: 'wont-fix', reason: 'No safe fix', prUrl: null };
+    },
+  });
   for (const token of ['', 'wrong', h.env.CLOUDFLARE_WEBHOOK_SECRET])
     assert.equal((await h.send(diagnosticRequest(h, { token }))).status, 401);
   assert.equal(
@@ -660,10 +887,13 @@ test('diagnostic retrieval authenticates exact scope, hides private fields, and 
   );
   assert.equal((await h.send(diagnosticRequest(h, { query: 'project=koin-api&project=foreign' }))).status, 400);
   assert.equal((await h.send(diagnosticRequest(h, { id: '9'.repeat(32) }))).status, 404);
+  assert.equal(receiptReads, 0);
   const response = await h.send(diagnosticRequest(h));
   assert.equal(response.headers.get('Cache-Control'), 'no-store');
   assert.equal(response.headers.get('Access-Control-Allow-Origin'), null);
   const captured = await response.json();
+  assert.equal(captured.disposition.outcome, 'wont-fix');
+  assert.equal(receiptReads, 1);
   assert.equal(captured.summary.length <= 4096, true);
   assert.deepEqual(Object.keys(captured.details).sort(), ['alertType', 'data', 'timestamp', 'verifiedEvidence']);
   assert.equal(captured.details.data.request, undefined);
@@ -687,6 +917,7 @@ test('diagnostic retrieval authenticates exact scope, hides private fields, and 
   assert.equal(Buffer.byteLength(stored) <= 16 * 1024, true);
   db.prepare('UPDATE dispatch SET expires_at = 0').run();
   assert.equal((await h.send(diagnosticRequest(h))).status, 404);
+  assert.equal(receiptReads, 1);
   await h.runAlarms();
   assert.equal(db.prepare('SELECT diagnostic FROM dispatch').get().diagnostic, null);
   h.restartObjects();
@@ -699,8 +930,18 @@ test('unconfigured provider and executor secrets fail closed while exact authent
   h.env.SENTRY_PROJECT_APPS = '';
   assert.equal((await h.send(signed())).status, 503);
   h.env.SENTRY_PROJECT_APPS = '{"koin-united-prod":"web"}';
+  const executorToken = h.env.AUTOFIX_EXECUTOR_TOKEN;
   h.env.AUTOFIX_EXECUTOR_TOKEN = '';
   assert.equal((await h.send(signed())).status, 503);
+  h.env.AUTOFIX_EXECUTOR_TOKEN = executorToken;
+  // A gateway token without its origin (or vice versa) is a deployment defect, never a silent API-key fallback.
+  h.env.OMP_GATEWAY_TOKEN = 'local-gateway-bearer-0123456789abcdef';
+  assert.equal((await h.send(signed())).status, 503);
+  delete h.env.OMP_GATEWAY_TOKEN;
+  h.env.OMP_GATEWAY_ORIGIN = 'https://bridge.example/v1';
+  assert.equal((await h.send(signed())).status, 503);
+  delete h.env.OMP_GATEWAY_ORIGIN;
+  h.env.AUTOFIX_EXECUTOR_TOKEN = '';
   assert.equal(
     (
       await h.send(
