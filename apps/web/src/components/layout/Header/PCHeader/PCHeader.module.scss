@@ -13,13 +13,13 @@
     font-size: 15px;
     font-weight: 500;
     line-height: 1.6;
-    color: #727272;
 
     & > a {
       color: inherit;
     }
 
-    &:last-child > a {
+    &:last-child > a,
+    &:last-child > button {
       display: block;
       padding: 7px 14px 8px;
       border-radius: 9999px;

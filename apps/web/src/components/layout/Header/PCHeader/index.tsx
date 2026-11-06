@@ -87,7 +87,7 @@ export default function PCHeader({ openModal }: PCHeaderProps) {
     }
   };
 
-  const escapeByheader = (title: string) => {
+  const escapeByheader = (title: '정보수정' | '로그아웃') => {
     if (pathname === ROUTES.GraduationCalculator()) {
       logger.actionEventClick({
         team: 'USER',
@@ -118,6 +118,7 @@ export default function PCHeader({ openModal }: PCHeaderProps) {
 
   const handleMenuKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
     if (event.key === 'Escape') {
+      event.currentTarget.ownerDocument.getElementById(`megamenu-label-${activeCategoryIndex}`)?.focus();
       setActiveCategory(null);
     }
   };
@@ -134,7 +135,11 @@ export default function PCHeader({ openModal }: PCHeaderProps) {
             setActiveCategory(null);
           }
         }}
-        onMouseLeave={() => setActiveCategory(null)}
+        onMouseLeave={(event) => {
+          if (!event.currentTarget.contains(event.currentTarget.ownerDocument.activeElement)) {
+            setActiveCategory(null);
+          }
+        }}
       >
         <ul className={styles['megamenu__trigger-list']}>
           {DESKTOP_NAVIGATION.map((category, index) => (
@@ -176,6 +181,8 @@ export default function PCHeader({ openModal }: PCHeaderProps) {
                     <a
                       className={styles.megamenu__link}
                       href={href}
+                      target={menu.openInNewTab ? '_blank' : undefined}
+                      rel={menu.openInNewTab ? 'noopener noreferrer' : undefined}
                       onClick={(e) => handleMenuClick(e, menu.title)}
                       onKeyDown={handleMenuKeyDown}
                     >
@@ -186,6 +193,8 @@ export default function PCHeader({ openModal }: PCHeaderProps) {
                       className={styles.megamenu__link}
                       to={href}
                       preload={false}
+                      target={menu.openInNewTab ? '_blank' : undefined}
+                      rel={menu.openInNewTab ? 'noopener noreferrer' : undefined}
                       onClick={(e) => handleMenuClick(e, menu.title)}
                       onKeyDown={handleMenuKeyDown}
                     >
