@@ -45,6 +45,11 @@ const TRUSTED_FILES = [
 const PR_REF = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$/;
 const RUN_ID = /^autofix-[a-f0-9]{64}$/;
 const TOKEN = /^[a-f0-9]{64}$/;
+const DECIMAL_ID = /^[1-9][0-9]{0,39}$/;
+const SENTRY_SLUG = /^[a-z0-9][a-z0-9_-]{0,99}$/;
+const WORKER_NAME = /^[a-z0-9][a-z0-9_-]{0,62}$/;
+const CF_ID = /^[a-f0-9]{32}$/;
+const DOMAIN = new Set(['캠퍼스', '비즈니스', '유저', '공통']);
 const MAX_BODY = 1_300_000;
 const HEARTBEAT_MS = 45_000;
 const HEARTBEAT_TIMEOUT_MS = 30_000;
@@ -187,17 +192,65 @@ async function post(cfg, path, body, signal, max = MAX_BODY) {
   return response;
 }
 
+function exactKeys(value, keys) {
+  return (
+    value !== null && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).sort().join(',') === keys
+  );
+}
+
+function validIdentity(identity) {
+  if (!exactKeys(identity, 'app,project,scope,source,sourceId')) return false;
+  if (identity.source === 'sentry')
+    return (
+      typeof identity.sourceId === 'string' &&
+      DECIMAL_ID.test(identity.sourceId) &&
+      typeof identity.project === 'string' &&
+      SENTRY_SLUG.test(identity.project) &&
+      identity.app === 'web' &&
+      exactKeys(identity.scope, 'organization') &&
+      typeof identity.scope.organization === 'string' &&
+      SENTRY_SLUG.test(identity.scope.organization)
+    );
+  if (identity.source === 'cloudflare')
+    return (
+      typeof identity.sourceId === 'string' &&
+      CF_ID.test(identity.sourceId) &&
+      typeof identity.project === 'string' &&
+      WORKER_NAME.test(identity.project) &&
+      ['web', 'api'].includes(identity.app) &&
+      exactKeys(identity.scope, 'accountId,policyId,workerName') &&
+      typeof identity.scope.accountId === 'string' &&
+      CF_ID.test(identity.scope.accountId) &&
+      typeof identity.scope.policyId === 'string' &&
+      CF_ID.test(identity.scope.policyId) &&
+      identity.scope.workerName === identity.project
+    );
+  return false;
+}
+
+function errorBranch(identity) {
+  const key =
+    identity.source === 'sentry'
+      ? `sentry/${identity.scope.organization}/${identity.project}/${identity.sourceId}`
+      : `cloudflare/${identity.scope.accountId}/${identity.scope.policyId}/${identity.project}/${identity.sourceId}`;
+  return `fix/${identity.source}-${createHash('sha256').update(key).digest('hex')}`;
+}
+
 function errorJob(job) {
   return (
+    exactKeys(job, 'baseBranch,baseSha,branch,context,diagnostics,domain,identity,owner,repository') &&
+    validIdentity(job.identity) &&
+    job.branch === errorBranch(job.identity) &&
+    job.baseBranch === 'develop' &&
+    DOMAIN.has(job.domain) &&
     SHA.test(job.baseSha) &&
     ['web', 'api'].includes(job.context?.app) &&
-    job.context.app === job.identity?.app &&
+    exactKeys(job.context, 'app,requestMethod,route') &&
+    job.context.app === job.identity.app &&
     job.context.requestMethod === 'GET' &&
     typeof job.context.route === 'string' &&
     /^\/[A-Za-z0-9_/-]*$/.test(job.context.route) &&
     !job.context.route.startsWith('//') &&
-    Number.isSafeInteger(job.issueNumber) &&
-    job.issueNumber >= 1 &&
     !!job.diagnostics &&
     typeof job.diagnostics === 'object' &&
     !Array.isArray(job.diagnostics) &&

@@ -21,7 +21,7 @@
 | `SENTRY_ORGANIZATION` / `SENTRY_PROJECT_APPS` | 허용 조직과 `{"koin-united-prod":"web","koin-united-preview":"web"}`처럼 브라우저 프로젝트만 매핑                                            |
 | `SENTRY_PROJECT_HOSTS`                        | `koreatech.in`/`stage.koreatech.in`과 `koin-web.bcsdlab.workers.dev`/`stage-koin-web.bcsdlab.workers.dev`만 각 프로젝트의 경로 호스트로 허용 |
 | `CLOUDFLARE_SOURCES`                          | 실제 Issues policy의 accountId/policyId/workerName/app 정확한 매핑. 고정 계정의 `koin-web`/`koin-api`만 등록; 미설정이면 `[]`                |
-| `ERROR_PROJECT_DOMAINS`                       | 프로젝트별 GitHub 이슈 제목 분류. 허용 값은 `캠퍼스`, `비즈니스`, `유저`, `공통`                                                             |
+| `ERROR_PROJECT_DOMAINS`                       | 프로젝트별 GitHub PR 제목 분류. 허용 값은 `캠퍼스`, `비즈니스`, `유저`, `공통`                                                               |
 | `AUTOFIX_EXECUTOR_ID`                         | `koin-rocky-umpc`만 허용. 이벤트나 요청 본문에서 변경 불가                                                                                   |
 | `PR_REVIEW_ENABLED`                           | 기본 `"false"`. 정확히 문자열 `"true"`일 때만 `/executor/pull-requests/*` 입력을 받는다                                                      |
 | `PR_REVIEW_ALLOWED_PRS`                       | 기본 `""`. 쉼표로 구분한 명시적 PR 번호만 리뷰 대상. 비어 있으면 어떤 PR도 받지 않는다                                                       |
@@ -85,7 +85,7 @@ URL은 `https://<운영 호스트>/webhooks/sentry`이다. 정확한 요청 바�
 
 ## 진단 보관과 아웃바운드 실행 계약
 
-웹훅 인증·고정 account/policy/단일 Worker·canonical 이슈 ID를 검증한 뒤에만 진단을 검토한다. Cloudflare native 알림은 summary만 포함하며 route/소스 프레임을 직접 주지 않는다. 고정 BCSD account의 Issues occurrence read(GET, 현재 대시보드에서 관찰한 beta/비공개 계약), 공식 Workers Observability telemetry query, 정확한 Worker script version metadata와 두 Worker의 Tail 증거를 서로 비교한다. Tail은 `cf-ray`, Worker, 버전, GET, 고정 production hostname/path와 **Cloudflare가 source-map으로 매핑한 앱 소스 위치만** 7일간 전용 DO에 남기고 요청 헤더·본문·쿼리·원문 로그/스택을 저장하지 않는다. 올바른 route/버전/매핑된 `apps/<app>/src` 프레임이 없거나 조회 API 계약이 바뀌면 503으로 재시도를 요청하며 큐·공개 GitHub 이슈를 생성하지 않는다. 기존 이슈의 삭제된 버전에 현재 버전 소스맵을 대입하지 않는다. GitHub issue는 진단 증거 확인 **이후**에만 만든다.
+웹훅 인증·고정 account/policy/단일 Worker·canonical 이슈 ID를 검증한 뒤에만 진단을 검토한다. Cloudflare native 알림은 summary만 포함하며 route/소스 프레임을 직접 주지 않는다. 고정 BCSD account의 Issues occurrence read(GET, 현재 대시보드에서 관찰한 beta/비공개 계약), 공식 Workers Observability telemetry query, 정확한 Worker script version metadata와 두 Worker의 Tail 증거를 서로 비교한다. Tail은 `cf-ray`, Worker, 버전, GET, 고정 production hostname/path와 **Cloudflare가 source-map으로 매핑한 앱 소스 위치만** 7일간 전용 DO에 남기고 요청 헤더·본문·쿼리·원문 로그/스택을 저장하지 않는다. 올바른 route/버전/매핑된 `apps/<app>/src` 프레임이 없거나 조회 API 계약이 바뀌면 503으로 재시도를 요청하며 큐에 넣지 않는다. 기존 이슈의 삭제된 버전에 현재 버전 소스맵을 대입하지 않는다. 오류 모드에서는 GitHub 이슈를 생성·검색하거나 댓글을 게시하지 않는다.
 
 Tail과 canonical occurrence의 route 호스트는 Worker별 정확한 목록만 허용한다: `koin-web`은 `koin-web.bcsdlab.workers.dev`와 운영 커스텀 도메인 `koreatech.in`(정확히 이 호스트, https, 포트/userinfo 없음), `koin-api`는 `koin-api.bcsdlab.workers.dev`뿐이다. `www.`/`stage.` 같은 wildcard나 `api.koreatech.in`은 Worker 신원 호스트로 추가하지 않으며, Tail 호스트와 occurrence 호스트가 서로 다른 허용 호스트여도 route 경로는 같아야 한다. 이는 DNS/커스텀 도메인 전환 자체가 아니라 전환 이후 증거 수용 범위이다.
 
@@ -99,7 +99,9 @@ Rocky/UMPC의 전용 실행기는 고정 HTTPS Worker origin으로 `X-Executor-I
 
 omp gateway가 429 `rate_limit_error`를 돌려주면 Worker는 본문을 읽기 전에 `retry-after` 헤더를 확인한다. [Anthropic 문서](https://platform.claude.com/docs/en/api/rate-limits)대로 이 헤더는 기다릴 초이며, 음이 아닌 십진수(소수는 올림, 서버가 `0`이면 최소 1초, 최대 3600초)일 때만 신뢰한다. HTTP-date·부호·지수·3600 초과 값은 무효다. 유효한 헤더가 있고 `error.details.error_code`가 `enforced_spend_limit_reached`가 아닐 때만 큐 DO가 `ModelRateLimited`(`name`, 정수 `retryAfterSeconds`)를 던지고, Worker는 RPC 경계를 넘어 재구성된 이 오류를 `instanceof`가 아니라 `name === 'ModelRateLimited'`와 정수 `retryAfterSeconds`(1~3600)로 구조적으로 판별해 `429` + `Retry-After: <정수 초>` + `Cache-Control: no-store` + `{error, retryAfterSeconds}`로 응답한다. 헤더가 없거나 무효한 429(현재 stdio 브리지는 헤더를 전달하지 않으므로 항상 이 경우다), 지출 한도 429(헤더가 위조돼도), 401/403/400/502/503/529, 리다이렉트는 일반 503으로 종결되며 지연을 추정하지 않는다. 429로 끝난 요청도 job의 호출 횟수와 예약된 입력/출력 예산을 그대로 소비하고 generation 창·lease는 바뀌지 않는다. 로그에는 HTTP 상태, 허용 목록의 `error.type`/`error_code`(그 밖의 코드는 `unlisted`), 계산된 `retryAfterSeconds`, `retryable`만 남기고 provider 원문 메시지·request id·토큰은 남기지 않는다. 실행기는 같은 요청을 `Retry-After` 이상 기다린 뒤 남은 generation 창과 호출 예산 안에서만 다시 보내며, 422는 재시도하지 않는다.
 
-`POST /executor/jobs/<runId>/verification-start`는 generation을 원자적으로 닫고 별도 검증 단계로 전환한다. 이후 모델 요청은 거부한다. 실행기는 독립적인 새 검증 작업공간과 격리된 disposable Docker 실행으로 실제 수정 전 assertion 실패/수정 후 통과, 필수 native/security suites, 타입/lint/build, API+D1/SSR/Chromium(390px 포함)을 확인한다. `POST /executor/jobs/<runId>/result`의 성공은 lease+base SHA+manifest SHA256+정확한 필수 check 목록과 verified manifest bytes가 일치할 때만 PR 발행으로 이어진다. 모델 발언이나 빈 patch를 검증 완료로 처리하지 않는다. 고정 기본 브랜치가 전진하면 발행하지 않고, 기존 브랜치/PR을 덮어쓰거나 자동 merge/배포하지 않는다. 증거가 없는 제공자 이벤트는 공개 이슈 자체를 만들지 않고, 증거를 통과한 뒤 실행 중 실패한 작업만 기존 이슈에 사실을 남긴다.
+`POST /executor/jobs/<runId>/verification-start`는 generation을 원자적으로 닫고 별도 검증 단계로 전환한다. 이후 모델 요청은 거부한다. 실행기는 독립적인 새 검증 작업공간과 격리된 disposable Docker 실행으로 실제 수정 전 assertion 실패/수정 후 통과, 필수 native/security suites, 타입/lint/build, API+D1/SSR/Chromium(390px 포함)을 확인한다. `POST /executor/jobs/<runId>/result`의 성공은 lease+base SHA+manifest SHA256+정확한 필수 check 목록과 verified manifest bytes가 일치할 때만 **이슈 없이 직접 PR 발행**으로 이어진다. 모델 발언이나 빈 patch를 검증 완료로 처리하지 않는다. 고정 기본 브랜치가 전진하면 발행하지 않고, 기존 브랜치/PR을 덮어쓰거나 자동 merge/배포하지 않는다. PR에는 제공자 식별자·원본 링크·프로젝트·앱·경로·base SHA·통과한 검증을 담되 원문 진단은 공개하지 않는다.
+
+오류 모드의 `outcome:'no-fix'`는 `status:'completed', outcome:'wont-fix'`로, 실행·검증의 `outcome:'failed'`는 `status:'failed', outcome:'failed'`로 저장한다. 둘 다 500자 이내의 사유를 기존 진단 마스킹으로 처리하고 GitHub 쓰기 없이 `{status:'recorded', outcome}`을 반환한다. `wont-fix`는 안전하게 검증할 수정안이 없다는 **내부 자동화 결정**이지 오류가 해결됐다는 뜻이 아니다. Cloudflare/Sentry 원본 이슈의 상태는 변경하지 않는다. 같은 lease의 결과 재전달은 멱등적이며 다른 outcome으로 덮어쓸 수 없다. 준비 실패·lease 만료·발행 결과 불명확도 별도 실패로 남기며 `wont-fix`로 위장하지 않는다.
 
 진단 읽기는 `Authorization: Bearer <DIAGNOSTICS_READ_TOKEN>`을 요구한다. query token, 쿠키, CORS 공개 읽기, 목록 조회는 지원하지 않는다.
 
@@ -108,7 +110,7 @@ omp gateway가 429 `rate_limit_error`를 돌려주면 Worker는 본문을 읽기
 
 query는 정확한 필드 집합만 허용하고 중복/추가 필드는 거부한다. 모든 scope는 배포 허용 목록과 일치해야 한다. 토큰 오류는 401, 허용 목록 밖 scope는 403, 없는/만료된 진단은 404이다. 응답은 `Cache-Control: no-store`이다.
 
-응답 JSON은 `{ version: 1, identity: <제공자 식별자>, capturedAt: <ISO 시각>, summary: <문자열>, details: <객체> }`이다. Cloudflare details는 `{ alertType, timestamp, data }`, Sentry details는 `{ resource, action }`이다. `data`는 마스킹한 불투명 제공자 필드이지 검증된 예외/경로 정보가 아니다. 실제 코드 위치/재현 입력이 없으면 준비 단계는 자료 부족을 명시하고 원인을 창작하지 않는다.
+응답 JSON은 `{ version: 1, identity: <제공자 식별자>, capturedAt: <ISO 시각>, summary: <문자열>, details: <객체>, disposition: <처리 결과|null> }`이다. `disposition`은 `{runId, status, outcome, reason, prUrl}`이며 PR 발행은 `published`, 준비 시 이미 존재하는 PR 발견은 `existing-pr`, 수정하지 않는 결정은 `wont-fix`로 표시한다. 아직 큐에 등록되지 않았으면 null이다. `reason`은 마스킹된 비신뢰 자료이며 검증 증거가 아니다. Cloudflare details는 `{ alertType, timestamp, data }`, Sentry details는 `{ resource, action }`이다. `data`는 마스킹한 불투명 제공자 필드이지 검증된 예외/경로 정보가 아니다. 실제 코드 위치/재현 입력이 없으면 준비 단계는 자료 부족을 명시하고 원인을 창작하지 않는다.
 
 진단 privacy 제한:
 
@@ -122,7 +124,9 @@ query는 정확한 필드 집합만 허용하고 중복/추가 필드는 거부�
 
 source + 조직/프로젝트 또는 계정/정책/Worker + sourceId별 진단 DO가 진행 중 웹훅 요청 하나의 Promise를 공유한다. 진단을 SQLite에 저장·sync한 뒤 고정 저장소 큐에 등록하고 그 수락을 저장한 후 응답한다. 큐 장애는 503 및 `Retry-After: 30`으로 재전달을 요청한다. 과거 Actions의 `accepted_at`은 큐 등록 증거가 아니므로 새 `queue_admitted_at`을 별도 사용한다. 진단 만료·중복 전달은 기존 작업을 새로 모델 실행시키지 않는다.
 
-큐는 최대 100건 대기, 동시에 하나의 lease만 허용한다. 기한/heartbeat 상실은 실패로 닫고 모호한 실행을 자동 중복 발행하지 않는다. 결과 응답 유실 시 같은 lease/outcome으로 이미 완료된 결과만 다시 확인할 수 있다. 이슈 marker와 `fix/#<issue>/<source>-<sourceId>` 브랜치, 고정 base SHA/트리 검사를 유지한다. GitHub issue/PR 발행 도중 실패하면 운영자가 기존 브랜치·PR을 조사해야 하며 force push하지 않는다.
+큐는 최대 100건 대기, 동시에 하나의 lease만 허용한다. 기한/heartbeat 상실은 실패로 닫고 모호한 실행을 자동 중복 발행하지 않는다. 결과 응답 유실 시 같은 lease/outcome으로 이미 저장한 결과만 다시 확인할 수 있다. 제공자 marker와 `fix/<source>-<sha256(identityKey)>` 브랜치, 고정 base SHA/트리 검사를 사용한다. 해시에는 source·조직/계정·정책·프로젝트·sourceId가 포함되어 서로 다른 오류 범위가 충돌하지 않는다. GitHub PR 발행 도중 실패하면 운영자가 기존 브랜치·PR을 조사해야 하며 force push하지 않는다.
+
+이슈 없는 계약으로 전환할 때 기존 실행을 완료하고 작업 사이에서 executor polling을 중지한 뒤 Worker와 executor를 함께 갱신하고 재개한다. 이전 `issueNumber` claim은 새 실행기가 수용하지 않는다. SQLite migration은 기존 identity/PR/outcome tombstone을 유지하고 미사용 `issue_number` 열을 제거하며 `reason`을 추가한다. 기존 GitHub 이슈를 자동으로 닫거나 삭제하지 않고, 과거 오류를 재실행하려고 DO를 초기화하지 않는다. 별도 PR 리뷰 모드의 기존 PR 댓글 기능과 권한은 유지한다.
 
 ## 고정 저장소 PR 리뷰 모드 (선택적)
 

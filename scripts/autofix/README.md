@@ -1,13 +1,14 @@
-# 오류 알림 → 이슈 → 독립 검증 → PR
+# 오류 알림 → 독립 검증 → 직접 PR 또는 내부 종료
 
 `apps/error-automation` Worker가 인증한 Sentry/Cloudflare 알림을 SQLite DO에 기록하고, 고정 Rocky/UMPC 전용 실행기가 **아웃바운드 HTTPS polling**으로 작업을 받는다. GitHub Actions dispatch나 Cloudflare 유료 Container/Workflow는 실행 경로가 아니다. Worker가 작업 종류별 고정 모델 요청만 중계하고(오류 수정 `claude-sonnet-5-5`, PR 검토 `claude-opus-5-5`), 실행기는 파일 도구만 사용해 후보를 만든 뒤 별도 Docker 검증 결과를 Worker에 제출한다. 자동 승인·merge·배포는 없다. 호스트 설치·비밀 등록·실제 모델/PR 호출은 운영 승인과 실제 통합 확인 전에는 완료된 것으로 간주하지 않는다.
 
 ## 지원 범위와 현재 제한
 
 - **Sentry:** 고정된 Sentry API에서 프로젝트/이슈/브라우저 SDK를 확인한다. 허용 호스트의 요청 경로와 애플리케이션 소스 프레임이 있어야 모델을 호출한다. 새 행동 회귀 테스트, 기존 native fixtures, 타입/lint/build/runtime 검증을 모두 통과한 후보만 PR로 발행한다.
-- **Cloudflare Issues:** 공식 Notifications 표준 envelope를 인증한 Worker가 보관한 진단을 읽고 계정·정책·Worker·앱을 재검증하여 이슈를 생성/재사용한다. **공식 문서는 `data` 내부의 Issues 예외/프레임/요청 경로 계약을 정의하지 않는다. 실제 인증된 Issues 알림의 삭제·마스킹된 샘플로 그 계약을 확인하기 전에는 자동 코드 수정/PR을 지원한다고 주장하지 않는다.** 현재 해당 단계는 `CLOUDFLARE_EVIDENCE_UNAVAILABLE`로 실패하며 이슈에 정직한 결과를 남긴다. 기존 Workers 지표 알림을 Issues 대신 쓰거나 비공개 Issues REST API를 만들어 호출하지 않는다.
+- **Cloudflare Issues:** Worker가 공식 Notifications envelope를 인증하고 계정·정책·Worker·앱을 재검증한다. 불투명한 `data`를 예외/경로/소스 프레임으로 임의 해석하지 않고, 일치하는 Issues occurrence·Tail/Telemetry·고정 소스 버전의 안전한 GET 경로와 매핑된 앱 소스 프레임을 별도 확인한 경우에만 수정 후보를 만든다. 근거가 부족하면 `CLOUDFLARE_EVIDENCE_UNAVAILABLE`로 실패 기록을 남기며 원본 Cloudflare Issue는 변경하지 않는다. 기존 Workers 지표 알림을 Issues 대신 쓰거나 존재하지 않는 비공개 Issues 수정 API를 호출하지 않는다.
 - 외부 API, 인증된 사용자 상태, dependency/config/generated code 수정, Node 회귀로 재현할 수 없는 오류는 안전 범위 밖이다. 실패를 우회하거나 빈 PR을 만들지 않는다.
 - 2026-10-29 커밋 `68c6d24`의 독립 오프라인 실행에서 `/shops/categories` 실제 API/D1 GET, 홈 `/` SSR, 데스크톱 Chromium, 390px Android 에뮬레이션 Chromium의 홈 UI·브라우저 gateway 비교가 통과했다. 빈 로컬 D1에서 날씨 제공자 부재(`CONFIGURATION_ERROR`)와 학생식당 운영정보 부재(`NOT_FOUND_DATA`)가 명시적인 unavailable/빈 식단 UI로 표시되는 것도 확인했다. 이는 실제 휴대전화·운영 데이터·Sentry/Cloudflare/GitHub 제공자 연동의 성공을 뜻하지 않는다.
+  2026-11-06 격리된 실제 workerd 스모크에서 서명된 Sentry 알림의 입장, GitHub 이슈 번호 없는 lease, 실제 실행기 결과 endpoint의 `no-fix`/`failed`, 인증된 내부 진단의 처분·사유, 무인증 401·중복 결과/알림 억제를 확인했다. 이는 운영 제공자 호출, 원격 PR 발행 또는 Rocky 호스트 설치의 증거가 아니다.
 
 ## 고정 제공자 식별자
 
@@ -39,25 +40,26 @@
 
 Sentry ID는 앞자리 0 없는 양의 십진 문자열이다. Cloudflare correlation/account/policy ID는 정규화된 소문자 32자리 hex이며 `project = workerName`이다. Worker/앱은 알림 본문이 아니라 신뢰된 정책 매핑에서 정한다. `BCSDLab/BCSD_united`의 고정 기본 브랜치 SHA를 Worker 준비 단계에서 조회한다. 수동 `workflow_dispatch` 재실행 경로는 없다.
 
-이슈 마커는 `<!-- error-autofix:source:provider-scope:project:sourceId -->`로 제공자와 계정/정책을 구분한다. 열린/닫힌 이슈를 GitHub Issues API로 최대 10,000개 순회하여 검색 인덱스 지연을 피한다. 브랜치는 `fix/#<issue>/<source>-<sourceId>`이다. 같은 브랜치의 PR이 있으면 새 모델 호출 없이 안내한다. 발행 도중 브랜치만 남은 경우 동일 부모/트리인지 확인하고 재개하며 force push하지 않는다.
+GitHub 오류 이슈 생성·검색·댓글은 하지 않는다. 제공자 전체 식별자 키는 Sentry의 `sentry/<organization>/<project>/<sourceId>`, Cloudflare의 `cloudflare/<accountId>/<policyId>/<project>/<sourceId>`이고, 브랜치는 이 UTF-8 키의 전체 SHA-256 소문자 hex를 사용한 `fix/<source>-<64-hex>`이다. 동일 브랜치의 기존 PR이 있으면 새 모델 호출 없이 해당 PR URL을 내부 처분에 기록한다. 발행 도중 브랜치만 남은 경우 동일 부모/트리인지 확인하고 재개하며 force push하지 않는다. 번호 없는 오류 작업도 실행기가 식별자 형태와 브랜치 해시를 재검사한다.
 
 ## 진단·소스 근거
 
 Worker는 source별 진단 DO에서 인증·마스킹된 기록을 내부 binding으로 읽는다. Sentry는 Worker만 `https://sentry.io/api/0/organizations/<org>/issues/<id>/` 및 `events/latest/`에서 canonical issue/event를 조회한다. 원문 request header/body/cookie, user, breadcrumbs, source context는 모델·실행기 작업공간에 쓰지 않는다. 허용 프로젝트 호스트의 안전한 GET 경로와 실제 `apps/web/src` 앱 소스 프레임이 없으면 수정하지 않는다.
 
-Cloudflare Issues는 공식 Notifications envelope의 불투명 `data`를 임의 예외/경로/소스 프레임으로 해석하지 않는다. 실제 인증된 Issues 샘플이 아직 없으므로 자동 수정은 `CLOUDFLARE_EVIDENCE_UNAVAILABLE`로 닫고 이슈에 부족한 근거를 남긴다. 예시 payload나 비공개 Issues REST API를 만들어 검증했다고 주장하지 않는다. 진단 보존/읽기 제한은 `apps/error-automation/README.md`를 따른다.
+Cloudflare Issues는 공식 Notifications envelope의 불투명 `data`를 임의 예외/경로/소스 프레임으로 해석하지 않는다. 신뢰된 occurrence 조회와 Tail/Telemetry·소스맵 경로의 식별자/버전 일치가 없으면 `CLOUDFLARE_EVIDENCE_UNAVAILABLE`로 실패한다. 부족한 근거는 내부 진단에만 남기며 원본 Cloudflare Issue를 생성·수정·댓글 처리하지 않는다. 진단 보존/읽기 제한은 `apps/error-automation/README.md`를 따른다.
 
 Sentry는 `https://sentry.io/api/0/organizations/<org>/issues/<id>/` 및 `events/latest/`만 조회한다. 원문 request headers/body/cookies, user, breadcrumbs, source context를 저장하지 않는다. 문자열의 URL, 이메일, IP, 일반적인 token/password/authorization 패턴도 제거한다. 소스 프레임은 웹 앱의 `src/*.ts(x)/js(x)`만 허용한다. 마스킹은 모든 개인정보를 탐지한다는 보장이 아니므로 Sentry server-side scrubbing 및 SDK 정책도 필수다.
 
 ## Worker 비밀과 실행기 계약
 
-Worker secret은 웹훅별 `SENTRY_CLIENT_SECRET`/`CLOUDFLARE_WEBHOOK_SECRET`, canonical Sentry read 전용 `SENTRY_READ_TOKEN`, 진단 읽기 전용 `DIAGNOSTICS_READ_TOKEN`, 단일 GitHub App의 기존 `GITHUB_DISPATCH_APP_PRIVATE_KEY`, 모델 게이트웨이 접속용 `OMP_GATEWAY_TOKEN`(env `OMP_GATEWAY_ORIGIN`과 짝), 전용 `AUTOFIX_EXECUTOR_TOKEN`이다. Anthropic API key는 더 이상 Worker secret이 아니며 직접 제공자 호출 경로도 없다. 모델 추론은 아래 [로컬 omp 게이트웨이](#로컬-omp-게이트웨이)로만 이뤄지고, 게이트웨이 bearer는 연결 인증용 비밀일 뿐 provider 자격증명이 아니다. 전용 실행기는 마지막 토큰만 안전한 host 설정 파일에서 사용하고 GitHub/게이트웨이/provider 비밀을 받지 않는다. 기존 App 이름 `GITHUB_DISPATCH_*`은 저장된 한 App의 배포 설정명일 뿐 GitHub dispatch 실행을 뜻하지 않는다. App은 **BCSDLab/BCSD_united 하나**에만 설치되며 Worker가 역할별 contents/issues/pull requests read 또는 write 범위의 설치 토큰을 필요한 순간 발급한다.
+Worker secret은 웹훅별 `SENTRY_CLIENT_SECRET`/`CLOUDFLARE_WEBHOOK_SECRET`, canonical Sentry read 전용 `SENTRY_READ_TOKEN`, 진단 읽기 전용 `DIAGNOSTICS_READ_TOKEN`, 단일 GitHub App의 기존 `GITHUB_DISPATCH_APP_PRIVATE_KEY`, 모델 게이트웨이 접속용 `OMP_GATEWAY_TOKEN`(env `OMP_GATEWAY_ORIGIN`과 짝), 전용 `AUTOFIX_EXECUTOR_TOKEN`이다. Anthropic API key는 더 이상 Worker secret이 아니며 직접 제공자 호출 경로도 없다. 모델 추론은 아래 [로컬 omp 게이트웨이](#로컬-omp-게이트웨이)로만 이뤄지고, 게이트웨이 bearer는 연결 인증용 비밀일 뿐 provider 자격증명이 아니다. 전용 실행기는 마지막 토큰만 안전한 host 설정 파일에서 사용하고 GitHub/게이트웨이/provider 비밀을 받지 않는다. 기존 App 이름 `GITHUB_DISPATCH_*`은 저장된 한 App의 배포 설정명일 뿐 GitHub dispatch 실행을 뜻하지 않는다. App은 **BCSDLab/BCSD_united 하나**에만 설치되며 Worker가 역할별 contents/pull requests 접근 토큰을 필요한 순간 발급한다. 기존 PR 검토 모드의 댓글 권한과 동작은 유지된다.
 
-`AUTOFIX_EXECUTOR_ID=koin-rocky-umpc`로 고정한다. 실행기는 고정 HTTPS Worker origin에만 `Authorization: Bearer <AUTOFIX_EXECUTOR_TOKEN>` 및 `X-Executor-Id: koin-rocky-umpc`를 보내며 호스트 인바운드 네트워크 포트를 열지 않는다. `/executor/claim`의 `claimNonce` 64자리 hex를 비밀 파일과 분리해 먼저 영속하고, 응답 유실 때 같은 nonce로 동일 lease를 재요청한다. 204는 대기 작업 없음, 200은 고정 repo/base SHA/diagnostics/context/issue/lease. 2분 rolling heartbeat·90분 절대 기한·동시 한 작업을 적용한다. claim(신규·재개 모두)은 Worker가 확인한 `leaseExpiresAt`(안전 정수, 미래, `deadlineAt` 이하)을 반드시 포함하며, 실행기는 이를 마지막 확인 만료로 삼아 시작한다.
+`AUTOFIX_EXECUTOR_ID=koin-rocky-umpc`로 고정한다. 실행기는 고정 HTTPS Worker origin에만 `Authorization: Bearer <AUTOFIX_EXECUTOR_TOKEN>` 및 `X-Executor-Id: koin-rocky-umpc`를 보내며 호스트 인바운드 네트워크 포트를 열지 않는다. `/executor/claim`의 `claimNonce` 64자리 hex를 비밀 파일과 분리해 먼저 영속하고, 응답 유실 때 같은 nonce로 동일 lease를 재요청한다. 204는 대기 작업 없음, 200은 고정 repo/base SHA/제공자 식별자/diagnostics/context/branch/lease이며 오류 작업에는 GitHub `issueNumber`가 없다. 2분 rolling heartbeat·90분 절대 기한·동시 한 작업을 적용한다. claim(신규·재개 모두)은 Worker가 확인한 `leaseExpiresAt`(안전 정수, 미래, `deadlineAt` 이하)을 반드시 포함하며, 실행기는 이를 마지막 확인 만료로 삼아 시작한다.
+기존 issue-number 기반 lease가 남은 상태에서 새 claim 계약으로 갈아타지 않는다. 운영 전환 시 실행기 polling을 멈추고 기존 lease를 종료/소진한 뒤 Worker와 실행기 이미지를 함께 갱신해 재개한다. 중복 억제용 보존 상태(tombstone)를 지우거나 기존 원격 GitHub 이슈를 변경하지 않는다.
 
 실행기 lease 유지(`keepLease`): heartbeat는 45초 간격이며 한 번에 하나만 보낸다. Worker가 확인한 마지막 `leaseExpiresAt`만 사실로 취급하고, 확인되지 않은 heartbeat는 lease를 연장한 것으로 간주하지 않는다. 연결 시간 초과·연결 거부/재설정·네트워크 도달 불가·30초 요청 시간 초과 같은 전송 계층 실패만 5초 뒤 재시도하되, 마지막 확인 만료에서 15초 안전 여유를 뺀 시점 안에 재시도가 들어갈 때만 한다. HTTP 상태 거부(인증·정책·409 등), TLS 실패, 잘못된 응답 본문, `deadlineAt` 불일치, 15초 여유보다 짧은 만료는 즉시 작업을 중단한다. 독립 fail-closed 타이머가 확인 만료 − 15초에 작업을 중단하므로 heartbeat 요청이 멈춰도 알려진 lease를 넘겨 실행하지 않으며, 그때 진행 중인 heartbeat 요청도 취소한다. 작업 완료·종료 시 타이머와 진행 중 요청을 모두 정리해 늦게 도착한 응답이 다음 작업에 영향을 주지 않는다. 확인 만료가 이미 절대 기한과 같으면 더 연장할 수 없으므로 heartbeat를 보내지 않는다.
 
-`/executor/jobs/<runId>/model`은 살아 있는 generation lease에서만 요청한다. Worker가 정적 system prompt/작업 종류별 고정 모델(오류 수정 `claude-sonnet-5-5`, PR 검토 `claude-opus-5-5`)/Read·Edit·Write·Glob·Grep JSON schema만 설정된 게이트웨이 `/v1/messages`로 전송하고 게이트웨이 bearer를 Worker 밖에 내보내지 않는다. 모델 메시지의 파일 요청은 실행기에서 허용 경로·symlink·앱 경계를 다시 검사한다. 단일 오류 수정은 80개 메시지·256 KB context, PR 검토는 160개 메시지·1 MB context로 제한하며 응답 256 KB 한도는 공통이다. 파일 도구는 단일 오류 수정에서 40회, 여러 파일의 diff와 관련 코드를 검토하는 PR에서 256회까지 허용한다. PR 검토는 diff 중심의 좁은 줄 범위와 독립 읽기 묶음을 사용한다. 후보 workspace는 이슈 진단을 **자료**로만 다루며 shell/network/MCP/GitHub credential을 사용할 수 없다.
+`/executor/jobs/<runId>/model`은 살아 있는 generation lease에서만 요청한다. Worker가 정적 system prompt/작업 종류별 고정 모델(오류 수정 `claude-sonnet-5-5`, PR 검토 `claude-opus-5-5`)/Read·Edit·Write·Glob·Grep JSON schema만 설정된 게이트웨이 `/v1/messages`로 전송하고 게이트웨이 bearer를 Worker 밖에 내보내지 않는다. 모델 메시지의 파일 요청은 실행기에서 허용 경로·symlink·앱 경계를 다시 검사한다. 단일 오류 수정은 80개 메시지·256 KB context, PR 검토는 160개 메시지·1 MB context로 제한하며 응답 256 KB 한도는 공통이다. 파일 도구는 단일 오류 수정에서 40회, 여러 파일의 diff와 관련 코드를 검토하는 PR에서 256회까지 허용한다. PR 검토는 diff 중심의 좁은 줄 범위와 독립 읽기 묶음을 사용한다. 후보 workspace는 제공자 진단을 **자료**로만 다루며 shell/network/MCP/GitHub credential을 사용할 수 없다.
 
 작업당 모델 비용 상한(hard cap)은 Worker가 durable하게 집행하고 실행기도 같은 값을 자체 적용한다. 오류 수정: 모델 호출 6회, generation 4분, 입력 50k·출력 8k 토큰, 요청당 `max_tokens` 4,096. PR 검토: 호출 12회, generation 8분, 입력 150k·출력 16k 토큰, 요청당 `max_tokens` 8,192. Worker는 provider 전송 전에 실제 payload UTF-8 바이트와 `max_tokens`를 예약하고 응답의 실제 usage로 정산하며(usage가 없으면 예약을 그대로 유지), 상한을 넘는 요청은 거절한다. 실행기는 `generate`에서 호출 횟수·창·`max_tokens`를 같은 값으로 제한하고(`MODEL_BUDGET`), 상한 초과는 **최종 실패**다. 자동 재설정·재시도·대체 모델은 없으며, 429 재시도도 호출 상한에 계산된다. 독립 검증(Docker verifier)의 자원·시간 한도는 이와 별개로 바뀌지 않는다. 큰 수정 응답이 중단되면 제공자의 `stop_reason`만 제한된 진단에 남기며, 거절·중단을 승인으로 취급하지 않는다.
 
@@ -71,7 +73,8 @@ PR 모델 요청은 Worker에서 최대 180초, 실행기에서 최대 190초까
 
 실행기는 공개 저장소의 검증된 고정 SHA를 각 작업의 별도 model/verifier git worktree로 준비한다. verifier image는 미리 빌드해 재사용하되, 후보 소스는 독립적인 새 검증 작업공간/매번 disposable Docker 실행으로 검증한다. `/verification-start` 이후 모델 프록시는 닫힌다. source-only 모델이 낸 manifest는 최대 24 text 파일, 파일당 256 KB, 합계 1 MB이며 수정 앱 src와 새 `tests/autofix/*.test.mjs`로만 제한한다. 기존 테스트/설정/lockfile/schema/generated 변경과 다른 앱 변경은 거부한다.
 
-독립 검증은 수정 전 새 assertion 실패/수정 후 통과, 기존 native fixtures와 autofix 보안 테스트, 타입/lint/build, 실제 로컬 API+D1+SSR+Chromium/390px 모바일 smoke를 수행한다. 네트워크 없는 Docker, 비루트/capability 제거, read-only source/dependencies와 제한된 scratch를 사용한다. proof는 base SHA·검증된 manifest SHA256·정확한 필수 check 목록에 결속한다. Worker는 원본 기본 브랜치 SHA가 전진하지 않았는지 재조회하고 verified bytes만 Git tree/commit/PR로 발행한다. force push, 자동 merge/배포는 없다. 실행·검증 실패나 무변경은 verified PR로 표시하지 않고 이슈에 원문 비밀 없이 사실만 남긴다.
+독립 검증은 수정 전 새 assertion 실패/수정 후 통과, 기존 native fixtures와 autofix 보안 테스트, 타입/lint/build, 실제 로컬 API+D1+SSR+Chromium/390px 모바일 smoke를 수행한다. 네트워크 없는 Docker, 비루트/capability 제거, read-only source/dependencies와 제한된 scratch를 사용한다. proof는 base SHA·검증된 manifest SHA256·정확한 필수 check 목록에 결속한다. Worker는 원본 기본 브랜치 SHA가 전진하지 않았는지 재조회하고 verified bytes만 Git tree/commit/PR로 직접 발행한다. force push, 자동 merge/배포는 없다. 안전한 수정 근거가 없거나 모델이 무변경을 반환하면 `no-fix`를 내부 `wont-fix`와 사유로 기록한다. 실행·검증·발행 실패는 별도 `failed`와 사유로 기록하며 둘 다 GitHub 이슈를 만들거나 댓글을 남기지 않는다. 검증 성공 PR 또는 기존 PR은 내부 인증 진단에서 URL로 확인한다.
+운영자는 인증된 진단 조회에서 `disposition`의 `runId`, `status`, `outcome`(`wont-fix`/`failed`/`published`/`existing-pr`), `reason`, `prUrl`을 확인한다. 이 내부 상태는 GitHub 이슈 또는 Cloudflare Issue의 상태/댓글이 아니며, `no-fix`와 실행 실패를 혼동하지 않는다.
 
 Rocky/UMPC의 root 신뢰 실행기는 고정 SHA 소스에서 후보와 독립 검증 worktree를 분리하고, 사전 빌드된 **두 이미지의 검증 스크립트 SHA256 일치**를 작업 전·검증 전 확인한다. 검증 스냅샷은 `git archive`가 아니라 고정 tree의 `git ls-tree -r` + `git cat-file --batch`로 object database에서 그대로 복원한다(`patch.mjs` `exportTree`). 따라서 스냅샷 안의 `.gitattributes`(`export-ignore`/`export-subst`)는 어떤 파일도 빼거나 바꿀 수 없고, 심볼릭 링크는 링크로 기록될 뿐 호스트 쓰기에서 따라가지 않으며 submodule·알 수 없는 mode는 실패한다. 검증용 의존성은 자격 증명 없는 신뢰 설치 컨테이너에서 `pnpm install --frozen-lockfile --ignore-scripts`로 획득하고(유일한 네트워크 단계, lifecycle 없음), 승인된 lifecycle `pnpm rebuild --pending`은 **별도의 `--network none`, non-root 컨테이너**에서 소스·설정·테스트가 모두 read-only이고 설치기가 만든 실제 `node_modules` 디렉터리만 쓰기 가능한 상태로 실행한다. 이후의 회귀·타입·lint·빌드·API/D1/SSR/브라우저 확인은 별도 매번 폐기되는 `--network none`, cap-drop-all, no-new-privileges, non-root 컨테이너에서 수행한다. 설치와 후보 실행은 동일 컨테이너가 아니며 모델은 어떤 코드를 실행하거나 Docker socket을 읽지 못한다. root 컨트롤러에 CAP_CHOWN을 추가하지 않고, 고정 scratch·의존성 디렉터리만 마운트한 신뢰 CHOWN 전용 도우미와 UID 1000의 무권한 정리 도우미가 소유권·회수를 처리한다.
 
@@ -113,7 +116,7 @@ cloudflared tunnel --url http://127.0.0.1:43129   # 출력된 https://*.trycloud
 
 ## 기존 PR 검토·수정 모드 (`mode: 'pull-request'`)
 
-같은 Worker 큐·같은 실행기 lease·같은 모델 프록시를 쓰는 **별도 typed union**이다. 오류 작업(Sentry/CF)은 `mode` 없이 기존 형태 그대로이고, PR 작업만 `mode:'pull-request'`를 갖는다. 가짜 오류 identity를 만들지 않으며 `/executor/pull-requests/enqueue`(운영자 opt-in `PR_REVIEW_ENABLED==='true'` + 허용 PR 번호 목록)가 Worker 쪽 유일한 진입점이다. 실행기는 요청 본문에서 저장소·모델·URL·프롬프트·명령·경로를 절대 받지 않는다.
+같은 Worker 큐·같은 실행기 lease·같은 모델 프록시를 쓰는 **별도 typed union**이다. 오류 작업(Sentry/CF)은 `mode`와 GitHub 이슈 번호 없이 제공자 식별자와 해시 브랜치를 가지며, PR 작업만 `mode:'pull-request'`를 갖는다. 가짜 오류 identity를 만들지 않으며 `/executor/pull-requests/enqueue`(운영자 opt-in `PR_REVIEW_ENABLED==='true'` + 허용 PR 번호 목록)가 Worker 쪽 유일한 진입점이다. 실행기는 요청 본문에서 저장소·모델·URL·프롬프트·명령·경로를 절대 받지 않는다.
 
 claim의 PR 작업 형태: `{mode:'pull-request', owner:'BCSDLab', repository:'BCSD_united', pullNumber, headSha, headTree, headRef, baseBranch:'develop', baseSha, changedFiles:string[], reviewContext:{version:1, comments:[...]}}`. `changedFiles`는 GitHub canonical `pulls/N/files` 파일명(최대 500개, 64KB)이며 **자료**다. `baseSha`는 실제 develop 대상 SHA이고 `headSha`로 대체하지 않는다. `reviewContext`는 GitHub App이 canonical `/pulls/N`에서 읽은 PR 제목(≤300자)·본문(≤4,000자)과 기존 리뷰/댓글(최대 50개, 본문 4,000자, 제어문자 제거, 총 64KB)로, 모델에게 **검증할 가설·자료**로만 전달된다.
 
@@ -209,4 +212,4 @@ curl -sS -X POST "$AUTOFIX_WORKER_ORIGIN/executor/pull-requests/status" \
 
 상태 영수증의 `result.reviewedHeadSha`/`publishedHeadSha`/`decision`/`passedChecks`/`commentUrl`로 검토·발행 결과를 확인한다. 순서대로 한 PR씩 처리하며 `#7`은 `#3` merge·develop retarget 뒤에만 enqueue한다. 실행기 로그(`journalctl -u koin-autofix-executor`)의 `claim unavailable`/`run failed`는 lease·proof·정책 거부 사유이고, 어떤 경우에도 실행기는 PR을 직접 만들거나 merge하지 않는다.
 
-실제 Rocky 실행기 설치·모델 호출·이슈/PR 발행·운영 배포는 별도 명시적 승인과 통합 확인 뒤에만 수행한다. 이 로컬 검증 명령은 provider delivery 또는 운영 PR 성공을 대신하지 않는다.
+실제 Rocky 실행기 설치·모델 호출·PR 발행·운영 배포는 별도 명시적 승인과 통합 확인 뒤에만 수행한다. 이 로컬 검증 명령은 provider delivery 또는 운영 PR 성공을 대신하지 않는다.

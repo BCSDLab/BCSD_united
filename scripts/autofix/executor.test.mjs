@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -9,6 +10,14 @@ import {
   requestModel,
 } from './executor.mjs';
 
+const branchFor = (identity) => {
+  const key =
+    identity.source === 'sentry'
+      ? `sentry/${identity.scope.organization}/${identity.project}/${identity.sourceId}`
+      : `cloudflare/${identity.scope.accountId}/${identity.scope.policyId}/${identity.project}/${identity.sourceId}`;
+  return `fix/${identity.source}-${createHash('sha256').update(key).digest('hex')}`;
+};
+
 const valid = () => ({
   version: 1,
   runId: `autofix-${'a'.repeat(64)}`,
@@ -17,24 +26,52 @@ const valid = () => ({
   deadlineAt: Date.now() + 60_000,
   leaseExpiresAt: Date.now() + 30_000,
   job: {
-    identity: { source: 'sentry', sourceId: '123', project: 'koin-united-prod', app: 'web' },
+    identity: {
+      source: 'sentry',
+      sourceId: '123',
+      project: 'koin-united-prod',
+      app: 'web',
+      scope: { organization: 'bcsd' },
+    },
     owner: 'BCSDLab',
     repository: 'BCSD_united',
     baseSha: 'c'.repeat(40),
     baseBranch: 'develop',
-    issueNumber: 7,
-    branch: 'fix/7',
-    domain: 'common',
+    branch: branchFor({
+      source: 'sentry',
+      sourceId: '123',
+      project: 'koin-united-prod',
+      app: 'web',
+      scope: { organization: 'bcsd' },
+    }),
+    domain: '공통',
     diagnostics: { summary: 'redacted' },
     context: { app: 'web', route: '/', requestMethod: 'GET' },
   },
 });
 
-test('Rocky executor accepts only a fresh fixed-repository lease with safe route', () => {
+test('Rocky executor accepts issue-free jobs with fixed provider identity and lease', () => {
   const claim = valid();
   assert.equal(parseClaim(claim).runId, claim.runId);
   // A resumed claim reports the stored expiry, which may be close.
   assert.equal(parseClaim({ ...claim, leaseExpiresAt: Date.now() + 1_000 }).runId, claim.runId);
+  const cloudflare = {
+    source: 'cloudflare',
+    sourceId: 'a'.repeat(32),
+    project: 'koin-api',
+    app: 'api',
+    scope: { accountId: 'b'.repeat(32), policyId: 'c'.repeat(32), workerName: 'koin-api' },
+  };
+  const cfClaim = {
+    ...claim,
+    job: {
+      ...claim.job,
+      identity: cloudflare,
+      branch: branchFor(cloudflare),
+      context: { app: 'api', route: '/shops/categories', requestMethod: 'GET' },
+    },
+  };
+  assert.equal(parseClaim(cfClaim).runId, claim.runId);
   for (const patch of [
     { runId: 'arbitrary-job' },
     { leaseToken: 'not-a-lease' },
@@ -46,10 +83,36 @@ test('Rocky executor accepts only a fresh fixed-repository lease with safe route
     { leaseExpiresAt: Date.now() - 1 },
     { leaseExpiresAt: claim.deadlineAt + 1 },
     { job: { ...claim.job, repository: 'other' } },
+    { job: { ...claim.job, issueNumber: 7 } },
+    { job: { ...claim.job, branch: 'fix/#7/sentry-123' } },
+    { job: { ...claim.job, baseBranch: 'main' } },
+    { job: { ...claim.job, domain: 'unknown' } },
+    { job: { ...claim.job, identity: { ...claim.job.identity, sourceId: '00123' } } },
+    { job: { ...claim.job, identity: { ...claim.job.identity, sourceId: 123 } } },
+    { job: { ...claim.job, identity: { ...claim.job.identity, source: 'unknown' } } },
+    { job: { ...claim.job, identity: { ...claim.job.identity, app: 'api' } } },
+    { job: { ...claim.job, identity: { ...claim.job.identity, scope: { organization: 'other' } } } },
+    { job: { ...claim.job, identity: { ...claim.job.identity, scope: { organization: 'BCSD' } } } },
+    { job: { ...claim.job, identity: { ...claim.job.identity, injected: true } } },
     { job: { ...claim.job, context: { ...claim.job.context, route: '//other' } } },
     { job: { ...claim.job, context: { ...claim.job.context, requestMethod: 'POST' } } },
+    { job: { ...claim.job, context: { ...claim.job.context, injected: true } } },
+    { job: { ...claim.job, diagnostics: [] } },
   ])
-    assert.throws(() => parseClaim({ ...claim, ...patch }));
+    assert.throws(() => parseClaim({ ...claim, ...patch }), undefined, JSON.stringify(patch).slice(0, 80));
+  for (const identity of [
+    { ...cloudflare, sourceId: 'A'.repeat(32) },
+    { ...cloudflare, project: 'other' },
+    { ...cloudflare, app: 'web' },
+    { ...cloudflare, scope: { ...cloudflare.scope, policyId: 'A'.repeat(32) } },
+    { ...cloudflare, scope: { ...cloudflare.scope, workerName: 'other' } },
+    { ...cloudflare, scope: { ...cloudflare.scope, accountId: null } },
+  ])
+    assert.throws(() => parseClaim({ ...cfClaim, job: { ...cfClaim.job, identity } }));
+  const malformed = { ...cloudflare, sourceId: 'A'.repeat(32) };
+  assert.throws(() =>
+    parseClaim({ ...cfClaim, job: { ...cfClaim.job, identity: malformed, branch: branchFor(malformed) } }),
+  );
 });
 
 test('Fable signed thinking stays opaque while only declared file tools are executable', () => {

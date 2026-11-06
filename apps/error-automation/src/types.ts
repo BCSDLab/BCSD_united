@@ -27,11 +27,19 @@ export interface PreparedJob {
   repository: string;
   baseBranch: string;
   baseSha: string;
-  issueNumber: number;
   branch: string;
   domain: string;
   diagnostics: Record<string, unknown>;
   context: { app: App; route: string; requestMethod: 'GET' };
+}
+
+/** Private disposition for one provider identity; never a provider-side resolution. */
+export interface ErrorReceipt {
+  runId: string;
+  status: string;
+  outcome: string | null;
+  reason: string | null;
+  prUrl: string | null;
 }
 
 /** Internal queue identity for an allowlisted pull request; never accepted from external webhooks. */

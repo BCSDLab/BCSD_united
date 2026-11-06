@@ -7,12 +7,17 @@ import {
   branch,
   installationToken,
   marker,
+  publish,
   validateManifest,
   validateVerification,
 } from '../src/github.ts';
 import { extractTailEvidence } from '../src/tail.ts';
+const platform =
+  'data:text/javascript,' +
+  encodeURIComponent('export class DurableObject { constructor(ctx,env) { this.ctx=ctx; this.env=env; } }');
 registerHooks({
   resolve(specifier, context, nextResolve) {
+    if (specifier === 'cloudflare:workers') return { url: platform, shortCircuit: true };
     if (
       specifier.startsWith('./') &&
       context.parentURL?.includes('/apps/error-automation/src/') &&
@@ -24,6 +29,7 @@ registerHooks({
 });
 const { trustedDiagnostics } = await import('../src/diagnostics.ts');
 const { mappedTailFrames } = await import('../src/source-maps.ts');
+const { prepare } = await import('../src/prepare.ts');
 
 const identity = {
   source: 'sentry',
@@ -32,14 +38,15 @@ const identity = {
   app: 'web',
   scope: { organization: 'bcsd' },
 };
+const identityKey = 'sentry/bcsd/koin-united-prod/123';
+const identityBranch = `fix/sentry-${createHash('sha256').update(identityKey).digest('hex')}`;
 const job = {
   identity,
   owner: 'BCSDLab',
   repository: 'BCSD_united',
   baseBranch: 'develop',
   baseSha: 'a'.repeat(40),
-  issueNumber: 42,
-  branch: 'fix/#42/sentry-123',
+  branch: identityBranch,
   domain: '공통',
   diagnostics: {},
   context: { app: 'web', route: '/campus', requestMethod: 'GET' },
@@ -67,9 +74,32 @@ const checks = [
 ];
 const digest = (value) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 
-test('canonical identity marker and branch remain deterministic', () => {
+test('branch hashes the full canonical source scope, independent of GitHub issues', async () => {
   assert.equal(marker(identity), '<!-- error-autofix:sentry:bcsd:koin-united-prod:123 -->');
-  assert.equal(branch(identity, 42), job.branch);
+  assert.equal(await branch(identity), job.branch);
+  assert.match(job.branch, /^fix\/sentry-[a-f0-9]{64}$/);
+  assert.notEqual(await branch({ ...identity, scope: { organization: 'other' } }), job.branch);
+  assert.notEqual(await branch({ ...identity, project: 'other-project' }), job.branch);
+  assert.notEqual(await branch({ ...identity, sourceId: '124' }), job.branch);
+  const cloudflare = {
+    source: 'cloudflare',
+    sourceId: 'a'.repeat(32),
+    project: 'koin-api',
+    app: 'api',
+    scope: { accountId: 'b'.repeat(32), policyId: 'c'.repeat(32), workerName: 'koin-api' },
+  };
+  assert.equal(
+    await branch(cloudflare),
+    `fix/cloudflare-${createHash('sha256').update(`cloudflare/${cloudflare.scope.accountId}/${cloudflare.scope.policyId}/${cloudflare.project}/${cloudflare.sourceId}`).digest('hex')}`,
+  );
+  assert.notEqual(
+    await branch({ ...cloudflare, scope: { ...cloudflare.scope, accountId: 'd'.repeat(32) } }),
+    await branch(cloudflare),
+  );
+  assert.notEqual(
+    await branch({ ...cloudflare, scope: { ...cloudflare.scope, policyId: 'e'.repeat(32) } }),
+    await branch(cloudflare),
+  );
 });
 
 test('manifest enforces source/test scope and bounded verified bytes', () => {
@@ -438,4 +468,178 @@ test('App mints exact single-repository role-scoped installation tokens', async 
     { contents: 'read', issues: 'read', pull_requests: 'read' },
     { contents: 'write', issues: 'write', pull_requests: 'write' },
   ]);
+});
+
+test('prepare verifies provider evidence with a read-only token, then deduplicates by branch without issues', async (t) => {
+  const key = generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey.export({ type: 'pkcs1', format: 'pem' });
+  const env = {
+    ENVIRONMENT: 'production',
+    SENTRY_CLIENT_SECRET: 'webhook-secret',
+    SENTRY_READ_TOKEN: 'provider-read-token',
+    SENTRY_ORGANIZATION: 'bcsd',
+    SENTRY_PROJECT_APPS: '{"koin-united-prod":"web"}',
+    SENTRY_PROJECT_HOSTS: '{"koin-united-prod":["koreatech.in"]}',
+    CLOUDFLARE_SOURCES: '[]',
+    DIAGNOSTICS_READ_TOKEN: 'd'.repeat(32),
+    AUTOFIX_EXECUTOR_TOKEN: 'e'.repeat(32),
+    AUTOFIX_EXECUTOR_ID: 'koin-rocky-umpc',
+    ERROR_PROJECT_DOMAINS: '{"sentry:koin-united-prod":"공통"}',
+    GITHUB_OWNER: 'BCSDLab',
+    GITHUB_REPOSITORY: 'BCSD_united',
+    GITHUB_DISPATCH_APP_ID: '5522353',
+    GITHUB_DISPATCH_INSTALLATION_ID: '176455083',
+    GITHUB_DISPATCH_APP_PRIVATE_KEY: key,
+    ERROR_ISSUES: {
+      idFromName: (name) => name,
+      get: () => ({
+        fetch: async () =>
+          Response.json({
+            version: 1,
+            identity,
+            capturedAt: new Date().toISOString(),
+            summary: 'error',
+            details: {},
+          }),
+      }),
+    },
+  };
+  const requests = [];
+  let duplicate = false;
+  const prUrl = 'https://github.com/BCSDLab/BCSD_united/pull/12';
+  t.mock.method(globalThis, 'fetch', async (url, options = {}) => {
+    const href = String(url);
+    requests.push([href, options.method ?? 'GET']);
+    if (href === 'https://sentry.io/api/0/organizations/bcsd/issues/123/')
+      return Response.json({ id: 123, project: { slug: identity.project }, title: 'error' });
+    if (href.endsWith('/events/latest/'))
+      return Response.json({
+        platform: 'javascript',
+        sdk: { name: 'sentry.javascript.react' },
+        groupID: 123,
+        entries: [
+          { type: 'request', data: { url: 'https://koreatech.in/campus?private=1' } },
+          {
+            type: 'exception',
+            data: {
+              values: [
+                { type: 'TypeError', stacktrace: { frames: [{ filename: 'src/bug.ts', lineNo: 12, inApp: true }] } },
+              ],
+            },
+          },
+        ],
+      });
+    if (href.endsWith('/access_tokens')) {
+      const body = JSON.parse(options.body);
+      assert.deepEqual(body.permissions, { contents: 'read', issues: 'read', pull_requests: 'read' });
+      return Response.json({
+        token: 'read-token',
+        expires_at: new Date(Date.now() + 3600000).toISOString(),
+        repositories: [{ full_name: 'BCSDLab/BCSD_united' }],
+        permissions: body.permissions,
+      });
+    }
+    if (href === 'https://api.github.com/repos/BCSDLab/BCSD_united')
+      return Response.json({ default_branch: 'develop', owner: { login: 'BCSDLab' } });
+    if (href.endsWith('/commits/develop'))
+      return Response.json({ sha: job.baseSha, commit: { tree: { sha: 'b'.repeat(40) } } });
+    if (href.includes('/pulls?')) {
+      assert.ok(href.includes(encodeURIComponent(identityBranch)));
+      return Response.json(duplicate ? [{ html_url: prUrl }] : []);
+    }
+    throw new Error(`Unexpected prepare request: ${href}`);
+  });
+  const prepared = await prepare(env, identity, identityKey);
+  assert.equal(prepared.prUrl, null);
+  assert.deepEqual(prepared.job?.branch, identityBranch);
+  assert.equal(prepared.job?.issueNumber, undefined);
+  assert.equal(prepared.job?.context.route, '/campus');
+  duplicate = true;
+  const repeated = await prepare(env, identity, identityKey);
+  assert.deepEqual(repeated, { job: null, prUrl });
+  assert.equal(
+    requests.some(([url]) => url.includes('/issues') && url.startsWith('https://api.github.com/')),
+    false,
+  );
+  assert.equal(
+    requests.some(([url, method]) => method === 'POST' && !url.endsWith('/access_tokens')),
+    false,
+  );
+});
+
+test('publish creates a PR directly with source context and independently verified checks', async (t) => {
+  const key = generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey.export({ type: 'pkcs1', format: 'pem' });
+  const env = {
+    GITHUB_OWNER: 'BCSDLab',
+    GITHUB_REPOSITORY: 'BCSD_united',
+    GITHUB_DISPATCH_APP_ID: '5522353',
+    GITHUB_DISPATCH_INSTALLATION_ID: '176455083',
+    GITHUB_DISPATCH_APP_PRIVATE_KEY: key,
+  };
+  const writes = [];
+  const url = 'https://github.com/BCSDLab/BCSD_united/pull/12';
+  const proof = {
+    baseSha: job.baseSha,
+    verifiedManifest: manifest,
+    passedChecks: checks,
+    manifestSha256: digest(manifest),
+  };
+  let duplicate = false;
+  let humanBranch = false;
+  t.mock.method(globalThis, 'fetch', async (endpoint, options = {}) => {
+    const href = String(endpoint);
+    if (href.endsWith('/access_tokens')) {
+      const body = JSON.parse(options.body);
+      assert.deepEqual(body.permissions, { contents: 'write', issues: 'write', pull_requests: 'write' });
+      return Response.json({
+        token: 'write-token',
+        expires_at: new Date(Date.now() + 3600000).toISOString(),
+        repositories: [{ full_name: 'BCSDLab/BCSD_united' }],
+        permissions: body.permissions,
+      });
+    }
+    const api = href.replace('https://api.github.com/repos/BCSDLab/BCSD_united', '');
+    if (options.method === 'POST') writes.push(api);
+    if (api === '') return Response.json({ default_branch: 'develop', owner: { login: 'BCSDLab' } });
+    if (api === '/commits/develop')
+      return Response.json({ sha: job.baseSha, commit: { tree: { sha: 'b'.repeat(40) } } });
+    if (api.startsWith('/pulls?')) return Response.json(duplicate ? [{ html_url: url }] : []);
+    if (api === '/git/blobs') return Response.json({ sha: 'c'.repeat(40) });
+    if (api === '/git/trees') return Response.json({ sha: 'd'.repeat(40) });
+    if (api === '/git/commits') return Response.json({ sha: 'e'.repeat(40) });
+    if (api === '/git/refs') {
+      assert.deepEqual(JSON.parse(options.body), { ref: `refs/heads/${identityBranch}`, sha: 'e'.repeat(40) });
+      return humanBranch ? Response.json({}, { status: 422 }) : Response.json({ ref: identityBranch });
+    }
+    if (api === `/git/ref/heads/${encodeURIComponent(identityBranch)}`)
+      return Response.json({ object: { sha: 'f'.repeat(40) } });
+    if (api === `/git/commits/${'f'.repeat(40)}`)
+      return Response.json({ tree: { sha: '0'.repeat(40) }, parents: [{ sha: job.baseSha }] });
+    if (api === '/pulls' && options.method === 'POST') {
+      const body = JSON.parse(options.body);
+      assert.equal(body.head, identityBranch);
+      assert.equal(body.base, 'develop');
+      assert.match(body.body, /https:\/\/bcsd\.sentry\.io\/issues\/123\//);
+      assert.match(body.body, /Project: `koin-united-prod`/);
+      assert.match(body.body, /App: `apps\/web`/);
+      assert.match(body.body, /Verified request: `GET \/campus`/);
+      assert.match(body.body, /Verified base: `develop` at `a{40}`/);
+      assert.match(body.body, /regression-fails-on-base/);
+      assert.doesNotMatch(body.body, /Close #|issue : #/);
+      return Response.json({ html_url: url });
+    }
+    throw new Error(`Unexpected publish request: ${api}`);
+  });
+  assert.equal(await publish(env, job, proof), url);
+  assert.deepEqual(writes, ['/git/blobs', '/git/blobs', '/git/trees', '/git/commits', '/git/refs', '/pulls']);
+  duplicate = true;
+  await assert.rejects(publish(env, job, proof), /A PR already exists/);
+  await assert.rejects(
+    publish(env, { ...job, branch: 'fix/human-branch' }, proof),
+    /Prepared branch identity mismatch/,
+  );
+  assert.equal(writes.filter((request) => request === '/pulls').length, 1);
+  duplicate = false;
+  humanBranch = true;
+  await assert.rejects(publish(env, job, proof), /never overwrite human changes/);
+  assert.equal(writes.filter((request) => request === '/pulls').length, 1);
 });

@@ -1,5 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
 import { prepare } from './prepare';
+import { redact } from './index';
 import { github, installationToken, publish, validateManifest, validateVerification } from './github';
 import {
   CALL_TIMEOUT_MS,
@@ -21,6 +22,7 @@ import {
 } from './pull-request';
 import type {
   Env,
+  ErrorReceipt,
   Identity,
   PatchManifest,
   PreparedPullRequestJob,
@@ -77,7 +79,7 @@ interface Row extends Record<string, SqlStorageValue> {
   lease_expires: number | null;
   deadline_at: number | null;
   prepared: string | null;
-  issue_number: number | null;
+  reason: string | null;
   outcome: string | null;
   pr_url: string | null;
   model_calls: number;
@@ -182,7 +184,7 @@ export class AutofixQueue extends DurableObject<Env> {
       run_id TEXT PRIMARY KEY, identity_key TEXT NOT NULL UNIQUE, identity TEXT NOT NULL,
       status TEXT NOT NULL, attempt INTEGER NOT NULL DEFAULT 0,
       lease_hash TEXT, claim_nonce_hash TEXT, lease_expires INTEGER, deadline_at INTEGER,
-      prepared TEXT, issue_number INTEGER, outcome TEXT, pr_url TEXT,
+      prepared TEXT, outcome TEXT, reason TEXT, pr_url TEXT,
       model_calls INTEGER NOT NULL DEFAULT 0, model_started_at INTEGER,
       model_input_tokens INTEGER NOT NULL DEFAULT 0, model_output_tokens INTEGER NOT NULL DEFAULT 0,
       enqueued_at INTEGER NOT NULL
@@ -202,6 +204,8 @@ export class AutofixQueue extends DurableObject<Env> {
     for (const column of ['model_input_tokens', 'model_output_tokens'])
       if (!columns.has(column))
         ctx.storage.sql.exec(`ALTER TABLE jobs ADD COLUMN ${column} INTEGER NOT NULL DEFAULT 0`);
+    if (!columns.has('reason')) ctx.storage.sql.exec('ALTER TABLE jobs ADD COLUMN reason TEXT');
+    if (columns.has('issue_number')) ctx.storage.sql.exec('ALTER TABLE jobs DROP COLUMN issue_number');
   }
 
   private async admit(
@@ -291,6 +295,20 @@ export class AutofixQueue extends DurableObject<Env> {
     };
   }
 
+  async errorStatus(key: string): Promise<ErrorReceipt | null> {
+    if (!/^(?:sentry|cloudflare)\//.test(key) || key.length > 250) return null;
+    this.expire(Date.now());
+    const row = this.ctx.storage.sql.exec<Row>('SELECT * FROM jobs WHERE identity_key = ?', key).toArray()[0];
+    if (!row) return null;
+    return {
+      runId: row.run_id,
+      status: row.status,
+      outcome: row.outcome,
+      reason: row.reason,
+      prUrl: row.pr_url,
+    };
+  }
+
   async alarm(): Promise<void> {
     this.expire(Date.now());
   }
@@ -371,19 +389,17 @@ export class AutofixQueue extends DurableObject<Env> {
     await this.ctx.storage.setAlarm(prepareUntil);
     await this.ctx.storage.sync();
     let job: QueuedJob | null;
-    let issueNumber: number;
+    let prUrl: string | null = null;
     try {
       if (row.identity_key.startsWith('github-pr/')) {
         const identity = JSON.parse(row.identity) as PullRequestIdentity;
         if (identity.source !== 'github-pr' || pullRequestKey(identity) !== row.identity_key)
           throw new Error('Queued pull request identity mismatch');
         job = await preparePullRequest(this.env, identity);
-        // GitHub treats a pull request number as its issue number; comments use the same route.
-        issueNumber = job.pullNumber;
       } else {
         const prepared = await prepare(this.env, JSON.parse(row.identity) as Identity, row.identity_key);
         job = prepared.job;
-        issueNumber = prepared.issueNumber;
+        prUrl = prepared.prUrl;
       }
     } catch (error) {
       const outcome =
@@ -393,8 +409,9 @@ export class AutofixQueue extends DurableObject<Env> {
             : 'pull-request-rejected'
           : 'prepare-failed';
       this.ctx.storage.sql.exec(
-        "UPDATE jobs SET status = 'failed', outcome = ? WHERE run_id = ? AND status = 'preparing'",
+        "UPDATE jobs SET status = 'failed', outcome = ?, reason = ? WHERE run_id = ? AND status = 'preparing'",
         outcome,
+        redact(error instanceof Error ? error.message : 'Trusted preparation failed', this.env).slice(0, 500),
         row.run_id,
       );
       await this.ctx.storage.sync();
@@ -413,8 +430,8 @@ export class AutofixQueue extends DurableObject<Env> {
     }
     if (!job) {
       this.ctx.storage.sql.exec(
-        "UPDATE jobs SET status = 'completed', issue_number = ?, outcome = 'not-repairable-or-duplicate' WHERE run_id = ? AND status = 'preparing'",
-        issueNumber,
+        "UPDATE jobs SET status = 'completed', pr_url = ?, outcome = 'existing-pr' WHERE run_id = ? AND status = 'preparing'",
+        prUrl,
         row.run_id,
       );
       await this.ctx.storage.sync();
@@ -425,12 +442,11 @@ export class AutofixQueue extends DurableObject<Env> {
     const deadlineAt = now + DEADLINE_MS;
     const leaseExpiresAt = Math.min(now + LEASE_MS, deadlineAt);
     this.ctx.storage.sql.exec(
-      "UPDATE jobs SET status = 'leased', lease_hash = ?, lease_expires = ?, deadline_at = ?, prepared = ?, issue_number = ? WHERE run_id = ? AND status = 'preparing'",
+      "UPDATE jobs SET status = 'leased', lease_hash = ?, lease_expires = ?, deadline_at = ?, prepared = ? WHERE run_id = ? AND status = 'preparing'",
       await hexDigest(token),
       leaseExpiresAt,
       deadlineAt,
       JSON.stringify(job),
-      issueNumber,
       row.run_id,
     );
     await this.ctx.storage.setAlarm(leaseExpiresAt);
@@ -592,7 +608,7 @@ export class AutofixQueue extends DurableObject<Env> {
   async result(runId: string, payload: ExecutorResult): Promise<ResultReceipt> {
     const previous = this.ctx.storage.sql.exec<Row>('SELECT * FROM jobs WHERE run_id = ?', runId).toArray()[0];
     if (
-      previous?.status === 'completed' &&
+      (previous?.status === 'completed' || previous?.status === 'failed') &&
       previous.lease_hash &&
       equalDigest(previous.lease_hash, await hexDigest(payload.leaseToken))
     ) {
@@ -606,12 +622,16 @@ export class AutofixQueue extends DurableObject<Env> {
         };
       if (previous.outcome === 'pull-request-stale' && payload.outcome === 'pr-reviewed')
         return { status: 'recorded', outcome: 'pull-request-stale' };
+      if (previous.outcome === 'wont-fix' && payload.outcome === 'no-fix')
+        return { status: 'recorded', outcome: 'wont-fix' };
+      if (previous.status === 'failed' && previous.outcome === 'failed' && payload.outcome === 'failed')
+        return { status: 'recorded', outcome: 'failed' };
       if (previous.outcome === payload.outcome && payload.outcome !== 'verified' && payload.outcome !== 'pr-reviewed')
         return { status: 'recorded' };
       throw new Error('Completed outcome conflicts with retry');
     }
     const row = await this.leased(runId, payload.leaseToken, true);
-    if (!row.prepared || !row.issue_number) throw new Error('Prepared job missing');
+    if (!row.prepared) throw new Error('Prepared job missing');
     const queued = JSON.parse(row.prepared) as QueuedJob;
     if (queued.mode === 'pull-request') return this.pullRequestOutcome(runId, row, queued, payload);
     if (payload.outcome === 'pr-reviewed')
@@ -622,43 +642,18 @@ export class AutofixQueue extends DurableObject<Env> {
         throw new Error('No-fix outcome cannot follow independent verification');
       if (typeof payload.reason !== 'string' || payload.reason.length < 1 || payload.reason.length > 500)
         throw new Error('Invalid no-fix reason');
-      const safe =
-        payload.outcome === 'no-fix'
-          ? '독립 검증 가능한 수정안이 없어서 PR을 생성하지 않았습니다. 모델 결과는 검증 완료로 간주하지 않습니다.'
-          : '독립 검증 또는 실행에 실패하여 PR을 생성하지 않았습니다. 오류를 수동으로 검토해 주세요.';
-      // Issue comments are trusted statements, never raw model text.
-      const token = await installationToken(this.env, 'publish');
-      await this.leased(runId, payload.leaseToken, true);
-      const reportingUntil = Date.now() + REPORT_MS;
+      const outcome = payload.outcome === 'no-fix' ? 'wont-fix' : 'failed';
+      const reason = redact(payload.reason, this.env).trim().slice(0, 500);
+      if (!reason) throw new Error('Invalid empty disposition reason');
       this.ctx.storage.sql.exec(
-        "UPDATE jobs SET status = 'reporting', deadline_at = ? WHERE run_id = ? AND status IN ('leased','verifying')",
-        reportingUntil,
+        "UPDATE jobs SET status = ?, outcome = ?, reason = ? WHERE run_id = ? AND status IN ('leased','verifying')",
+        payload.outcome === 'no-fix' ? 'completed' : 'failed',
+        outcome,
+        reason,
         runId,
       );
-      await this.ctx.storage.setAlarm(reportingUntil);
       await this.ctx.storage.sync();
-      try {
-        await github(this.env, token, `/issues/${job.issueNumber}/comments`, 'POST', { body: safe });
-        const current = this.ctx.storage.sql
-          .exec<{ status: Status }>('SELECT status FROM jobs WHERE run_id = ?', runId)
-          .toArray()[0];
-        if (Date.now() >= reportingUntil || current?.status !== 'reporting')
-          throw new Error('Outcome reporting exceeded deadline');
-        this.ctx.storage.sql.exec(
-          "UPDATE jobs SET status = 'completed', outcome = ? WHERE run_id = ? AND status = 'reporting'",
-          payload.outcome,
-          runId,
-        );
-        await this.ctx.storage.sync();
-        return { status: 'recorded' };
-      } catch {
-        this.ctx.storage.sql.exec(
-          "UPDATE jobs SET status = 'failed', outcome = 'report-ambiguous', lease_hash = NULL WHERE run_id = ? AND status = 'reporting'",
-          runId,
-        );
-        await this.ctx.storage.sync();
-        throw new Error('Outcome report could not be confirmed; reconcile issue comments manually');
-      }
+      return { status: 'recorded', outcome };
     }
     if (row.status !== 'verifying') throw new Error('Verified result requires independent verification phase');
     validateManifest(payload.manifest, job.context.app);

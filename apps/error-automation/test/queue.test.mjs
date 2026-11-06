@@ -30,7 +30,6 @@ const identity = {
 const key = 'sentry/bcsd/koin-united-prod/123';
 const base = 'a'.repeat(40),
   tree = 'b'.repeat(40);
-const marker = '<!-- error-autofix:sentry:bcsd:koin-united-prod:123 -->';
 const appKey = generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey.export({ type: 'pkcs1', format: 'pem' });
 function harness(t) {
   const db = new DatabaseSync(':memory:'),
@@ -99,10 +98,7 @@ function harness(t) {
     if (href === 'https://api.github.com/repos/BCSDLab/BCSD_united')
       return Response.json({ default_branch: 'develop', owner: { login: 'BCSDLab' } });
     if (href.endsWith('/commits/develop')) return Response.json({ sha: base, commit: { tree: { sha: tree } } });
-    if (href.includes('/issues?'))
-      return Response.json([{ number: 9, body: marker, user: { login: 'bcsd-united-error-publisher[bot]' } }]);
     if (href.includes('/pulls?')) return Response.json([]);
-    if (href.endsWith('/issues/9/comments') && options.method === 'POST') return Response.json({ id: 9001 });
     if (href === 'https://bridge.example/v1/messages') {
       assert.equal(options.headers.Authorization, `Bearer ${env.OMP_GATEWAY_TOKEN}`);
       assert.deepEqual(
@@ -155,7 +151,7 @@ test('queue persists immutable fixed job, issues one random lease, and prevents 
   assert.match(claim.runId, /^autofix-[a-f0-9]{64}$/);
   assert.match(claim.leaseToken, /^[a-f0-9]{64}$/);
   assert.equal(claim.job.baseSha, base);
-  assert.equal(claim.job.issueNumber, 9);
+  assert.equal(Object.hasOwn(claim.job, 'issueNumber'), false);
   assert.equal(claim.job.context.route, '/campus');
   assert.equal(Number.isSafeInteger(claim.leaseExpiresAt), true);
   assert.ok(claim.leaseExpiresAt > Date.now());
@@ -230,7 +226,7 @@ test('claimed model assertions are never treated as verification proof; expired 
   );
 });
 
-test('completed no-fix receipt is idempotent for same lease and never creates a PR', async (t) => {
+test('wont-fix persists a private reason across restart without GitHub writes or redelivery', async (t) => {
   const h = harness(t);
   await h.queue.enqueue(identity, key);
   const claim = await h.queue.claim('f'.repeat(64));
@@ -241,11 +237,67 @@ test('completed no-fix receipt is idempotent for same lease and never creates a 
     outcome: 'no-fix',
     reason: 'No safe causal evidence',
   };
-  assert.deepEqual(await h.queue.result(claim.runId, result), { status: 'recorded' });
-  assert.deepEqual(await h.queue.result(claim.runId, result), { status: 'recorded' });
-  assert.equal(h.writes.filter((url) => url.endsWith('/issues/9/comments')).length, 1);
+  const writesBefore = h.writes.length;
+  assert.deepEqual(await h.queue.result(claim.runId, result), { status: 'recorded', outcome: 'wont-fix' });
+  assert.deepEqual(await h.queue.result(claim.runId, result), { status: 'recorded', outcome: 'wont-fix' });
+  assert.equal(h.writes.length, writesBefore);
+  const status = await h.queue.errorStatus(key);
+  assert.deepEqual(status, {
+    runId: claim.runId,
+    status: 'completed',
+    outcome: 'wont-fix',
+    reason: 'No safe causal evidence',
+    prUrl: null,
+  });
+  const restarted = new AutofixQueue(h.queue.ctx, h.queue.env);
+  assert.deepEqual(await restarted.errorStatus(key), status);
+  assert.equal(await restarted.enqueue(identity, key), 'duplicate');
+  assert.equal(await restarted.claim('e'.repeat(64)), null);
+  await assert.rejects(restarted.result(claim.runId, { ...result, outcome: 'failed' }), /conflicts/);
   assert.equal(
     h.writes.some((url) => url.endsWith('/pulls') || url.includes('/git/')),
     false,
   );
+});
+
+test('executor failure remains failed, redacts its reason, and never publishes an issue', async (t) => {
+  const h = harness(t);
+  await h.queue.enqueue(identity, key);
+  const claim = await h.queue.claim('f'.repeat(64));
+  const writesBefore = h.writes.length;
+  const result = {
+    version: 1,
+    executorId: 'koin-rocky-umpc',
+    leaseToken: claim.leaseToken,
+    outcome: 'failed',
+    reason: `Build failed ${h.queue.env.AUTOFIX_EXECUTOR_TOKEN} person@example.com`,
+  };
+  assert.deepEqual(await h.queue.result(claim.runId, result), { status: 'recorded', outcome: 'failed' });
+  assert.deepEqual(await h.queue.result(claim.runId, result), { status: 'recorded', outcome: 'failed' });
+  assert.deepEqual(await h.queue.errorStatus(key), {
+    runId: claim.runId,
+    status: 'failed',
+    outcome: 'failed',
+    reason: 'Build failed [REDACTED] [EMAIL]',
+    prUrl: null,
+  });
+  assert.equal(h.writes.length, writesBefore);
+  assert.equal(await h.queue.errorStatus('github-pr/42'), null);
+  assert.equal(await h.queue.errorStatus('sentry/bcsd/koin-united-prod/999'), null);
+});
+
+test('issue-free schema migration preserves prior identity tombstones and PR receipts', async (t) => {
+  const h = harness(t);
+  await h.queue.enqueue(identity, key);
+  h.db.exec('ALTER TABLE jobs DROP COLUMN reason; ALTER TABLE jobs ADD COLUMN issue_number INTEGER');
+  h.db
+    .prepare("UPDATE jobs SET status = 'completed', outcome = 'published', issue_number = 41, pr_url = ?")
+    .run('https://github.com/BCSDLab/BCSD_united/pull/99');
+  const restarted = new AutofixQueue(h.queue.ctx, h.queue.env);
+  assert.equal(await restarted.enqueue(identity, key), 'duplicate');
+  assert.equal(await restarted.claim('e'.repeat(64)), null);
+  const receipt = await restarted.errorStatus(key);
+  assert.equal(receipt.outcome, 'published');
+  assert.equal(receipt.prUrl, 'https://github.com/BCSDLab/BCSD_united/pull/99');
+  assert.equal(receipt.reason, null);
 });

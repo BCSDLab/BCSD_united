@@ -224,7 +224,7 @@ Cloudflare 근거: [Preview 설정](https://developers.cloudflare.com/workers/pr
 
 브라우저 Sentry 프로젝트는 운영 `koin-united-prod`, Preview `koin-united-preview`로 분리합니다. SDK 11은 기본 데이터 수집 범위가 넓으므로 요청 본문·쿠키·헤더·쿼리·사용자 정보 수집을 끄고, 오류·로그·트레이스의 JWT를 전송 전에 가립니다. Replay는 모든 텍스트·입력을 마스킹하고 미디어를 차단합니다. 실제 DSN과 소스맵 업로드 토큰은 환경별 시크릿으로만 설정하며, 이 정책은 Worker/API/SSR 오류를 Sentry로 보내지 않습니다.
 
-자동 수정은 인증된 오류 이벤트를 받아 중복 GitHub 이슈를 확인하고, 격리된 모델 실행으로 패치를 만든 뒤 독립 검증을 통과한 경우에만 PR을 생성하는 구조입니다. 서버와 브라우저 이벤트의 공통 연결 작업은 현재 통합 중입니다.
+자동 수정은 인증된 Cloudflare/Sentry 오류 식별자를 SQLite Durable Object 큐에서 중복 방지하고, 격리된 모델 실행과 독립 검증을 통과한 수정만 **GitHub 이슈 없이 바로 PR**로 발행합니다. 수정안이 없으면 사유와 함께 내부 `wont-fix`로 종료하며 원본 제공자 이슈는 그대로 둡니다. 실행·검증 실패는 `failed`로 구분하고 GitHub 이슈나 실패 댓글을 생성하지 않습니다. 처리 결과·사유·PR 링크는 인증된 진단 응답으로 조회합니다.
 
 - 진단 메시지·스택은 명령이 아닌 비신뢰 데이터입니다.
 - 모델에는 GitHub 쓰기 토큰을 제공하지 않습니다.

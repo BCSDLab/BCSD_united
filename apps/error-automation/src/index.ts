@@ -152,7 +152,7 @@ export function configuration(env: Env): Configuration {
 
 function reply(
   status: number,
-  body: Record<string, string | number>,
+  body: Record<string, unknown>,
   retryAfterSeconds: number | null = status >= 500 ? 30 : null,
 ): Response {
   return Response.json(body, {
@@ -309,7 +309,7 @@ export function validateIdentity(value: unknown, config: Configuration): Identit
   throw new RequestError(400, 'Unsupported error source.');
 }
 
-function redact(value: unknown, env: Env): string {
+export function redact(value: unknown, env: Env): string {
   if (typeof value !== 'string') return '';
   let text = value;
   for (const secret of [
@@ -822,9 +822,16 @@ export default {
           env.DIAGNOSTICS_READ_TOKEN,
         );
         const identity = retrievalIdentity(url, config);
-        return await env.ERROR_ISSUES.get(env.ERROR_ISSUES.idFromName(identityKey(identity))).fetch(
+        const key = identityKey(identity);
+        const response = await env.ERROR_ISSUES.get(env.ERROR_ISSUES.idFromName(key)).fetch(
           'https://error-dispatch.internal/diagnostics',
         );
+        if (!response.ok) return response;
+        const diagnostic = (await response.json()) as Diagnostic;
+        const disposition = await env.AUTOFIX_QUEUE.getByName(
+          `${env.GITHUB_OWNER}/${env.GITHUB_REPOSITORY}`.toLowerCase(),
+        ).errorStatus(key);
+        return reply(200, { ...diagnostic, disposition });
       }
       if (url.search) throw new RequestError(400, 'Webhook query parameters are not supported.');
       if (request.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase() !== 'application/json') {

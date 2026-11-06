@@ -105,6 +105,9 @@ function harness(t) {
             queue.set(key, item);
             return 'queued';
           },
+          async errorStatus() {
+            return null;
+          },
           async claim() {
             return null;
           },
@@ -860,6 +863,16 @@ test('diagnostic retrieval authenticates exact scope, hides private fields, and 
     },
   });
   assert.equal((await h.send(cloudflareRequest(h, data))).status, 200);
+  let receiptReads = 0;
+  const queue = h.env.AUTOFIX_QUEUE.getByName('bcsdlab/bcsd_united');
+  h.env.AUTOFIX_QUEUE.getByName = () => ({
+    ...queue,
+    async errorStatus(key) {
+      receiptReads++;
+      assert.equal(key, `cloudflare/${cfAccount}/${cfPolicy}/koin-api/${'d'.repeat(32)}`);
+      return { status: 'completed', outcome: 'wont-fix', reason: 'No safe fix', prUrl: null };
+    },
+  });
   for (const token of ['', 'wrong', h.env.CLOUDFLARE_WEBHOOK_SECRET])
     assert.equal((await h.send(diagnosticRequest(h, { token }))).status, 401);
   assert.equal(
@@ -874,10 +887,13 @@ test('diagnostic retrieval authenticates exact scope, hides private fields, and 
   );
   assert.equal((await h.send(diagnosticRequest(h, { query: 'project=koin-api&project=foreign' }))).status, 400);
   assert.equal((await h.send(diagnosticRequest(h, { id: '9'.repeat(32) }))).status, 404);
+  assert.equal(receiptReads, 0);
   const response = await h.send(diagnosticRequest(h));
   assert.equal(response.headers.get('Cache-Control'), 'no-store');
   assert.equal(response.headers.get('Access-Control-Allow-Origin'), null);
   const captured = await response.json();
+  assert.equal(captured.disposition.outcome, 'wont-fix');
+  assert.equal(receiptReads, 1);
   assert.equal(captured.summary.length <= 4096, true);
   assert.deepEqual(Object.keys(captured.details).sort(), ['alertType', 'data', 'timestamp', 'verifiedEvidence']);
   assert.equal(captured.details.data.request, undefined);
@@ -901,6 +917,7 @@ test('diagnostic retrieval authenticates exact scope, hides private fields, and 
   assert.equal(Buffer.byteLength(stored) <= 16 * 1024, true);
   db.prepare('UPDATE dispatch SET expires_at = 0').run();
   assert.equal((await h.send(diagnosticRequest(h))).status, 404);
+  assert.equal(receiptReads, 1);
   await h.runAlarms();
   assert.equal(db.prepare('SELECT diagnostic FROM dispatch').get().diagnostic, null);
   h.restartObjects();
