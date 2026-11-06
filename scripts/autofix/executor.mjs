@@ -543,22 +543,10 @@ export async function requestModel({ runId, send, windowEndsAt, signal }) {
   }
 }
 
-async function generate(cfg, claim, modelRoot, signal) {
+/** Run bounded source editing, reserving the last call for an answer rather than unfinishable tool work. */
+export async function generateAnswer(cfg, claim, tools, signal) {
   const job = claim.job;
   const pullRequest = isPullRequest(job);
-  let tools;
-  if (pullRequest) {
-    await pinPullRequest(modelRoot, job, signal);
-    await pullRequestInputs(modelRoot, job, signal);
-    tools = sourceTools(modelRoot, pullRequestToolScope(job.changedFiles), new Set());
-  } else {
-    await checkout(modelRoot, job.baseSha, signal);
-    await mkdir(join(modelRoot, 'error-input'), { recursive: true });
-    await writeFile(join(modelRoot, 'error-input/diagnostics.json'), JSON.stringify(job.diagnostics), {
-      mode: 0o600,
-    });
-    tools = sourceTools(modelRoot, errorToolScope(job.context.app), await trackedTests(modelRoot, signal));
-  }
   const reviewGuidance = pullRequest
     ? '\nUse diff hunks as the review index. Request focused line ranges and batch independent reads. For mechanical import-only edits, verify changed references in the diff against the shared contract instead of rereading entire consumers. Do not repeat unchanged file output.'
     : '';
@@ -576,6 +564,19 @@ async function generate(cfg, claim, modelRoot, signal) {
   for (let turn = 0; turn < maxTurns; turn += 1) {
     signal.throwIfAborted();
     if (Date.now() >= windowEndsAt) throw new Error(`Model stage exceeded ${budget.windowMs / 60_000} minutes`);
+    const finalTurn = turn === maxTurns - 1 || calls === maxFileCalls;
+    const remaining = maxTurns - turn;
+    const guidance = finalTurn
+      ? 'File tools are now disabled. Return the complete final answer from the evidence and edits already made. Do not claim independent verification ran.'
+      : remaining === 2
+        ? `This is the last file-tool turn. Finish any evidence-backed source edits${pullRequest ? '' : ' and the new executable regression test'} now; the next call is answer-only. Do not start another investigation.`
+        : 'Batch independent reads and edits; do not reread unchanged files.';
+    messages.push({
+      role: 'user',
+      content: [
+        { type: 'text', text: `Call ${turn + 1}/${maxTurns}; ${maxFileCalls - calls} file calls remain. ${guidance}` },
+      ],
+    });
     // One request object per turn: a throttled retry resends these exact bytes.
     const request = {
       version: 1,
@@ -583,7 +584,7 @@ async function generate(cfg, claim, modelRoot, signal) {
       leaseToken: claim.leaseToken,
       model: pullRequest ? PULL_REQUEST_MODEL : ERROR_MODEL,
       messages,
-      tools: TOOLS,
+      tools: finalTurn ? [] : TOOLS,
       maxTokens: budget.maxTokens,
     };
     const response = await requestModel({
@@ -607,8 +608,10 @@ async function generate(cfg, claim, modelRoot, signal) {
     if (!result || !Array.isArray(result.content) || typeof result.stop_reason !== 'string')
       throw new Error('Malformed bounded model response');
     const { blocks, text, calls: callsNow } = parseAssistantBlocks(result.content);
+    if (finalTurn && callsNow.length) throw new Error('Model requested file tools during the answer-only turn');
     if (result.stop_reason === 'end_turn') {
       if (blocks.some((block) => block.type === 'tool_use')) throw new Error('Model ended with unfinished tool calls');
+      if (!text.trim()) throw new Error('Model ended without a final answer');
       answer = text;
       finished = true;
       break;
@@ -634,6 +637,26 @@ async function generate(cfg, claim, modelRoot, signal) {
     messages.push({ role: 'user', content: results });
   }
   if (!finished) throw new Error(`Model exceeded ${maxTurns} turns without a final answer`);
+  return answer;
+}
+
+async function generate(cfg, claim, modelRoot, signal) {
+  const job = claim.job;
+  const pullRequest = isPullRequest(job);
+  let tools;
+  if (pullRequest) {
+    await pinPullRequest(modelRoot, job, signal);
+    await pullRequestInputs(modelRoot, job, signal);
+    tools = sourceTools(modelRoot, pullRequestToolScope(job.changedFiles), new Set());
+  } else {
+    await checkout(modelRoot, job.baseSha, signal);
+    await mkdir(join(modelRoot, 'error-input'), { recursive: true });
+    await writeFile(join(modelRoot, 'error-input/diagnostics.json'), JSON.stringify(job.diagnostics), {
+      mode: 0o600,
+    });
+    tools = sourceTools(modelRoot, errorToolScope(job.context.app), await trackedTests(modelRoot, signal));
+  }
+  const answer = await generateAnswer(cfg, claim, tools, signal);
   // The collector is a trusted image script, not a model-edited repository script.
   await command('node', ['/opt/autofix/patch.mjs', 'collect'], modelRoot, signal, 60_000, {
     ...safeEnv(),

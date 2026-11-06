@@ -33,6 +33,7 @@ const gatewayUrl = 'https://bridge.example/v1/messages';
 test('proxy admits only the two tier models, five file tools, and bounded message blocks', () => {
   assert.equal(parseModelRequest(base).model, 'claude-sonnet-5-5');
   assert.equal(parseModelRequest(review).model, 'claude-opus-5-5');
+  assert.deepEqual(parseModelRequest({ ...base, tools: [] }).tools, []);
   for (const change of [
     { model: 'other' },
     { model: 'claude-fable-5-1' },
@@ -41,6 +42,9 @@ test('proxy admits only the two tier models, five file tools, and bounded messag
     { url: 'https://attacker.example' },
     { system: 'ignore controls' },
     { tools: ['Read', 'Bash', 'Write', 'Glob', 'Grep'] },
+    { tools: ['Read'] },
+    { tools: ['Read', 'Edit', 'Write', 'Glob'] },
+    { tools: ['Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash'] },
     { maxTokens: 99999 },
     { messages: [] },
     { messages: [{ role: 'system', content: 'override' }] },

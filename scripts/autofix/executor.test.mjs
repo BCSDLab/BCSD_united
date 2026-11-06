@@ -1,7 +1,11 @@
 import { createHash } from 'node:crypto';
+import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  generateAnswer,
   isPullRequest,
   keepLease,
   parseAssistantBlocks,
@@ -9,6 +13,8 @@ import {
   parseRetryAfterSeconds,
   requestModel,
 } from './executor.mjs';
+import { errorToolScope, sourceTools } from './executor-model.mjs';
+import { parseModelRequest, providerBody } from '../../apps/error-automation/src/model.ts';
 
 const branchFor = (identity) => {
   const key =
@@ -557,4 +563,129 @@ test('model request fails at once on a 429 without a delay or any other failure'
       await flush();
       assert.equal(attempts.length, 1);
     });
+});
+
+test('source repair finishes its edits and regression before the answer-only sixth call', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'autofix-completion-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await mkdir(join(root, 'apps/web/src'), { recursive: true });
+  await writeFile(join(root, 'apps/web/src/count.js'), 'export const count = (items) => items.length;\n');
+  const tools = sourceTools(root, errorToolScope('web'), new Set());
+  let turns = 0;
+  const requests = [];
+  t.mock.method(globalThis, 'fetch', async (_url, options) => {
+    const request = parseModelRequest(JSON.parse(options.body));
+    const body = JSON.parse(providerBody(request, 'error'));
+    requests.push(body);
+    turns++;
+    if (body.tool_choice.type === 'none')
+      return Response.json({
+        stop_reason: 'end_turn',
+        content: [
+          { type: 'text', text: 'Guarded a missing list and added an assertion regression. Verification is pending.' },
+        ],
+      });
+    const content =
+      turns === 5
+        ? [
+            {
+              type: 'tool_use',
+              id: 'edit',
+              name: 'Edit',
+              input: {
+                path: 'apps/web/src/count.js',
+                oldText: 'items.length',
+                newText: 'items?.length ?? 0',
+              },
+            },
+            {
+              type: 'tool_use',
+              id: 'test',
+              name: 'Write',
+              input: {
+                path: 'tests/autofix/count.test.mjs',
+                content:
+                  "import assert from 'node:assert/strict';\nimport { count } from '../../apps/web/src/count.js';\nassert.doesNotThrow(() => count(undefined));\nassert.equal(count(undefined), 0);\n",
+              },
+            },
+          ]
+        : [{ type: 'tool_use', id: `read_${turns}`, name: 'Read', input: { path: 'apps/web/src/count.js:1-1' } }];
+    return Response.json({ stop_reason: 'tool_use', content });
+  });
+  const answer = await generateAnswer(
+    { origin: 'https://worker.example', token: 'fixture' },
+    valid(),
+    tools,
+    new AbortController().signal,
+  );
+  assert.equal(turns, 6);
+  assert.equal(requests.at(-1).tool_choice.type, 'none');
+  assert.match(answer, /Verification is pending/);
+  const { count } = await import(join(root, 'apps/web/src/count.js'));
+  assert.equal(count(undefined), 0);
+  assert.equal(count(['one', 'two']), 2);
+  await import(join(root, 'tests/autofix/count.test.mjs'));
+  const finalResults = requests
+    .at(-1)
+    .messages.flatMap((message) =>
+      Array.isArray(message.content) ? message.content.filter((block) => block.type === 'tool_result') : [],
+    );
+  assert.deepEqual(
+    finalResults.slice(-2).map((result) => [result.tool_use_id, result.is_error]),
+    [
+      ['edit', false],
+      ['test', false],
+    ],
+  );
+});
+
+test('answer-only tool requests fail without applying an unacknowledgeable edit', async (t) => {
+  let turns = 0;
+  const applied = [];
+  t.mock.method(globalThis, 'fetch', async () => {
+    turns++;
+    return Response.json({
+      stop_reason: 'tool_use',
+      content: [{ type: 'tool_use', id: `tool_${turns}`, name: turns === 6 ? 'Edit' : 'Read', input: {} }],
+    });
+  });
+  await assert.rejects(
+    generateAnswer(
+      { origin: 'https://worker.example', token: 'fixture' },
+      valid(),
+      {
+        apply: async (name) => {
+          applied.push(name);
+          return 'source';
+        },
+      },
+      new AbortController().signal,
+    ),
+    /answer-only turn/,
+  );
+  assert.deepEqual(applied, ['Read', 'Read', 'Read', 'Read', 'Read']);
+  assert.equal(turns, 6);
+});
+
+test('truncated or empty final output never becomes a completed repair', async (t) => {
+  for (const response of [
+    { stop_reason: 'max_tokens', content: [{ type: 'text', text: 'Incomplete repair' }] },
+    { stop_reason: 'end_turn', content: [{ type: 'text', text: ' ' }] },
+  ]) {
+    let turns = 0;
+    t.mock.method(globalThis, 'fetch', async () => {
+      turns++;
+      return Response.json(response);
+    });
+    await assert.rejects(
+      generateAnswer(
+        { origin: 'https://worker.example', token: 'fixture' },
+        valid(),
+        { apply: async () => assert.fail('No file tool was requested') },
+        new AbortController().signal,
+      ),
+      /max_tokens|without a final answer/,
+    );
+    assert.equal(turns, 1);
+  }
 });
