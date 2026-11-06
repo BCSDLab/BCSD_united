@@ -159,6 +159,7 @@ const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
       return {
         bannersList,
         serverDining,
+        serverNow: serverRequest.now,
         serverSemester,
         dehydratedState: dehydrate(queryClient),
       };

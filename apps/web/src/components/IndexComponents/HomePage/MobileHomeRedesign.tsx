@@ -22,28 +22,32 @@ import styles from './MobileHomeRedesign.module.scss';
 const unibus = BUS_LINKS[2];
 const mobileStoreLink = `${ROUTES.Store()}?category=1`;
 
+const MOBILE_HOME_CLICK_VALUES = {
+  today_meal: '전체보기',
+  shuttle_ticket: '셔틀 탑승권',
+  callvanpot: '콜밴팟 모집보기',
+  bus_timetable: '버스 시간표 조회하기',
+  bus_route: '버스 노선 조회하기',
+  shop: '전체보기',
+  popular_shop: '많이 찾는 상점 둘러보기',
+} as const;
+
 const transportCards = [
   {
     href: ROUTES.BusCourseShuttle(),
     title: '버스 시간표',
     description: '노선 별 출발 시간',
     Icon: BusTimeIcon,
-    logging: {
-      event_label: 'bus_timetable',
-      value: '버스 시간표 조회하기',
-    },
+    loggingKey: 'bus_timetable',
   },
   {
     href: ROUTES.BusRoute(),
     title: '버스 노선 조회',
     description: '가장 빠른 버스 찾기',
     Icon: BusRouteIcon,
-    logging: {
-      event_label: 'bus_route',
-      value: '버스 노선 조회하기',
-    },
+    loggingKey: 'bus_route',
   },
-];
+] as const;
 
 interface SectionHeaderProps {
   titleId: string;
@@ -73,11 +77,11 @@ function MobileHomeRedesign() {
     }),
   });
 
-  const logClick = (event_label: string, value: string) => {
+  const logClick = (event_label: keyof typeof MOBILE_HOME_CLICK_VALUES) => {
     logger.actionEventClick({
       team: 'CAMPUS',
       event_label,
-      value,
+      value: MOBILE_HOME_CLICK_VALUES[event_label],
     });
   };
 
@@ -87,11 +91,7 @@ function MobileHomeRedesign() {
 
       <section className={styles.section} aria-labelledby="today-menu-title">
         <SectionHeader titleId="today-menu-title" title="오늘의 식단">
-          <Link
-            to={ROUTES.Cafeteria()}
-            className={styles['section-link']}
-            onClick={() => logClick('today_meal', '전체보기')}
-          >
+          <Link to={ROUTES.Cafeteria()} className={styles['section-link']} onClick={() => logClick('today_meal')}>
             <span>전체보기</span>
             <ArrowRightIcon aria-hidden />
           </Link>
@@ -107,7 +107,7 @@ function MobileHomeRedesign() {
             className={styles['ticket-card']}
             target="_blank"
             rel="noreferrer"
-            onClick={() => logClick('shuttle_ticket', '셔틀 탑승권')}
+            onClick={() => logClick('shuttle_ticket')}
           >
             <span className={styles['ticket-card__text']}>
               <strong>셔틀 탑승권</strong>
@@ -117,11 +117,7 @@ function MobileHomeRedesign() {
           </a>
         </SectionHeader>
 
-        <Link
-          to={ROUTES.Callvan()}
-          className={styles['callvan-card']}
-          onClick={() => logClick('callvanpot', '콜밴팟 모집보기')}
-        >
+        <Link to={ROUTES.Callvan()} className={styles['callvan-card']} onClick={() => logClick('callvanpot')}>
           <IconBox className={styles['callvan-card__icon']}>
             <VanIcon />
           </IconBox>
@@ -136,13 +132,13 @@ function MobileHomeRedesign() {
         </Link>
 
         <div className={styles['transport-grid']}>
-          {transportCards.map(({ href, title, description, Icon, logging }) => (
+          {transportCards.map(({ href, title, description, Icon, loggingKey }) => (
             <Link
               to={href.split('?')[0]}
               search={parseSearch(href.split('?')[1] ?? '')}
               className={styles['transport-card']}
               key={href}
-              onClick={() => logClick(logging.event_label, logging.value)}
+              onClick={() => logClick(loggingKey)}
             >
               <IconBox>
                 <Icon />
@@ -163,14 +159,14 @@ function MobileHomeRedesign() {
             to={mobileStoreLink.split('?')[0]}
             search={parseSearch(mobileStoreLink.split('?')[1] ?? '')}
             className={styles['section-link']}
-            onClick={() => logClick('shop', '전체보기')}
+            onClick={() => logClick('shop')}
           >
             <span>전체보기</span>
             <ArrowRightIcon aria-hidden />
           </Link>
         </SectionHeader>
 
-        <StoreCard href={mobileStoreLink} onClick={() => logClick('popular_shop', '많이 찾는 상점 둘러보기')} />
+        <StoreCard href={mobileStoreLink} onClick={() => logClick('popular_shop')} />
       </section>
     </main>
   );

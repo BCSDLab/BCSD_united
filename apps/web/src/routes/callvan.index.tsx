@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { dehydrate, QueryClient, useInfiniteQuery } from '@tanstack/react-query';
-import { createFileRoute, useSearch, useParams } from '@tanstack/react-router';
+import { createFileRoute, useNavigate, useSearch, useParams, redirect } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
 import type { CallvanListRequest } from 'api/callvan/entity';
@@ -8,6 +8,8 @@ import { callvanQueries, callvanQueryKeys } from 'api/callvan/queries';
 import CallvanList from 'components/Callvan/components/CallvanList';
 import CallvanPageLayout from 'components/Callvan/components/CallvanPageLayout';
 import { type CallvanParams, parseCallvanQuery } from 'components/Callvan/utils/callvanQuery';
+import ROUTES from 'static/routes';
+import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import useMount from 'utils/hooks/state/useMount';
 import useInfiniteScroll from 'utils/hooks/ui/useInfiniteScroll';
@@ -52,6 +54,17 @@ function useCallvanParams(initialParams: CallvanParams): CallvanParams {
 }
 
 export default function CallvanPage({ initialParams }: Awaited<ReturnType<typeof getPageData>>) {
+  const routeNavigate = useNavigate();
+  const isMobile = useMediaQuery();
+  const mounted = useMount();
+
+  // 서버가 이미 걸러내지만, 창 크기를 줄여 모바일 폭이 된 뒤 넓히는 경우를 위해 남긴다.
+  useEffect(() => {
+    if (mounted && !isMobile) {
+      routeNavigate({ href: ROUTES.Main(), replace: true });
+    }
+  }, [mounted, isMobile, routeNavigate]);
+
   const params = useCallvanParams(initialParams);
 
   return <CallvanContent key={params.title} params={params} />;
@@ -103,6 +116,10 @@ const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
   .handler(({ data }) =>
     loadPageData(data, async (context, _cacheControl, serverRequest) => {
+      if (serverRequest.device !== 'mobile') {
+        throw redirect({ href: ROUTES.Main(), statusCode: 302 });
+      }
+
       const queryClient = new QueryClient();
       const { search: query } = context;
 
