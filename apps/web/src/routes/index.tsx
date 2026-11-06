@@ -121,12 +121,9 @@ const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
       const prefetchDeviceContent = async () => {
         if (isMobile) {
           await Promise.all([
-            queryClient.prefetchQuery(weatherQueries.info()),
             queryClient.prefetchQuery(
               callvanQueries.list({ statuses: ['RECRUITING'], sort: 'LATEST_DESC', page: 1, limit: 1 }),
             ),
-            queryClient.prefetchQuery(storeQueries.counts()),
-            queryClient.prefetchQuery(storeQueries.eventCount()),
             queryClient.prefetchQuery(coopshopQueries.cafeteriaInfo()),
           ]);
 
@@ -135,8 +132,6 @@ const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
 
         const [banners] = await Promise.all([
           prefetchBanners(),
-          queryClient.prefetchQuery(storeQueries.counts()),
-          queryClient.prefetchQuery(storeQueries.eventCount()),
           queryClient.prefetchQuery(articleQueries.list(isLoggedIn, '1')),
           queryClient.prefetchQuery(timetableQueries.semesterInfo()),
         ]);
@@ -147,6 +142,9 @@ const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
 
       const [userSemester] = await Promise.all([
         prefetchTimetable(),
+        queryClient.prefetchQuery(weatherQueries.info()),
+        queryClient.prefetchQuery(storeQueries.counts()),
+        queryClient.prefetchQuery(storeQueries.eventCount()),
         queryClient.prefetchQuery(cafeteriaQueries.dinings(convertDateToSimpleString(diningDate))),
         isLoggedIn && queryClient.prefetchQuery(authQueries.userInfo(true)),
         prefetchDeviceContent(),
