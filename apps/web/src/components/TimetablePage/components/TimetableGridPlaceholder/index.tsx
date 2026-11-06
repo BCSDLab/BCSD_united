@@ -7,6 +7,7 @@ import styles from 'components/TimetablePage/components/Timetable/Timetable.modu
 const DEFAULT_TIME_STRING = ['9', '10', '11', '12', '13', '14', '15', '16', '17', '18'].flatMap((time) => [time, '']);
 
 interface TimetableGridPlaceholderProps {
+  readonly variant?: 'home';
   readonly firstColumnWidth: number;
   readonly columnWidth: number;
   readonly rowHeight: number;
@@ -14,6 +15,7 @@ interface TimetableGridPlaceholderProps {
 }
 
 export default function TimetableGridPlaceholder({
+  variant,
   firstColumnWidth,
   columnWidth,
   rowHeight,
@@ -23,11 +25,11 @@ export default function TimetableGridPlaceholder({
 
   return (
     <div
-      className={styles.timetable}
+      className={cn({ [styles.timetable]: true, [styles['timetable--home']]: variant === 'home' })}
       style={{ height: `${totalHeight}px`, fontSize: `${rowHeight / 2}px` }}
       aria-hidden
     >
-      <div className={styles.timetable__head} style={{ height: `${rowHeight + 5}px` }}>
+      <div className={styles.timetable__head} style={{ height: `${variant === 'home' ? 16 : rowHeight + 5}px` }}>
         <div
           className={cn({
             [styles.timetable__col]: true,

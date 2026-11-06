@@ -9,7 +9,6 @@ import { bannerQueries } from 'api/banner/queries';
 import { cafeteriaQueries } from 'api/cafeteria/queries';
 import { callvanQueries } from 'api/callvan/queries';
 import { coopshopQueries } from 'api/coopshop/queries';
-import type { StoreCategoriesResponse } from 'api/store/entity';
 import { storeQueries } from 'api/store/queries';
 import { createDefaultTimetableFrameList, timetableQueries, timetableQueryKeys } from 'api/timetable/queries';
 import { weatherQueries } from 'api/weather/queries';
@@ -65,7 +64,6 @@ const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
         }
       };
 
-      const serverNow = new Date();
       const diningTime = new DiningTime();
       const diningDate = diningTime.generateDiningDate();
       const serverDining = {
@@ -114,46 +112,39 @@ const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
         if (!category) return null;
 
         const categoryId = Number(category.id);
-        const list = await queryClient.fetchQuery(bannerQueries.list(categoryId));
 
-        return { categoryId, list };
+        return queryClient.fetchQuery(bannerQueries.list(categoryId));
       };
 
-      let bannerCategoryId = 0;
       let bannersList: BannersResponse = { count: 0, banners: [] };
-      let categories: StoreCategoriesResponse = { total_count: 0, shop_categories: [] };
 
       const prefetchDeviceContent = async () => {
         if (isMobile) {
           await Promise.all([
-            queryClient.prefetchQuery(weatherQueries.info()),
             queryClient.prefetchQuery(
               callvanQueries.list({ statuses: ['RECRUITING'], sort: 'LATEST_DESC', page: 1, limit: 1 }),
             ),
-            queryClient.prefetchQuery(storeQueries.counts()),
-            queryClient.prefetchQuery(storeQueries.eventCount()),
             queryClient.prefetchQuery(coopshopQueries.cafeteriaInfo()),
           ]);
 
           return;
         }
 
-        const [banners, categoriesResponse] = await Promise.all([
+        const [banners] = await Promise.all([
           prefetchBanners(),
-          queryClient.fetchQuery(storeQueries.categories()),
           queryClient.prefetchQuery(articleQueries.list(isLoggedIn, '1')),
           queryClient.prefetchQuery(timetableQueries.semesterInfo()),
-          queryClient.prefetchQuery(articleQueries.lostItemStat()),
         ]);
         if (banners) {
-          bannerCategoryId = banners.categoryId;
-          bannersList = banners.list;
+          bannersList = banners;
         }
-        categories = categoriesResponse;
       };
 
       const [userSemester] = await Promise.all([
         prefetchTimetable(),
+        queryClient.prefetchQuery(weatherQueries.info()),
+        queryClient.prefetchQuery(storeQueries.counts()),
+        queryClient.prefetchQuery(storeQueries.eventCount()),
         queryClient.prefetchQuery(cafeteriaQueries.dinings(convertDateToSimpleString(diningDate))),
         isLoggedIn && queryClient.prefetchQuery(authQueries.userInfo(true)),
         prefetchDeviceContent(),
@@ -166,12 +157,10 @@ const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
       }
 
       return {
-        bannerCategoryId,
         bannersList,
-        categories,
         serverDining,
+        serverNow: serverRequest.now,
         serverSemester,
-        serverNow: serverNow.toISOString(),
         dehydratedState: dehydrate(queryClient),
       };
     }),
