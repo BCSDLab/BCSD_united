@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { Suspense, type ReactNode } from 'react';
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 
@@ -8,6 +8,7 @@ import BusTimeIcon from 'assets/svg/common/bus-time-icon.svg';
 import QRCodeIcon from 'assets/svg/common/qr-code-icon.svg';
 import BusRouteIcon from 'assets/svg/common/route-icon.svg';
 import VanIcon from 'assets/svg/common/van-icon.svg';
+import ErrorBoundary from 'components/boundary/ErrorBoundary';
 import IndexMobileCafeteria from 'components/IndexComponents/IndexMobileCafeteria';
 import StoreCard from 'components/IndexComponents/IndexStore/StoreCard';
 import IconBox from 'components/ui/IconBox';
@@ -17,6 +18,7 @@ import useLogger from 'utils/hooks/analytics/useLogger';
 import { parseSearch } from 'utils/routing/search';
 
 import HomeGreeting from './HomeGreeting';
+import cardStyles from 'components/IndexComponents/IndexStore/StoreCard.module.scss';
 import styles from './MobileHomeRedesign.module.scss';
 
 const unibus = BUS_LINKS[2];
@@ -166,7 +168,17 @@ function MobileHomeRedesign() {
           </Link>
         </SectionHeader>
 
-        <StoreCard href={mobileStoreLink} onClick={() => logClick('popular_shop')} />
+        <ErrorBoundary fallbackClassName={cardStyles['store-card']}>
+          <Suspense
+            fallback={
+              <div className={cardStyles['store-card']} role="status">
+                상점 정보를 불러오는 중입니다.
+              </div>
+            }
+          >
+            <StoreCard href={mobileStoreLink} onClick={() => logClick('popular_shop')} />
+          </Suspense>
+        </ErrorBoundary>
       </section>
     </main>
   );

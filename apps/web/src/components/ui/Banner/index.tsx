@@ -86,18 +86,20 @@ function Banner({ bannersList }: BannerProps) {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const isFocusedRef = useRef(false);
   const logger = useLogger();
-  const [currentPageIndex, setCurrentPageIndex] = useState(0);
+  const [pageIndex, setPageIndex] = useState(0);
+  const bannerCount = bannersList.banners.length;
+  const currentPageIndex = bannerCount > 0 ? pageIndex % bannerCount : 0;
   const currentBanner = bannersList.banners[currentPageIndex];
-  const isVisible = bannersList.count > 0;
+  const isVisible = Boolean(currentBanner);
 
   const resetAutoSlide = useCallback(() => {
     if (intervalRef.current) clearTimeout(intervalRef.current);
     if (isFocusedRef.current) return;
 
     intervalRef.current = setTimeout(() => {
-      setCurrentPageIndex((prev) => (prev === bannersList.count - 1 ? 0 : prev + 1));
+      setPageIndex((prev) => (prev + 1) % bannerCount);
     }, 3000);
-  }, [bannersList.count]);
+  }, [bannerCount]);
 
   const handleImageLinkClick = () => {
     logger.actionEventClick({
@@ -113,7 +115,7 @@ function Banner({ bannersList }: BannerProps) {
       event_label: 'main_next_modal',
       value: `${currentBanner.title}`,
     });
-    setCurrentPageIndex((prev) => (prev === 0 ? bannersList.count - 1 : prev - 1));
+    setPageIndex((prev) => (prev - 1 + bannerCount) % bannerCount);
     resetAutoSlide();
   };
 
@@ -123,7 +125,7 @@ function Banner({ bannersList }: BannerProps) {
       event_label: 'main_next_modal',
       value: `${currentBanner.title}`,
     });
-    setCurrentPageIndex((prev) => (prev === bannersList.count - 1 ? 0 : prev + 1));
+    setPageIndex((prev) => (prev + 1) % bannerCount);
     resetAutoSlide();
   };
 
@@ -133,19 +135,19 @@ function Banner({ bannersList }: BannerProps) {
       event_label: 'main_next_modal',
       value: `${currentBanner.title}`,
     });
-    setCurrentPageIndex(index);
+    setPageIndex(index);
     resetAutoSlide();
   };
 
   useEffect(() => {
-    if (!isVisible || bannersList.count <= 1) return undefined;
+    if (!isVisible || bannerCount <= 1) return undefined;
 
     resetAutoSlide();
 
     return () => {
       if (intervalRef.current) clearTimeout(intervalRef.current);
     };
-  }, [isVisible, bannersList.count, resetAutoSlide, currentPageIndex]);
+  }, [isVisible, bannerCount, resetAutoSlide, currentPageIndex]);
 
   useEffect(() => {
     if (isVisible) {
@@ -159,7 +161,7 @@ function Banner({ bannersList }: BannerProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 배너가 보일 때만 로깅해야 하므로 logger/currentBanner 변경은 무시
   }, [isVisible]);
 
-  if (!isVisible) return null;
+  if (!currentBanner) return null;
 
   return (
     <section
@@ -173,7 +175,7 @@ function Banner({ bannersList }: BannerProps) {
         if (event.currentTarget.contains(event.relatedTarget)) return;
 
         isFocusedRef.current = false;
-        if (bannersList.count > 1) resetAutoSlide();
+        if (bannerCount > 1) resetAutoSlide();
       }}
     >
       <div className={styles.inline__slider}>
@@ -183,7 +185,7 @@ function Banner({ bannersList }: BannerProps) {
           redirect_link={currentBanner.redirect_link}
           isFirst={currentPageIndex === 0}
         />
-        {bannersList.count > 1 && (
+        {bannerCount > 1 && (
           <>
             <button
               type="button"
@@ -204,7 +206,7 @@ function Banner({ bannersList }: BannerProps) {
           </>
         )}
       </div>
-      {bannersList.count > 1 && (
+      {bannerCount > 1 && (
         <div className={styles.inline__pagination}>
           {bannersList.banners.map((banner, index) => (
             <button
