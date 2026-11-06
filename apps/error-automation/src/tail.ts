@@ -1,0 +1,113 @@
+import type { App } from './types';
+
+export interface TailEvidence {
+  version: 1;
+  workerName: string;
+  rayId: string;
+  scriptVersion: string;
+  eventTimestamp: number;
+  route: string;
+  frames: { path: string; line: number; column: number }[];
+}
+
+export const SOURCE_HOSTS: Record<string, string> = {
+  'koin-web': 'koin-web.bcsdlab.workers.dev',
+  'koin-api': 'koin-api.bcsdlab.workers.dev',
+};
+const UUID = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;
+const FRAME = /\bapps\/(web|api)\/src\/([A-Za-z0-9_./-]+\.(?:ts|tsx|js|jsx)):(\d+):(\d+)/g;
+
+/** Retain only provider-mapped file positions, never raw Tail headers, URLs, logs or messages. */
+export function extractTailEvidence(item: TraceItem, workerName: string, app: App): TailEvidence | null {
+  if (
+    item.scriptName !== workerName ||
+    !SOURCE_HOSTS[workerName] ||
+    item.truncated ||
+    !item.event ||
+    !('request' in item.event) ||
+    item.event.request.method !== 'GET' ||
+    !Number.isSafeInteger(item.eventTimestamp) ||
+    item.eventTimestamp === null ||
+    item.eventTimestamp < Date.now() - 7 * 24 * 60 * 60 * 1000 ||
+    !item.scriptVersion?.id ||
+    !UUID.test(item.scriptVersion.id)
+  )
+    return null;
+
+  const rawRay = item.event.request.headers['cf-ray'];
+  if (!rawRay || !/^[a-f0-9]{16}(?:-[A-Z]{3})?$/.test(rawRay)) return null;
+  let route: string;
+  try {
+    const url = new URL(item.event.request.url);
+    if (
+      url.protocol !== 'https:' ||
+      url.hostname !== SOURCE_HOSTS[workerName] ||
+      url.username ||
+      url.password ||
+      url.port ||
+      url.pathname.length > 200 ||
+      !/^\/[A-Za-z0-9_/-]*$/.test(url.pathname) ||
+      url.pathname.startsWith('//') ||
+      url.pathname.includes('..') ||
+      url.pathname.includes('REDACTED')
+    )
+      return null;
+    route = url.pathname;
+  } catch {
+    return null;
+  }
+
+  const frames: TailEvidence['frames'] = [];
+  const seen = new Set<string>();
+  const stacks: string[] = [];
+  for (let index = 0; index < item.exceptions.length && index < 5; index += 1) {
+    const stack = item.exceptions[index].stack;
+    if (typeof stack === 'string') stacks.push(stack);
+  }
+  for (let index = 0; index < item.logs.length && index < 20; index += 1) {
+    const log = item.logs[index];
+    if (log.level !== 'error' || !log.errorInfo) continue;
+    for (let errorIndex = 0; errorIndex < log.errorInfo.length && errorIndex < 5; errorIndex += 1) {
+      const stack = log.errorInfo[errorIndex]?.stack;
+      if (typeof stack === 'string') stacks.push(stack);
+    }
+  }
+  for (const stack of stacks) {
+    if (stack.length > 16_384) continue;
+    for (const match of stack.matchAll(FRAME)) {
+      if (match[1] !== app || match[2].length > 160 || match[2].includes('..')) continue;
+      const line = Number(match[3]),
+        column = Number(match[4]);
+      if (
+        !Number.isSafeInteger(line) ||
+        line < 1 ||
+        line > 1_000_000 ||
+        !Number.isSafeInteger(column) ||
+        column < 1 ||
+        column > 10_000
+      )
+        continue;
+      const path = `apps/${app}/src/${match[2]}`;
+      const key = `${path}:${line}:${column}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      frames.push({ path, line, column });
+      if (frames.length >= 12) break;
+    }
+    if (frames.length >= 12) break;
+  }
+  if (!frames.length) return null;
+  return {
+    version: 1,
+    workerName,
+    rayId: rawRay.slice(0, 16),
+    scriptVersion: item.scriptVersion.id,
+    eventTimestamp: item.eventTimestamp,
+    route,
+    frames,
+  };
+}
+
+export function tailKey(workerName: string, rayId: string): string {
+  return `tail/${workerName}/${rayId}`;
+}

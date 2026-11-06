@@ -14,7 +14,7 @@
   "dependencies": {
     "@koin/b-bot-ai": "workspace:*",
     "@koin/b-bot-database": "workspace:*",
-    "@notionhq/client": "^5.28.0",
+    "@notionhq/client": "^5.29.0",
     "@slack/web-api": "^8.2.0",
     "exceljs": "^4.4.0",
     "h3": "^1.15.11",
@@ -31,6 +31,6 @@
     "pg": "^8.23.1",
     "typescript": "^6.0.3",
     "vitest": "^5.0.5",
-    "wrangler": "^4.155.0"
+    "wrangler": "^4.156.0"
   }
 }

@@ -22,6 +22,9 @@ registerHooks({
 });
 const { default: worker, ErrorIssueDispatch } = await import('../src/index.ts');
 const sentrySecret = 'local-test-only-sentry-secret';
+const cfAccount = 'abe06b869950de952decf9df29c6f1a3';
+const cfPolicy = '3bcbfa2a0c04416ca7e3da038f77ac37';
+const cfVersion = '11111111-1111-1111-1111-111111111111';
 const identity = {
   source: 'sentry',
   sourceId: '1234567890',
@@ -80,8 +83,10 @@ function harness(t) {
     SENTRY_PROJECT_APPS: '{"koin-united-prod":"web","koin-united-preview":"web"}',
     CLOUDFLARE_WEBHOOK_SECRET: 'local-test-only-cloudflare-secret-32chars',
     CLOUDFLARE_SOURCES: JSON.stringify([
-      { accountId: 'a'.repeat(32), policyId: 'b'.repeat(32), workerName: 'bcsd-api', app: 'api' },
+      { accountId: cfAccount, policyId: cfPolicy, workerName: 'koin-api', app: 'api' },
+      { accountId: cfAccount, policyId: cfPolicy, workerName: 'koin-web', app: 'web' },
     ]),
+    CLOUDFLARE_DIAGNOSTICS_TOKEN: 'local-test-only-observability-read-probe-token',
     DIAGNOSTICS_READ_TOKEN: 'local-test-only-read-token-at-least-32chars',
     GITHUB_OWNER: 'BCSDLab',
     GITHUB_REPOSITORY: 'BCSD_united',
@@ -134,6 +139,101 @@ function harness(t) {
       },
     },
   };
+  const nativeFetch = globalThis.fetch;
+  let mocked = false;
+  async function seedTail(workerName = 'koin-api') {
+    if (!mocked) {
+      mocked = true;
+      globalThis.fetch = async (input, init) => {
+        const url = new URL(input instanceof Request ? input.url : input);
+        if (url.host !== 'api.cloudflare.com') return nativeFetch(input, init);
+        assert.equal(init?.headers?.Authorization, `Bearer ${env.CLOUDFLARE_DIAGNOSTICS_TOKEN}`);
+        assert.equal(url.pathname.startsWith(`/client/v4/accounts/${cfAccount}/workers/`), true);
+        if (url.pathname.endsWith('/occurrences')) {
+          const id = url.pathname.split('/').at(-2).replaceAll('-', '');
+          const project = id === 'd'.repeat(32) ? 'koin-api' : id === 'e'.repeat(32) ? 'koin-web' : null;
+          if (!project) return Response.json({ success: false }, { status: 404 });
+          const rayId = project === 'koin-web' ? 'a'.repeat(16) : 'f'.repeat(16);
+          return Response.json({
+            success: true,
+            result: [
+              {
+                timestamp: Date.now(),
+                worker: { scriptName: project, scriptVersion: { id: cfVersion } },
+                invocation: {
+                  url: `https://${project}.bcsdlab.workers.dev/campus`,
+                  method: 'GET',
+                  path: '/campus',
+                  rayId,
+                  traceId: 'c'.repeat(32),
+                },
+              },
+            ],
+          });
+        }
+        if (url.pathname.endsWith(`/versions/${cfVersion}`))
+          return Response.json({ success: true, result: { id: cfVersion } });
+        if (url.pathname.endsWith('/telemetry/query')) {
+          const query = JSON.parse(init.body);
+          const project = query.parameters.filters.find((filter) => filter.key === '$metadata.service').value;
+          assert.ok(['koin-api', 'koin-web'].includes(project));
+          return Response.json({
+            success: true,
+            result: {
+              events: {
+                events: [
+                  {
+                    $metadata: {
+                      account: cfAccount,
+                      service: project,
+                      traceId: 'c'.repeat(32),
+                      rayId: project === 'koin-web' ? 'a'.repeat(16) : 'f'.repeat(16),
+                    },
+                    $workers: { scriptName: project, scriptVersion: { id: cfVersion } },
+                  },
+                ],
+              },
+            },
+          });
+        }
+        throw new Error('Unexpected Cloudflare API path');
+      };
+    }
+    const app = workerName === 'koin-web' ? 'web' : 'api';
+    const rayId = app === 'web' ? 'a'.repeat(16) : 'f'.repeat(16);
+    await worker.tail(
+      [
+        {
+          scriptName: workerName,
+          scriptVersion: { id: cfVersion },
+          eventTimestamp: Date.now(),
+          truncated: false,
+          outcome: 'exception',
+          event: {
+            request: {
+              method: 'GET',
+              url: `https://${workerName}.bcsdlab.workers.dev/campus?private=sensitive`,
+              headers: { 'cf-ray': `${rayId}-ICN`, cookie: 'sensitive' },
+            },
+          },
+          exceptions: [
+            { name: 'TypeError', stack: `TypeError: sensitive\\n at handler (apps/${app}/src/handler.ts:12:3)` },
+          ],
+          logs: [],
+        },
+      ],
+      env,
+    );
+    const stub = env.ERROR_ISSUES.get(env.ERROR_ISSUES.idFromName(`tail/${workerName}/${rayId}`));
+    const storedTail = await stub.fetch('https://error-dispatch.internal/tail');
+    assert.equal(storedTail.status, 200);
+    const persisted = await storedTail.text();
+    assert.equal(persisted.includes('sensitive'), false);
+    assert.equal(JSON.parse(persisted).frames[0].path, `apps/${app}/src/handler.ts`);
+  }
+  t.after(() => {
+    if (mocked) globalThis.fetch = nativeFetch;
+  });
   t.after(() => {
     for (const db of databases.values()) db.close();
   });
@@ -142,6 +242,7 @@ function harness(t) {
     instances,
     databases,
     queue,
+    seedTail,
     send: (request) => worker.fetch(request, env),
     restartObjects: () => instances.clear(),
     runAlarms: async () => {
@@ -260,14 +361,15 @@ test('authenticated Cloudflare exact provision probe returns 204 without queue a
 
 function cloudflare(overrides = {}) {
   return {
-    account_id: 'a'.repeat(32),
-    policy_id: 'b'.repeat(32),
+    // Native Issues notifications omit account_id; the scoped secret and unique
+    // policy/service pair identify this configured account.
+    policy_id: cfPolicy,
     alert_correlation_id: 'c'.repeat(32),
     alert_type: 'issues_notification',
     alert_event: 'ALERT_STATE_EVENT_START',
     ts: 1793145600,
     text: 'TypeError: application failure',
-    data: { exception: { type: 'TypeError', message: 'application failure' } },
+    data: { issue: { id: 'd'.repeat(32), services: [{ name: 'koin-api', type: 'worker' }] } },
     ...overrides,
   };
 }
@@ -280,12 +382,12 @@ function cloudflareRequest(h, data = cloudflare(), secret = h.env.CLOUDFLARE_WEB
 }
 function diagnosticRequest(
   h,
-  { source = 'cloudflare', id = 'c'.repeat(32), query, token = h.env.DIAGNOSTICS_READ_TOKEN } = {},
+  { source = 'cloudflare', id = 'd'.repeat(32), query, token = h.env.DIAGNOSTICS_READ_TOKEN } = {},
 ) {
   const scope =
     query ??
     (source === 'cloudflare'
-      ? `project=bcsd-api&accountId=${'a'.repeat(32)}&policyId=${'b'.repeat(32)}&workerName=bcsd-api`
+      ? `project=koin-api&accountId=${cfAccount}&policyId=${cfPolicy}&workerName=koin-api`
       : 'project=koin-united-prod&organization=bcsd');
   return new Request(`https://automation.example/diagnostics/${source}/${id}?${scope}`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -409,22 +511,38 @@ test('queue admission is awaited, concurrent retries share it, and failed admiss
   assert.equal(attempts, 2);
 });
 
-test('Cloudflare authentication and fixed policy derive identity, never opaque data identifiers', async (t) => {
+test('Cloudflare authenticated policy and single native service bind a stable canonical issue identity', async (t) => {
   const h = harness(t);
   for (const secret of ['', 'wrong', h.env.DIAGNOSTICS_READ_TOKEN])
     assert.equal((await h.send(cloudflareRequest(h, cloudflare(), secret))).status, 401);
   for (const data of [cloudflare({ account_id: 'd'.repeat(32) }), cloudflare({ policy_id: 'd'.repeat(32) })])
     assert.equal((await h.send(cloudflareRequest(h, data))).status, 403);
+  assert.equal(
+    (
+      await h.send(
+        cloudflareRequest(
+          h,
+          cloudflare({ data: { issue: { id: 'd'.repeat(32), services: [{ name: 'foreign', type: 'worker' }] } } }),
+        ),
+      )
+    ).status,
+    403,
+  );
   for (const data of [
     cloudflare({ alert_type: '' }),
     cloudflare({ data: [] }),
     cloudflare({ ts: -1 }),
     cloudflare({ alert_event: {} }),
     cloudflare({ alert_correlation_id: '../../escape' }),
+    cloudflare({ data: { issue: { id: 'd'.repeat(32), services: [] } } }),
+    cloudflare({ data: { issue: { id: 'd'.repeat(32), services: [{ name: 'koin-api' }, { name: 'koin-web' }] } } }),
+    cloudflare({ data: { issue: { id: '../../escape', services: [{ name: 'koin-api' }] } } }),
   ])
     assert.equal((await h.send(cloudflareRequest(h, data))).status, 400);
+  await h.seedTail();
   const opaque = cloudflare({
     data: {
+      issue: cloudflare().data.issue,
       worker_name: 'foreign',
       app: 'web',
       project: 'foreign',
@@ -436,10 +554,10 @@ test('Cloudflare authentication and fixed policy derive identity, never opaque d
   assert.equal((await h.send(cloudflareRequest(h, opaque))).status, 200);
   assert.deepEqual([...h.queue.values()][0], {
     source: 'cloudflare',
-    sourceId: 'c'.repeat(32),
-    project: 'bcsd-api',
+    sourceId: 'd'.repeat(32),
+    project: 'koin-api',
     app: 'api',
-    scope: { accountId: 'a'.repeat(32), policyId: 'b'.repeat(32), workerName: 'bcsd-api' },
+    scope: { accountId: cfAccount, policyId: cfPolicy, workerName: 'koin-api' },
   });
   assert.equal((await h.send(cloudflareRequest(h, cloudflare({ alert_event: 'ALERT_STATE_EVENT_END' })))).status, 200);
   assert.equal(h.queue.size, 1);
@@ -450,7 +568,7 @@ test('Cloudflare authentication and fixed policy derive identity, never opaque d
           h,
           cloudflare({
             alert_correlation_id: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
-            policy_id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+            policy_id: `${cfPolicy.slice(0, 8)}-${cfPolicy.slice(8, 12)}-${cfPolicy.slice(12, 16)}-${cfPolicy.slice(16, 20)}-${cfPolicy.slice(20)}`,
           }),
         ),
       )
@@ -460,11 +578,64 @@ test('Cloudflare authentication and fixed policy derive identity, never opaque d
   assert.equal(h.queue.size, 1);
 });
 
+test('one provider policy keeps web and API issue identities separate', async (t) => {
+  const h = harness(t);
+  await h.seedTail('koin-api');
+  await h.seedTail('koin-web');
+  assert.equal((await h.send(cloudflareRequest(h))).status, 200);
+  const web = cloudflare({
+    data: { issue: { id: 'e'.repeat(32), services: [{ name: 'koin-web', type: 'worker' }] } },
+  });
+  assert.equal((await h.send(cloudflareRequest(h, web))).status, 200);
+  assert.equal(h.queue.size, 2);
+  assert.deepEqual([...h.queue.values()].map((item) => [item.project, item.app]).sort(), [
+    ['koin-api', 'api'],
+    ['koin-web', 'web'],
+  ]);
+  const webDiagnostic = await h.send(
+    diagnosticRequest(h, {
+      id: 'e'.repeat(32),
+      query: `project=koin-web&accountId=${cfAccount}&policyId=${cfPolicy}&workerName=koin-web`,
+    }),
+  );
+  assert.equal(webDiagnostic.status, 200);
+  assert.equal((await webDiagnostic.json()).identity.project, 'koin-web');
+
+  const ambiguous = harness(t);
+  const sources = JSON.parse(ambiguous.env.CLOUDFLARE_SOURCES);
+  sources.push({ accountId: 'e'.repeat(32), policyId: cfPolicy, workerName: 'koin-api', app: 'api' });
+  ambiguous.env.CLOUDFLARE_SOURCES = JSON.stringify(sources);
+  assert.equal((await ambiguous.send(cloudflareRequest(ambiguous))).status, 503);
+});
+
+test('missing mapped Tail context does not admit a job or create a failed tombstone', async (t) => {
+  const h = harness(t);
+  const scopedToken = h.env.CLOUDFLARE_DIAGNOSTICS_TOKEN;
+  h.env.CLOUDFLARE_DIAGNOSTICS_TOKEN = '';
+  assert.equal((await h.send(cloudflareRequest(h))).status, 503);
+  assert.equal(h.queue.size, 0);
+  h.env.CLOUDFLARE_DIAGNOSTICS_TOKEN = scopedToken;
+  await h.seedTail();
+  h.databases
+    .get(`tail/koin-api/${'f'.repeat(16)}`)
+    .prepare('DELETE FROM tail_evidence')
+    .run();
+  const unavailable = await h.send(cloudflareRequest(h));
+  assert.equal(unavailable.status, 503);
+  assert.equal(h.queue.size, 0);
+  assert.equal(h.databases.has(`cloudflare/${cfAccount}/${cfPolicy}/koin-api/${'d'.repeat(32)}`), false);
+  await h.seedTail();
+  assert.equal((await h.send(cloudflareRequest(h))).status, 200);
+  assert.equal(h.queue.size, 1);
+});
+
 test('diagnostic retrieval authenticates exact scope, hides private fields, and expires without requeue', async (t) => {
   const h = harness(t);
+  await h.seedTail();
   const data = cloudflare({
     text: `person@example.com token=short-secret Bearer abcdef123 https://example.com/private ${h.env.AUTOFIX_EXECUTOR_TOKEN} 192.0.2.1 ${'x'.repeat(9000)}`,
     data: {
+      issue: cloudflare().data.issue,
       route: 'https://example.com/private',
       request: { headers: { cookie: 'private' } },
       user: { email: 'private@example.com' },
@@ -481,25 +652,27 @@ test('diagnostic retrieval authenticates exact scope, hides private fields, and 
     (
       await h.send(
         diagnosticRequest(h, {
-          query: `project=bcsd-api&accountId=${'d'.repeat(32)}&policyId=${'b'.repeat(32)}&workerName=bcsd-api`,
+          query: `project=koin-api&accountId=${'d'.repeat(32)}&policyId=${cfPolicy}&workerName=koin-api`,
         }),
       )
     ).status,
     403,
   );
-  assert.equal((await h.send(diagnosticRequest(h, { query: 'project=bcsd-api&project=foreign' }))).status, 400);
-  assert.equal((await h.send(diagnosticRequest(h, { id: 'd'.repeat(32) }))).status, 404);
+  assert.equal((await h.send(diagnosticRequest(h, { query: 'project=koin-api&project=foreign' }))).status, 400);
+  assert.equal((await h.send(diagnosticRequest(h, { id: '9'.repeat(32) }))).status, 404);
   const response = await h.send(diagnosticRequest(h));
   assert.equal(response.headers.get('Cache-Control'), 'no-store');
   assert.equal(response.headers.get('Access-Control-Allow-Origin'), null);
   const captured = await response.json();
   assert.equal(captured.summary.length <= 4096, true);
-  assert.deepEqual(Object.keys(captured.details).sort(), ['alertType', 'data', 'timestamp']);
+  assert.deepEqual(Object.keys(captured.details).sort(), ['alertType', 'data', 'timestamp', 'verifiedEvidence']);
   assert.equal(captured.details.data.request, undefined);
   assert.equal(captured.details.data.user, undefined);
   assert.equal(captured.details.data.failure.message, '[REDACTED]');
   assert.equal(captured.details.data.failure.frames.length, 21);
-  const db = [...h.databases.values()][0],
+  const db = [...h.databases.values()].find(
+      (database) => database.prepare('SELECT diagnostic FROM dispatch').get()?.diagnostic,
+    ),
     stored = db.prepare('SELECT diagnostic FROM dispatch').get().diagnostic;
   for (const secret of [
     'person@example.com',
