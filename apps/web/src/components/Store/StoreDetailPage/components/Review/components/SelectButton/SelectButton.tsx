@@ -30,8 +30,8 @@ export default function SelectButton({ is_mine, review_id, is_reported, store_id
 
   const openDeleteModal = () => {
     logger.actionEventClick({
-      team: 'BUSINESS',
-      event_label: 'shop_detail_view_review_delete',
+      event_name: 'DA1',
+      event_label: 'shop__shop_detail__review_delete__open__click',
       value: storeDetail.name,
     });
     portalManager.open((portalOption: Portal) => (
@@ -44,15 +44,15 @@ export default function SelectButton({ is_mine, review_id, is_reported, store_id
   const openLoginModal = () => {
     const loggingLoginClick = () => {
       logger.actionEventClick({
-        team: 'BUSINESS',
-        event_label: 'shop_detail_view_review_report_login',
+        event_name: 'DA1',
+        event_label: 'account__shop_detail__login_popup__login_entry__click',
         value: storeDetail.name,
       });
     };
     const loggingCancelClick = () => {
       logger.actionEventClick({
-        team: 'BUSINESS',
-        event_label: 'shop_detail_view_review_report_cancel',
+        event_name: 'DA1',
+        event_label: 'account__shop_detail__login_popup__close__click',
         value: storeDetail.name,
       });
     };
@@ -69,8 +69,8 @@ export default function SelectButton({ is_mine, review_id, is_reported, store_id
 
   const loggingReportClick = () => {
     logger.actionEventClick({
-      team: 'BUSINESS',
-      event_label: 'shop_detail_view_review_report',
+      event_name: 'DA1',
+      event_label: 'shop__shop_detail__review_report__entry__click',
       value: storeDetail.name,
     });
   };

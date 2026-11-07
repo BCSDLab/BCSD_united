@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { cn } from '@bcsdlab/utils';
 import { Link, useLocation } from '@tanstack/react-router';
 
-import { getStoreDetailInfo } from 'api/store';
 import LoginRequiredModal from 'components/modal/LoginRequiredModal';
 import type { Portal } from 'components/modal/Modal/PortalProvider';
 import { CATEGORY, type Category, type Submenu, type SubmenuTitle } from 'static/category';
@@ -93,7 +92,7 @@ export default function PCHeader({ openModal }: PCHeaderProps) {
     }
   };
 
-  const escapeByLogo = async () => {
+  const escapeByLogo = () => {
     if (pathname === ROUTES.Timetable()) {
       logger.actionEventClick({
         team: 'USER',
@@ -105,13 +104,10 @@ export default function PCHeader({ openModal }: PCHeaderProps) {
       });
     }
     if (pathname.includes(ROUTES.Store()) && search.includes('state')) {
-      const shopId = pathname.split('/')[2];
-      const shopName = await getStoreDetailInfo(shopId);
       logger.actionEventClick({
-        team: 'BUSINESS',
-        event_label: 'shop_detail_view_back',
-        value: shopName.name,
-        event_category: 'logo',
+        event_name: 'DA1',
+        event_label: 'shop__shop_detail__navigation__back__click',
+        value: '로고',
         current_page: isomorphicSessionStorage.getItem('cameFrom') || '전체보기',
         duration_time: getElapsedSeconds('enter_storeDetail'),
       });

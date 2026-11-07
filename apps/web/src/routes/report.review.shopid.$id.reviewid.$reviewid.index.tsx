@@ -81,8 +81,8 @@ function ReviewReportingPage({ shopid, reviewid }: { shopid: string; reviewid: s
 
   const loggingReportDone = () => {
     logger.actionEventClick({
-      team: 'BUSINESS',
-      event_label: 'shop_detail_view_review_report_done',
+      event_name: 'DA1',
+      event_label: 'shop__shop_detail__review_report__confirm__click',
       value: storeDetail.name,
     });
   };

@@ -19,15 +19,15 @@ export default function ReviewButton({ id, goReviewPage }: { id: string; goRevie
   const openLoginModal = () => {
     const loggingLoginClick = () => {
       logger.actionEventClick({
-        team: 'BUSINESS',
-        event_label: 'shop_detail_view_review_write_login',
+        event_name: 'DA1',
+        event_label: 'account__shop_detail__login_popup__login_entry__click',
         value: storeDetail.name,
       });
     };
     const loggingCancelClick = () => {
       logger.actionEventClick({
-        team: 'BUSINESS',
-        event_label: 'shop_detail_view_review_write_cancel',
+        event_name: 'DA1',
+        event_label: 'account__shop_detail__login_popup__close__click',
         value: storeDetail.name,
       });
     };
@@ -44,8 +44,8 @@ export default function ReviewButton({ id, goReviewPage }: { id: string; goRevie
 
   const goReviewPageLogging = () => {
     logger.actionEventClick({
-      team: 'BUSINESS',
-      event_label: 'shop_detail_view_review_write',
+      event_name: 'DA1',
+      event_label: 'shop__shop_detail__review_write__entry__click',
       value: storeDetail.name,
     });
     isomorphicSessionStorage.setItem('enterReview', new Date().getTime().toString());
