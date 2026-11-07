@@ -1,6 +1,5 @@
 import type { BlockAction, SlackShortcut, ViewSubmitAction } from '@slack/bolt';
-import type { ReactionAddedEvent, ReactionRemovedEvent, WebClient } from '@slack/web-api';
-import { setFeedback } from '~/services/rag';
+import type { WebClient } from '@slack/web-api';
 import { matchesText, type IncomingMessage } from '~/services/slack/incomingMessage';
 import type { SlackJob } from '~/services/slack/jobs';
 import { blockActions } from '~/services/slack/registry/blockActions';
@@ -9,7 +8,6 @@ import { messageFunctionList } from '~/services/slack/registry/messages';
 import { shortcuts } from '~/services/slack/registry/shortcuts';
 import { viewActions } from '~/services/slack/registry/viewActions';
 import type { Command } from '~/services/slack/types';
-import { botUserId } from '~/utils/slackBot';
 import { errorMessage } from '~/utils/errorMessage';
 import { sendSlackText } from '~/utils/slackFunction';
 
@@ -18,9 +16,6 @@ export async function processSlackJob(job: SlackJob, client: WebClient): Promise
   switch (job.type) {
     case 'message':
       await processMessage(job.message, client);
-      return;
-    case 'reaction':
-      await handleReaction(client, job.event);
       return;
     case 'block_actions': {
       // Queue-safe handlers never read the ingress-only Slack credentials or modal trigger.
@@ -96,16 +91,6 @@ export async function processSlackJob(job: SlackJob, client: WebClient): Promise
     default:
       throw new Error('Unknown Slack queue job type');
   }
-}
-
-const FEEDBACK: Record<string, number> = { '+1': 1, '-1': -1 };
-
-async function handleReaction(client: WebClient, event: ReactionAddedEvent | ReactionRemovedEvent) {
-  const value = FEEDBACK[event.reaction];
-  if (value === undefined || event.item.type !== 'message') return;
-  const me = await botUserId(client);
-  if (me && event.user === me) return;
-  await setFeedback(event.item.ts, event.type === 'reaction_added' ? value : null);
 }
 
 async function processMessage(message: IncomingMessage, client: WebClient): Promise<void> {

@@ -34,13 +34,6 @@ interface ImportMetaEnv {
   readonly SUPERSET_USERNAME?: string;
   readonly SUPERSET_PASSWORD?: string;
   readonly SUPERSET_DATASET_IDS?: string;
-  readonly NOTION_TOKEN?: string;
-  readonly GDRIVE_FOLDER_IDS?: string;
-  /** Pi crawler HTTPS Tunnel origin and separate Bearer/Cloudflare Access service credentials. */
-  readonly B_BOT_CRAWLER_ORIGIN?: string;
-  readonly B_BOT_CRAWLER_TOKEN?: string;
-  readonly B_BOT_CRAWLER_ACCESS_CLIENT_ID?: string;
-  readonly B_BOT_CRAWLER_ACCESS_CLIENT_SECRET?: string;
   /** 멤버 명단 원본(인터널). 예: https://internal.bcsdlab.com */
   readonly INTERNAL_API_BASE_URL?: string;
   readonly INTERNAL_SERVICE_TOKEN?: string;

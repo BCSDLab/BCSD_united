@@ -4,7 +4,6 @@ import { messages as editMessages } from '~/services/slack/features/editCommand'
 import { messages as funMessages } from '~/services/slack/features/fun';
 import { messages as googleMeetMessages } from '~/services/slack/features/googleMeet';
 import { messages as lectureMessages } from '~/services/slack/features/lecture/messages';
-import { messages as ragMessages } from '~/services/slack/features/rag';
 import { messages as supersetMessages } from '~/services/slack/features/superset';
 import type { MessageSetting } from '~/services/slack/types';
 
@@ -15,7 +14,6 @@ import type { MessageSetting } from '~/services/slack/types';
  * 하나만 등록하고 스레드 주인에게 넘긴다. 순서는 `test/slack/registry.test.ts`가 고정한다.
  */
 export const messageFunctionList: MessageSetting[] = [
-  ...ragMessages,
   ...funMessages,
   ...googleMeetMessages,
   ...lectureMessages,

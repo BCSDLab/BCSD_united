@@ -28,8 +28,5 @@ export default defineNitroConfig({
   scheduledTasks: {
     '* * * * *': 'dining:deliver',
     '*/5 * * * *': 'bus:versionUpdate',
-    '0 18 * * *': 'sync:github',
-    '30 18 * * 1': 'sync:notion',
-    '0 19 * * *': 'sync:gdrive',
   },
 });

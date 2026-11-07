@@ -277,9 +277,6 @@ importers:
       '@koin/b-bot-database':
         specifier: workspace:*
         version: link:../../packages/b-bot-database
-      '@notionhq/client':
-        specifier: ^5.29.0
-        version: 5.29.0
       '@slack/web-api':
         specifier: ^8.2.0
         version: 8.2.0
@@ -329,40 +326,6 @@ importers:
       wrangler:
         specifier: ^4.156.0
         version: 4.156.0(@cloudflare/workers-types@5.20261029.1)(@types/node@24.19.2)
-
-  apps/b-bot-crawler:
-    dependencies:
-      '@koin/b-bot-ai':
-        specifier: workspace:*
-        version: link:../../packages/b-bot-ai
-      '@koin/b-bot-database':
-        specifier: workspace:*
-        version: link:../../packages/b-bot-database
-      '@notionhq/client':
-        specifier: ^5.29.0
-        version: 5.29.0
-      ofetch:
-        specifier: ^1.5.1
-        version: 1.5.1
-      pg:
-        specifier: ^8.23.1
-        version: 8.23.1
-    devDependencies:
-      '@types/node':
-        specifier: ^24.19.2
-        version: 24.19.2
-      '@types/pg':
-        specifier: ^8.23.1
-        version: 8.23.1
-      tsx:
-        specifier: ^4.23.15
-        version: 4.23.15
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vitest:
-        specifier: ^5.0.5
-        version: 5.0.5(@opentelemetry/api@1.10.0)(@types/node@24.19.2)(vite@8.3.5(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.107.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
 
   apps/error-automation:
     dependencies:
@@ -592,9 +555,6 @@ importers:
 
   packages/b-bot-database:
     dependencies:
-      '@koin/b-bot-ai':
-        specifier: workspace:*
-        version: link:../b-bot-ai
       pg:
         specifier: ^8.23.1
         version: 8.23.1
@@ -1811,10 +1771,6 @@ packages:
   '@nodelib/fs.walk@1.2.8':
     resolution: {integrity: sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg==}
     engines: {node: '>= 8'}
-
-  '@notionhq/client@5.29.0':
-    resolution: {integrity: sha512-UV0nUQYJGOtUFGuiuWPM5k6+gwXioQrw2ImcPqgB/kAp19JxKhr71XQqHQbuOaKoFhIlG4pSLdh9bvwhS+V0Cw==}
-    engines: {node: '>=18'}
 
   '@oozcitak/dom@2.0.2':
     resolution: {integrity: sha512-GjpKhkSYC3Mj4+lfwEyI1dqnsKTgwGy48ytZEhm4A/xnH/8z9M3ZVXKr/YGQi3uCLs1AEBS+x5T2JPiueEDW8w==}
@@ -8292,8 +8248,6 @@ snapshots:
     dependencies:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.20.3
-
-  '@notionhq/client@5.29.0': {}
 
   '@oozcitak/dom@2.0.2':
     dependencies:
