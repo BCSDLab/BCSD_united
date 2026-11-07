@@ -27,6 +27,6 @@
 
 ## ✔️ Please check if the PR fulfills these requirements
 
-- [ ] It targets `develop`?
-- [ ] If on a hotfix branch, it targets `develop`?
+- [ ] Feature and hotfix PRs target `develop`; production promotion PRs target `main` from `develop`?
+- [ ] For production promotion, the changes have been verified on `stage.koreatech.in`?
 - [ ] There are no warning messages when you run `pnpm lint`
