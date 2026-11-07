@@ -21,19 +21,19 @@ export interface BusNoticeProps {
 const LOCATION = [
   {
     location: 'bus_search',
-    value: '교통편 조회하기',
+    value: '버스 교통편',
   },
   {
     location: 'shuttle',
-    value: '셔틀버스 시간표',
+    value: '셔틀',
   },
   {
     location: 'express',
-    value: '대성버스 시간표',
+    value: '대성',
   },
   {
     location: 'city',
-    value: '시내버스 시간표',
+    value: '시내',
   },
 ];
 
@@ -55,8 +55,8 @@ export default function BusNotice({ loggingLocation, variant }: BusNoticeProps) 
 
   const handleClickNavigateNotice = () => {
     logger.actionEventClick({
-      team: 'CAMPUS',
-      event_label: 'bus_announcement',
+      event_name: 'DA1',
+      event_label: 'bus__bus_timetable__bus_notice__open__click',
       value: logValue,
     });
     navigate(ROUTES.ArticlesDetail({ id: String(id) }));
@@ -64,8 +64,8 @@ export default function BusNotice({ loggingLocation, variant }: BusNoticeProps) 
 
   const handleClickDismissNotice = () => {
     logger.actionEventClick({
-      team: 'CAMPUS',
-      event_label: 'bus_announcement_close',
+      event_name: 'DA1',
+      event_label: 'bus__bus_timetable__bus_notice__close__click',
       value: logValue,
     });
     setBusNoticeDismissed('true');
