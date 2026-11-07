@@ -34,7 +34,11 @@ function OpenCoursesTableContent({ searchParams, onAddCourse }: OpenCoursesTable
   const { data: courses } = useSuspenseQuery(courseQueries.search(searchParams));
 
   const handleAddOpenCourse = (course: PreCourse) => {
-    logger.actionEventClick({ team: 'USER', event_label: 'application_training_apply', value: '' });
+    logger.actionEventClick({
+      event_name: 'DA2',
+      event_label: 'course_practice__course_practice__course_application__lecture__click',
+      value: '',
+    });
     onAddCourse(course);
   };
 
@@ -64,7 +68,11 @@ function PreCoursesTableContent({ isLoggedIn, timetableFrameId, onAddCourse }: P
   const { data: preCourses } = useSuspenseQuery(courseQueries.preCourseList(timetableFrameId, isLoggedIn));
 
   const handleAddPreCourse = (course: PreCourse) => {
-    logger.actionEventClick({ team: 'USER', event_label: 'application_training_pre_apply', value: '' });
+    logger.actionEventClick({
+      event_name: 'DA2',
+      event_label: 'course_practice__course_practice__course_application__preselected__click',
+      value: '',
+    });
     onAddCourse(course);
   };
 

@@ -84,8 +84,8 @@ export default function DefaultPage({ timetableFrameId, setCurrentFrameId }: Def
           onClick={() => {
             router.navigate({ href: ROUTES.Course() });
             logger.actionEventClick({
-              team: 'USER',
-              event_label: 'application_training',
+              event_name: 'DA2',
+              event_label: 'course_practice__timetable__course_application__entry__click',
               value: '',
             });
           }}
