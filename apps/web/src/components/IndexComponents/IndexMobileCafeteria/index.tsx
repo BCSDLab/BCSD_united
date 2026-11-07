@@ -75,9 +75,10 @@ function IndexMobileCafeteria() {
     const diningIndex = availableDinings.findIndex((dining) => dining.place === place);
 
     logger.actionEventClick({
-      team: 'CAMPUS',
-      event_label: 'menu_corner',
+      event_name: 'DA1',
+      event_label: 'main__main__corner__select',
       value: place,
+      event_category: 'select',
     });
     setSelectedPlace(place);
     carouselRef.current?.children[diningIndex]?.scrollIntoView({

@@ -11,10 +11,13 @@ import ForkKnifeIcon from 'assets/svg/common/fork-knife-icon.svg';
 import QRCodeIcon from 'assets/svg/common/qr-code-icon.svg';
 import BusRouteIcon from 'assets/svg/common/route-icon.svg';
 import VanIcon from 'assets/svg/common/van-icon.svg';
+import { DiningTime } from 'components/cafeteria/utils/time';
 import IndexMobileCafeteria from 'components/IndexComponents/IndexMobileCafeteria';
 import IconBox from 'components/ui/IconBox';
 import Image from 'components/ui/Image';
+import type { LoggingEventName, NamingRuleEventLabel } from 'lib/gtag';
 import { BUS_LINKS } from 'static/bus';
+import { DINING_TYPE_MAP } from 'static/cafeteria';
 import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import { useUser } from 'utils/hooks/state/useUser';
@@ -39,8 +42,8 @@ const transportCards = [
     description: '노선 별 출발 시간',
     Icon: BusTimeIcon,
     logging: {
-      event_label: 'bus_timetable',
-      value: '버스 시간표 조회하기',
+      event_label: 'main__main__bus_entry__timetable_entry__click' as const,
+      value: '버스 시간표',
     },
   },
   {
@@ -49,8 +52,8 @@ const transportCards = [
     description: '가장 빠른 버스 찾기',
     Icon: BusRouteIcon,
     logging: {
-      event_label: 'bus_route',
-      value: '버스 노선 조회하기',
+      event_label: 'main__main__bus_entry__search_entry__click' as const,
+      value: '버스 노선 조회',
     },
   },
 ];
@@ -91,12 +94,9 @@ function MobileHomeRedesign() {
   const displayName = userInfo?.nickname?.trim() || userInfo?.name?.trim() || '코리';
   const todayLabel = dateFormatter.format(serverNow);
 
-  const logClick = (event_label: string, value: string) => {
-    logger.actionEventClick({
-      team: 'CAMPUS',
-      event_label,
-      value,
-    });
+  // 로깅 네이밍룰 v1.0 · Notion 홈화면 리디자인 명세
+  const logClick = (event_label: NamingRuleEventLabel, value: string, event_name: LoggingEventName = 'DA1') => {
+    logger.actionEventClick({ event_name, event_label, value });
   };
 
   return (
@@ -137,7 +137,7 @@ function MobileHomeRedesign() {
           <Link
             to={ROUTES.Cafeteria()}
             className={styles['section-link']}
-            onClick={() => logClick('today_meal', '전체보기')}
+            onClick={() => logClick('main__main__more__click', `${DINING_TYPE_MAP[new DiningTime().getType()]}_더보기`)}
           >
             <span>전체보기</span>
             <ArrowRightIcon aria-hidden />
@@ -154,7 +154,7 @@ function MobileHomeRedesign() {
             className={styles['ticket-card']}
             target="_blank"
             rel="noreferrer"
-            onClick={() => logClick('shuttle_ticket', '셔틀 탑승권')}
+            onClick={() => logClick('main__main__bus_entry__ticket_entry__click', '셔틀 탑승권')}
           >
             <span className={styles['ticket-card__text']}>
               <strong>셔틀 탑승권</strong>
@@ -167,7 +167,9 @@ function MobileHomeRedesign() {
         <Link
           to={ROUTES.Callvan()}
           className={styles['callvan-card']}
-          onClick={() => logClick('callvanpot', '콜밴팟 모집보기')}
+          onClick={() =>
+            logger.actionEventClick({ team: 'CAMPUS', event_label: 'callvanpot', value: '콜밴팟 모집보기' })
+          }
         >
           <IconBox className={styles['callvan-card__icon']}>
             <VanIcon />
@@ -210,7 +212,7 @@ function MobileHomeRedesign() {
             to={mobileStoreLink.split('?')[0]}
             search={parseSearch(mobileStoreLink.split('?')[1] ?? '')}
             className={styles['section-link']}
-            onClick={() => logClick('shop', '전체보기')}
+            onClick={() => logClick('main__main__shop_entry__main_entry__click', '주변상점')}
           >
             <span>전체보기</span>
             <ArrowRightIcon aria-hidden />
@@ -221,7 +223,7 @@ function MobileHomeRedesign() {
           to={mobileStoreLink.split('?')[0]}
           search={parseSearch(mobileStoreLink.split('?')[1] ?? '')}
           className={styles['store-card']}
-          onClick={() => logClick('popular_shop', '많이 찾는 상점 둘러보기')}
+          onClick={() => logClick('shop__main__shop_entry__popular_entry__click', '많이 찾는 상점 둘러보기', 'DA2')}
         >
           <div className={styles['store-card__content-wrapper']}>
             <IconBox>

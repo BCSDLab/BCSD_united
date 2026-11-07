@@ -51,7 +51,13 @@ function IndexLostItem() {
         <Link
           to={ROUTES.LostItemRedirect()}
           className={styles.template__title}
-          onClick={() => logger.actionEventClick({ team: 'CAMPUS', event_label: 'lost_item_entry', value: '분실물' })}
+          onClick={() =>
+            logger.actionEventClick({
+              event_name: 'DA2',
+              event_label: 'board__main__lost_item_entry__main_entry__click',
+              value: '분실물',
+            })
+          }
         >
           분실물
         </Link>
@@ -59,7 +65,13 @@ function IndexLostItem() {
       <Link
         to={ROUTES.LostItemRedirect()}
         className={styles.card}
-        onClick={() => logger.actionEventClick({ team: 'CAMPUS', event_label: 'lost_item_entry', value: '분실물' })}
+        onClick={() =>
+          logger.actionEventClick({
+            event_name: 'DA2',
+            event_label: 'board__main__lost_item_entry__main_entry__click',
+            value: '분실물',
+          })
+        }
       >
         <div className={styles.card__info}>
           {shouldAnimate ? (

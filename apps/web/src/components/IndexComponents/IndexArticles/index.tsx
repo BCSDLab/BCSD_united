@@ -30,7 +30,13 @@ export default function IndexArticles({ serverNow }: IndexArticlesProps) {
         <Link
           to={ROUTES.Articles()}
           className={styles['template__title-link']}
-          onClick={() => logger.actionEventClick({ team: 'CAMPUS', event_label: 'main_notice', value: '공지사항' })}
+          onClick={() =>
+            logger.actionEventClick({
+              event_name: 'DA2',
+              event_label: 'board__main__notice_entry__title_entry__click',
+              value: '공지사항',
+            })
+          }
         >
           <h1 className={styles.template__title}>공지사항</h1>
         </Link>
@@ -38,7 +44,11 @@ export default function IndexArticles({ serverNow }: IndexArticlesProps) {
           to={ROUTES.Articles()}
           className={styles.template__link}
           onClick={() =>
-            logger.actionEventClick({ team: 'CAMPUS', event_label: 'main_notice_detail', value: '공지사항' })
+            logger.actionEventClick({
+              event_name: 'DA2',
+              event_label: 'board__main__notice_entry__more_entry__click',
+              value: '공지사항 더보기',
+            })
           }
         >
           더보기

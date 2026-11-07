@@ -4,7 +4,7 @@ import { Link, useRouter } from '@tanstack/react-router';
 import type { StoreCategoriesResponse } from 'api/store/entity';
 import { getMainDurationTime, initializeMainEntryTime } from 'components/Store/utils/durationTime';
 import Image from 'components/ui/Image';
-import type { LoggingTeam } from 'lib/gtag';
+import type { LoggingEventName, NamingRuleEventLabel } from 'lib/gtag';
 import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
@@ -20,8 +20,8 @@ interface Category {
 
 interface CategoryWithEvent extends Category {
   event: {
-    team: LoggingTeam;
-    event_label: string;
+    event_name: LoggingEventName;
+    event_label: NamingRuleEventLabel;
     value: string;
     previous_page: string;
     current_page: string;
@@ -37,8 +37,9 @@ export default function IndexStore({ categories }: { categories: StoreCategories
   const categoriesWithEvent = categories.shop_categories.map((category: Category) => ({
     ...category,
     event: {
-      team: 'BUSINESS' as const,
-      event_label: 'main_shop_categories',
+      // 로깅 네이밍룰 v1.0 · 주변상점 1-1 메인 → 상점 카테고리
+      event_name: 'DA1' as const,
+      event_label: 'shop__main__shop_entry__category_card_entry__click' as const,
       value: category.name,
       previous_page: '메인',
       current_page: category.name,
@@ -54,8 +55,7 @@ export default function IndexStore({ categories }: { categories: StoreCategories
         image_url: 'https://static.koreatech.in/assets/img/icon/benefit_icon.png',
         event: {
           ...category.event,
-          event_label: 'main_shop_benefit',
-          value: '전화주문혜택',
+          value: '혜택',
           current_page: 'benefit',
         },
         route: `${ROUTES.BenefitStore()}?category=1`,
