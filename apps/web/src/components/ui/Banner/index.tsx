@@ -125,17 +125,17 @@ function Banner({ bannersList, bannerCategoryId }: BannerProps) {
 
   const handleImageLinkClick = () => {
     logger.actionEventClick({
-      team: 'CAMPUS',
-      event_label: 'main_modal',
-      value: `${currentBanner.title}`,
+      event_name: 'DA2',
+      event_label: 'banner__main__modal__click',
+      value: String(currentBanner.id),
     });
   };
 
   const handlePrevButtonClick = () => {
     logger.actionEventClick({
-      team: 'CAMPUS',
-      event_label: 'main_next_modal',
-      value: `${currentBanner.title}`,
+      event_name: 'DA2',
+      event_label: 'banner__main__modal__next__click',
+      value: String(currentBanner.id),
     });
     setCurrentPageIndex((prev) => (prev === 0 ? bannersList.count - 1 : prev - 1));
     resetAutoSlide();
@@ -143,9 +143,9 @@ function Banner({ bannersList, bannerCategoryId }: BannerProps) {
 
   const handleNextButtonClick = () => {
     logger.actionEventClick({
-      team: 'CAMPUS',
-      event_label: 'main_next_modal',
-      value: `${currentBanner.title}`,
+      event_name: 'DA2',
+      event_label: 'banner__main__modal__next__click',
+      value: String(currentBanner.id),
     });
     setCurrentPageIndex((prev) => (prev === bannersList.count - 1 ? 0 : prev + 1));
     resetAutoSlide();
@@ -153,18 +153,18 @@ function Banner({ bannersList, bannerCategoryId }: BannerProps) {
 
   const handleCloseBanner = () => {
     logger.actionEventClick({
-      team: 'CAMPUS',
-      event_label: 'main_modal_close',
-      value: `${currentBanner.title}`,
+      event_name: 'DA2',
+      event_label: 'banner__main__modal__close__click',
+      value: String(currentBanner.id),
     });
     closeModal();
   };
 
   const handleHideForWeek = () => {
     logger.actionEventClick({
-      team: 'CAMPUS',
-      event_label: 'main_modal_hide_7d',
-      value: `${currentBanner.title}`,
+      event_name: 'DA2',
+      event_label: 'banner__main__modal__hide_7d__click',
+      value: String(currentBanner.id),
     });
     if (bannerCategoryId === 1) {
       setCookie(HIDE_BANNER_COOKIE, `modal_category_${bannerCategoryId}`, HIDE_BANNER_DURATION_DAYS);
@@ -191,10 +191,10 @@ function Banner({ bannersList, bannerCategoryId }: BannerProps) {
   useEffect(() => {
     if (isModalOpen) {
       logger.actionEventLoad({
-        team: 'CAMPUS',
-        event_label: 'main_modal_entry',
-        value: `${currentBanner.title}`,
-        event_category: 'entry',
+        event_name: 'DA2',
+        event_label: 'banner__main__modal__exposure',
+        value: String(currentBanner.id),
+        event_category: 'exposure',
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 모달이 열릴 때만 로깅해야 하므로 logger/currentBanner 변경은 무시
