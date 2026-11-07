@@ -56,9 +56,10 @@ function SemesterList({ isViewMode }: { isViewMode?: boolean }) {
       });
     } else {
       logger.actionEventClick({
-        team: 'USER',
-        event_label: 'timetable',
-        value: `click_semester_${clickededSemester.year}${clickededSemester.term}`,
+        event_name: 'DA1',
+        event_label: 'timetable__timetable__semester_manage__select',
+        value: `${clickededSemester.year}_${clickededSemester.term}`,
+        event_category: 'select',
       });
     }
     closePopup();

@@ -33,9 +33,10 @@ function MobilePage({ timetableFrameId, setCurrentFrameId }: MobilePageProps) {
   const handleImageDownloadClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     logger.actionEventClick({
-      team: 'USER',
-      event_label: 'timetable_imageDownload_click',
-      value: '시간표 저장',
+      // 모바일 버튼 이름은 '시간표 다운로드'지만 같은 기능이라 웹과 같은 label·value로 보낸다
+      event_name: 'DA1',
+      event_label: 'timetable__timetable__timetable_export__image_save__click',
+      value: '이미지 저장',
     });
     onTimetableImageDownload('my-timetable');
   };

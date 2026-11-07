@@ -25,9 +25,10 @@ function Curriculum({ list }: CurriculumListBoxProps) {
 
   const onClickOption = (dept: string) => {
     logger.actionEventClick({
-      team: 'USER',
-      event_label: 'timetable',
-      value: `click_currirculum_${dept}`,
+      event_name: 'DA1',
+      event_label: 'timetable__timetable__search__curriculum__select',
+      value: dept,
+      event_category: 'select',
     });
     closePopup();
   };

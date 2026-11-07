@@ -217,9 +217,9 @@ function LectureList({ timetableFrameId, semester }: { timetableFrameId: number;
             onClick={() => {
               onClickSearchButton();
               logger.actionEventClick({
-                team: 'USER',
-                event_label: 'timetable',
-                value: 'search',
+                event_name: 'DA1',
+                event_label: 'timetable__timetable_edit__search__click',
+                value: '검색',
               });
             }}
           >

@@ -37,7 +37,12 @@ export const SHORTCUT_LOGGING_MAP: Partial<Record<SubmenuTitle, ShortcutLoggingI
     footer: 'bus__footer__timetable__click',
   },
   식단: { team: 'CAMPUS', value: '식단' },
-  시간표: { team: 'USER', value: '시간표' },
+  시간표: {
+    event_name: 'DA1',
+    value: '시간표',
+    header: 'timetable__header__timetable_entry__header_entry__click',
+    footer: 'timetable__footer__timetable_entry__footer_entry__click',
+  },
   복덕방: { team: 'BUSINESS', value: '복덕방' },
   주변상점: { team: 'BUSINESS', value: '주변상점' },
   '교내 시설물 정보': {

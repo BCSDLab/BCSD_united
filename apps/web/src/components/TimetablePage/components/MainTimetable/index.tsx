@@ -127,9 +127,9 @@ function ValidMainTimetable({ timetableFrameId }: { readonly timetableFrameId: n
 
     if (checkSemesterAndTimetable(mySemester, timeTableFrameList)) {
       logger.actionEventClick({
-        team: 'USER',
-        event_label: 'timetable',
-        value: '이미지저장',
+        event_name: 'DA1',
+        event_label: 'timetable__timetable__timetable_export__image_save__click',
+        value: '이미지 저장',
         duration_time: getElapsedSeconds('enterTimetablePage'),
       });
       openModal();
