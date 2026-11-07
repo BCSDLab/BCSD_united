@@ -279,7 +279,7 @@ const environment = [
   '-e',
   'WORKERS_CI_BRANCH=develop',
   '-e',
-  'KOIN_PRODUCTION_BRANCH=develop',
+  'KOIN_PRODUCTION_BRANCH=main',
   '-e',
   'CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false',
   '-e',
