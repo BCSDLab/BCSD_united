@@ -62,7 +62,7 @@ export default function DepartmentDesktop({
     return (
       <div className={styles['search-result']}>
         {searchResults.map(({ category, department }) => (
-          <DepartmentCard key={`${category}-${department.name}`} department={department} />
+          <DepartmentCard key={`${category}-${department.name}`} department={department} screen="department_main" />
         ))}
       </div>
     );

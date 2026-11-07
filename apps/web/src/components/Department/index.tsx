@@ -27,8 +27,8 @@ export default function DepartmentPage() {
 
   const handleCategoryClick = (category: DepartmentContactCategory, title: string) => {
     logger.actionEventClick({
-      team: 'CAMPUS',
-      event_label: 'department_category',
+      event_name: 'DA2',
+      event_label: 'department__department_main__department_category__click',
       value: title,
       custom_session_id: category,
     });
@@ -39,9 +39,10 @@ export default function DepartmentPage() {
       return;
     }
 
+    // 검색 아이콘 클릭·Enter로 검색을 실행하는 순간 입력한 검색어를 보낸다(웹은 분류 화면에서만 검색한다)
     logger.actionEventClick({
-      team: 'CAMPUS',
-      event_label: 'department_search',
+      event_name: 'DA2',
+      event_label: 'department__department_main__search__click',
       value: searchValue.trim(),
     });
   };

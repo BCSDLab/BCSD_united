@@ -7,7 +7,7 @@ import LoginRequiredModal from 'components/modal/LoginRequiredModal';
 import type { Portal } from 'components/modal/Modal/PortalProvider';
 import { CATEGORY, type Category, type Submenu, type SubmenuTitle } from 'static/category';
 import ROUTES from 'static/routes';
-import { SHORTCUT_LOGGING_MAP } from 'utils/hooks/analytics/shortcutLoggingMap';
+import { getShortcutLog } from 'utils/hooks/analytics/shortcutLoggingMap';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import { useSessionLogger } from 'utils/hooks/analytics/useSessionLogger';
 import { useLogout } from 'utils/hooks/auth/useLogout';
@@ -78,10 +78,10 @@ export default function PCHeader({ openModal }: PCHeaderProps) {
   const isLoggedin = useIsLoggedIn();
 
   const logShortcut = (title: SubmenuTitle) => {
-    const info = SHORTCUT_LOGGING_MAP[title];
+    const shortcutLog = getShortcutLog(title, 'header');
 
-    if (info) {
-      logger.actionEventClick({ ...info, event_label: 'header' });
+    if (shortcutLog) {
+      logger.actionEventClick(shortcutLog);
 
       if (pathname === ROUTES.GraduationCalculator()) {
         logger.actionEventClick({

@@ -28,7 +28,7 @@ export default function CategoryDetailMobile({
         ) : (
           <div className={styles.list}>
             {departments.map((department) => (
-              <DepartmentCard key={department.name} department={department} />
+              <DepartmentCard key={department.name} department={department} screen="department_list" />
             ))}
           </div>
         )}
