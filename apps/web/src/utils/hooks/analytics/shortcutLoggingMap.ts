@@ -48,7 +48,12 @@ export const SHORTCUT_LOGGING_MAP: Partial<Record<SubmenuTitle, ShortcutLoggingI
     header: 'timetable__header__timetable_entry__header_entry__click',
     footer: 'timetable__footer__timetable_entry__footer_entry__click',
   },
-  복덕방: { team: 'BUSINESS', value: '복덕방' },
+  복덕방: {
+    event_name: 'DA1',
+    value: '복덕방',
+    header: 'real_estate__header__real_estate_entry__header_entry__click',
+    footer: 'real_estate__footer__real_estate_entry__footer_entry__click',
+  },
   주변상점: {
     event_name: 'DA1',
     value: '주변상점',
