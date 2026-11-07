@@ -15,7 +15,7 @@ import useParamsHandler from 'utils/hooks/routing/useParamsHandler';
 import useMount from 'utils/hooks/state/useMount';
 import { isomorphicSessionStorage } from 'utils/ts/env';
 import getElapsedSeconds from 'utils/ts/getElapsedSeconds';
-import { backButtonTapped } from 'utils/ts/nativeBridge';
+import { closeWebView } from 'utils/ts/nativeCommands';
 import { useMobileSidebar } from 'utils/zustand/mobileSidebar';
 
 import type { LegacyRoute } from './legacyRoute';
@@ -54,15 +54,8 @@ export default function MobileHeader({ openModal, route }: MobileHeaderProps) {
 
       return;
     }
-    if (
-      typeof window !== 'undefined' &&
-      window.webkit?.messageHandlers != null &&
-      (pathname === ROUTES.Club() || params.hot === 'true')
-    ) {
-      backButtonTapped();
-
-      return;
-    }
+    // 앱 웹뷰의 동아리 화면은 앱으로 돌려보낸다. 앱 웹뷰가 아니거나 보내지 못하면 웹 뒤로가기로 대신한다
+    if ((pathname === ROUTES.Club() || params.hot === 'true') && closeWebView()) return;
     goBack();
   };
 

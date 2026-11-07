@@ -1,15 +1,13 @@
 import { type ChangeEvent, useState } from 'react';
 import { cn } from '@bcsdlab/utils';
 import { useMutation } from '@tanstack/react-query';
-import { useRouter } from '@tanstack/react-router';
 
 import { orderMutations } from 'api/order/mutations';
 import CheckIcon from 'assets/svg/Order/Result/check-icon.svg';
+import useOrderExit from 'components/Order/common/hooks/useOrderExit';
 import CenterModal from 'components/Store/mobile/common/CenterModal';
 import Button from 'components/ui/Button';
 import { isKoinError } from 'interfaces/APIError';
-import ROUTES from 'static/routes';
-import { isNativeApp, navigateBack } from 'utils/ts/nativeBridge';
 import showToast from 'utils/ts/showToast';
 
 import styles from './OrderCancelPage.module.scss';
@@ -30,12 +28,18 @@ interface OrderCancelPageProps {
 }
 
 export default function OrderCancelPage({ paymentId }: OrderCancelPageProps) {
-  const router = useRouter();
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [selectedCancelReason, setSelectedCancelReason] = useState('');
   const [customCancelReason, setCustomCancelReason] = useState('');
 
-  const { mutate: cancelPayment, isPending: isCancelPending } = useMutation({
+  const { close: closeOrder } = useOrderExit();
+
+  // 취소에 성공한 뒤 화면이 남아 있어도(앱이 이동을 처리하지 않는 등) 다시 취소하지 못하게 성공 후에도 막는다
+  const {
+    mutate: cancelPayment,
+    isPending: isCancelPending,
+    isSuccess: isCanceled,
+  } = useMutation({
     ...orderMutations.cancelPayment(paymentId),
     onError: (error) => {
       if (isKoinError(error)) showToast('error', error.message);
@@ -65,16 +69,8 @@ export default function OrderCancelPage({ paymentId }: OrderCancelPageProps) {
       cancel_reason: selectedCancelReason === OTHER_REASON ? customCancelReason : selectedCancelReason,
     };
 
-    // 앱은 웹뷰를 닫으면서 진행 중인 요청도 끊을 수 있어, 취소가 끝난 뒤에 앱으로 돌아간다
-    if (isNativeApp()) {
-      cancelPayment(body, { onSuccess: () => navigateBack() });
-
-      return;
-    }
-
-    // order: 취소 요청을 보내고 결과를 기다리지 않고 주문 홈으로 이동한다
-    cancelPayment(body);
-    router.navigate({ href: ROUTES.OrderHome() });
+    // 앱은 웹뷰를 닫으면서 진행 중인 요청도 끊을 수 있어, 앱·웹 모두 취소가 끝난 뒤에 주문 흐름을 벗어난다
+    cancelPayment(body, { onSuccess: closeOrder });
   };
 
   return (
@@ -151,8 +147,12 @@ export default function OrderCancelPage({ paymentId }: OrderCancelPageProps) {
             >
               닫기
             </Button>
-            {/* 앱은 취소가 끝날 때까지 이 화면에 머물러서, 그사이 다시 눌러 요청이 중복되지 않게 막는다 */}
-            <Button onClick={handleClickContinueCancel} className={styles.modal__button} disabled={isCancelPending}>
+            {/* 취소가 끝날 때까지 이 화면에 머무르므로, 그사이나 성공 뒤에 다시 눌러 요청이 중복되지 않게 막는다 */}
+            <Button
+              onClick={handleClickContinueCancel}
+              className={styles.modal__button}
+              disabled={isCancelPending || isCanceled}
+            >
               취소하기
             </Button>
           </div>

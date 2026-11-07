@@ -7,13 +7,12 @@ import type { CartResponse, OrderType } from 'api/order/entity';
 import { orderQueries } from 'api/order/queries';
 import { storeMobileQueries } from 'api/storeMobile/queries';
 import { SSRLayout } from 'components/layout';
+import useOrderExit from 'components/Order/common/hooks/useOrderExit';
 import OrderViewport from 'components/Order/common/OrderViewport';
 import DesktopNotice from 'components/Order/DesktopNotice';
 import OrderCheckoutPage from 'components/Order/OrderCheckoutPage';
 import StoreMobileHeader from 'components/Store/mobile/common/StoreMobileHeader';
-import useGoBack from 'utils/hooks/routing/useGoBack';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
-import { isNativeApp, navigateBack } from 'utils/ts/nativeBridge';
 
 interface Props {
   isDesktop: boolean;
@@ -25,23 +24,13 @@ interface Props {
 const parseOrderType = (value: unknown): OrderType => (value === 'DELIVERY' ? 'DELIVERY' : 'TAKE_OUT');
 
 function OrderCheckoutRoute({ isDesktop, orderType }: Props) {
-  const goBack = useGoBack();
-
   // 앱은 네이티브 장바구니에서 이 화면을 웹뷰로 열어 웹 히스토리가 없으므로 뒤로가기를 앱에 맡긴다
-  const handleBack = () => {
-    if (isNativeApp()) {
-      navigateBack();
-
-      return;
-    }
-
-    goBack();
-  };
+  const { backToCart } = useOrderExit();
 
   return (
     <>
       {!isDesktop && <OrderViewport />}
-      <StoreMobileHeader title="주문" onBack={handleBack} />
+      <StoreMobileHeader title="주문" onBack={backToCart} />
       {isDesktop ? <DesktopNotice /> : <OrderCheckoutPage orderType={orderType} />}
     </>
   );

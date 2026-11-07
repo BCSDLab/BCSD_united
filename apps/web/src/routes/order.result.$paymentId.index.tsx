@@ -1,17 +1,16 @@
 import { dehydrate, QueryClient } from '@tanstack/react-query';
-import { createFileRoute, useNavigate, notFound } from '@tanstack/react-router';
+import { createFileRoute, notFound } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
 import { orderQueries } from 'api/order/queries';
 import { SSRLayout } from 'components/layout';
+import useOrderExit from 'components/Order/common/hooks/useOrderExit';
 import OrderViewport from 'components/Order/common/OrderViewport';
 import DesktopNotice from 'components/Order/DesktopNotice';
 import OrderResultPage from 'components/Order/OrderResultPage';
 import OrderResultHeader from 'components/Order/OrderResultPage/components/OrderResultHeader';
-import ROUTES from 'static/routes';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { isNotFoundKoinError } from 'utils/ts/isr';
-import { isNativeApp, navigateBack } from 'utils/ts/nativeBridge';
 
 // useNaverMapsLoaded가 붙이는 지도 스크립트와 같은 주소(미리 받기용)
 const NAVER_MAPS_SCRIPT_URL = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${process.env.NEXT_PUBLIC_NAVER_MAPS_CLIENT_ID}&submodules=geocoder`;
@@ -28,19 +27,9 @@ const parsePaymentId = (value: unknown) => {
 };
 
 function OrderResultRoute({ isDesktop, paymentId }: Props) {
-  const routeNavigate = useNavigate();
-
-  // order 헤더: 결과 화면은 제목 없이 닫기 버튼으로 주문 홈에 간다(routeTitles에 없는 경로)
-  const goToOrderHome = () => {
-    // 앱은 주문 홈을 네이티브로 그리므로 웹 주문 홈 대신 앱으로 돌아간다
-    if (isNativeApp()) {
-      navigateBack();
-
-      return;
-    }
-
-    routeNavigate({ href: ROUTES.OrderHome(), replace: true });
-  };
+  // order 헤더: 결과 화면은 제목 없이 닫기 버튼으로 주문 홈에 간다(routeTitles에 없는 경로).
+  // 앱은 주문 홈을 네이티브로 그리므로 웹 주문 홈 대신 앱으로 돌아간다
+  const { close: goToOrderHome } = useOrderExit();
 
   return (
     <>
