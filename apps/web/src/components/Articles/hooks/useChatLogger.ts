@@ -1,22 +1,24 @@
 import useLogger from 'utils/hooks/analytics/useLogger';
 
+// 로깅 네이밍룰 v1.0 · Notion 게시판(커뮤니티) 로깅 명세 11-16
 const CLICK_EVENTS = [
   {
-    label: 'message_list_select',
+    key: 'message_list_select',
+    label: 'chat__chat_list__chat_conversation__entry__click',
     value: '쪽지',
   },
 ] as const;
 
-export type ClickEventLabel = (typeof CLICK_EVENTS)[number]['label'];
+export type ClickEventKey = (typeof CLICK_EVENTS)[number]['key'];
 
 export const useChatLogger = () => {
   const logger = useLogger();
 
-  const logEvent = (eventLabel: ClickEventLabel, eventValue?: string) => {
-    const event = CLICK_EVENTS.find(({ label }) => label === eventLabel);
+  const logEvent = (eventKey: ClickEventKey, eventValue?: string) => {
+    const event = CLICK_EVENTS.find(({ key }) => key === eventKey);
     if (event) {
       logger.actionEventClick({
-        team: 'CAMPUS',
+        event_name: 'DA2',
         event_label: event.label,
         value: eventValue || event.value,
       });

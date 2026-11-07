@@ -58,7 +58,11 @@ export default function HotArticles() {
               to={ROUTES.ArticlesDetail({ id: String(article.id) })}
               key={article.id + article.board_id}
               onClick={() =>
-                logger.actionEventClick({ team: 'CAMPUS', event_label: 'notice_hot', value: article.title })
+                logger.actionEventClick({
+                  event_name: 'DA2',
+                  event_label: 'board__main_notice__notice_detail__popular_post_entry__click',
+                  value: String(article.id),
+                })
               }
             >
               <span className={styles['hot-article__rank']}>{index + 1}</span>
@@ -74,7 +78,11 @@ export default function HotArticles() {
             key={link.url}
             href={link.url}
             onClick={() => {
-              logger.actionEventClick({ team: 'CAMPUS', event_label: 'short_cut', value: link.title.join('_') });
+              logger.actionEventClick({
+                event_name: 'DA2',
+                event_label: 'board__main_notice__external_link__shortcut_entry__click',
+                value: link.title.join('_'),
+              });
             }}
           >
             <Image className={styles.link__image} src={link.image} alt="alineImg" width={120} height={50} />

@@ -12,15 +12,30 @@ type ShortcutLoggingInfo =
   | ({ event_name: LoggingEventName; value: string } & Record<ShortcutPosition, NamingRuleEventLabel>);
 
 export const SHORTCUT_LOGGING_MAP: Partial<Record<SubmenuTitle, ShortcutLoggingInfo>> = {
-  공지사항: { team: 'CAMPUS', value: '공지사항' },
-  분실물: { team: 'CAMPUS', value: '분실물' },
+  공지사항: {
+    event_name: 'DA2',
+    value: '공지사항',
+    header: 'board__header__notice_entry__header_entry__click',
+    footer: 'board__footer__notice_entry__footer_entry__click',
+  },
+  분실물: {
+    event_name: 'DA2',
+    value: '분실물',
+    header: 'board__header__lost_item_entry__header_entry__click',
+    footer: 'board__footer__lost_item_entry__footer_entry__click',
+  },
   '버스 교통편': { team: 'CAMPUS', value: '버스 교통편' },
   '버스 시간표': { team: 'CAMPUS', value: '버스 시간표' },
   식단: { team: 'CAMPUS', value: '식단' },
   시간표: { team: 'USER', value: '시간표' },
   복덕방: { team: 'BUSINESS', value: '복덕방' },
   주변상점: { team: 'BUSINESS', value: '주변상점' },
-  '교내 시설물 정보': { team: 'CAMPUS', value: '교내 시설물 정보' },
+  '교내 시설물 정보': {
+    event_name: 'DA2',
+    value: '교내 시설물 정보',
+    header: 'facility__header__facility_entry__header_entry__click',
+    footer: 'facility__footer__facility_entry__footer_entry__click',
+  },
   '학교 부서 정보': {
     event_name: 'DA2',
     value: '학교 부서 정보',
@@ -28,7 +43,12 @@ export const SHORTCUT_LOGGING_MAP: Partial<Record<SubmenuTitle, ShortcutLoggingI
     footer: 'department__footer__department_entry__footer_entry__click',
   },
   '코인 사장님': { team: 'BUSINESS', value: '코인 사장님' },
-  쪽지: { team: 'CAMPUS', value: '쪽지' },
+  쪽지: {
+    event_name: 'DA2',
+    value: '쪽지',
+    header: 'chat__header__chat_entry__header_entry__click',
+    footer: 'chat__footer__chat_entry__footer_entry__click',
+  },
   동아리: { team: 'CAMPUS', value: '동아리' },
   '팀원 모집': { team: 'CAMPUS', value: '팀원 모집' },
 };
