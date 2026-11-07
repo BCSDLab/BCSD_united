@@ -46,23 +46,9 @@ export const Route = createRootRoute({
     links: [
       { rel: 'preconnect', href: 'https://static.koreatech.in', crossOrigin: 'anonymous' },
       { rel: 'preload', href: fontRegular, as: 'font', type: 'font/woff2', crossOrigin: 'anonymous' },
-      {
-        rel: 'icon',
-        type: 'image/png',
-        sizes: '32x32',
-        href: 'https://static.koreatech.in/assets/favicons/favicon-32x32.png',
-      },
-      {
-        rel: 'icon',
-        type: 'image/png',
-        sizes: '16x16',
-        href: 'https://static.koreatech.in/assets/favicons/favicon-16x16.png',
-      },
-      {
-        rel: 'apple-touch-icon',
-        sizes: '180x180',
-        href: 'https://static.koreatech.in/assets/favicons/favicon-32x32.png',
-      },
+      { rel: 'icon', type: 'image/svg+xml', sizes: 'any', href: '/favicon.svg' },
+      { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' },
+      { rel: 'shortcut icon', href: '/favicon.ico' },
     ],
   }),
   onError: (error) => captureError(error),
