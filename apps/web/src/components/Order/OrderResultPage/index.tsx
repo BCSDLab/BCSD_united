@@ -16,6 +16,7 @@ import Button from 'components/ui/Button';
 import ROUTES from 'static/routes';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import { formatPrice } from 'utils/ts/formatPrice';
+import { goToShopDetail, isNativeApp } from 'utils/ts/nativeBridge';
 
 import OrderMap from './components/OrderMap';
 import ReceiptModal from './components/ReceiptModal';
@@ -77,6 +78,12 @@ export default function OrderResultPage({ paymentId }: OrderResultPageProps) {
   };
 
   const handleGoToShopDetail = () => {
+    if (isNativeApp()) {
+      goToShopDetail(paymentInfo.orderable_shop_id);
+
+      return;
+    }
+
     router.navigate({ href: ROUTES.OrderShop({ id: String(paymentInfo.orderable_shop_id) }) });
   };
 

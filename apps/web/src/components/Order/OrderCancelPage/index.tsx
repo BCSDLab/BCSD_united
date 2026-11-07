@@ -9,6 +9,7 @@ import CenterModal from 'components/Store/mobile/common/CenterModal';
 import Button from 'components/ui/Button';
 import { isKoinError } from 'interfaces/APIError';
 import ROUTES from 'static/routes';
+import { isNativeApp, navigateBack } from 'utils/ts/nativeBridge';
 import showToast from 'utils/ts/showToast';
 
 import styles from './OrderCancelPage.module.scss';
@@ -34,7 +35,7 @@ export default function OrderCancelPage({ paymentId }: OrderCancelPageProps) {
   const [selectedCancelReason, setSelectedCancelReason] = useState('');
   const [customCancelReason, setCustomCancelReason] = useState('');
 
-  const { mutate: cancelPayment } = useMutation({
+  const { mutate: cancelPayment, isPending: isCancelPending } = useMutation({
     ...orderMutations.cancelPayment(paymentId),
     onError: (error) => {
       if (isKoinError(error)) showToast('error', error.message);
@@ -59,11 +60,20 @@ export default function OrderCancelPage({ paymentId }: OrderCancelPageProps) {
     setCustomCancelReason(e.target.value);
   };
 
-  // order: 취소 요청을 보내고 결과를 기다리지 않고 주문 홈으로 이동한다
   const handleClickContinueCancel = () => {
-    cancelPayment({
+    const body = {
       cancel_reason: selectedCancelReason === OTHER_REASON ? customCancelReason : selectedCancelReason,
-    });
+    };
+
+    // 앱은 웹뷰를 닫으면서 진행 중인 요청도 끊을 수 있어, 취소가 끝난 뒤에 앱으로 돌아간다
+    if (isNativeApp()) {
+      cancelPayment(body, { onSuccess: () => navigateBack() });
+
+      return;
+    }
+
+    // order: 취소 요청을 보내고 결과를 기다리지 않고 주문 홈으로 이동한다
+    cancelPayment(body);
     router.navigate({ href: ROUTES.OrderHome() });
   };
 
@@ -141,7 +151,8 @@ export default function OrderCancelPage({ paymentId }: OrderCancelPageProps) {
             >
               닫기
             </Button>
-            <Button onClick={handleClickContinueCancel} className={styles.modal__button}>
+            {/* 앱은 취소가 끝날 때까지 이 화면에 머물러서, 그사이 다시 눌러 요청이 중복되지 않게 막는다 */}
+            <Button onClick={handleClickContinueCancel} className={styles.modal__button} disabled={isCancelPending}>
               취소하기
             </Button>
           </div>
