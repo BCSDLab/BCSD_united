@@ -244,7 +244,8 @@ export default function PCHeader({ openModal }: PCHeaderProps) {
                 onClick={() => {
                   sessionLogger.actionSessionEvent({
                     session_name: 'sign_up',
-                    event_label: 'header',
+                    event_name: 'DA2',
+                    event_label: 'account__header__sign_up__header_entry__click',
                     value: '회원가입 시작',
                   });
                 }}
@@ -258,8 +259,8 @@ export default function PCHeader({ openModal }: PCHeaderProps) {
                 preload={false}
                 onClick={() => {
                   logger.actionEventClick({
-                    team: 'USER',
-                    event_label: 'header',
+                    event_name: 'DA2',
+                    event_label: 'account__header__login__header_entry__click',
                     value: '로그인 시도',
                   });
                 }}
@@ -288,8 +289,8 @@ export default function PCHeader({ openModal }: PCHeaderProps) {
                   logout();
                   escapeByheader('로그아웃');
                   logger.actionEventClick({
-                    team: 'USER',
-                    event_label: 'header',
+                    event_name: 'DA2',
+                    event_label: 'account__header__logout__click',
                     value: '로그아웃',
                   });
                 }}

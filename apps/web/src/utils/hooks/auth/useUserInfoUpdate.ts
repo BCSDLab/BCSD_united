@@ -20,9 +20,9 @@ const useUserInfoUpdate = <T = unknown>(userType: UserType | null, options: User
     onSuccess: () => {
       options.onSuccess?.();
       logger.actionEventClick({
-        event_label: 'user_info',
+        event_label: 'account__edit_profile__profile_edit__confirm__click',
         value: '정보수정 완료',
-        team: 'USER',
+        event_name: 'DA2',
       });
     },
     onError: (error) => {
@@ -31,9 +31,9 @@ const useUserInfoUpdate = <T = unknown>(userType: UserType | null, options: User
       }
       options.onError?.();
       logger.actionEventClick({
-        event_label: 'user_info',
+        event_label: 'account__edit_profile__profile_edit__confirm__click',
         value: '정보수정 실패',
-        team: 'USER',
+        event_name: 'DA2',
       });
     },
   });

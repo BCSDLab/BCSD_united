@@ -31,7 +31,8 @@ export default function Terms({ onNext }: TermsProps) {
   const onClickNext = () => {
     onNext();
     sessionLogger.actionSessionEvent({
-      event_label: 'terms_agreement',
+      event_name: 'DA2',
+      event_label: 'account__sign_up_policy__sign_up__terms_agree__click',
       value: '약관동의',
       session_name: 'sign_up',
     });

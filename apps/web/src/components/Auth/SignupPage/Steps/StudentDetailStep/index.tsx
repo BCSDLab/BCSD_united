@@ -99,7 +99,8 @@ function StudentDetail({ onNext, onBack }: VerificationProps) {
       setIdMessage({ type: 'success', content: MESSAGES.USERID.AVAILABLE });
       setIsCorrectId();
       sessionLogger.actionSessionEvent({
-        event_label: 'create_account',
+        event_name: 'DA2',
+        event_label: 'account__input_user_info__sign_up__id_available__click',
         value: '아이디생성',
         session_name: 'sign_up',
       });
@@ -119,7 +120,8 @@ function StudentDetail({ onNext, onBack }: VerificationProps) {
       setNicknameMessage({ type: 'success', content: MESSAGES.NICKNAME.AVAILABLE });
       setIsCorrectNickname();
       sessionLogger.actionSessionEvent({
-        event_label: 'create_account',
+        event_name: 'DA2',
+        event_label: 'account__input_user_info__sign_up__nickname_available__click',
         value: '닉네임생성',
         session_name: 'sign_up',
       });
@@ -180,7 +182,8 @@ function StudentDetail({ onNext, onBack }: VerificationProps) {
       onSuccess: () => {
         handleSubmit(onSubmit)();
         sessionLogger.actionSessionEvent({
-          event_label: 'sign_up_completed',
+          event_name: 'DA2',
+          event_label: 'account__input_user_info__sign_up__confirm__click',
           value: '회원가입완료',
           session_name: 'sign_up',
         });
