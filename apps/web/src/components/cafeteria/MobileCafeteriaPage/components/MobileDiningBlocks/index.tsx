@@ -27,8 +27,8 @@ export default function MobileDiningBlocks({ diningType, onReportSoldout }: Mobi
   const handleImageClick = (dining: Dining) => {
     if (dining.image_url) {
       logger.actionEventClick({
-        team: 'CAMPUS',
-        event_label: 'menu_image',
+        event_name: 'DA1',
+        event_label: 'cafeteria__cafeteria__photo_view__open__click',
         value: `${DINING_TYPE_MAP[dining.type]}_${dining.place}`,
       });
 
