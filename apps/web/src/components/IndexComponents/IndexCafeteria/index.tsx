@@ -50,7 +50,13 @@ function IndexCafeteria({ serverDining }: IndexCafeteriaProps) {
   };
 
   const handlePlaceClick = (place: DiningPlace) => {
-    logger.actionEventClick({ team: 'CAMPUS', event_label: 'main_menu_corner', value: place });
+    // 홈 1-4 식단 코너 클릭 (식단 1-3~1-7은 1-1에 따라 레거시)
+    logger.actionEventClick({
+      event_name: 'DA1',
+      event_label: 'main__main__corner__select',
+      value: place,
+      event_category: 'select',
+    });
     setSelectedPlace(place);
   };
 
