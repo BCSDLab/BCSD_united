@@ -67,9 +67,10 @@ function workerConfigOverride({
 export default defineConfig(({ command, mode, isPreview }) => {
   const env = loadEnv(mode, root, '');
   const branch = env.WORKERS_CI_BRANCH;
-  const productionBranch = env.KOIN_PRODUCTION_BRANCH || 'develop';
-  if (env.WORKERS_CI === '1' && branch !== productionBranch) {
-    throw new Error('Automatic web builds only accept KOIN_PRODUCTION_BRANCH.');
+  const productionBranch = env.KOIN_PRODUCTION_BRANCH || 'main';
+  const previewBranch = env.KOIN_PREVIEW_BRANCH || 'develop';
+  if (env.WORKERS_CI === '1' && branch !== productionBranch && branch !== previewBranch) {
+    throw new Error('Automatic web builds only accept KOIN_PRODUCTION_BRANCH or KOIN_PREVIEW_BRANCH.');
   }
   env.NEXT_PUBLIC_API_PATH = '/api';
   const offlineSmoke = env.AUTOFIX_OFFLINE_SMOKE === '1' && env.WORKERS_CI !== '1';

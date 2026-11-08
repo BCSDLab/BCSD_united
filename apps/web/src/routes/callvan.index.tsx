@@ -55,7 +55,6 @@ function useCallvanParams(initialParams: CallvanParams): CallvanParams {
 
 export default function CallvanPage({ initialParams }: Awaited<ReturnType<typeof getPageData>>) {
   const routeNavigate = useNavigate();
-
   const isMobile = useMediaQuery();
   const mounted = useMount();
 
@@ -117,8 +116,6 @@ const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
   .handler(({ data }) =>
     loadPageData(data, async (context, _cacheControl, serverRequest) => {
-      // 모바일 전용 화면이다. 데스크톱은 서버에서 바로 돌려보낸다. 클라이언트에서 판정하면
-      // 서버가 페이지 전체를 그린 뒤 마운트 직후 통째로 버리게 된다.
       if (serverRequest.device !== 'mobile') {
         throw redirect({ href: ROUTES.Main(), statusCode: 302 });
       }

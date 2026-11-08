@@ -11,6 +11,19 @@ export async function sourceFiles(directory) {
   return result;
 }
 
+/** Error jobs require the canonical observed path; only explicit offline smoke may default to home. */
+export function webSmokeRoute(context, offline = false) {
+  const route = context?.route ?? (offline ? '/' : undefined);
+  if (
+    context?.app !== 'web' ||
+    typeof route !== 'string' ||
+    !/^\/[A-Za-z0-9_/-]*$/.test(route) ||
+    route.startsWith('//')
+  )
+    throw new Error('Unsafe smoke path');
+  return route;
+}
+
 export function matchesRoute(pattern, route, app) {
   const normalized = (app === 'web' ? pattern.replace(/\([^/]+\)\//g, '') : pattern).replace(/\/$/, '') || '/';
   const segments = normalized.split('/').map((part) => {

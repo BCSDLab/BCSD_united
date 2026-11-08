@@ -1,89 +1,19 @@
-import { useEffect } from 'react';
-import { Link, useRouter } from '@tanstack/react-router';
+import { Suspense, useEffect } from 'react';
+import { Link } from '@tanstack/react-router';
 
-import type { StoreCategoriesResponse } from 'api/store/entity';
+import ErrorBoundary from 'components/boundary/ErrorBoundary';
 import { getMainDurationTime, initializeMainEntryTime } from 'components/Store/utils/durationTime';
-import Image from 'components/ui/Image';
-import type { LoggingEventName, NamingRuleEventLabel } from 'lib/gtag';
 import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
-import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import { parseSearch } from 'utils/routing/search';
 
+import StoreCard from './StoreCard';
 import styles from './IndexStore.module.scss';
+import cardStyles from './StoreCard.module.scss';
 
-interface Category {
-  id: number;
-  name: string;
-  image_url: string;
-}
-
-interface CategoryWithEvent extends Category {
-  event: {
-    event_name: LoggingEventName;
-    event_label: NamingRuleEventLabel;
-    value: string;
-    previous_page: string;
-    current_page: string;
-  };
-  route: string;
-}
-
-export default function IndexStore({ categories }: { categories: StoreCategoriesResponse }) {
+export default function IndexStore() {
   const logger = useLogger();
-  const router = useRouter();
-  const isMobile = useMediaQuery();
-
-  const categoriesWithEvent = categories.shop_categories.map((category: Category) => ({
-    ...category,
-    event: {
-      event_name: 'DA1' as const,
-      event_label: 'shop__main__shop_entry__category_card_entry__click' as const,
-      value: category.name,
-      previous_page: '메인',
-      current_page: category.name,
-    },
-    route: `${ROUTES.Store()}?category=${category.id}`,
-  }));
-
-  const categoriesWithBenefit: CategoryWithEvent[] = categoriesWithEvent.map((category) => {
-    if (category.name === '전체보기') {
-      return {
-        ...category,
-        name: '혜택',
-        image_url: 'https://static.koreatech.in/assets/img/icon/benefit_icon.png',
-        event: {
-          ...category.event,
-          value: '혜택',
-          current_page: 'benefit',
-        },
-        route: `${ROUTES.BenefitStore()}?category=1`,
-      };
-    }
-
-    return {
-      ...category,
-      route: `${ROUTES.Store()}?category=${category.id}`,
-    };
-  });
-
-  const renderCategories = isMobile ? categoriesWithEvent : categoriesWithBenefit;
   const titleLink = `${ROUTES.Store()}?category=1`;
-
-  const handleCategoryClick = ({ event, route }: CategoryWithEvent) => {
-    logger.actionEventClick({
-      ...event,
-      duration_time: getMainDurationTime(),
-    });
-
-    if (route.startsWith('http')) {
-      window.location.assign(route);
-
-      return;
-    }
-
-    router.navigate({ href: route });
-  };
 
   useEffect(() => {
     initializeMainEntryTime();
@@ -95,29 +25,37 @@ export default function IndexStore({ categories }: { categories: StoreCategories
         to={titleLink.split('?')[0]}
         search={parseSearch(titleLink.split('?')[1] ?? '')}
         className={styles.template__title}
+        onClick={() =>
+          logger.actionEventClick({
+            event_name: 'DA2',
+            event_label: 'main__main__shop_entry__main_entry__click',
+            value: '주변상점',
+          })
+        }
       >
         주변 상점
       </Link>
-      <div className={styles.category__wrapper}>
-        {renderCategories.map((category) => (
-          <button
-            key={category.id}
-            className={styles.category__item}
-            onClick={() => handleCategoryClick(category)}
-            type="button"
-          >
-            <Image
-              src={category.image_url}
-              alt={category.name}
-              className={styles.category__image}
-              width={48}
-              height={48}
-              sizes="48px"
-            />
-            {category.name}
-          </button>
-        ))}
-      </div>
+      <ErrorBoundary fallbackClassName={cardStyles['store-card']}>
+        <Suspense
+          fallback={
+            <div className={cardStyles['store-card']} role="status">
+              상점 정보를 불러오는 중입니다.
+            </div>
+          }
+        >
+          <StoreCard
+            href={titleLink}
+            onClick={() =>
+              logger.actionEventClick({
+                event_name: 'DA1',
+                event_label: 'shop__main__shop_entry__popular_entry__click',
+                value: '많이 찾는 상점 둘러보기',
+                duration_time: getMainDurationTime(),
+              })
+            }
+          />
+        </Suspense>
+      </ErrorBoundary>
     </section>
   );
 }

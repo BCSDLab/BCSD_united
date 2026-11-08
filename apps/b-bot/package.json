@@ -14,7 +14,6 @@
   "dependencies": {
     "@koin/b-bot-ai": "workspace:*",
     "@koin/b-bot-database": "workspace:*",
-    "@notionhq/client": "^5.29.0",
     "@slack/web-api": "^8.2.0",
     "exceljs": "^4.4.0",
     "h3": "^1.15.11",

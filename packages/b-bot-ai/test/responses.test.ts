@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { generateStructured } from '../src/index.ts';
-import { embeddingVector, parseStructured, responseText } from '../src/responses.ts';
+import { parseStructured, responseText } from '../src/responses.ts';
 import { upstreamError } from '../src/transport.ts';
 
 function response(text: string): Record<string, unknown> {
@@ -81,23 +81,6 @@ test('structured image errors are reported before any external request', async (
   );
 });
 
-test('embedding vectors require 1024 finite numeric coordinates', () => {
-  const valid = Array.from({ length: 1024 }, (_, i) => i / 1024);
-  assert.deepEqual(embeddingVector({ success: true, result: { data: [valid] } }), valid);
-  for (const data of [
-    undefined,
-    [],
-    [0],
-    Array(1024),
-    [...valid.slice(0, -1), Number.NaN],
-    [...valid.slice(0, -1), Number.POSITIVE_INFINITY],
-    [...valid.slice(0, -1), '0'],
-    [...valid.slice(0, -1), null],
-  ]) {
-    assert.throws(() => embeddingVector({ data: [data] }), /유한한 숫자 1024개/);
-  }
-});
-
 test('provider failures preserve actionable status without disclosing error payloads', () => {
   const secret = 'Bearer secret-token';
   const error = upstreamError({ status: 403, message: secret });
@@ -109,7 +92,7 @@ test('provider failures preserve actionable status without disclosing error payl
   assert.match(upstreamError({ code: 3040 }).message, /모델 용량/);
   assert.match(upstreamError(undefined, 429).message, /HTTP 429/);
   assert.throws(
-    () => embeddingVector({ success: false, errors: [{ code: 3036, message: secret }] }),
+    () => responseText({ success: false, errors: [{ code: 3036, message: secret }] }),
     /자동 재시도나 다른 모델 전환은 하지 않습니다/,
   );
   assert.throws(

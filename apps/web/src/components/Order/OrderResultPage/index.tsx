@@ -12,6 +12,7 @@ import ReceiptIcon from 'assets/svg/Order/Result/receipt-icon.svg';
 import ShoppingCartIcon from 'assets/svg/Order/Result/shopping-cart-icon.svg';
 import SkilletIcon from 'assets/svg/Order/Result/skillet-icon.svg';
 import BankAccountInfo from 'components/Order/common/BankAccountInfo';
+import useOrderExit from 'components/Order/common/hooks/useOrderExit';
 import Button from 'components/ui/Button';
 import ROUTES from 'static/routes';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
@@ -51,6 +52,7 @@ interface OrderResultPageProps {
 
 export default function OrderResultPage({ paymentId }: OrderResultPageProps) {
   const router = useRouter();
+  const { openShop } = useOrderExit();
   const isLoggedIn = useIsLoggedIn();
   const { data: paymentInfo, isPending } = useQuery(orderQueries.paymentInfo(paymentId, isLoggedIn));
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
@@ -76,9 +78,7 @@ export default function OrderResultPage({ paymentId }: OrderResultPageProps) {
     router.navigate({ href: ROUTES.OrderCancel({ paymentId: String(paymentId) }) });
   };
 
-  const handleGoToShopDetail = () => {
-    router.navigate({ href: ROUTES.OrderShop({ id: String(paymentInfo.orderable_shop_id) }) });
-  };
+  const handleGoToShopDetail = () => openShop(paymentInfo.orderable_shop_id);
 
   return (
     <div className={styles.page}>

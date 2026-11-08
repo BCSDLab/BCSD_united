@@ -8,7 +8,7 @@ SLACK_BOT_SIGNING_SECRET=
 WEBHOOK_SECRET=
 
 # AI is the native Wrangler AI binding (not a string secret).
-# Generation/vision/structured output: openai/gpt-6-luna. Embedding: @cf/baai/bge-m3.
+# Generation/vision/structured output: openai/gpt-6-luna.
 # Uses Cloudflare account credits/limits; errors stop without another provider or retry.
 # Luna is token-billed, not part of the hosted-model 10,000-neuron free allocation.
 # CLI tools only: Workers AI REST API credentials with AI Run permission.
@@ -34,20 +34,12 @@ APP_BASE_URL=
 INTERNAL_API_BASE_URL=https://internal.bcsdlab.com
 INTERNAL_SERVICE_TOKEN=
 
-# Optional Google Meet / Drive. Callback must be /auth/google_callback.
+# Optional Google Meet. Callback must be /auth/google_callback.
 # HTTPS required in production. /auth/google asks for Basic auth: admin / GOOGLE_AUTH_SECRET.
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 GOOGLE_REDIRECT_URI=
 GOOGLE_AUTH_SECRET=
-GDRIVE_FOLDER_IDS=
-
-# Pi document indexer (GitHub/Notion/Drive), independent of Worker OAuth/KV. Required only when sync jobs are enabled.
-# HTTPS origin only (no path/query); provision both Pi Bearer token (>=32 chars) and Cloudflare Access service token separately.
-B_BOT_CRAWLER_ORIGIN=
-B_BOT_CRAWLER_TOKEN=
-B_BOT_CRAWLER_ACCESS_CLIENT_ID=
-B_BOT_CRAWLER_ACCESS_CLIENT_SECRET=
 
 # KOIN admin API. Channel determines stage/prod; production never falls back to stage.
 KOIN_ADMIN_EMAIL=
@@ -65,9 +57,6 @@ KOIN_API_BASE_URL=
 KOIN_STAGE_SERVICE_TOKEN=
 KOIN_PROD_SERVICE_TOKEN=
 DINING_WORKER_ENVS=
-
-# Optional knowledge connector.
-NOTION_TOKEN=
 
 # Superset 4.x. Uses the same Workers AI Luna binding; no Anthropic/OpenAI API key.
 # HTTPS required except localhost. Register only datasets approved for Slack/Cloudflare/OpenAI sharing.

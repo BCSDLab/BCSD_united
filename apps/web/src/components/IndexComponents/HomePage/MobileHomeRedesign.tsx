@@ -1,39 +1,31 @@
-import type { ReactNode } from 'react';
-import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
+import { Suspense, type ReactNode } from 'react';
+import { useSuspenseQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 
 import { callvanQueries } from 'api/callvan/queries';
-import { storeQueries } from 'api/store/queries';
-import { weatherQueries } from 'api/weather/queries';
 import ArrowRightIcon from 'assets/svg/common/arrow-right-icon.svg';
 import BusTimeIcon from 'assets/svg/common/bus-time-icon.svg';
-import ForkKnifeIcon from 'assets/svg/common/fork-knife-icon.svg';
 import QRCodeIcon from 'assets/svg/common/qr-code-icon.svg';
 import BusRouteIcon from 'assets/svg/common/route-icon.svg';
 import VanIcon from 'assets/svg/common/van-icon.svg';
+import ErrorBoundary from 'components/boundary/ErrorBoundary';
 import { DiningTime } from 'components/cafeteria/utils/time';
 import IndexMobileCafeteria from 'components/IndexComponents/IndexMobileCafeteria';
+import StoreCard from 'components/IndexComponents/IndexStore/StoreCard';
 import IconBox from 'components/ui/IconBox';
-import Image from 'components/ui/Image';
 import type { LoggingEventName, NamingRuleEventLabel } from 'lib/gtag';
 import { BUS_LINKS } from 'static/bus';
 import { DINING_TYPE_MAP } from 'static/cafeteria';
 import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
-import { useUser } from 'utils/hooks/state/useUser';
 import { parseSearch } from 'utils/routing/search';
-import { useServerNow } from 'utils/ssr/useServerNow';
 
+import HomeGreeting from './HomeGreeting';
+import cardStyles from 'components/IndexComponents/IndexStore/StoreCard.module.scss';
 import styles from './MobileHomeRedesign.module.scss';
 
 const unibus = BUS_LINKS[2];
 const mobileStoreLink = `${ROUTES.Store()}?category=1`;
-const dateFormatter = new Intl.DateTimeFormat('ko-KR', {
-  month: 'long',
-  day: 'numeric',
-  weekday: 'long',
-  timeZone: 'Asia/Seoul',
-});
 
 const transportCards = [
   {
@@ -42,8 +34,8 @@ const transportCards = [
     description: '노선 별 출발 시간',
     Icon: BusTimeIcon,
     logging: {
-      event_name: 'DA2' as const,
-      event_label: 'main__main__bus_entry__timetable_entry__click' as const,
+      event_name: 'DA2',
+      event_label: 'main__main__bus_entry__timetable_entry__click',
       value: '버스 시간표',
     },
   },
@@ -53,12 +45,12 @@ const transportCards = [
     description: '가장 빠른 버스 찾기',
     Icon: BusRouteIcon,
     logging: {
-      event_name: 'DA1' as const,
-      event_label: 'bus__main__bus_entry__search_entry__click' as const,
+      event_name: 'DA1',
+      event_label: 'bus__main__bus_entry__search_entry__click',
       value: '버스 노선 조회',
     },
   },
-];
+] as const;
 
 interface SectionHeaderProps {
   titleId: string;
@@ -79,9 +71,6 @@ function SectionHeader({ titleId, title, children }: SectionHeaderProps) {
 
 function MobileHomeRedesign() {
   const logger = useLogger();
-  const serverNow = useServerNow();
-  const { data: userInfo } = useUser();
-  const weatherQuery = useQuery(weatherQueries.info());
   const { data: callvanData } = useSuspenseQuery({
     ...callvanQueries.list({
       statuses: ['RECRUITING'],
@@ -90,48 +79,14 @@ function MobileHomeRedesign() {
       limit: 1,
     }),
   });
-  const { data: storeCounts } = useSuspenseQuery(storeQueries.counts());
-  const { data: storeEventCount } = useSuspenseQuery(storeQueries.eventCount());
 
-  const displayName = userInfo?.nickname?.trim() || userInfo?.name?.trim() || '코리';
-  const todayLabel = dateFormatter.format(serverNow);
-
-  const logClick = (event_label: NamingRuleEventLabel, value: string, event_name: LoggingEventName = 'DA1') => {
+  const logClick = (event_name: LoggingEventName, event_label: NamingRuleEventLabel, value: string) => {
     logger.actionEventClick({ event_name, event_label, value });
   };
 
   return (
     <main className={styles.template}>
-      <section className={styles.hero} aria-labelledby="home-greeting-title">
-        <div className={styles.hero__meta}>
-          <span className={styles.hero__date}>{todayLabel}</span>
-          <span className={styles.weather}>
-            {weatherQuery.data ? (
-              <>
-                <Image
-                  className={styles.weather__icon}
-                  src={weatherQuery.data.weather_icon_url}
-                  alt=""
-                  width={16}
-                  height={16}
-                  aria-hidden
-                />
-                <span className={styles.weather__text}>
-                  {weatherQuery.data.weather} {weatherQuery.data.temperature}°
-                </span>
-              </>
-            ) : (
-              <span className={styles.weather__text}>
-                {weatherQuery.isPending ? '날씨 확인 중' : '날씨 정보 제공 불가'}
-              </span>
-            )}
-          </span>
-        </div>
-        <h1 id="home-greeting-title" className={styles.hero__title}>
-          <span>{displayName}님,</span>
-          <span>오늘도 잘 챙겨먹어요</span>
-        </h1>
-      </section>
+      <HomeGreeting />
 
       <section className={styles.section} aria-labelledby="today-menu-title">
         <SectionHeader titleId="today-menu-title" title="오늘의 식단">
@@ -139,7 +94,7 @@ function MobileHomeRedesign() {
             to={ROUTES.Cafeteria()}
             className={styles['section-link']}
             onClick={() =>
-              logClick('main__main__meal__click', `${DINING_TYPE_MAP[new DiningTime().getType()]}_전체보기`, 'DA2')
+              logClick('DA2', 'main__main__meal__click', `${DINING_TYPE_MAP[new DiningTime().getType()]}_전체보기`)
             }
           >
             <span>전체보기</span>
@@ -157,7 +112,7 @@ function MobileHomeRedesign() {
             className={styles['ticket-card']}
             target="_blank"
             rel="noreferrer"
-            onClick={() => logClick('ticket__main__bus_entry__ticket_entry__click', '셔틀 탑승권')}
+            onClick={() => logClick('DA1', 'ticket__main__bus_entry__ticket_entry__click', '셔틀 탑승권')}
           >
             <span className={styles['ticket-card__text']}>
               <strong>셔틀 탑승권</strong>
@@ -194,7 +149,7 @@ function MobileHomeRedesign() {
               search={parseSearch(href.split('?')[1] ?? '')}
               className={styles['transport-card']}
               key={href}
-              onClick={() => logClick(logging.event_label, logging.value, logging.event_name)}
+              onClick={() => logClick(logging.event_name, logging.event_label, logging.value)}
             >
               <IconBox>
                 <Icon />
@@ -215,38 +170,27 @@ function MobileHomeRedesign() {
             to={mobileStoreLink.split('?')[0]}
             search={parseSearch(mobileStoreLink.split('?')[1] ?? '')}
             className={styles['section-link']}
-            onClick={() => logClick('main__main__shop_entry__main_entry__click', '주변상점', 'DA2')}
+            onClick={() => logClick('DA2', 'main__main__shop_entry__main_entry__click', '주변상점')}
           >
             <span>전체보기</span>
             <ArrowRightIcon aria-hidden />
           </Link>
         </SectionHeader>
 
-        <Link
-          to={mobileStoreLink.split('?')[0]}
-          search={parseSearch(mobileStoreLink.split('?')[1] ?? '')}
-          className={styles['store-card']}
-          onClick={() => logClick('shop__main__shop_entry__popular_entry__click', '많이 찾는 상점 둘러보기')}
-        >
-          <div className={styles['store-card__content-wrapper']}>
-            <IconBox>
-              <ForkKnifeIcon />
-            </IconBox>
-            <span className={styles['store-card__content']}>
-              <span className={styles['store-card__badge']}>KOIN 전용 이벤트 {storeEventCount.count}곳</span>
-              <span className={styles['store-card__title']}>
-                많이 찾는 상점
-                <br />
-                둘러보기
-              </span>
-              <span className={styles['store-card__meta']}>
-                영업중 <span className={styles['store-card__count']}>{storeCounts.open_count}곳</span> | 전체{' '}
-                {storeCounts.total_count}곳
-              </span>
-            </span>
-          </div>
-          <ArrowRightIcon className={styles['store-card__arrow']} aria-hidden />
-        </Link>
+        <ErrorBoundary fallbackClassName={cardStyles['store-card']}>
+          <Suspense
+            fallback={
+              <div className={cardStyles['store-card']} role="status">
+                상점 정보를 불러오는 중입니다.
+              </div>
+            }
+          >
+            <StoreCard
+              href={mobileStoreLink}
+              onClick={() => logClick('DA1', 'shop__main__shop_entry__popular_entry__click', '많이 찾는 상점 둘러보기')}
+            />
+          </Suspense>
+        </ErrorBoundary>
       </section>
     </main>
   );

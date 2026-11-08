@@ -4,6 +4,39 @@ import { mkdtemp, mkdir, readFile, realpath, rm, symlink, writeFile } from 'node
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { errorToolScope, pullRequestToolScope, sourceTools } from './executor-model.mjs';
+import { generateAnswer } from './executor.mjs';
+
+test('model guidance covers observed SSR hydration and PR review without expanding tool permissions', async (t) => {
+  const prompts = [];
+  t.mock.method(globalThis, 'fetch', async (_url, options) => {
+    const request = JSON.parse(options.body);
+    prompts.push(request.messages[0].content[0].text);
+    assert.deepEqual(request.tools, ['Read', 'Edit', 'Write', 'Glob', 'Grep']);
+    return Response.json({ stop_reason: 'end_turn', content: [{ type: 'text', text: 'No safe source change.' }] });
+  });
+  const claim = (job) => ({ job, runId: `autofix-${'a'.repeat(64)}`, leaseToken: 'b'.repeat(64) });
+  const cfg = { origin: 'https://worker.example', token: 'fixture' };
+  const tools = { apply: () => assert.fail('Model must not run any file tools') };
+  const signal = new AbortController().signal;
+  await generateAnswer(cfg, claim({ context: { app: 'web', route: '/articles/123' } }), tools, signal);
+  await generateAnswer(
+    cfg,
+    claim({
+      mode: 'pull-request',
+      pullNumber: 7,
+      headRef: 'feature/web',
+      headSha: 'c'.repeat(40),
+      baseSha: 'd'.repeat(40),
+    }),
+    tools,
+    signal,
+  );
+  assert.match(prompts[0], /observed web error on \/articles\/123/);
+  assert.match(prompts[0], /server loader and initial client render/);
+  assert.match(prompts[0], /independent verifier checks the observed route/);
+  assert.match(prompts[1], /homepage smoke alone cannot prove every changed route/);
+  assert.match(prompts[1], /desktop\/mobile request UA classification/);
+});
 
 test('source-only model tools keep edits inside the observed app and new regression files', async (t) => {
   const root = await realpath(await mkdtemp(join(tmpdir(), 'autofix-source-')));

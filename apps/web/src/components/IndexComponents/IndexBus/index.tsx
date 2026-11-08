@@ -1,101 +1,68 @@
 import { Link } from '@tanstack/react-router';
 
-import ChevronRight from 'assets/svg/IndexPage/Bus/chevron-right.svg';
-import QRCode from 'assets/svg/IndexPage/Bus/qr-code.svg';
-import { type BusLinkKey, BUS_LINKS } from 'static/bus';
+import ArrowRightIcon from 'assets/svg/common/arrow-right-icon.svg';
+import BusTimetableIcon from 'assets/svg/common/bus-time-icon.svg';
+import BusRouteIcon from 'assets/svg/common/route-icon.svg';
+import IconBox from 'components/ui/IconBox';
 import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
-import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 
 import styles from './IndexBus.module.scss';
 
-const loggingTitle = {
-  timetable: 'main_bus_timetable',
-  route: 'main_bus_search',
-  unibus: 'shuttle_ticket',
-};
-
-const loggingValue = {
-  timetable: '버스 시간표 바로가기',
-  route: '가장 빠른 버스 조회하기',
-  unibus: '셔틀 탑승권',
-};
+const DESKTOP_TRANSPORT_LINKS = [
+  {
+    key: 'timetable',
+    title: '버스 시간표',
+    subtitle: '노선 별 출발 시간',
+    link: ROUTES.BusCourseShuttle(),
+    SvgIcon: BusTimetableIcon,
+    logging: {
+      event_name: 'DA2' as const,
+      event_label: 'main__main__bus_entry__timetable_entry__click' as const,
+      value: '버스 시간표',
+    },
+  },
+  {
+    key: 'route',
+    title: '버스 노선 조회',
+    subtitle: '가장 빠른 버스 찾기',
+    link: ROUTES.BusRoute(),
+    SvgIcon: BusRouteIcon,
+    logging: {
+      event_name: 'DA1' as const,
+      event_label: 'bus__main__bus_entry__search_entry__click' as const,
+      value: '버스 노선 조회',
+    },
+  },
+];
 
 function IndexBus() {
-  const isMobile = useMediaQuery();
   const logger = useLogger();
-  const logShuttleTicket = () =>
-    logger.actionEventClick({ team: 'CAMPUS', event_label: 'shuttle_ticket', value: '셔틀 탑승권' });
   const logMainToBus = () => logger.actionEventClick({ team: 'CAMPUS', event_label: 'main_to_bus', value: '버스' });
-  const logMainBusButton = (key: BusLinkKey) =>
-    logger.actionEventClick({ team: 'CAMPUS', event_label: loggingTitle[key], value: loggingValue[key] });
-
-  const unibus = BUS_LINKS[2];
 
   return (
     <section className={styles.template}>
       <div className={styles.template__header}>
         <Link className={styles.template__title} to={ROUTES.BusRoute()} onClick={logMainToBus}>
-          버스
+          교통
         </Link>
-        {isMobile && (
-          <a href={unibus.link} className={styles.unibus} onClick={logShuttleTicket}>
-            <QRCode />
-            <span className={styles.unibus__title}>셔틀 탑승권</span>
-          </a>
-        )}
       </div>
-      {isMobile ? (
-        <div className={styles.cards}>
-          {BUS_LINKS.slice(0, 2).map(({ key, title, subtitle, link }) =>
-            /^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(link) ? (
-              <a href={link} key={key} className={styles.card} onClick={() => logMainBusButton(key)}>
-                <div className={styles.card__guide}>
-                  <span className={styles.card__title}>{title}</span>
-                  <span className={styles.card__subtitle}>{subtitle}</span>
-                </div>
-                <ChevronRight />
-              </a>
-            ) : (
-              <Link to={link} key={key} className={styles.card} onClick={() => logMainBusButton(key)}>
-                <div className={styles.card__guide}>
-                  <span className={styles.card__title}>{title}</span>
-                  <span className={styles.card__subtitle}>{subtitle}</span>
-                </div>
-                <ChevronRight />
-              </Link>
-            ),
-          )}
-        </div>
-      ) : (
-        <div className={styles.cards}>
-          {BUS_LINKS.map(({ key, title, subtitle, link, SvgIcon }) =>
-            /^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(link) ? (
-              <a href={link} key={key} className={styles.card} onClick={() => logMainBusButton(key)}>
-                <div className={styles.card__segment}>
-                  <SvgIcon />
-                  <div className={styles.card__guide}>
-                    <span className={styles.card__title}>{title}</span>
-                    <span className={styles.card__subtitle}>{subtitle}</span>
-                  </div>
-                </div>
-                <ChevronRight />
-              </a>
-            ) : (
-              <Link to={link} key={key} className={styles.card} onClick={() => logMainBusButton(key)}>
-                <div className={styles.card__segment}>
-                  <SvgIcon />
-                  <div className={styles.card__guide}>
-                    <span className={styles.card__title}>{title}</span>
-                    <span className={styles.card__subtitle}>{subtitle}</span>
-                  </div>
-                </div>
-                <ChevronRight />
-              </Link>
-            ),
-          )}
-        </div>
-      )}
+      <div className={styles.cards}>
+        {DESKTOP_TRANSPORT_LINKS.map(({ key, title, subtitle, link, SvgIcon, logging }) => (
+          <Link to={link} key={key} className={styles.card} onClick={() => logger.actionEventClick(logging)}>
+            <div className={styles.card__segment}>
+              <IconBox className={styles.card__icon}>
+                <SvgIcon aria-hidden />
+              </IconBox>
+              <div className={styles.card__guide}>
+                <span className={styles.card__title}>{title}</span>
+                <span className={styles.card__subtitle}>{subtitle}</span>
+              </div>
+            </div>
+            <ArrowRightIcon className={styles.card__arrow} aria-hidden />
+          </Link>
+        ))}
+      </div>
     </section>
   );
 }
