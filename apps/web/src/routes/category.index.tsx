@@ -29,7 +29,7 @@ import { parseSearch } from 'utils/routing/search';
 import styles from 'pages/category/CategoryPage.module.scss';
 
 type IconComponent = ComponentType<SVGProps<SVGSVGElement>>;
-// 명세가 있는 항목은 네이밍룰 v1.0(event_name·새 label)으로, 명세가 없는 항목(식단·버스·교통편·코인 for Business)은 기존 team 로그로 보낸다
+// 홈 3-6 카테고리 13개 메뉴: service__main_category__category_navigation__진입대상__click (screen_view main_category)
 type CategoryLogging = LoggingTarget & { value: string };
 
 interface CategoryItem {
@@ -53,7 +53,7 @@ const quickMenus: CategoryItem[] = [
     Icon: TeamIcon,
     logging: {
       event_name: 'DA1',
-      event_label: 'team_recruit__main_category__team_recruit_entry__category_entry__click',
+      event_label: 'team_recruit__main_category__category_navigation__team_recruit_entry__click',
       value: '팀원 모집',
     },
   },
@@ -64,7 +64,7 @@ const quickMenus: CategoryItem[] = [
     Icon: DeliveryBoxIcon,
     logging: {
       event_name: 'DA2',
-      event_label: 'board__main_category__lost_item_entry__category_entry__click',
+      event_label: 'board__main_category__category_navigation__lost_item_entry__click',
       value: '분실물',
     },
   },
@@ -99,8 +99,8 @@ const sections: CategorySection[] = [
         href: ROUTES.Cafeteria(),
         Icon: DishIcon,
         logging: {
-          team: 'CAMPUS',
-          event_label: 'category_dining',
+          event_name: 'DA1',
+          event_label: 'cafeteria__main_category__category_navigation__cafeteria_entry__click',
           value: '식단',
         },
       },
@@ -110,7 +110,7 @@ const sections: CategorySection[] = [
         Icon: StoreIcon,
         logging: {
           event_name: 'DA1',
-          event_label: 'shop__main_category__shop_entry__category_entry__click',
+          event_label: 'shop__main_category__category_navigation__shop_entry__click',
           value: '주변상점',
         },
       },
@@ -120,7 +120,7 @@ const sections: CategorySection[] = [
         Icon: CalendarIcon,
         logging: {
           event_name: 'DA1',
-          event_label: 'timetable__main_category__timetable_entry__category_entry__click',
+          event_label: 'timetable__main_category__category_navigation__timetable_entry__click',
           value: '시간표',
         },
       },
@@ -134,8 +134,8 @@ const sections: CategorySection[] = [
         href: ROUTES.BusCourseShuttle(),
         Icon: BusTimeIcon,
         logging: {
-          team: 'CAMPUS',
-          event_label: 'category_bus_timetable',
+          event_name: 'DA1',
+          event_label: 'bus__main_category__category_navigation__timetable_entry__click',
           value: '버스 시간표',
         },
       },
@@ -144,8 +144,8 @@ const sections: CategorySection[] = [
         href: ROUTES.BusRoute(),
         Icon: RouteIcon,
         logging: {
-          team: 'CAMPUS',
-          event_label: 'category_transportation',
+          event_name: 'DA1',
+          event_label: 'bus__main_category__category_navigation__search_entry__click',
           value: '교통편 조회하기',
         },
       },
@@ -180,7 +180,7 @@ const sections: CategorySection[] = [
         Icon: HomeIcon,
         logging: {
           event_name: 'DA1',
-          event_label: 'real_estate__main_category__real_estate_entry__category_entry__click',
+          event_label: 'real_estate__main_category__category_navigation__real_estate_entry__click',
           value: '복덕방',
         },
       },
@@ -189,8 +189,8 @@ const sections: CategorySection[] = [
         href: 'https://owner.koreatech.in/',
         Icon: BriefcaseIcon,
         logging: {
-          team: 'BUSINESS',
-          event_label: 'category_koin_for_business',
+          event_name: 'DA1',
+          event_label: 'owner__main_category__category_navigation__owner_entry__click',
           value: '코인 for Business',
         },
       },
