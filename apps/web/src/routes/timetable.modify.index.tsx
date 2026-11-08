@@ -11,7 +11,7 @@ import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { getRecentSemester, getSemesterFromQuery, resolveTimetableSemester } from 'utils/timetable/semester';
 import { isUnauthorizedError } from 'utils/ts/httpError';
 
-export default function ModifyTimetablePageWrapper({ semester }: { semester: Semester }) {
+function ModifyTimetablePageWrapper({ semester }: { semester: Semester }) {
   const routeQuery: Record<string, string | string[] | undefined> = {
     ...useSearch({ strict: false }),
     ...useParams({ strict: false }),

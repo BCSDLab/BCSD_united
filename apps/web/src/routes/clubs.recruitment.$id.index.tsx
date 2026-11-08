@@ -207,7 +207,7 @@ function NewClubRecruitment({ id }: { id: string }) {
   );
 }
 
-export default function ClubRecruitmentPage() {
+function ClubRecruitmentPage() {
   const routeQuery: Record<string, string | string[] | undefined> = {
     ...useSearch({ strict: false }),
     ...useParams({ strict: false }),

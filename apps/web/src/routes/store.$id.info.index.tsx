@@ -23,8 +23,6 @@ function StoreInfoRoute({ id }: Props) {
   );
 }
 
-export default StoreInfoRoute;
-
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
   .handler(({ data }) =>

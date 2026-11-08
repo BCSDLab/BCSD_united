@@ -10,7 +10,7 @@ import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useMount from 'utils/hooks/state/useMount';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 
-export default function CallvanParticipantsPage({ postId }: Awaited<ReturnType<typeof getPageData>>) {
+function CallvanParticipantsPage({ postId }: Awaited<ReturnType<typeof getPageData>>) {
   const routeNavigate = useNavigate();
 
   const isMobile = useMediaQuery();

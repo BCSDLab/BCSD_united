@@ -4,7 +4,7 @@ import Layout from 'components/layout';
 import Seo from 'components/seo/Seo';
 import RecruitmentDetail from 'components/Team/RecruitmentDetail';
 
-export default function TeamDetailPage() {
+function TeamDetailPage() {
   return (
     <>
       <Seo title="팀원 모집 상세 | KOIN" description="팀원 모집글의 상세 내용과 모집 현황을 확인할 수 있습니다." />

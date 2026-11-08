@@ -283,8 +283,6 @@ function CategoryPage() {
   );
 }
 
-export default CategoryPage;
-
 export const Route = createFileRoute('/category/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   component: RouteComponent,

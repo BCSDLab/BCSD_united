@@ -14,13 +14,7 @@ import { SSRLayout } from 'components/layout';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { ARTICLE_DETAIL_ISR_REVALIDATE_SECONDS, isNotFoundKoinError, withStaticFetchRetry } from 'utils/ts/isr';
 
-export default function ArticlesDetailPage({
-  article,
-  hotArticles,
-}: {
-  article: ArticleResponseWithNew;
-  hotArticles?: HotArticle[];
-}) {
+function ArticlesDetailPage({ article, hotArticles }: { article: ArticleResponseWithNew; hotArticles?: HotArticle[] }) {
   return (
     <ArticlesPageLayout>
       <ArticleHeader

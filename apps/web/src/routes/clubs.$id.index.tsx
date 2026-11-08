@@ -68,7 +68,7 @@ interface ClubDetailPageProps {
   initialEventId: number;
 }
 
-export default function ClubDetailPage({ initialClubId, initialTab, initialEventId }: ClubDetailPageProps) {
+function ClubDetailPage({ initialClubId, initialTab, initialEventId }: ClubDetailPageProps) {
   const routeNavigate = useNavigate();
   const routeSearch = useSearch({ strict: false });
   const routeQuery: Record<string, string | string[] | undefined> = { ...routeSearch, ...useParams({ strict: false }) };

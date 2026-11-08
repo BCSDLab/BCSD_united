@@ -267,7 +267,7 @@ function ClubEventEditPage({ id, eventId }: { id: string; eventId: string }) {
   );
 }
 
-export default function ClubEventEditPageWrapper() {
+function ClubEventEditPageWrapper() {
   const routeQuery: Record<string, string | string[] | undefined> = {
     ...useSearch({ strict: false }),
     ...useParams({ strict: false }),

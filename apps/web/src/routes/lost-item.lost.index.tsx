@@ -3,7 +3,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import LostItemWritePage from 'components/Articles/LostItemWritePage';
 import Layout from 'components/layout';
 
-export default function LostItemLost() {
+function LostItemLost() {
   return <LostItemWritePage />;
 }
 

@@ -14,8 +14,6 @@ function TeamProfileCreatePage() {
   );
 }
 
-export default TeamProfileCreatePage;
-
 export const Route = createFileRoute('/team/profile/create/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   staticData: { hasPageSeo: true },

@@ -36,8 +36,6 @@ function RoomPage() {
   );
 }
 
-export default RoomPage;
-
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
   .handler(({ data }) =>

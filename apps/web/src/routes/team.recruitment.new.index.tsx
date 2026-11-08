@@ -14,8 +14,6 @@ function TeamRecruitmentNewPage() {
   );
 }
 
-export default TeamRecruitmentNewPage;
-
 export const Route = createFileRoute('/team/recruitment/new/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   staticData: { hasPageSeo: true },

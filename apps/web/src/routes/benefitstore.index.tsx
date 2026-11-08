@@ -117,7 +117,7 @@ function StoreBenefit() {
   );
 }
 
-export default function StoreBenefitPage({ dehydratedState }: { dehydratedState: DehydratedState }) {
+function StoreBenefitPage({ dehydratedState }: { dehydratedState: DehydratedState }) {
   return (
     <HydrationBoundary state={dehydratedState}>
       {/* TODO: Loading 디자인 추가 요청 */}

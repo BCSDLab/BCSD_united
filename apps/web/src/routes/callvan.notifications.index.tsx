@@ -21,7 +21,7 @@ import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 
 import styles from 'pages/callvan/notifications/CallvanNotifications.module.scss';
 
-export default function CallvanNotificationsPage() {
+function CallvanNotificationsPage() {
   const router = useRouter();
   const routeNavigate = useNavigate();
 

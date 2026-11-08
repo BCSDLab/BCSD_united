@@ -65,8 +65,6 @@ function RoomDetailPage({ id }: RoomDetailPageProps) {
   );
 }
 
-export default RoomDetailPage;
-
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
   .handler(({ data }) =>

@@ -50,7 +50,7 @@ function ClubEditPage({ id }: { id: number }) {
   );
 }
 
-export default function ClubEditPageWrapper() {
+function ClubEditPageWrapper() {
   const routeQuery: Record<string, string | string[] | undefined> = {
     ...useSearch({ strict: false }),
     ...useParams({ strict: false }),

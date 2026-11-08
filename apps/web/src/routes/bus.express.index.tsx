@@ -23,7 +23,7 @@ interface ExpressBusTimetable {
   charge: number;
 }
 
-export default function ExpressBusTimetable() {
+function ExpressBusTimetable() {
   const [selectedCourseId, setSelectedCourseId] = useState(0);
   const [destinationCategory, setDestinationCategory] = useState('병천방면');
 

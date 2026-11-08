@@ -376,8 +376,6 @@ function StorePage({ dehydratedState, isMobilePage }: StorePageProps) {
   );
 }
 
-export default StorePage;
-
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
   .handler(({ data }) =>

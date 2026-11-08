@@ -163,8 +163,6 @@ function SignupPage() {
   );
 }
 
-export default SignupPage;
-
 export const Route = createFileRoute('/auth/signup/$id/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   component: RouteComponent,

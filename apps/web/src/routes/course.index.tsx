@@ -192,7 +192,7 @@ function CoursePage() {
   );
 }
 
-export default function CoursePageWrapper() {
+function CoursePageWrapper() {
   // 토큰(useTimetableFrameList)과 sessionStorage(useSelectedCourses)에 의존하므로
   // SSRSuspense로 마운트 이후로 미룬다.
   return (

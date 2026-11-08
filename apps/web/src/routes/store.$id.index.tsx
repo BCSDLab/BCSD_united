@@ -478,8 +478,6 @@ function StoreDetail({ dehydratedState, id, isMobilePage }: StoreDetailProps) {
   );
 }
 
-export default StoreDetail;
-
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
   .handler(({ data }) =>
