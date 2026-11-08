@@ -44,14 +44,14 @@ export default function SelectButton({ is_mine, review_id, is_reported, store_id
   const openLoginModal = () => {
     const loggingLoginClick = () => {
       logger.actionEventClick({
-        event_name: 'DA1',
+        event_name: 'DA2',
         event_label: 'account__shop_detail__login_popup__login_entry__click',
         value: storeDetail.name,
       });
     };
     const loggingCancelClick = () => {
       logger.actionEventClick({
-        event_name: 'DA1',
+        event_name: 'DA2',
         event_label: 'account__shop_detail__login_popup__close__click',
         value: storeDetail.name,
       });
