@@ -206,6 +206,13 @@ function LectureList({ timetableFrameId, semester }: { timetableFrameId: number;
   const [isToggled, setIsToggled] = React.useState(false);
   const { widthInfo } = useFlexibleWidth(9, [61, 173, 41, 61, 61, 41, 41, 41, 61]);
 
+  const logSearch = () =>
+    logger.actionEventClick({
+      event_name: 'DA1',
+      event_label: 'timetable__timetable_edit__search__click',
+      value: '검색',
+    });
+
   const toggleLectureList = () => {
     setIsToggled((prev) => !prev);
   };
@@ -218,18 +225,17 @@ function LectureList({ timetableFrameId, semester }: { timetableFrameId: number;
             ref={searchInputRef}
             className={styles['search-input__input']}
             placeholder="검색어를 입력해주세요."
-            onKeyDown={onKeyDownSearchInput}
+            onKeyDown={(e) => {
+              onKeyDownSearchInput(e);
+              if (e.key === 'Enter' && !e.nativeEvent.isComposing) logSearch();
+            }}
           />
           <button
             className={styles['search-input__button']}
             type="button"
             onClick={() => {
               onClickSearchButton();
-              logger.actionEventClick({
-                event_name: 'DA1',
-                event_label: 'timetable__timetable_edit__search__click',
-                value: '검색',
-              });
+              logSearch();
             }}
           >
             <SearchIcon />
