@@ -18,6 +18,8 @@ import { isomorphicLocalStorage } from 'utils/ts/env';
 
 import styles from './IndexCafeteria.module.scss';
 
+type MealClickTarget = '전체보기' | '카드' | '제목';
+
 interface IndexCafeteriaProps {
   serverDining: ServerDining;
 }
@@ -40,11 +42,12 @@ function IndexCafeteria({ serverDining }: IndexCafeteriaProps) {
 
   const selectedDining = dinings.find((dining) => dining.place === selectedPlace && dining.type === diningType);
 
-  const handleMoreClick = () => {
+  // 홈 1-3 메인 식단 진입: 제목·더보기·카드 본문 모두 같은 계약, value는 {식사시간}_{클릭대상} (더보기는 전체보기로 기록)
+  const handleMealClick = (target: MealClickTarget) => {
     logger.actionEventClick({
-      team: 'CAMPUS',
-      event_label: 'main_menu_moveDetailView',
-      value: `${dayLabel} 식단`,
+      event_name: 'DA2',
+      event_label: 'main__main__meal__click',
+      value: `${diningType ? DINING_TYPE_MAP[diningType] : ''}_${target}`,
     });
     router.navigate({ href: ROUTES.Cafeteria() });
   };
@@ -62,7 +65,7 @@ function IndexCafeteria({ serverDining }: IndexCafeteriaProps) {
 
   const handleTooltipContentButtonClick = () => {
     isomorphicLocalStorage.setItem('cafeteria-tooltip', 'used');
-    handleMoreClick();
+    handleMealClick('전체보기');
   };
 
   const handleTooltipCloseButtonClick = () => {
@@ -79,10 +82,10 @@ function IndexCafeteria({ serverDining }: IndexCafeteriaProps) {
   return (
     <section className={styles.template}>
       <h2 className={styles.header}>
-        <button type="button" className={styles.header__title} onClick={handleMoreClick}>
+        <button type="button" className={styles.header__title} onClick={() => handleMealClick('제목')}>
           {`${dayLabel} 식단`}
         </button>
-        <button type="button" className={styles.header__more} onClick={handleMoreClick}>
+        <button type="button" className={styles.header__more} onClick={() => handleMealClick('전체보기')}>
           더보기
           <RightArrow />
         </button>
@@ -136,7 +139,7 @@ function IndexCafeteria({ serverDining }: IndexCafeteriaProps) {
             [styles.menus]: true,
             [styles['menus--not-served']]: !selectedDining,
           })}
-          onClick={handleMoreClick}
+          onClick={() => handleMealClick('카드')}
         >
           {isMobile && (
             <div className={styles.menus__type}>

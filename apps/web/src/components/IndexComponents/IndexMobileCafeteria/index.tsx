@@ -29,11 +29,23 @@ const getDiningTimeLabel = (cafeteriaInfo: CoopShopDetailResponse, diningDate: D
   return `${schedule.open_time} - ${schedule.close_time}`;
 };
 
-function MealCard({ dining, diningLabel, href }: { dining: Dining; diningLabel: string; href: string }) {
+interface MealCardProps {
+  dining: Dining;
+  diningLabel: string;
+  href: string;
+  onClick: () => void;
+}
+
+function MealCard({ dining, diningLabel, href, onClick }: MealCardProps) {
   const menu = dining.menu.map((menuItem) => menuItem.name).join(' · ');
 
   return (
-    <Link to={href.split('?')[0]} search={parseSearch(href.split('?')[1] ?? '')} className={styles['meal-card']}>
+    <Link
+      to={href.split('?')[0]}
+      search={parseSearch(href.split('?')[1] ?? '')}
+      className={styles['meal-card']}
+      onClick={onClick}
+    >
       <div className={styles['meal-card__meta']}>
         <span>{diningLabel}</span>
         <span>
@@ -70,6 +82,15 @@ function IndexMobileCafeteria() {
   const activePlace = availableDinings.some((dining) => dining.place === selectedPlace)
     ? selectedPlace
     : availableDinings[0]?.place;
+
+  // 홈 1-3 메인 식단 진입: 카드 본문 클릭은 {식사시간}_카드로 한 번 보낸다
+  const handleMealCardClick = () => {
+    logger.actionEventClick({
+      event_name: 'DA2',
+      event_label: 'main__main__meal__click',
+      value: `${DINING_TYPE_MAP[currentDiningType]}_카드`,
+    });
+  };
 
   const handleTabClick = (place: DiningPlace) => {
     const diningIndex = availableDinings.findIndex((dining) => dining.place === place);
@@ -114,13 +135,20 @@ function IndexMobileCafeteria() {
       >
         {availableDinings.length > 0 ? (
           availableDinings.map((dining) => (
-            <MealCard dining={dining} diningLabel={diningLabel} href={cafeteriaLink} key={dining.id} />
+            <MealCard
+              dining={dining}
+              diningLabel={diningLabel}
+              href={cafeteriaLink}
+              onClick={handleMealCardClick}
+              key={dining.id}
+            />
           ))
         ) : (
           <Link
             to={cafeteriaLink.split('?')[0]}
             search={parseSearch(cafeteriaLink.split('?')[1] ?? '')}
             className={`${styles['meal-card']} ${styles['meal-card--empty']}`}
+            onClick={handleMealCardClick}
           >
             <p className={styles['meal-card__empty-text']}>오늘은 식단이 없어요</p>
           </Link>

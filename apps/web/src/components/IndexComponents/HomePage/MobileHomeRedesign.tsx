@@ -137,7 +137,9 @@ function MobileHomeRedesign() {
           <Link
             to={ROUTES.Cafeteria()}
             className={styles['section-link']}
-            onClick={() => logClick('main__main__more__click', `${DINING_TYPE_MAP[new DiningTime().getType()]}_더보기`)}
+            onClick={() =>
+              logClick('main__main__meal__click', `${DINING_TYPE_MAP[new DiningTime().getType()]}_전체보기`, 'DA2')
+            }
           >
             <span>전체보기</span>
             <ArrowRightIcon aria-hidden />
