@@ -9,6 +9,7 @@ import ArticlesHeader from 'components/Articles/components/ArticlesHeader';
 import MobileArticleSearchButton from 'components/Articles/components/MobileArticleSearchButton';
 import MobileArticleTabMenu from 'components/Articles/components/MobileArticleTabMenu';
 import Pagination from 'components/Articles/components/Pagination';
+import useNoticeListScrollLogging from 'components/Articles/hooks/useNoticeListScrollLogging';
 import { createArticlesWithNewSelector } from 'components/Articles/utils/selectArticlesData';
 import HomeLayout from 'components/layout/HomeLayout';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
@@ -51,6 +52,7 @@ export default function ArticleListPage({
   serverNow,
 }: Awaited<ReturnType<typeof getPageData>>) {
   const isLoggedIn = useIsLoggedIn();
+  useNoticeListScrollLogging();
   const paramsPage = usePageParams(initialPage);
   const boardId = useBoardIdParams(initialBoardId);
 

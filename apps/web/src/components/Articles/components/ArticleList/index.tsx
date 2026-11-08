@@ -5,6 +5,7 @@ import MobileArticleList from 'components/Articles/components/MobileArticleList'
 import { convertArticlesTag } from 'components/Articles/utils/convertArticlesTag';
 import Image from 'components/ui/Image';
 import ROUTES from 'static/routes';
+import useLogger from 'utils/hooks/analytics/useLogger';
 import showToast from 'utils/ts/showToast';
 
 import styles from './ArticleList.module.scss';
@@ -32,6 +33,7 @@ const formatDate = (time: string) => {
 };
 
 export default function ArticleList({ articles }: ArticleListProps) {
+  const logger = useLogger();
   const getLink = (article: ArticleWithNew) => {
     switch (article.board_id) {
       case 14:
@@ -79,7 +81,20 @@ export default function ArticleList({ articles }: ArticleListProps) {
 
           // 2. 신고되지 않은 게시글 (클릭 O, 상세페이지로 이동)
           return (
-            <Link className={styles.list__link} to={getLink(article)} key={article.id}>
+            <Link
+              className={styles.list__link}
+              to={getLink(article)}
+              key={article.id}
+              onClick={() => {
+                if (article.board_id === 14) return;
+                // 게시판 3-3·4-3 공지사항 목록에서 공지 상세 진입
+                logger.actionEventClick({
+                  event_name: 'DA2',
+                  event_label: 'board__main_notice__notice_detail__entry__click',
+                  value: String(article.id),
+                });
+              }}
+            >
               <div className={styles.list__id}>{article.id}</div>
               <div className={styles.title}>
                 <div className={styles.title__container}>
