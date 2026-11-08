@@ -6,7 +6,7 @@ import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import useMount from 'utils/hooks/state/useMount';
 import { redirectToLogin } from 'utils/ts/auth';
 
-export default function CallvanAddPage() {
+function CallvanAddPage() {
   const isLoggedIn = useIsLoggedIn();
   const mounted = useMount();
   const router = useRouter();

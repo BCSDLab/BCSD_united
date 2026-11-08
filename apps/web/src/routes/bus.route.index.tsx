@@ -31,7 +31,7 @@ const BUS_NOTICE_REVALIDATE_SECONDS = 60 * 60;
  * 다시 그려진다(실측 파괴율 33%). 하나라도 빠지면 효과가 없으므로 전부 덮어야 한다.
  */
 
-export default function BusRoutePage() {
+function BusRoutePage() {
   const isMobile = useMediaQuery();
   const timeSelect = useTimeSelect();
   const [busType, setBusType] = useState<BusTypeRequest>('ALL');

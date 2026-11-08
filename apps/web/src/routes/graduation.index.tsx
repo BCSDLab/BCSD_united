@@ -180,7 +180,7 @@ function GraduationCalculatorComponent() {
   );
 }
 
-export default function GraduationCalculatorPage() {
+function GraduationCalculatorPage() {
   return (
     <Suspense fallback={null}>
       <GraduationCalculatorComponent />

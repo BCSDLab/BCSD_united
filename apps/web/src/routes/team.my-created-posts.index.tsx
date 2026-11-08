@@ -184,7 +184,7 @@ function CreatedPostsListSection({
   );
 }
 
-export default function MyCreatedPostsPage() {
+function MyCreatedPostsPage() {
   const logger = useLogger();
 
   const routeNavigate = useNavigate();

@@ -36,8 +36,6 @@ function OrderHomeRoute({ isDesktop }: Props) {
   );
 }
 
-export default OrderHomeRoute;
-
 // 주문 홈은 공개 화면이라 비로그인이면 다른 상점 목록과 같은 공개 캐시를 켠다(로그인이면 loadPageData가 무시한다)
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)

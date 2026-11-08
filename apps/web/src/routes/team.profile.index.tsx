@@ -89,8 +89,6 @@ function TeamProfilePage() {
   );
 }
 
-export default TeamProfilePage;
-
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
   .handler(({ data }) =>

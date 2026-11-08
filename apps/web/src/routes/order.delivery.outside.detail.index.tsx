@@ -23,8 +23,6 @@ function OrderDeliveryOutsideDetailRoute({ isDesktop, roadAddress }: Props) {
   );
 }
 
-export default OrderDeliveryOutsideDetailRoute;
-
 // 배달지 선택은 사용자별 화면이라 공개 캐시를 켜지 않는다.
 // order는 도로명 주소를 location.state로 넘긴다. 여기서는 쿼리(roadAddress)로 받아 서버가 주소까지 렌더한다(규칙 10)
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })

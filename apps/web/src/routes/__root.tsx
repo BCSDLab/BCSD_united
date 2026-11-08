@@ -11,7 +11,6 @@ import {
   useMatches,
 } from '@tanstack/react-router';
 
-import fontRegular from 'assets/font/Pretendard-Regular.subset.woff2?url';
 import ApplicationProviders from 'components/app/ApplicationProviders';
 import Layout from 'components/layout';
 import { NotFoundPage } from 'routes/404.index';
@@ -20,6 +19,7 @@ import ROUTES from 'static/routes';
 import { parseSearch, stringifySearch } from 'utils/routing/search';
 import { getRootSnapshot } from 'utils/ssr/rootContext.functions';
 
+import 'pretendard/dist/web/static/pretendard-dynamic-subset.css';
 import 'assets/font/fonts.scss';
 import 'styles/global.scss';
 
@@ -45,7 +45,6 @@ export const Route = createRootRoute({
     ],
     links: [
       { rel: 'preconnect', href: 'https://static.koreatech.in', crossOrigin: 'anonymous' },
-      { rel: 'preload', href: fontRegular, as: 'font', type: 'font/woff2', crossOrigin: 'anonymous' },
       { rel: 'icon', type: 'image/svg+xml', sizes: 'any', href: '/favicon.svg' },
       { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' },
       { rel: 'shortcut icon', href: '/favicon.ico' },

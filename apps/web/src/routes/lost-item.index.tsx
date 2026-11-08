@@ -38,7 +38,7 @@ function toLostItemArticlesRequest(params: LostItemParams): LostItemArticlesRequ
   };
 }
 
-export default function LostItemArticleListPage({ initialParams }: Awaited<ReturnType<typeof getPageData>>) {
+function LostItemArticleListPage({ initialParams }: Awaited<ReturnType<typeof getPageData>>) {
   const routeQuery: Record<string, string | string[] | undefined> = {
     ...useSearch({ strict: false }),
     ...useParams({ strict: false }),

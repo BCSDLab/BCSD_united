@@ -25,8 +25,6 @@ function StoreReviewsRoute({ id }: Props) {
   );
 }
 
-export default StoreReviewsRoute;
-
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
   .handler(({ data }) =>

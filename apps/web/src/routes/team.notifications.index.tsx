@@ -20,7 +20,7 @@ import showToast from 'utils/ts/showToast';
 
 import styles from 'pages/team/notifications/TeamNotificationsPage.module.scss';
 
-export default function TeamNotificationsPage() {
+function TeamNotificationsPage() {
   const isLoggedIn = useIsLoggedIn();
 
   const routeNavigate = useNavigate();

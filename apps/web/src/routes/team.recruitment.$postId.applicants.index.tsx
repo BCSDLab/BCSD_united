@@ -14,8 +14,6 @@ function TeamApplicantManagementPage() {
   );
 }
 
-export default TeamApplicantManagementPage;
-
 export const Route = createFileRoute('/team/recruitment/$postId/applicants/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   staticData: { hasPageSeo: true },

@@ -25,8 +25,6 @@ function OrderShopReviewsRoute({ isDesktop, shopId }: Props) {
   );
 }
 
-export default OrderShopReviewsRoute;
-
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
   .handler(({ data }) =>

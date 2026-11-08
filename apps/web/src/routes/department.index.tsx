@@ -7,8 +7,6 @@ function DepartmentPage() {
   return <DepartmentPageContent />;
 }
 
-export default DepartmentPage;
-
 export const Route = createFileRoute('/department/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   component: RouteComponent,

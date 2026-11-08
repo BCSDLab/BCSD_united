@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router';
 
 import CampusInfo from 'components/CampusInfo';
 
-export default function WebviewCampusInfo() {
+function WebviewCampusInfo() {
   return <CampusInfo />;
 }
 

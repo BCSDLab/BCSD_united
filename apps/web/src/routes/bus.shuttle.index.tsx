@@ -36,7 +36,7 @@ function asString(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
-export default function ShuttleBusTimetable() {
+function ShuttleBusTimetable() {
   const routeNavigate = useNavigate();
   const routeQuery: Record<string, string | string[] | undefined> = {
     ...useSearch({ strict: false }),
@@ -227,12 +227,15 @@ const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
     loadPageData(data, async (_context, cacheControl) => {
       const queryClient = new QueryClient();
 
-      await withStaticFetchRetry('bus.shuttle-course', () =>
-        queryClient.fetchQuery({
-          ...busQueries.shuttleCourse(),
-          staleTime: 1000 * 60 * 10,
-        }),
-      );
+      await Promise.all([
+        withStaticFetchRetry('bus.shuttle-course', () =>
+          queryClient.fetchQuery({
+            ...busQueries.shuttleCourse(),
+            staleTime: 1000 * 60 * 10,
+          }),
+        ),
+        queryClient.fetchQuery(busQueries.notice()),
+      ]);
 
       cacheControl.enablePublicCache(
         `public, s-maxage=${BUS_SHUTTLE_ISR_REVALIDATE_SECONDS}, stale-while-revalidate=300`,
