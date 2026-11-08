@@ -58,10 +58,12 @@ function SemesterSection({ semester, frames, isMember, onRequireLogin, onOpenSet
   };
 
   const handleFrameClick = (frame: TimetableFrameInfo) => {
+    // 시간표 2-27 시간표 목록_시간표 선택
     logger.actionEventClick({
-      team: 'USER',
-      event_label: 'timetable',
-      value: `click_semester_${semester.year}${semester.term}`,
+      event_name: 'DA1',
+      event_label: 'timetable__timetable_list__timetable_list__select',
+      value: `${semester.year}_${semester.term}_${frame.name}`,
+      event_category: 'select',
     });
     updateSemester(semester);
     router.navigate({

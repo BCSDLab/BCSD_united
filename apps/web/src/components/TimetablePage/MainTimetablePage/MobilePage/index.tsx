@@ -64,7 +64,18 @@ function MobilePage({ timetableFrameId, setCurrentFrameId }: MobilePageProps) {
         <SemesterGuard />
       </React.Suspense>
       <div className={styles.page__header}>
-        <Link to={ROUTES.TimetableList()} className={styles.page__semester}>
+        <Link
+          to={ROUTES.TimetableList()}
+          className={styles.page__semester}
+          onClick={() =>
+            // 시간표 2-26 학기 시간표 선택
+            logger.actionEventClick({
+              event_name: 'DA1',
+              event_label: 'timetable__timetable__timetable_list__entry__click',
+              value: '학기 시간표 선택',
+            })
+          }
+        >
           {semesterLabel}
         </Link>
         <button type="button" className={styles.page__button} onClick={handleImageDownloadClick}>

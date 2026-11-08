@@ -39,8 +39,8 @@ export default function TimetableList({ currentFrameIndex, setCurrentFrameIndex 
   const isLoggedIn = useIsLoggedIn();
   const logger = useLogger();
   const loginPopupLogProps = {
-    onLoginClick: () => logger.actionEventClick({ event_name: 'DA1', ...LOGIN_POPUP_LOG.login }),
-    onCancelClick: () => logger.actionEventClick({ event_name: 'DA1', ...LOGIN_POPUP_LOG.close }),
+    onLoginClick: () => logger.actionEventClick({ event_name: 'DA2', ...LOGIN_POPUP_LOG.login }),
+    onCancelClick: () => logger.actionEventClick({ event_name: 'DA2', ...LOGIN_POPUP_LOG.close }),
   };
   const { data } = useTimetableFrameList(semester);
   const { data: mySemester } = useSemesterCheck();
