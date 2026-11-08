@@ -31,8 +31,8 @@
     "GITHUB_REPOSITORY": "BCSD_united",
     "GITHUB_DISPATCH_APP_ID": "5522353",
     "GITHUB_DISPATCH_INSTALLATION_ID": "176455083",
-    "PR_REVIEW_ENABLED": "false",
-    "PR_REVIEW_AUTO": "false",
+    "PR_REVIEW_ENABLED": "true",
+    "PR_REVIEW_AUTO": "true",
     "PR_REVIEW_ALLOWED_PRS": "",
   },
 }
