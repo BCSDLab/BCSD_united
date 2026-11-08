@@ -1,7 +1,6 @@
 import { currentEnvironment } from './context.ts';
 
 export const GENERATION_MODEL = 'openai/gpt-6-luna';
-export const EMBEDDING_MODEL = '@cf/baai/bge-m3';
 
 type JsonObject = Record<string, unknown>;
 
@@ -81,7 +80,7 @@ export async function requestAi(model: string, input: JsonObject): Promise<unkno
     }
     if (result instanceof Response) {
       if (!result.ok) return rejectResponse(result);
-      return input.stream === true ? result.body : readJson(result);
+      return readJson(result);
     }
     return unwrapResult(result);
   }
@@ -90,22 +89,23 @@ export async function requestAi(model: string, input: JsonObject): Promise<unkno
   if (!account || !token) {
     throw new Error('Workers AI 바인딩 또는 CLOUDFLARE_ACCOUNT_ID와 CLOUDFLARE_API_TOKEN을 설정하세요.');
   }
-  const generation = model === GENERATION_MODEL;
-  const endpoint = generation ? 'ai/v1/responses' : `ai/run/${EMBEDDING_MODEL}`;
   let response: Response;
   try {
-    response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(account)}/${endpoint}`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        Accept: input.stream === true ? 'text/event-stream' : 'application/json',
+    response = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(account)}/ai/v1/responses`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ ...input, model }),
       },
-      body: JSON.stringify(generation ? { ...input, model: GENERATION_MODEL } : input),
-    });
+    );
   } catch {
     throw new Error('Cloudflare AI에 연결하지 못했습니다. 네트워크와 계정 설정을 확인하세요.');
   }
   if (!response.ok) return rejectResponse(response);
-  return input.stream === true ? response.body : readJson(response);
+  return readJson(response);
 }

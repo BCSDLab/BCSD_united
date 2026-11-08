@@ -14,9 +14,26 @@ import {
   validateReviewContext,
 } from './common.mjs';
 import { applyManifest, assertSnapshotMatchesTree, exportTree, prepareScratch, validateManifest } from './patch.mjs';
-import { matchesRoute } from './source-graph.mjs';
+import { matchesRoute, webSmokeRoute } from './source-graph.mjs';
 import { parseJsonc, smokeConfiguration } from './bbot-smoke.mjs';
 import { declaresApiGate } from './local-api.mjs';
+
+test('web smoke keeps the canonical event path and only offline checks may default to home', () => {
+  assert.equal(webSmokeRoute({ app: 'web', route: '/articles/123' }), '/articles/123');
+  assert.equal(webSmokeRoute({ app: 'web' }, true), '/');
+  assert.throws(() => webSmokeRoute({ app: 'web' }), /Unsafe smoke path/);
+  for (const route of [
+    '//evil.example',
+    '/articles?query=secret',
+    '/articles/%2f',
+    '/articles/../admin',
+    'https://evil.example',
+  ])
+    assert.throws(() => webSmokeRoute({ app: 'web', route }), /Unsafe smoke path/, route);
+  assert.throws(() => webSmokeRoute({ app: 'api', route: '/' }, true), /Unsafe smoke path/);
+  assert.equal(matchesRoute('/articles/$id/', '/articles/123', 'web'), true);
+  assert.equal(matchesRoute('/articles/$id/', '/articles/123/more', 'web'), false);
+});
 
 test('scratch preparation rejects traversal and symlink parents before creating external paths', async () => {
   const root = await mkdtemp(join(tmpdir(), 'scratch-boundary-'));

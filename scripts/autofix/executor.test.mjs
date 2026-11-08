@@ -42,7 +42,8 @@ const valid = () => ({
     owner: 'BCSDLab',
     repository: 'BCSD_united',
     baseSha: 'c'.repeat(40),
-    baseBranch: 'develop',
+    baseBranch: 'main',
+    targetBranch: 'develop',
     branch: branchFor({
       source: 'sentry',
       sourceId: '123',
@@ -58,6 +59,7 @@ const valid = () => ({
 
 test('Rocky executor accepts issue-free jobs with fixed provider identity and lease', () => {
   const claim = valid();
+  assert.equal(parseClaim({ ...claim, job: { ...claim.job, baseBranch: 'develop' } }).job.baseBranch, 'develop');
   assert.equal(parseClaim(claim).runId, claim.runId);
   // A resumed claim reports the stored expiry, which may be close.
   assert.equal(parseClaim({ ...claim, leaseExpiresAt: Date.now() + 1_000 }).runId, claim.runId);
@@ -91,7 +93,9 @@ test('Rocky executor accepts issue-free jobs with fixed provider identity and le
     { job: { ...claim.job, repository: 'other' } },
     { job: { ...claim.job, issueNumber: 7 } },
     { job: { ...claim.job, branch: 'fix/#7/sentry-123' } },
-    { job: { ...claim.job, baseBranch: 'main' } },
+    { job: { ...claim.job, baseBranch: 'preview' } },
+    { job: { ...claim.job, targetBranch: 'main' } },
+    { job: { ...claim.job, targetBranch: undefined } },
     { job: { ...claim.job, domain: 'unknown' } },
     { job: { ...claim.job, identity: { ...claim.job.identity, sourceId: '00123' } } },
     { job: { ...claim.job, identity: { ...claim.job.identity, sourceId: 123 } } },
@@ -688,4 +692,50 @@ test('truncated or empty final output never becomes a completed repair', async (
     );
     assert.equal(turns, 1);
   }
+});
+
+test('PR review allows twenty calls in fifteen minutes with 400 file calls and reserves the final answer turn', async (t) => {
+  const claim = {
+    ...valid(),
+    job: {
+      mode: 'pull-request',
+      owner: 'BCSDLab',
+      repository: 'BCSD_united',
+      pullNumber: 3,
+      headSha: 'a'.repeat(40),
+      headTree: 'b'.repeat(40),
+      headRef: 'feat/test',
+      baseBranch: 'develop',
+      baseSha: 'c'.repeat(40),
+      changedFiles: ['apps/web/src/test.ts'],
+      reviewContext: { version: 1, title: 'fix', body: '', comments: [] },
+    },
+  };
+  let turns = 0;
+  const requests = [];
+  t.mock.method(globalThis, 'fetch', async (_url, options) => {
+    const request = parseModelRequest(JSON.parse(options.body));
+    requests.push(request);
+    turns++;
+    if (turns === 20)
+      return Response.json({ stop_reason: 'end_turn', content: [{ type: 'text', text: 'Review complete' }] });
+    return Response.json({
+      stop_reason: 'tool_use',
+      content: [{ type: 'tool_use', id: `read_${turns}`, name: 'Read', input: { path: 'apps/web/src/test.ts:1-3' } }],
+    });
+  });
+  assert.equal(
+    await generateAnswer(
+      { origin: 'https://worker.example', token: 'fixture' },
+      claim,
+      { apply: async () => 'source' },
+      new AbortController().signal,
+    ),
+    'Review complete',
+  );
+  assert.equal(turns, 20);
+  assert.match(JSON.stringify(requests[0].messages), /at most 20 model calls and 15 minutes/);
+  assert.match(JSON.stringify(requests[0].messages), /400 file tool calls/);
+  assert.equal(requests[19].tools.length, 0);
+  assert.equal(requests[19].maxTokens, 8192);
 });

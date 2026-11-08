@@ -53,6 +53,7 @@ function harness(t) {
     SENTRY_PROJECT_APPS: '{"koin-united-prod":"web"}',
     SENTRY_PROJECT_HOSTS: '{"koin-united-prod":["koreatech.in"]}',
     ERROR_PROJECT_DOMAINS: '{"sentry:koin-united-prod":"공통"}',
+    ERROR_SOURCE_BRANCHES: '{"sentry:koin-united-prod":"main"}',
     CLOUDFLARE_SOURCES: '[]',
     CLOUDFLARE_WEBHOOK_SECRET: 'local-cloudflare-secret-32-characters',
     DIAGNOSTICS_READ_TOKEN: 'local-diagnostic-secret-32-characters',
@@ -97,7 +98,7 @@ function harness(t) {
     }
     if (href === 'https://api.github.com/repos/BCSDLab/BCSD_united')
       return Response.json({ default_branch: 'develop', owner: { login: 'BCSDLab' } });
-    if (href.endsWith('/commits/develop')) return Response.json({ sha: base, commit: { tree: { sha: tree } } });
+    if (href.endsWith('/commits/main')) return Response.json({ sha: base, commit: { tree: { sha: tree } } });
     if (href.includes('/pulls?')) return Response.json([]);
     if (href === 'https://bridge.example/v1/messages') {
       assert.equal(options.headers.Authorization, `Bearer ${env.OMP_GATEWAY_TOKEN}`);
@@ -151,12 +152,19 @@ test('queue persists immutable fixed job, issues one random lease, and prevents 
   assert.match(claim.runId, /^autofix-[a-f0-9]{64}$/);
   assert.match(claim.leaseToken, /^[a-f0-9]{64}$/);
   assert.equal(claim.job.baseSha, base);
+  assert.equal(claim.job.baseBranch, 'main');
+  assert.equal(claim.job.targetBranch, 'develop');
   assert.equal(Object.hasOwn(claim.job, 'issueNumber'), false);
   assert.equal(claim.job.context.route, '/campus');
   assert.equal(Number.isSafeInteger(claim.leaseExpiresAt), true);
   assert.ok(claim.leaseExpiresAt > Date.now());
   assert.ok(claim.leaseExpiresAt <= claim.deadlineAt);
   assert.equal(claim.leaseExpiresAt, h.db.prepare('SELECT lease_expires FROM jobs').get().lease_expires);
+  const legacy = { ...claim.job };
+  delete legacy.targetBranch;
+  h.db.prepare('UPDATE jobs SET prepared = ?').run(JSON.stringify(legacy));
+  assert.equal((await h.queue.claim('f'.repeat(64))).job.targetBranch, 'develop');
+  assert.equal(JSON.parse(h.db.prepare('SELECT prepared FROM jobs').get().prepared).targetBranch, undefined);
   assert.deepEqual(await h.queue.claim('f'.repeat(64)), claim);
   assert.equal(await h.queue.claim('e'.repeat(64)), null);
   assert.equal(h.db.prepare('SELECT lease_hash FROM jobs').get().lease_hash === claim.leaseToken, false);

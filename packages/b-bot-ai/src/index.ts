@@ -1,6 +1,5 @@
-import { embeddingVector, parseStructured, responseText } from './responses.ts';
-import { consumeResponseStream } from './stream.ts';
-import { EMBEDDING_MODEL, GENERATION_MODEL, requestAi } from './transport.ts';
+import { parseStructured } from './responses.ts';
+import { GENERATION_MODEL, requestAi } from './transport.ts';
 
 const REASONING = { effort: 'none' } as const;
 
@@ -60,34 +59,4 @@ export async function generateStructured<T>({
     store: false,
   });
   return parseStructured<T>(result);
-}
-
-export async function generate(prompt: string, numPredict = 160): Promise<string> {
-  return responseText(
-    await requestAi(GENERATION_MODEL, {
-      input: prompt,
-      max_output_tokens: outputLimit(numPredict),
-      reasoning: REASONING,
-      store: false,
-    }),
-  ).trim();
-}
-
-export async function generateStream(
-  prompt: string,
-  onText: (full: string) => void,
-  numPredict = 160,
-): Promise<string> {
-  const stream = await requestAi(GENERATION_MODEL, {
-    input: prompt,
-    max_output_tokens: outputLimit(numPredict),
-    reasoning: REASONING,
-    stream: true,
-    store: false,
-  });
-  return consumeResponseStream(stream, onText);
-}
-
-export async function embed(text: string): Promise<number[]> {
-  return embeddingVector(await requestAi(EMBEDDING_MODEL, { text: [text] }));
 }

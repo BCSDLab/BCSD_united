@@ -1,7 +1,0 @@
-# Replace all angle-bracket placeholders with operator-owned values after approval.
-tunnel: <tunnel-uuid>
-credentials-file: /etc/cloudflared/<tunnel-uuid>.json
-ingress:
-  - hostname: <crawler-hostname>
-    service: http://127.0.0.1:8813
-  - service: http_status:404

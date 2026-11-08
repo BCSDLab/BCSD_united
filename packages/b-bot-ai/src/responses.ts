@@ -45,17 +45,3 @@ export function parseStructured<T>(value: unknown): T {
     throw new Error('AI 응답이 올바른 JSON이 아닙니다. 요청을 다시 확인하세요.');
   }
 }
-
-export function embeddingVector(value: unknown): number[] {
-  const response = object(unwrapResult(value));
-  if (response?.error) throw upstreamError(response.error);
-  const vector: unknown = Array.isArray(response?.data) ? response.data[0] : undefined;
-  if (!Array.isArray(vector) || vector.length !== 1024) {
-    throw new Error('Cloudflare BGE-M3 응답은 유한한 숫자 1024개로 된 임베딩이어야 합니다.');
-  }
-  for (const coordinate of vector) {
-    if (typeof coordinate === 'number' && Number.isFinite(coordinate)) continue;
-    throw new Error('Cloudflare BGE-M3 응답은 유한한 숫자 1024개로 된 임베딩이어야 합니다.');
-  }
-  return vector as number[];
-}

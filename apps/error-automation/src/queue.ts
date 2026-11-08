@@ -1,4 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
+import { autoMergePullRequest, type AutoMergeOutcome } from './auto-merge';
 import { prepare } from './prepare';
 import { redact } from './index';
 import { github, installationToken, publish, validateManifest, validateVerification } from './github';
@@ -19,6 +20,7 @@ import {
   validatePullRequestVerification,
   validateReview,
   publishPullRequest,
+  reviewComment,
 } from './pull-request';
 import type {
   Env,
@@ -40,6 +42,8 @@ const DEADLINE_MS = 90 * 60_000;
 const LEASE_MS = 2 * 60_000;
 const PUBLISH_MS = 20 * 60_000;
 const REPORT_MS = 5 * 60_000;
+const AUTO_MERGE_RECHECK_MS = 2 * 60_000;
+const AUTO_MERGE_WINDOW_MS = 30 * 60_000;
 /**
  * Hard per-job model budgets, persisted per row so restarts, concurrent calls and transport failures can never
  * reset them. Input reserves one token per UTF-8 byte of the exact upstream body plus a fixed overhead allowance;
@@ -52,10 +56,10 @@ const MODEL_BUDGET: Record<
 > = {
   error: { calls: 6, generationMs: 4 * 60_000, inputTokens: 50_000, outputTokens: 8_000, maxTokensPerCall: 4096 },
   'pull-request': {
-    calls: 12,
-    generationMs: 8 * 60_000,
-    inputTokens: 150_000,
-    outputTokens: 16_000,
+    calls: 20,
+    generationMs: 15 * 60_000,
+    inputTokens: 400_000,
+    outputTokens: 32_000,
     maxTokensPerCall: 8192,
   },
 };
@@ -153,6 +157,7 @@ interface PullRequestResultRow extends Record<string, SqlStorageValue> {
   findings_count: number;
   passed_checks: string;
   comment_url: string | null;
+  auto_merge: string | null;
 }
 
 async function hexDigest(value: string): Promise<string> {
@@ -175,6 +180,12 @@ function equalDigest(a: string, b: string): boolean {
   for (let i = 0; i < 64; i++) difference |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return difference === 0;
 }
+/** Earlier prepared error jobs pinned develop and had no explicit PR target. Preserve their leases and result state. */
+function storedJob(prepared: string): QueuedJob {
+  const job = JSON.parse(prepared) as QueuedJob;
+  if (job.mode === undefined && !Object.hasOwn(job, 'targetBranch')) job.targetBranch = 'develop';
+  return job;
+}
 
 /** One repository coordination atom, not a public arbitrary-execution endpoint. */
 export class AutofixQueue extends DurableObject<Env> {
@@ -192,8 +203,37 @@ export class AutofixQueue extends DurableObject<Env> {
     ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS pull_request_results (
       run_id TEXT PRIMARY KEY, reviewed_head_sha TEXT NOT NULL, published_head_sha TEXT,
       decision TEXT, findings_count INTEGER NOT NULL DEFAULT 0, passed_checks TEXT NOT NULL,
-      comment_url TEXT, recorded_at INTEGER NOT NULL
+      comment_url TEXT, auto_merge TEXT, recorded_at INTEGER NOT NULL
     )`);
+    ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS pull_request_branch_updates (
+      pull_number INTEGER NOT NULL, head_sha TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'updated', PRIMARY KEY (pull_number, head_sha)
+    )`);
+    ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS pull_request_publisher_heads (
+      pull_number INTEGER NOT NULL, head_sha TEXT NOT NULL, PRIMARY KEY (pull_number, head_sha)
+    )`);
+    ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS pending_auto_merges (
+      run_id TEXT PRIMARY KEY, next_at INTEGER NOT NULL, until_at INTEGER NOT NULL,
+      review TEXT NOT NULL, proof TEXT NOT NULL
+    )`);
+    const resultColumns = new Set(
+      ctx.storage.sql
+        .exec<{ name: string }>('PRAGMA table_info(pull_request_results)')
+        .toArray()
+        .map((column) => column.name),
+    );
+    if (!resultColumns.has('auto_merge'))
+      ctx.storage.sql.exec('ALTER TABLE pull_request_results ADD COLUMN auto_merge TEXT');
+    const updateColumns = new Set(
+      ctx.storage.sql
+        .exec<{ name: string }>('PRAGMA table_info(pull_request_branch_updates)')
+        .toArray()
+        .map((column) => column.name),
+    );
+    if (!updateColumns.has('attempts'))
+      ctx.storage.sql.exec('ALTER TABLE pull_request_branch_updates ADD COLUMN attempts INTEGER NOT NULL DEFAULT 1');
+    if (!updateColumns.has('status'))
+      ctx.storage.sql.exec("ALTER TABLE pull_request_branch_updates ADD COLUMN status TEXT NOT NULL DEFAULT 'updated'");
     // Rows created before budgets existed keep their history; the new counters start from zero.
     const columns = new Set(
       ctx.storage.sql
@@ -262,6 +302,59 @@ export class AutofixQueue extends DurableObject<Env> {
     return this.admit(canonical, pullRequestKey(canonical));
   }
 
+  /** Reserve up to three attempts for transient update-branch failures; completed/conflicted heads stay closed. */
+  async reserveBranchUpdate(pullNumber: number, headSha: string): Promise<boolean> {
+    if (!Number.isSafeInteger(pullNumber) || pullNumber < 1 || !/^[a-f0-9]{40}$/.test(headSha))
+      throw new Error('Invalid branch update identity');
+    const existing = this.ctx.storage.sql
+      .exec<{ attempts: number; status: string }>(
+        'SELECT attempts, status FROM pull_request_branch_updates WHERE pull_number = ? AND head_sha = ?',
+        pullNumber,
+        headSha,
+      )
+      .toArray()[0];
+    if (existing && (existing.status !== 'retry' || existing.attempts >= 3)) return false;
+    this.ctx.storage.sql.exec(
+      `INSERT INTO pull_request_branch_updates (pull_number, head_sha, attempts, status) VALUES (?, ?, 1, 'reserved')
+       ON CONFLICT(pull_number, head_sha) DO UPDATE SET attempts = attempts + 1, status = 'reserved'`,
+      pullNumber,
+      headSha,
+    );
+    await this.ctx.storage.sync();
+    return true;
+  }
+
+  async finishBranchUpdate(
+    pullNumber: number,
+    headSha: string,
+    status: 'updated' | 'conflict' | 'retry' | 'ambiguous',
+  ): Promise<void> {
+    this.ctx.storage.sql.exec(
+      "UPDATE pull_request_branch_updates SET status = ? WHERE pull_number = ? AND head_sha = ? AND status = 'reserved'",
+      status,
+      pullNumber,
+      headSha,
+    );
+    await this.ctx.storage.sync();
+  }
+
+  async isPublisherHead(pullNumber: number, headSha: string): Promise<boolean> {
+    return (
+      this.ctx.storage.sql
+        .exec('SELECT 1 FROM pull_request_publisher_heads WHERE pull_number = ? AND head_sha = ?', pullNumber, headSha)
+        .toArray().length > 0
+    );
+  }
+
+  private async recordPublisherHead(pullNumber: number, headSha: string): Promise<void> {
+    this.ctx.storage.sql.exec(
+      'INSERT OR IGNORE INTO pull_request_publisher_heads (pull_number, head_sha) VALUES (?, ?)',
+      pullNumber,
+      headSha,
+    );
+    await this.ctx.storage.sync();
+  }
+
   /** Token-free durable receipt for one pull request run; null for unknown or error-mode runs. */
   async status(runId: string): Promise<PullRequestReceipt | null> {
     if (!/^autofix-[a-f0-9]{64}$/.test(runId)) return null;
@@ -292,6 +385,9 @@ export class AutofixQueue extends DurableObject<Env> {
             commentUrl: result.comment_url,
           }
         : null,
+      autoMerge: result?.auto_merge
+        ? (JSON.parse(result.auto_merge) as { status: AutoMergeOutcome['status']; reason: string })
+        : null,
     };
   }
 
@@ -311,6 +407,74 @@ export class AutofixQueue extends DurableObject<Env> {
 
   async alarm(): Promise<void> {
     this.expire(Date.now());
+    const due = this.ctx.storage.sql
+      .exec<{ run_id: string; until_at: number; review: string; proof: string }>(
+        'SELECT run_id, until_at, review, proof FROM pending_auto_merges WHERE next_at <= ? ORDER BY next_at LIMIT 5',
+        Date.now(),
+      )
+      .toArray();
+    for (const pending of due) {
+      const row = this.ctx.storage.sql.exec<Row>('SELECT * FROM jobs WHERE run_id = ?', pending.run_id).toArray()[0];
+      const receipt = this.pullRequestResult(pending.run_id);
+      if (!row?.prepared || !receipt?.comment_url || !row.pr_url) {
+        this.ctx.storage.sql.exec('DELETE FROM pending_auto_merges WHERE run_id = ?', pending.run_id);
+        continue;
+      }
+      const job = storedJob(row.prepared);
+      if (job.mode !== 'pull-request') {
+        this.ctx.storage.sql.exec('DELETE FROM pending_auto_merges WHERE run_id = ?', pending.run_id);
+        continue;
+      }
+      const review = JSON.parse(pending.review) as PullRequestReview;
+      const proof = JSON.parse(pending.proof) as PullRequestVerification;
+      const now = Date.now();
+      const timedOut: AutoMergeOutcome | undefined =
+        now >= pending.until_at
+          ? { status: 'skipped', reason: '30분 안에 head 검증이 완료되지 않아 자동 merge를 종료했습니다.' }
+          : undefined;
+      const outcome = await this.recordAutoMerge(
+        job,
+        { version: 1, files: [] },
+        review,
+        proof,
+        { url: row.pr_url, publishedHeadSha: job.headSha, commentUrl: receipt.comment_url },
+        timedOut,
+      );
+      if (outcome.status === 'pending-checks') {
+        this.ctx.storage.sql.exec(
+          'UPDATE pending_auto_merges SET next_at = ? WHERE run_id = ?',
+          Math.min(Date.now() + AUTO_MERGE_RECHECK_MS, pending.until_at),
+          pending.run_id,
+        );
+      } else {
+        this.ctx.storage.sql.exec('DELETE FROM pending_auto_merges WHERE run_id = ?', pending.run_id);
+      }
+      this.ctx.storage.sql.exec(
+        'UPDATE pull_request_results SET auto_merge = ? WHERE run_id = ?',
+        JSON.stringify(outcome),
+        pending.run_id,
+      );
+      await this.ctx.storage.sync();
+    }
+    await this.scheduleAlarm();
+  }
+
+  /** One DO alarm serves both active leases and completed reviews awaiting checks. */
+  private async scheduleAlarm(): Promise<void> {
+    const active = this.ctx.storage.sql
+      .exec<Row>(
+        "SELECT * FROM jobs WHERE status IN ('preparing','leased','verifying','reporting','publishing') LIMIT 1",
+      )
+      .toArray()[0];
+    const pending = this.ctx.storage.sql
+      .exec<{ next_at: number | null }>('SELECT MIN(next_at) AS next_at FROM pending_auto_merges')
+      .one();
+    const activeAt =
+      active?.status === 'leased' || active?.status === 'verifying'
+        ? Math.min(active.lease_expires ?? Infinity, active.deadline_at ?? Infinity)
+        : (active?.deadline_at ?? Infinity);
+    const next = Math.min(activeAt, pending.next_at ?? Infinity);
+    if (Number.isFinite(next)) await this.ctx.storage.setAlarm(Math.max(Date.now() + 1, next));
   }
 
   private expire(now: number): void {
@@ -372,7 +536,7 @@ export class AutofixQueue extends DurableObject<Env> {
         attempt: active.attempt,
         deadlineAt: active.deadline_at!,
         leaseExpiresAt: active.lease_expires,
-        job: JSON.parse(active.prepared) as QueuedJob,
+        job: storedJob(active.prepared),
       };
     }
     const row = this.ctx.storage.sql
@@ -386,7 +550,7 @@ export class AutofixQueue extends DurableObject<Env> {
       nonceHash,
       row.run_id,
     );
-    await this.ctx.storage.setAlarm(prepareUntil);
+    await this.scheduleAlarm();
     await this.ctx.storage.sync();
     let job: QueuedJob | null;
     let prUrl: string | null = null;
@@ -449,7 +613,7 @@ export class AutofixQueue extends DurableObject<Env> {
       JSON.stringify(job),
       row.run_id,
     );
-    await this.ctx.storage.setAlarm(leaseExpiresAt);
+    await this.scheduleAlarm();
     await this.ctx.storage.sync();
     return {
       version: 1,
@@ -497,10 +661,9 @@ export class AutofixQueue extends DurableObject<Env> {
 
   async model(runId: string, leaseToken: string, request: ModelRequest): Promise<Record<string, unknown>> {
     const leased = await this.leased(runId, leaseToken);
-    const mode: ModelMode =
-      (JSON.parse(leased.prepared!) as QueuedJob).mode === 'pull-request' ? 'pull-request' : 'error';
+    const mode: ModelMode = storedJob(leased.prepared!).mode === 'pull-request' ? 'pull-request' : 'error';
     const budget = MODEL_BUDGET[mode];
-    const maxMessages = mode === 'pull-request' ? 160 : 80;
+    const maxMessages = mode === 'pull-request' ? 240 : 80;
     const maxBytes = mode === 'pull-request' ? 1_000_000 : 256_000;
     if (request.model !== MODEL_BY_MODE[mode]) throw new PolicyRejection('Model tier does not match job mode');
     if (request.maxTokens > budget.maxTokensPerCall)
@@ -585,7 +748,7 @@ export class AutofixQueue extends DurableObject<Env> {
       next,
       runId,
     );
-    await this.ctx.storage.setAlarm(next);
+    await this.scheduleAlarm();
     await this.ctx.storage.sync();
     const current = this.ctx.storage.sql
       .exec<{ status: Status; lease_expires: number }>('SELECT status, lease_expires FROM jobs WHERE run_id = ?', runId)
@@ -632,7 +795,7 @@ export class AutofixQueue extends DurableObject<Env> {
     }
     const row = await this.leased(runId, payload.leaseToken, true);
     if (!row.prepared) throw new Error('Prepared job missing');
-    const queued = JSON.parse(row.prepared) as QueuedJob;
+    const queued = storedJob(row.prepared);
     if (queued.mode === 'pull-request') return this.pullRequestOutcome(runId, row, queued, payload);
     if (payload.outcome === 'pr-reviewed')
       throw new PolicyRejection('Pull request review outcome is impossible for an error job');
@@ -666,7 +829,7 @@ export class AutofixQueue extends DurableObject<Env> {
       publishingUntil,
       runId,
     );
-    await this.ctx.storage.setAlarm(publishingUntil);
+    await this.scheduleAlarm();
     await this.ctx.storage.sync();
     try {
       const pr = await publish(this.env, job, proof);
@@ -716,7 +879,7 @@ export class AutofixQueue extends DurableObject<Env> {
         reportingUntil,
         runId,
       );
-      await this.ctx.storage.setAlarm(reportingUntil);
+      await this.scheduleAlarm();
       await this.ctx.storage.sync();
       try {
         await github(this.env, token, `/issues/${job.pullNumber}/comments`, 'POST', { body: safe });
@@ -757,12 +920,14 @@ export class AutofixQueue extends DurableObject<Env> {
       publishingUntil,
       runId,
     );
-    await this.ctx.storage.setAlarm(publishingUntil);
+    await this.scheduleAlarm();
     await this.ctx.storage.sync();
     try {
       let published: Published;
       try {
-        published = await publishPullRequest(this.env, job, payload.manifest, review, payload.verification);
+        published = await publishPullRequest(this.env, job, payload.manifest, review, payload.verification, (headSha) =>
+          this.recordPublisherHead(job.pullNumber, headSha),
+        );
       } catch (error) {
         // Rejected before any ref or comment write: a durable, non-ambiguous terminal receipt.
         if (!(error instanceof PullRequestRejected)) throw error;
@@ -779,6 +944,7 @@ export class AutofixQueue extends DurableObject<Env> {
         .toArray()[0];
       if (Date.now() >= publishingUntil || current?.status !== 'publishing')
         throw new Error('Publication exceeded its absolute deadline');
+      const autoMerge = await this.recordAutoMerge(job, payload.manifest, review, payload.verification, published);
       this.ctx.storage.sql.exec(
         "UPDATE jobs SET status = 'completed', outcome = 'published', pr_url = ? WHERE run_id = ? AND status = 'publishing'",
         published.url,
@@ -791,7 +957,20 @@ export class AutofixQueue extends DurableObject<Env> {
         payload.verification,
         published.publishedHeadSha,
         published.commentUrl,
+        autoMerge,
       );
+      if (autoMerge.status === 'pending-checks') {
+        const now = Date.now();
+        this.ctx.storage.sql.exec(
+          'INSERT INTO pending_auto_merges (run_id, next_at, until_at, review, proof) VALUES (?, ?, ?, ?, ?)',
+          runId,
+          now + AUTO_MERGE_RECHECK_MS,
+          now + AUTO_MERGE_WINDOW_MS,
+          JSON.stringify(review),
+          JSON.stringify(payload.verification),
+        );
+      }
+      await this.scheduleAlarm();
       await this.ctx.storage.sync();
       return { status: 'published', pr: published.url, headSha: published.publishedHeadSha };
     } catch {
@@ -804,6 +983,60 @@ export class AutofixQueue extends DurableObject<Env> {
     }
   }
 
+  private async recordAutoMerge(
+    job: PreparedPullRequestJob,
+    manifest: PatchManifest,
+    review: PullRequestReview,
+    proof: PullRequestVerification,
+    published: Published,
+    forced?: AutoMergeOutcome,
+  ): Promise<AutoMergeOutcome> {
+    let outcome: AutoMergeOutcome;
+    try {
+      outcome = forced ?? (await autoMergePullRequest(this.env, job, manifest, review));
+    } catch {
+      outcome = { status: 'pending-checks', reason: 'GitHub 응답을 확인할 수 없어 제한 시간 내에 재확인합니다.' };
+    }
+    const id = /#issuecomment-([1-9][0-9]*)$/.exec(published.commentUrl)?.[1];
+    const marker = `<!-- pr-auto-merge:${job.pullNumber}:${job.headSha}:${job.baseSha}:${proof.manifestSha256} -->`;
+    const report = `### 자동 merge\n\n- ${outcome.status}: ${outcome.reason}\n`;
+    let updated = false;
+    if (id) {
+      try {
+        const token = await installationToken(this.env, 'publish');
+        await github(this.env, token, `/issues/comments/${id}`, 'PATCH', {
+          body: `${reviewComment(job, review, manifest, proof, published.publishedHeadSha)}\n${report}`,
+        });
+        updated = true;
+      } catch {
+        // A follow-up marker comment is the fallback if GitHub refuses to edit the review comment.
+      }
+    }
+    if (!updated) {
+      try {
+        const token = await installationToken(this.env, 'publish');
+        const comments = await github<
+          { body?: string; user?: { login?: string; type?: string }; performed_via_github_app?: { id?: number } }[]
+        >(this.env, token, `/issues/${job.pullNumber}/comments?per_page=100`);
+        if (
+          !comments.some(
+            (comment) =>
+              comment.body?.includes(marker) &&
+              comment.user?.login === 'bcsd-united-error-publisher[bot]' &&
+              comment.user.type === 'Bot' &&
+              comment.performed_via_github_app?.id === 5522353,
+          )
+        )
+          await github(this.env, token, `/issues/${job.pullNumber}/comments`, 'POST', {
+            body: `${marker}\n\n${report}`,
+          });
+      } catch {
+        // The authenticated durable receipt remains available when GitHub comments are unavailable.
+      }
+    }
+    return outcome;
+  }
+
   private recordPullRequest(
     runId: string,
     job: PreparedPullRequestJob,
@@ -811,11 +1044,12 @@ export class AutofixQueue extends DurableObject<Env> {
     proof: PullRequestVerification,
     publishedHeadSha: string | null,
     commentUrl: string | null,
+    autoMerge: AutoMergeOutcome | null = null,
   ): void {
     this.ctx.storage.sql.exec(
       `INSERT OR REPLACE INTO pull_request_results
-       (run_id, reviewed_head_sha, published_head_sha, decision, findings_count, passed_checks, comment_url, recorded_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+       (run_id, reviewed_head_sha, published_head_sha, decision, findings_count, passed_checks, comment_url, auto_merge, recorded_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       runId,
       job.headSha,
       publishedHeadSha,
@@ -823,6 +1057,7 @@ export class AutofixQueue extends DurableObject<Env> {
       review.findings.length,
       JSON.stringify(proof.passedChecks),
       commentUrl,
+      autoMerge ? JSON.stringify(autoMerge) : null,
       Date.now(),
     );
   }

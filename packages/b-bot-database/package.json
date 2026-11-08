@@ -12,13 +12,9 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "migrate": "node db/migrations/migrate.mjs",
-    "import:mysql": "node db/migrations/import-mysql.mjs",
-    "rag:ingest": "node db/rag/ingest.mjs",
-    "rag:ask": "node db/rag/ask.mjs",
-    "rag:diag": "node db/rag/diag.mjs"
+    "import:mysql": "node db/migrations/import-mysql.mjs"
   },
   "dependencies": {
-    "@koin/b-bot-ai": "workspace:*",
     "pg": "^8.23.1"
   },
   "devDependencies": {

@@ -82,6 +82,8 @@ function harness(t) {
     SENTRY_CLIENT_SECRET: sentrySecret,
     SENTRY_ORGANIZATION: 'bcsd',
     SENTRY_PROJECT_APPS: '{"koin-united-prod":"web","koin-united-preview":"web"}',
+    ERROR_SOURCE_BRANCHES:
+      '{"sentry:koin-united-prod":"main","sentry:koin-united-preview":"develop","cloudflare:koin-web":"main","cloudflare:koin-api":"main"}',
     CLOUDFLARE_WEBHOOK_SECRET: 'local-test-only-cloudflare-secret-32chars',
     CLOUDFLARE_SOURCES: JSON.stringify([
       { accountId: cfAccount, policyId: cfPolicy, workerName: 'koin-api', app: 'api' },

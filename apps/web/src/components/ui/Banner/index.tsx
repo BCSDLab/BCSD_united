@@ -1,15 +1,12 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
+import { cn } from '@bcsdlab/utils';
 import { Link } from '@tanstack/react-router';
-import { useSwipeable } from 'react-swipeable';
 
 import type { BannersResponse } from 'api/banner/entity';
-import ArrowIcon from 'assets/svg/previous-arrow-icon.svg';
+import ArrowRightIcon from 'assets/svg/common/arrow-right-icon.svg';
 import Image from 'components/ui/Image';
 import useLogger from 'utils/hooks/analytics/useLogger';
-import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
-import useBooleanState from 'utils/hooks/state/useBooleanState';
 import { parseSearch } from 'utils/routing/search';
-import { getCookie, setCookie } from 'utils/ts/cookie';
 
 import styles from './Banner.module.scss';
 
@@ -29,7 +26,7 @@ function BannerCard({ handleImageLinkClick, image_url, redirect_link, isFirst }:
         fill
         priority={isFirst}
         fetchPriority={isFirst ? 'high' : 'auto'}
-        sizes="(max-width: 768px) 100vw, 400px"
+        sizes="357px"
         className={styles.slider__image}
         onError={(e) => {
           e.currentTarget.removeAttribute('srcset');
@@ -83,45 +80,26 @@ function BannerCard({ handleImageLinkClick, image_url, redirect_link, isFirst }:
 
 interface BannerProps {
   bannersList: BannersResponse;
-  bannerCategoryId: number;
 }
 
-const HIDE_BANNER_DURATION_DAYS = 7;
-const HIDE_BANNER_COOKIE = 'HIDE_BANNER';
-
-function Banner({ bannersList, bannerCategoryId }: BannerProps) {
-  const isMobile = useMediaQuery();
+function Banner({ bannersList }: BannerProps) {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isFocusedRef = useRef(false);
   const logger = useLogger();
-  const [currentPageIndex, setCurrentPageIndex] = useState(0);
+  const [pageIndex, setPageIndex] = useState(0);
+  const bannerCount = bannersList.banners.length;
+  const currentPageIndex = bannerCount > 0 ? pageIndex % bannerCount : 0;
   const currentBanner = bannersList.banners[currentPageIndex];
-  const [isModalOpen, openModal, closeModal] = useBooleanState(false);
-
-  useEffect(() => {
-    if (bannersList.count === 0) {
-      closeModal();
-
-      return;
-    }
-
-    // 배너 노출 여부를 SSR에서 분리해 페이지 HTML 캐시를 안전하게 유지
-    const isBannerHidden = getCookie(HIDE_BANNER_COOKIE) === `modal_category_${bannerCategoryId}`;
-    if (isBannerHidden) {
-      closeModal();
-
-      return;
-    }
-
-    openModal();
-  }, [bannerCategoryId, bannersList.count, closeModal, openModal]);
+  const isVisible = Boolean(currentBanner);
 
   const resetAutoSlide = useCallback(() => {
     if (intervalRef.current) clearTimeout(intervalRef.current);
+    if (isFocusedRef.current) return;
 
     intervalRef.current = setTimeout(() => {
-      setCurrentPageIndex((prev) => (prev === bannersList.count - 1 ? 0 : prev + 1));
+      setPageIndex((prev) => (prev + 1) % bannerCount);
     }, 3000);
-  }, [bannersList.count]);
+  }, [bannerCount]);
 
   const handleImageLinkClick = () => {
     logger.actionEventClick({
@@ -137,7 +115,7 @@ function Banner({ bannersList, bannerCategoryId }: BannerProps) {
       event_label: 'main_next_modal',
       value: `${currentBanner.title}`,
     });
-    setCurrentPageIndex((prev) => (prev === 0 ? bannersList.count - 1 : prev - 1));
+    setPageIndex((prev) => (prev - 1 + bannerCount) % bannerCount);
     resetAutoSlide();
   };
 
@@ -147,49 +125,32 @@ function Banner({ bannersList, bannerCategoryId }: BannerProps) {
       event_label: 'main_next_modal',
       value: `${currentBanner.title}`,
     });
-    setCurrentPageIndex((prev) => (prev === bannersList.count - 1 ? 0 : prev + 1));
+    setPageIndex((prev) => (prev + 1) % bannerCount);
     resetAutoSlide();
   };
 
-  const handleCloseBanner = () => {
+  const handlePageButtonClick = (index: number) => {
     logger.actionEventClick({
       team: 'CAMPUS',
-      event_label: 'main_modal_close',
+      event_label: 'main_next_modal',
       value: `${currentBanner.title}`,
     });
-    closeModal();
+    setPageIndex(index);
+    resetAutoSlide();
   };
-
-  const handleHideForWeek = () => {
-    logger.actionEventClick({
-      team: 'CAMPUS',
-      event_label: 'main_modal_hide_7d',
-      value: `${currentBanner.title}`,
-    });
-    if (bannerCategoryId === 1) {
-      setCookie(HIDE_BANNER_COOKIE, `modal_category_${bannerCategoryId}`, HIDE_BANNER_DURATION_DAYS);
-    }
-    closeModal();
-  };
-
-  const swipeHandlers = useSwipeable({
-    onSwipedLeft: handleNextButtonClick,
-    onSwipedRight: handlePrevButtonClick,
-    trackMouse: true,
-  });
 
   useEffect(() => {
-    if (!isModalOpen || bannersList.count <= 1) return undefined;
+    if (!isVisible || bannerCount <= 1) return undefined;
 
     resetAutoSlide();
 
     return () => {
       if (intervalRef.current) clearTimeout(intervalRef.current);
     };
-  }, [isModalOpen, bannersList.count, resetAutoSlide, currentPageIndex]);
+  }, [isVisible, bannerCount, resetAutoSlide, currentPageIndex]);
 
   useEffect(() => {
-    if (isModalOpen) {
+    if (isVisible) {
       logger.actionEventLoad({
         team: 'CAMPUS',
         event_label: 'main_modal_entry',
@@ -197,53 +158,72 @@ function Banner({ bannersList, bannerCategoryId }: BannerProps) {
         event_category: 'entry',
       });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- 모달이 열릴 때만 로깅해야 하므로 logger/currentBanner 변경은 무시
-  }, [isModalOpen]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 배너가 보일 때만 로깅해야 하므로 logger/currentBanner 변경은 무시
+  }, [isVisible]);
 
-  if (!isModalOpen) return null;
+  if (!currentBanner) return null;
 
   return (
-    <div className={styles.background}>
-      <div className={styles.container}>
-        <div {...(isMobile ? swipeHandlers : {})} className={styles.slider}>
-          <BannerCard
-            handleImageLinkClick={handleImageLinkClick}
-            image_url={currentBanner.image_url}
-            redirect_link={currentBanner.redirect_link}
-            isFirst={currentPageIndex === 0}
-          />
-          <div className={styles.slider__pagination}>
-            <p className={styles['slider__pagination-label']}>
-              {currentPageIndex + 1}/{bannersList.count}
-            </p>
-          </div>
-          <button
-            type="button"
-            className={`${styles.slider__arrow} ${styles['slider__arrow--previous']}`}
-            aria-label="이전 슬라이드"
-            onClick={handlePrevButtonClick}
-          >
-            <ArrowIcon />
-          </button>
-          <button
-            type="button"
-            className={`${styles.slider__arrow} ${styles['slider__arrow--next']}`}
-            aria-label="다음 슬라이드"
-            onClick={handleNextButtonClick}
-          >
-            <ArrowIcon />
-          </button>
-        </div>
-        <div className={styles.footer}>
-          <button type="button" className={styles['footer__button--hide']} onClick={handleHideForWeek}>
-            일주일 동안 그만 보기
-          </button>
-          <button type="button" className={styles['footer__button--close']} onClick={handleCloseBanner}>
-            닫기
-          </button>
-        </div>
+    <section
+      className={styles.inline}
+      aria-label="메인 배너"
+      onFocus={() => {
+        isFocusedRef.current = true;
+        if (intervalRef.current) clearTimeout(intervalRef.current);
+      }}
+      onBlur={(event) => {
+        if (event.currentTarget.contains(event.relatedTarget)) return;
+
+        isFocusedRef.current = false;
+        if (bannerCount > 1) resetAutoSlide();
+      }}
+    >
+      <div className={styles.inline__slider}>
+        <BannerCard
+          handleImageLinkClick={handleImageLinkClick}
+          image_url={currentBanner.image_url}
+          redirect_link={currentBanner.redirect_link}
+          isFirst={currentPageIndex === 0}
+        />
+        {bannerCount > 1 && (
+          <>
+            <button
+              type="button"
+              className={`${styles.inline__arrow} ${styles['inline__arrow--previous']}`}
+              aria-label="이전 슬라이드"
+              onClick={handlePrevButtonClick}
+            >
+              <ArrowRightIcon aria-hidden />
+            </button>
+            <button
+              type="button"
+              className={`${styles.inline__arrow} ${styles['inline__arrow--next']}`}
+              aria-label="다음 슬라이드"
+              onClick={handleNextButtonClick}
+            >
+              <ArrowRightIcon aria-hidden />
+            </button>
+          </>
+        )}
       </div>
-    </div>
+      {bannerCount > 1 && (
+        <div className={styles.inline__pagination}>
+          {bannersList.banners.map((banner, index) => (
+            <button
+              key={banner.id}
+              type="button"
+              className={cn({
+                [styles.inline__indicator]: true,
+                [styles['inline__indicator--active']]: index === currentPageIndex,
+              })}
+              aria-label={`${index + 1}번 배너 보기`}
+              aria-current={index === currentPageIndex ? 'true' : undefined}
+              onClick={() => handlePageButtonClick(index)}
+            />
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 

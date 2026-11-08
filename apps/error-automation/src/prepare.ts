@@ -21,6 +21,7 @@ export async function prepare(
   const domains = JSON.parse(env.ERROR_PROJECT_DOMAINS) as Record<string, string>;
   const domain = domains[`${identity.source}:${identity.project}`];
   if (!['캠퍼스', '비즈니스', '유저', '공통'].includes(domain)) throw new Error('Missing allowlisted project domain');
+  const baseBranch = config.sourceBranches[`${identity.source}:${identity.project}`];
   const response = await env.ERROR_ISSUES.get(env.ERROR_ISSUES.idFromName(key)).fetch(
     'https://error-dispatch.internal/diagnostics',
   );
@@ -34,7 +35,7 @@ export async function prepare(
   // No GitHub token before real provider route and source-frame evidence has passed trusted verification.
   const evidence = await trustedDiagnostics(env, identity, stored);
   const token = await installationToken(env, 'read');
-  const base = await baseRepository(env, token);
+  const base = await baseRepository(env, token, baseBranch);
   const proposedBranch = await branch(identity);
   const prior = await existingPull(env, token, { branch: proposedBranch });
   if (prior) return { job: null, prUrl: prior.html_url };
@@ -45,6 +46,7 @@ export async function prepare(
       owner: config.owner,
       repository: config.repository,
       baseBranch: base.baseBranch,
+      targetBranch: 'develop',
       baseSha: base.baseSha,
       branch: proposedBranch,
       domain,
