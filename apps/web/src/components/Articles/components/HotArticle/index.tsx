@@ -11,24 +11,29 @@ import useMount from 'utils/hooks/state/useMount';
 
 import styles from './HotArticles.module.scss';
 
+// 게시판 3-2 바로가기 value는 명세에 적힌 페이지 제목 표기를 그대로 쓴다
 const LINK_LIST = [
   {
     title: ['코리아텍', '바로가기'],
+    logValue: '코리아텍 바로가기',
     url: 'https://www.koreatech.ac.kr/kor',
     image: 'https://static.koreatech.in/assets/img/banner_koreatech.png',
   },
   {
     title: ['아우누리', '바로가기'],
+    logValue: '아우누리 바로가기',
     url: 'https://portal.koreatech.ac.kr/login.jsp?sso=ok',
     image: 'https://static.koreatech.in/assets/img/banner_awoonori.png',
   },
   {
     title: ['새로운 서비스', '요청하기'],
+    logValue: '새로운 서비스 요청하기',
     url: 'https://docs.google.com/forms/d/1VEuxVK9ioVRZN36eb6m0UClyTJwW4lYiKLWcaQw2JzQ/edit',
     image: 'https://static.koreatech.in/assets/img/banner_add.png',
   },
   {
     title: ['BCSDLab', '알아보기'],
+    logValue: 'BCSD Lab 알아보기',
     url: 'http://bcsdlab.com/',
     image: 'https://static.koreatech.in/assets/img/banner_bcsd.png',
   },
@@ -81,7 +86,7 @@ export default function HotArticles() {
               logger.actionEventClick({
                 event_name: 'DA2',
                 event_label: 'board__main_notice__external_link__shortcut_entry__click',
-                value: link.title.join('_'),
+                value: link.logValue,
               });
             }}
           >
