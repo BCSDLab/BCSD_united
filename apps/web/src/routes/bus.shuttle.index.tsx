@@ -67,6 +67,13 @@ export default function ShuttleBusTimetable() {
         <ShuttleCategoryTabs
           category={category}
           onChange={(v) => {
+            // 버스 4-5 셔틀버스 노선 필터
+            logger.actionEventClick({
+              event_name: 'DA1',
+              event_label: 'bus__bus_timetable__filter__shuttle_route__select',
+              value: v,
+              event_category: 'select',
+            });
             if (v === '전체') {
               routeNavigate({ href: ROUTES.BusCourseShuttle(), replace: true });
             } else {
