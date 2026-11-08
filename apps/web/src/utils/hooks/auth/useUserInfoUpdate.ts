@@ -17,15 +17,23 @@ const useUserInfoUpdate = <T = unknown>(userType: UserType | null, options: User
   const { status, mutate } = useMutation<T, unknown, UserUpdateRequest | GeneralUserUpdateRequest>({
     mutationFn: (data) =>
       userType === 'STUDENT' ? (updateUser(data) as Promise<T>) : (updateGeneralUser(data) as Promise<T>),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       options.onSuccess?.();
       logger.actionEventClick({
         event_label: 'account__edit_profile__profile_edit__confirm__click',
         value: '정보수정 완료',
         event_name: 'DA2',
       });
+      // 계정 3-4: 웹은 정보수정 폼에서 비밀번호도 함께 저장하므로, 비밀번호를 바꾼 저장이면 3-3과 함께 보낸다
+      if (variables.password) {
+        logger.actionEventClick({
+          event_name: 'DA2',
+          event_label: 'account__password_change__password_change__confirm__click',
+          value: '비밀번호 수정 완료',
+        });
+      }
     },
-    onError: (error) => {
+    onError: (error, variables) => {
       if (isKoinError(error) || isHttpError(error) || error instanceof Error) {
         if (error.message) showToast('error', error.message);
       }
@@ -35,6 +43,14 @@ const useUserInfoUpdate = <T = unknown>(userType: UserType | null, options: User
         value: '정보수정 실패',
         event_name: 'DA2',
       });
+      // 계정 3-4: 웹은 정보수정 폼에서 비밀번호도 함께 저장하므로, 비밀번호를 바꾼 저장이면 3-3과 함께 보낸다
+      if (variables.password) {
+        logger.actionEventClick({
+          event_name: 'DA2',
+          event_label: 'account__password_change__password_change__confirm__click',
+          value: '비밀번호 수정 실패',
+        });
+      }
     },
   });
 
