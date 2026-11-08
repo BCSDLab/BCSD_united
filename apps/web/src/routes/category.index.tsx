@@ -29,7 +29,6 @@ import { parseSearch } from 'utils/routing/search';
 import styles from 'pages/category/CategoryPage.module.scss';
 
 type IconComponent = ComponentType<SVGProps<SVGSVGElement>>;
-// 홈 3-6 카테고리 13개 메뉴: service__main_category__category_navigation__진입대상__click (screen_view main_category)
 type CategoryLogging = LoggingTarget & { value: string };
 
 interface CategoryItem {

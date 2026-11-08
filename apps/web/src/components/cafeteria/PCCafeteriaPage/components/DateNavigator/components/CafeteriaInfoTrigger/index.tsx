@@ -14,7 +14,6 @@ export default function CafeteriaInfoTrigger() {
   const { data: cafeteriaInfo } = useSuspenseQuery(coopshopQueries.cafeteriaInfo());
 
   const handleInformationClick = () => {
-    // 식단 3-7 학생식당정보
     logger.actionEventClick({
       event_name: 'DA1',
       event_label: 'cafeteria__cafeteria__cafeteria_info__entry__click',

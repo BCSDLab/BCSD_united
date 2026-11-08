@@ -1,6 +1,5 @@
 import useLogger from 'utils/hooks/analytics/useLogger';
 
-// 로깅 네이밍룰 v1.0 · Notion 게시판(커뮤니티) 로깅 명세 11-16
 const CLICK_EVENTS = [
   {
     key: 'message_list_select',

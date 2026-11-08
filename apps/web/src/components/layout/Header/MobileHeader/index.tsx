@@ -41,7 +41,6 @@ export default function MobileHeader({ openModal, route }: MobileHeaderProps) {
 
   const backInDetailPage = () => {
     if (pathname.includes(ROUTES.Store()) && id) {
-      // 3-5 상점 상세 나가기: 나가는 방법을 value로 보낸다
       logger.actionEventClick({
         event_name: 'DA1',
         event_label: 'shop__shop_detail__navigation__back__click',

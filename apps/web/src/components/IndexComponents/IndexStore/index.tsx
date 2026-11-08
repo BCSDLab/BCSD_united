@@ -37,7 +37,6 @@ export default function IndexStore({ categories }: { categories: StoreCategories
   const categoriesWithEvent = categories.shop_categories.map((category: Category) => ({
     ...category,
     event: {
-      // 로깅 네이밍룰 v1.0 · 주변상점 1-1 메인 → 상점 카테고리
       event_name: 'DA1' as const,
       event_label: 'shop__main__shop_entry__category_card_entry__click' as const,
       value: category.name,

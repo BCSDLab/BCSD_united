@@ -20,7 +20,6 @@ function RoomDetailImg({ imgUrl }: RoomDetailImgProps) {
         className={styles['img-slider__img-arrow']}
         type="button"
         onClick={() => {
-          // 복덕방 3-1 사진 넘기기
           logger.actionEventClick({
             event_name: 'DA1',
             event_label: 'real_estate__room_detail__photo_view__slide__click',

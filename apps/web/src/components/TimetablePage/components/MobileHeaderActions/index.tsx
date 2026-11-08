@@ -10,7 +10,6 @@ export function TimetableEditButton() {
     <HeaderIconButton
       aria-label="시간표 수정"
       onClick={() => {
-        // 시간표 2-23 시간표 수정 (모바일은 PC 안내만 띄운다)
         logger.actionEventClick({
           event_name: 'DA1',
           event_label: 'timetable__timetable__timetable_edit__entry__click',

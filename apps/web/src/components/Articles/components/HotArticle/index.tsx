@@ -11,7 +11,6 @@ import useMount from 'utils/hooks/state/useMount';
 
 import styles from './HotArticles.module.scss';
 
-// 게시판 3-2 바로가기 value는 명세에 적힌 페이지 제목 표기를 그대로 쓴다
 const LINK_LIST = [
   {
     title: ['코리아텍', '바로가기'],

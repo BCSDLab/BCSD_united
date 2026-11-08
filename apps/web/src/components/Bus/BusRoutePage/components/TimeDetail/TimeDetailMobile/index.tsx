@@ -30,7 +30,7 @@ export default function TimeDetailMobile({ timeSelect, close }: TimeDetailMobile
   const { setNow } = timeSelect.timeHandler;
 
   const { logDepartureNowClick, logDepartureTimeConfirm } = useBusLogger();
-  // 창을 열었을 때의 값. 완료 시 이 값과 달라졌는지로 '시간 변경'·'시간 유지'를 기록한다 (버스 5-11)
+  // 창을 열었을 때의 값. 완료 시 이 값과 비교해 시간을 바꿨는지 판단한다
   const [initialPicker] = useState(() => ({
     dayOfMonthDiff: 0,
     meridiem: hour >= 12 ? 1 : 0,

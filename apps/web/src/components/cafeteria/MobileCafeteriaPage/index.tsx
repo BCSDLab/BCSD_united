@@ -46,7 +46,6 @@ export default function MobileCafeteriaPage({ onReportSoldout }: MobileCafeteria
       const maxHeight = doc.scrollHeight - doc.clientHeight;
       const scrollPercentage = (scrolled / maxHeight) * 100;
       if (scrollPercentage > 70 && lastLoggedDiningTypeRef.current !== diningType) {
-        // 3-4~3-6: 식사 시간마다 목록을 70% 넘게 내리면 한 번 보낸다
         logger.actionEventClick({
           event_name: 'DA1',
           event_label: 'cafeteria__cafeteria__meal_time__scroll',

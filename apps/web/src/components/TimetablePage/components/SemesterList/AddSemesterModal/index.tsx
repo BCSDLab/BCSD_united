@@ -67,7 +67,6 @@ export default function AddSemesterModal({
       if (mySemester.semesters.some((semes) => semes.year === semesters.year && semes.term === semesters.term)) {
         showToast('info', '이미 있는 학기입니다.');
       } else {
-        // 시간표 2-13 학기 추가 팝업의 추가하기 (이미 있는 학기는 추가되지 않아 보내지 않는다)
         logger.actionEventClick({
           event_name: 'DA1',
           event_label: 'timetable__timetable__semester_manage__edit_apply__click',

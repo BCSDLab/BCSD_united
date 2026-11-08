@@ -97,7 +97,6 @@ function InvalidMainTimetable() {
   };
 
   const onClickEdit = () => {
-    // 시간표 2-23 시간표 수정
     logger.actionEventClick({
       event_name: 'DA1',
       event_label: 'timetable__timetable__timetable_edit__entry__click',
@@ -144,7 +143,6 @@ function ValidMainTimetable({ timetableFrameId }: { readonly timetableFrameId: n
   };
 
   const onClickEdit = () => {
-    // 시간표 2-23 시간표 수정
     logger.actionEventClick({
       event_name: 'DA1',
       event_label: 'timetable__timetable__timetable_edit__entry__click',

@@ -64,7 +64,6 @@ export default function IndexArticles({ serverNow }: IndexArticlesProps) {
               preload={false}
               className={styles['list__item-link']}
               onClick={() =>
-                // 게시판 1-3 메인 공지사항 영역의 게시글 클릭
                 logger.actionEventClick({
                   event_name: 'DA2',
                   event_label: 'board__main__notice_detail__entry__click',

@@ -64,7 +64,6 @@ export default function MobileArticleList({ articles }: MobileArticleListProps) 
             className={styles.item}
             onClick={() => {
               if (article.board_id === 14) return;
-              // 게시판 3-3·4-3 공지사항 목록에서 공지 상세 진입
               logger.actionEventClick({
                 event_name: 'DA2',
                 event_label: 'board__main_notice__notice_detail__entry__click',

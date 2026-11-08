@@ -3,7 +3,6 @@ import { useRef } from 'react';
 import * as gtag from 'lib/gtag';
 import type { LoggingTarget } from 'lib/gtag';
 
-// team(기존)과 event_name(네이밍룰 v1.0)의 구분은 lib/gtag의 LoggingTarget을 따른다
 type ActionLoggerProps = LoggingTarget & {
   value: string;
   event_category?: string;

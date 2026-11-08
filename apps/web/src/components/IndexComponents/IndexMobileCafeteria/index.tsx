@@ -83,7 +83,6 @@ function IndexMobileCafeteria() {
     ? selectedPlace
     : availableDinings[0]?.place;
 
-  // 홈 1-3 메인 식단 진입: 카드 본문 클릭은 {식사시간}_카드로 한 번 보낸다
   const handleMealCardClick = () => {
     logger.actionEventClick({
       event_name: 'DA2',

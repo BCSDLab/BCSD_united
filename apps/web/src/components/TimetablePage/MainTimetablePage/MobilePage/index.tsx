@@ -33,7 +33,6 @@ function MobilePage({ timetableFrameId, setCurrentFrameId }: MobilePageProps) {
   const handleImageDownloadClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     logger.actionEventClick({
-      // 모바일 버튼 이름은 '시간표 다운로드'지만 같은 기능이라 웹과 같은 label·value로 보낸다
       event_name: 'DA1',
       event_label: 'timetable__timetable__timetable_export__image_save__click',
       value: '이미지 저장',
@@ -68,7 +67,6 @@ function MobilePage({ timetableFrameId, setCurrentFrameId }: MobilePageProps) {
           to={ROUTES.TimetableList()}
           className={styles.page__semester}
           onClick={() =>
-            // 시간표 2-26 학기 시간표 선택
             logger.actionEventClick({
               event_name: 'DA1',
               event_label: 'timetable__timetable__timetable_list__entry__click',

@@ -42,7 +42,6 @@ function IndexCafeteria({ serverDining }: IndexCafeteriaProps) {
 
   const selectedDining = dinings.find((dining) => dining.place === selectedPlace && dining.type === diningType);
 
-  // 홈 1-3 메인 식단 진입: 제목·더보기·카드 본문 모두 같은 계약, value는 {식사시간}_{클릭대상} (더보기는 전체보기로 기록)
   const handleMealClick = (target: MealClickTarget) => {
     logger.actionEventClick({
       event_name: 'DA2',
@@ -53,7 +52,6 @@ function IndexCafeteria({ serverDining }: IndexCafeteriaProps) {
   };
 
   const handlePlaceClick = (place: DiningPlace) => {
-    // 홈 1-4 식단 코너 클릭 (식단 1-3~1-7은 1-1에 따라 레거시)
     logger.actionEventClick({
       event_name: 'DA2',
       event_label: 'main__main__corner__select',

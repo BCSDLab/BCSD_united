@@ -22,7 +22,6 @@ function RoomList(props: RoomListProps) {
             className={styles.list__link}
             to={ROUTES.RoomDetail({ id: String(room.id) })}
             onClick={() =>
-              // 복덕방 2-1 목록의 방 카드
               logger.actionEventClick({
                 event_name: 'DA1',
                 event_label: 'real_estate__room_list__room_detail__entry__click',

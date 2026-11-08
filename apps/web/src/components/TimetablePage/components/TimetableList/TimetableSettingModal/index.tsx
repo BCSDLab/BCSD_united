@@ -22,7 +22,6 @@ export default function TimetableSettingModal({ focusFrame, onClose }: Timetable
 
   const submitFrameForm = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // 시간표 2-15 시간표 설정 팝업의 저장하기
     logger.actionEventClick({
       event_name: 'DA1',
       event_label: 'timetable__timetable__timetable_config__save__click',
@@ -54,7 +53,6 @@ export default function TimetableSettingModal({ focusFrame, onClose }: Timetable
 
   const { mutate: deleteTimetableFrame } = useDeleteTimetableFrame(isLoggedIn, focusFrame);
   const onDelete = () => {
-    // 시간표 2-16 시간표 설정 팝업의 삭제하기
     logger.actionEventClick({
       event_name: 'DA1',
       event_label: 'timetable__timetable__timetable_config__delete__click',

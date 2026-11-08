@@ -18,7 +18,6 @@ export default function CafeteriaInfoButton() {
     <HeaderIconButton
       aria-label="학생식당 운영 정보 안내"
       onClick={() => {
-        // 식단 3-7 학생식당정보 (모바일은 우측 상단 i 아이콘)
         logger.actionEventClick({
           event_name: 'DA1',
           event_label: 'cafeteria__cafeteria__cafeteria_info__entry__click',

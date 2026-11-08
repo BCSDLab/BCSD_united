@@ -6,7 +6,6 @@ import showToast from 'utils/ts/showToast';
 
 import styles from './DepartmentCard.module.scss';
 
-// 같은 카드가 분류 화면의 검색 결과와 분류별 부서 목록에 함께 쓰여, 화면에 따라 로그 label이 다르다
 const PHONE_COPY_EVENT_LABEL = {
   department_main: 'department__department_main__contact__phone_copy__click',
   department_list: 'department__department_list__contact__phone_copy__click',

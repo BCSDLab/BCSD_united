@@ -96,7 +96,6 @@ function MobileHomeRedesign() {
   const displayName = userInfo?.nickname?.trim() || userInfo?.name?.trim() || '코리';
   const todayLabel = dateFormatter.format(serverNow);
 
-  // 로깅 네이밍룰 v1.0 · Notion 홈화면 리디자인 명세
   const logClick = (event_label: NamingRuleEventLabel, value: string, event_name: LoggingEventName = 'DA1') => {
     logger.actionEventClick({ event_name, event_label, value });
   };

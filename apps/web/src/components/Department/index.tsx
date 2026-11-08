@@ -39,7 +39,6 @@ export default function DepartmentPage() {
       return;
     }
 
-    // 검색 아이콘 클릭·Enter로 검색을 실행하는 순간 입력한 검색어를 보낸다(웹은 분류 화면에서만 검색한다)
     logger.actionEventClick({
       event_name: 'DA2',
       event_label: 'department__department_main__search__click',

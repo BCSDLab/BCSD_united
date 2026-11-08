@@ -22,7 +22,6 @@ import { useSemester } from 'utils/zustand/semester';
 
 import styles from './TimetableList.module.scss';
 
-// 시간표 2-28·2-29 설정·시간표 추가하기에서 뜨는 로그인 안내 팝업의 버튼
 const LOGIN_POPUP_LOG = {
   login: { event_label: 'account__timetable__login_popup__login_entry__click', value: '로그인하기' },
   close: { event_label: 'account__timetable__login_popup__close__click', value: '취소하기' },
@@ -53,7 +52,6 @@ export default function TimetableList({ currentFrameIndex, setCurrentFrameIndex 
   const timetableFrameList = data.filter((frame) => !frame.is_main);
 
   const handleTimetableSettingClick = (frame: TimetableFrameInfo) => {
-    // 시간표 2-25 설정 (비로그인이면 로그인 안내 팝업이 뜬다)
     logger.actionEventClick({
       event_name: 'DA1',
       event_label: 'timetable__timetable__timetable_config__open__click',
@@ -75,7 +73,6 @@ export default function TimetableList({ currentFrameIndex, setCurrentFrameIndex 
   };
 
   const handleAddTimetableClick = () => {
-    // 시간표 2-24 시간표 추가하기 (비로그인이면 로그인 안내 팝업이 뜬다)
     logger.actionEventClick({
       event_name: 'DA1',
       event_label: 'timetable__timetable__timetable_manage__add__click',

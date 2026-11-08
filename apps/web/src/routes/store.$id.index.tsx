@@ -44,7 +44,6 @@ import showToast from 'utils/ts/showToast';
 
 import styles from 'pages/store/StoreDetailPage.module.scss';
 
-// 3-16~18 리뷰 탭 탈출: 이동한 탭 이름을 명세 표기로 보낸다
 const REVIEW_EXIT_LOG_VALUE: Record<string, string> = {
   메뉴: '메뉴',
   '이벤트/공지': '이벤트·공지',
@@ -109,7 +108,6 @@ function StoreDetailPage({ id }: Props) {
       });
     }
     logger.actionEventClick({
-      // 상점 목록·혜택 상점 어느 쪽에서 들어와도 같은 전화 계약으로 보낸다
       event_name: 'DA1',
       event_label: 'shop__shop_detail__contact__phone__click',
       value: storeDetail.name,

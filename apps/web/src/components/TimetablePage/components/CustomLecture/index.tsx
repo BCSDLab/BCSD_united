@@ -439,7 +439,6 @@ function CustomLecture({ timetableFrameId, semester }: { timetableFrameId: numbe
 
   const handleSubmitLecture = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // 시간표 2-19 직접 추가 탭의 일정 저장
     logger.actionEventClick({
       event_name: 'DA1',
       event_label: 'timetable__timetable_edit__timetable_edit__custom_save__click',

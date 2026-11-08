@@ -70,7 +70,6 @@ function MobileBottomNavigation() {
                   logger.actionEventClick({
                     event_name: 'DA2',
                     event_label,
-                    // 명세 2-3: 게시판 버튼은 공지사항 진입으로 기록한다
                     value: key === 'board' ? '공지사항' : label,
                   })
                 }

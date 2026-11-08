@@ -6,7 +6,6 @@ import styles from './InfoFooter.module.scss';
 
 type BUSTYPE = 'SHUTTLE' | 'EXPRESS' | 'CITY';
 
-// 4-1 정보가 정확하지 않나요?: 시간표 화면에서는 보고 있던 탭을 value로 보낸다
 const FEEDBACK_LOG_VALUE: Record<BUSTYPE, string> = {
   SHUTTLE: '셔틀',
   EXPRESS: '대성',

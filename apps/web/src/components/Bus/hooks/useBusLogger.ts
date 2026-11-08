@@ -1,6 +1,5 @@
 import useLogger from 'utils/hooks/analytics/useLogger';
 
-// 로깅 네이밍룰 v1.0 · Notion 버스 로깅 명세 5번(교통편 조회하기)
 const CLICK_EVENTS = [
   { key: 'departure_box', label: 'bus__bus_search__search__departure_open__click', value: '출발지 선택' },
   { key: 'arrival_box', label: 'bus__bus_search__search__arrival_open__click', value: '목적지 선택' },

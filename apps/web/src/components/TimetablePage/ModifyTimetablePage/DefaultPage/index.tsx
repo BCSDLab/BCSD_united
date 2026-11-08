@@ -32,7 +32,6 @@ export default function DefaultPage({ timetableFrameId, semester }: { timetableF
   );
   const handleCourseClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     const { value: courseType } = e.currentTarget;
-    // 시간표 2-30 시간표 수정 탭
     logger.actionEventClick({
       event_name: 'DA1',
       event_label: 'timetable__timetable_edit__timetable_edit__tab__click',
@@ -99,7 +98,6 @@ export default function DefaultPage({ timetableFrameId, semester }: { timetableF
                 type="button"
                 className={styles['page__save-button']}
                 onClick={() => {
-                  // 시간표 2-17 수정 완료
                   logger.actionEventClick({
                     event_name: 'DA1',
                     event_label: 'timetable__timetable_edit__timetable_edit__confirm__click',

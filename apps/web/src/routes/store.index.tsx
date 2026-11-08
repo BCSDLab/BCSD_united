@@ -75,7 +75,6 @@ const MOBILE_FILTER_CHECK_BOX = [
   },
 ] as const;
 
-// 2-5~8 상점 카테고리 토글: 누른 필터 이름을 value로 보낸다
 const TOGGLE_LOG_VALUE = {
   COUNT: '리뷰',
   RATING: '별점',

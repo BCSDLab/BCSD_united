@@ -56,7 +56,6 @@ export default function SemesterEditModal({ onClose }: SemesterEditModalProps) {
 
   const apply = () => {
     if (toAdd.length > 0 || toRemove.length > 0) {
-      // 시간표 2-13·2-14 모바일 학기 편집 적용: 추가·삭제를 한 번에 처리하므로 하나의 이벤트로 보낸다
       logger.actionEventClick({
         event_name: 'DA1',
         event_label: 'timetable__timetable__semester_manage__edit_apply__click',

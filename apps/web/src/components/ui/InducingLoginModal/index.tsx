@@ -9,9 +9,9 @@ interface InducingLoginModalProps {
   actionTitle: string;
   detailExplanation: string;
   onClose: () => void;
-  /** 로그인하기 버튼을 누를 때 (로깅 등). 바깥 클릭으로 닫힐 때는 부르지 않는다 */
+  /** 로그인하기 버튼을 누를 때. 바깥 클릭으로 닫힐 때는 부르지 않는다 */
   onLoginClick?: () => void;
-  /** 취소하기 버튼을 누를 때 (로깅 등). 바깥 클릭으로 닫힐 때는 부르지 않는다 */
+  /** 취소하기 버튼을 누를 때. 바깥 클릭으로 닫힐 때는 부르지 않는다 */
   onCancelClick?: () => void;
 }
 
