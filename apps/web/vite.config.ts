@@ -10,6 +10,7 @@ import svgr from 'vite-plugin-svgr';
 const root = fileURLToPath(new URL('.', import.meta.url));
 const publicEnvironmentKeys = [
   'NEXT_PUBLIC_API_PATH',
+  'NEXT_PUBLIC_KOIN_ENVIRONMENT',
   'NEXT_PUBLIC_NAVER_MAPS_CLIENT_ID',
   'NEXT_PUBLIC_GOOGLE_ANALYTICS_ID',
   'NEXT_PUBLIC_GTM_ID',
@@ -75,6 +76,8 @@ export default defineConfig(({ command, mode, isPreview }) => {
   env.NEXT_PUBLIC_API_PATH = '/api';
   const offlineSmoke = env.AUTOFIX_OFFLINE_SMOKE === '1' && env.WORKERS_CI !== '1';
   const devServer = command === 'serve' && !isPreview;
+  // 클라이언트와 SSR의 쿠키 이름은 API 프록시 경로가 아닌 배포 환경으로 결정한다.
+  env.NEXT_PUBLIC_KOIN_ENVIRONMENT = !offlineSmoke && (devServer || branch === previewBranch) ? 'preview' : 'main';
   env.NEXT_PUBLIC_SENTRY_ENVIRONMENT = branch === productionBranch ? 'production' : 'preview';
   env.NEXT_PUBLIC_SENTRY_RELEASE ||= env.WORKERS_CI_COMMIT_SHA;
 

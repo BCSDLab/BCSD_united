@@ -21,11 +21,6 @@ const useCheckPassword = () => {
 
           return;
         }
-        if (err.status === 403) {
-          setErrorMessage('비밀번호를 입력해주세요.');
-
-          return;
-        }
         const message = err.message || '에러가 발생했습니다.';
         setErrorMessage(message);
         captureError(err);
