@@ -35,7 +35,7 @@ interface LostItemDetailPageProps {
   articleId: number;
 }
 
-export default function LostItemDetailPage({ articleId }: LostItemDetailPageProps) {
+function LostItemDetailPage({ articleId }: LostItemDetailPageProps) {
   useScrollToTop();
   const router = useRouter();
   const routeNavigate = useNavigate();

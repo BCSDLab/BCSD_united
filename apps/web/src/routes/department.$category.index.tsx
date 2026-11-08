@@ -25,8 +25,6 @@ function DepartmentCategoryRoutePage() {
   return <CategoryDetailPage category={category} />;
 }
 
-export default DepartmentCategoryRoutePage;
-
 // 경로 카테고리는 서버에서 허용 목록으로 검증하므로 잘못된 주소도 HTTP 404로 응답한다.
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)

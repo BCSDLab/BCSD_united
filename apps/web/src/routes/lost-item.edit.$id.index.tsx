@@ -3,7 +3,7 @@ import { createFileRoute, useSearch, useParams } from '@tanstack/react-router';
 import LostItemEditPage from 'components/Articles/LostItemEditPage';
 import Layout from 'components/layout';
 
-export default function LostItemEdit() {
+function LostItemEdit() {
   const routeQuery: Record<string, string | string[] | undefined> = {
     ...useSearch({ strict: false }),
     ...useParams({ strict: false }),

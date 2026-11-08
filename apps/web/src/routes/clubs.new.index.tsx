@@ -40,8 +40,6 @@ function NewClubPage() {
   );
 }
 
-export default NewClubPage;
-
 export const Route = createFileRoute('/clubs/new/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   component: RouteComponent,

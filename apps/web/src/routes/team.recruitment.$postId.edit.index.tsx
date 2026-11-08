@@ -4,7 +4,7 @@ import Layout from 'components/layout';
 import Seo from 'components/seo/Seo';
 import EditTeamRecruitment from 'components/Team/EditTeamRecruitment';
 
-export default function TeamRecruitmentEditPage() {
+function TeamRecruitmentEditPage() {
   return (
     <>
       <Seo title="모집글 수정 | KOIN" description="작성한 팀원 모집글을 수정할 수 있습니다." />

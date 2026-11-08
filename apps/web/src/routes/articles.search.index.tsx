@@ -6,7 +6,7 @@ import ROUTES from 'static/routes';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useMount from 'utils/hooks/state/useMount';
 
-export default function ArticlesSearchRoutePage() {
+function ArticlesSearchRoutePage() {
   const routeNavigate = useNavigate();
 
   const isMobile = useMediaQuery();

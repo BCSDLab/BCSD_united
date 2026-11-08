@@ -29,8 +29,6 @@ function OrderCancelRoute({ isDesktop, paymentId }: Props) {
   );
 }
 
-export default OrderCancelRoute;
-
 // 주문 취소는 사용자별 화면이라 공개 캐시를 켜지 않는다. order는 이 화면에서 조회 요청을 보내지 않는다
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)

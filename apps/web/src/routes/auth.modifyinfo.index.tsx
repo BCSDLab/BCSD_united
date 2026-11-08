@@ -1446,8 +1446,6 @@ function ModifyInfoPage() {
   );
 }
 
-export default ModifyInfoPage;
-
 export const Route = createFileRoute('/auth/modifyinfo/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   staticData: { requireAuth: true },

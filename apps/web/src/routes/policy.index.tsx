@@ -74,8 +74,6 @@ function PolicyPage() {
   );
 }
 
-export default PolicyPage;
-
 export const Route = createFileRoute('/policy/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   component: RouteComponent,

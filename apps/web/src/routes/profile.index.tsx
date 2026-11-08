@@ -230,8 +230,6 @@ function ProfilePage({ serverSemester, hasSemesterCookie }: Awaited<ReturnType<t
   );
 }
 
-export default ProfilePage;
-
 // 프로필은 로그인 여부·사용자 정보·시간표가 화면의 전부다. 서버가 모르면 클라이언트가
 // 비로그인 화면 → 로그인 화면 → 시간표 채움 순으로 다시 그리게 되므로 전부 서버에서 확정한다.
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })

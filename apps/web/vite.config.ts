@@ -86,7 +86,10 @@ export default defineConfig(({ command, mode, isPreview }) => {
     ),
     server: { port: 3000 },
     css: { preprocessorOptions: { scss: { loadPaths: [root, fileURLToPath(new URL('./src', import.meta.url))] } } },
-    build: { sourcemap: true },
+    build: {
+      sourcemap: true,
+      assetsInlineLimit: (filePath) => (/\.(woff2?|ttf|otf)$/i.test(filePath) ? false : undefined),
+    },
     plugins: [
       cloudflare({
         viteEnvironment: { name: 'ssr' },

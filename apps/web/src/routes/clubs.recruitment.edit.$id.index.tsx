@@ -237,7 +237,7 @@ function ClubRecruitmentEditPage({ id }: { id: string }) {
   );
 }
 
-export default function ClubRecruitmentEditPageWrapper() {
+function ClubRecruitmentEditPageWrapper() {
   const routeQuery: Record<string, string | string[] | undefined> = {
     ...useSearch({ strict: false }),
     ...useParams({ strict: false }),

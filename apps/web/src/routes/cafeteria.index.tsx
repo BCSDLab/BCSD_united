@@ -167,7 +167,7 @@ interface CafeteriaPageProps {
   serverNowISO: string;
 }
 
-export default function CafeteriaPage({ dehydratedState, serverNowISO }: CafeteriaPageProps) {
+function CafeteriaPage({ dehydratedState, serverNowISO }: CafeteriaPageProps) {
   return (
     <HydrationBoundary state={dehydratedState}>
       <CafeteriaServerProvider value={{ serverNow: new Date(serverNowISO) }}>

@@ -35,8 +35,6 @@ function OrderListRoute({ isDesktop }: Props) {
   );
 }
 
-export default OrderListRoute;
-
 // 주문 내역은 사용자별 화면이라 공개 캐시를 켜지 않는다
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)

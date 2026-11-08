@@ -123,7 +123,7 @@ function ApplicationsListSection({ requestParams, onFilterOpen, onChatClick }: A
   );
 }
 
-export default function MyApplicationsPage() {
+function MyApplicationsPage() {
   const logger = useLogger();
 
   const routeNavigate = useNavigate();

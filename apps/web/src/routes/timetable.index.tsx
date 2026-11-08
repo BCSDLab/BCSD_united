@@ -167,8 +167,6 @@ function TimetablePage() {
   );
 }
 
-export default TimetablePage;
-
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
   .handler(({ data }) =>

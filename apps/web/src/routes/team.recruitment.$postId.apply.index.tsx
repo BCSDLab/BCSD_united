@@ -14,8 +14,6 @@ function TeamRecruitmentApplyPage() {
   );
 }
 
-export default TeamRecruitmentApplyPage;
-
 export const Route = createFileRoute('/team/recruitment/$postId/apply/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   staticData: { hasPageSeo: true },

@@ -183,8 +183,6 @@ function ReviewReportRoute({ id, reviewId, isMobile }: Props) {
   return <ReviewReportPage id={id} reviewId={reviewId} />;
 }
 
-export default ReviewReportRoute;
-
 // 로그인 필수 화면이라 공용 캐시를 켜지 않는다(loadPageData 기본값 private)
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)

@@ -13,7 +13,7 @@ interface CallvanReportPageProps {
   userId: number;
 }
 
-export default function CallvanReportPage({ postId, userId }: CallvanReportPageProps) {
+function CallvanReportPage({ postId, userId }: CallvanReportPageProps) {
   const routeNavigate = useNavigate();
 
   const isMobile = useMediaQuery();

@@ -37,7 +37,7 @@ function ReportPage({ id }: { id: string }) {
   );
 }
 
-export default function ReportPageWrapper() {
+function ReportPageWrapper() {
   const routeNavigate = useNavigate();
   const routeQuery: Record<string, string | string[] | undefined> = {
     ...useSearch({ strict: false }),

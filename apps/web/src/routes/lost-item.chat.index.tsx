@@ -277,7 +277,7 @@ function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageP
   );
 }
 
-export default function LostItemChatPageWrapper() {
+function LostItemChatPageWrapper() {
   const isLoggedIn = useIsLoggedIn();
   const routeNavigate = useNavigate();
   const routeQuery: Record<string, string | string[] | undefined> = {

@@ -53,7 +53,7 @@ function useCallvanParams(initialParams: CallvanParams): CallvanParams {
   return parseCallvanQuery(routeQuery, DEFAULT_PARAMS);
 }
 
-export default function CallvanPage({ initialParams }: Awaited<ReturnType<typeof getPageData>>) {
+function CallvanPage({ initialParams }: Awaited<ReturnType<typeof getPageData>>) {
   const routeNavigate = useNavigate();
   const isMobile = useMediaQuery();
   const mounted = useMount();
