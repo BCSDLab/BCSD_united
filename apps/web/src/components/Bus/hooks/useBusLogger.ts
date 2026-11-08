@@ -13,6 +13,11 @@ const CLICK_EVENTS = [
   },
   { key: 'departure_now', label: 'bus__bus_search_result__search__departure_time_now__click', value: '지금 출발' },
   {
+    key: 'departure_time_confirm',
+    label: 'bus__bus_search_result__search__departure_time_confirm__click',
+    value: '', // 시간 변경, 시간 유지
+  },
+  {
     key: 'departure_location_confirm',
     label: 'bus__bus_search__search__departure_confirm__select',
     value: '', // 코리아텍, 천안역, 천안터미널
@@ -65,6 +70,8 @@ export const useBusLogger = () => {
   const logSearchBusClick = () => logEvent('search_bus');
   const logSearchResultDepartureTimeClick = () => logEvent('search_result_departure_time');
   const logDepartureNowClick = () => logEvent('departure_now');
+  const logDepartureTimeConfirm = (isTimeChanged: boolean) =>
+    logEvent('departure_time_confirm', isTimeChanged ? '시간 변경' : '시간 유지');
   const logDepartureLocationConfirm = (location: LoggingLocation) => logEvent('departure_location_confirm', location);
   const logArrivalLocationConfirm = (location: LoggingLocation) => logEvent('arrival_location_confirm', location);
   const logSearchResultBusType = (busType: LoggingBusType) => logEvent('search_result_bus_type', busType);
@@ -76,6 +83,7 @@ export const useBusLogger = () => {
     logSearchBusClick,
     logSearchResultDepartureTimeClick,
     logDepartureNowClick,
+    logDepartureTimeConfirm,
     logDepartureLocationConfirm,
     logArrivalLocationConfirm,
     logSearchResultBusType,
