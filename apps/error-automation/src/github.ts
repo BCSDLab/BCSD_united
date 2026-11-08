@@ -61,7 +61,7 @@ export async function installationToken(env: Env, role: Permission): Promise<str
   const jwt = `${message}.${base64url(new Uint8Array(await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, encoder.encode(message))))}`;
   const permissions =
     role === 'read'
-      ? { contents: 'read', issues: 'read', pull_requests: 'read' }
+      ? { contents: 'read', issues: 'read', pull_requests: 'read', checks: 'read', statuses: 'read' }
       : { contents: 'write', issues: 'write', pull_requests: 'write' };
   const response = await fetch(
     `https://api.github.com/app/installations/${env.GITHUB_DISPATCH_INSTALLATION_ID}/access_tokens`,
@@ -242,7 +242,8 @@ interface Pull {
 export async function baseRepository(
   env: Env,
   token: string,
-): Promise<{ baseBranch: string; baseSha: string; baseTree: string }> {
+  baseBranch: PreparedJob['baseBranch'],
+): Promise<{ baseBranch: PreparedJob['baseBranch']; baseSha: string; baseTree: string }> {
   const repo = await github<Repository>(env, token, '');
   if (
     !BRANCH_NAME.test(repo.default_branch) ||
@@ -250,9 +251,9 @@ export async function baseRepository(
     repo.owner.login.toLowerCase() !== env.GITHUB_OWNER.toLowerCase()
   )
     throw new Error('Repository identity changed');
-  const commit = await github<Commit>(env, token, `/commits/${encodeURIComponent(repo.default_branch)}`);
+  const commit = await github<Commit>(env, token, `/commits/${baseBranch}`);
   if (!HEX.test(commit.sha) || !HEX.test(commit.commit.tree.sha)) throw new Error('Invalid base commit');
-  return { baseBranch: repo.default_branch, baseSha: commit.sha, baseTree: commit.commit.tree.sha };
+  return { baseBranch, baseSha: commit.sha, baseTree: commit.commit.tree.sha };
 }
 export async function existingPull(env: Env, token: string, job: Pick<PreparedJob, 'branch'>): Promise<Pull | null> {
   const pulls = await github<Pull[]>(
@@ -265,9 +266,9 @@ export async function existingPull(env: Env, token: string, job: Pick<PreparedJo
 
 export async function publish(env: Env, job: PreparedJob, verification: Verification): Promise<string> {
   const token = await installationToken(env, 'publish');
-  const base = await baseRepository(env, token);
-  if (base.baseBranch !== job.baseBranch || base.baseSha !== job.baseSha)
-    throw new Error('Default branch advanced since independent verification');
+  const base = await baseRepository(env, token, job.baseBranch);
+  if (base.baseSha !== job.baseSha) throw new Error('Source branch advanced since independent verification');
+  if (job.targetBranch !== 'develop') throw new Error('Invalid pull request target branch');
   if (job.branch !== (await branch(job.identity))) throw new Error('Prepared branch identity mismatch');
   const existing = await existingPull(env, token, job);
   if (existing)
@@ -321,14 +322,14 @@ export async function publish(env: Env, job: PreparedJob, verification: Verifica
     job.identity.source === 'sentry'
       ? `[Sentry issue](https://${job.identity.scope.organization}.sentry.io/issues/${job.identity.sourceId}/)`
       : `[Cloudflare account dashboard](https://dash.cloudflare.com/${job.identity.scope.accountId}/) (Issue ID: \`${job.identity.sourceId}\`, policy: \`${job.identity.scope.policyId}\`)`;
-  const body = `${marker(job.identity)}\n\n## What is this PR?\n\n- Source: ${source}\n- Project: \`${job.identity.project}\`\n- App: \`apps/${job.context.app}\`\n- Verified request: \`${job.context.requestMethod} ${job.context.route}\`\n- Verified base: \`${job.baseBranch}\` at \`${job.baseSha}\`\n\n## Changes\n\n${verification.verifiedManifest.files.map((file) => `- \`${file.path}\``).join('\n')}\n\n## Independent checks\n\n${verification.passedChecks.map((check) => `- [x] ${check}`).join('\n')}\n\n## Precaution\n\n- Cloudflare Workflow에서 독립 생성/검증; 자동 merge/배포는 하지 않습니다. 실제 사용자 데이터와 인증된 화면은 검증하지 않았습니다.\n- 오류 문자열과 생성 코드는 신뢰할 수 없는 입력입니다. 원인 및 테스트 타당성을 리뷰해 주세요.\n`;
+  const body = `${marker(job.identity)}\n\n## What is this PR?\n\n- Source: ${source}\n- Project: \`${job.identity.project}\`\n- App: \`apps/${job.context.app}\`\n- Verified request: \`${job.context.requestMethod} ${job.context.route}\`\n- Verified source branch: \`${job.baseBranch}\` at \`${job.baseSha}\`\n- PR target branch: \`${job.targetBranch}\`\n\n## Changes\n\n${verification.verifiedManifest.files.map((file) => `- \`${file.path}\``).join('\n')}\n\n## Independent checks\n\n${verification.passedChecks.map((check) => `- [x] ${check}`).join('\n')}\n\n## Precaution\n\n- Rocky 실행기에서 독립 생성/검증; 자동 merge/배포는 하지 않습니다. 실제 사용자 데이터와 인증된 화면은 검증하지 않았습니다.\n- 오류 문자열과 생성 코드는 신뢰할 수 없는 입력입니다. 원인 및 테스트 타당성을 리뷰해 주세요.\n`;
   let pr: Pull;
   try {
     pr = await github<Pull>(env, token, '/pulls', 'POST', {
       title: `[${job.domain}] ${job.identity.source} ${job.identity.sourceId} 오류 수정`,
       body,
       head: job.branch,
-      base: job.baseBranch,
+      base: job.targetBranch,
       draft: false,
     });
   } catch (error) {

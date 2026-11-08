@@ -4,14 +4,12 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve, sep } from 'node:path';
 import { jsonFile } from './common.mjs';
 import { delay, migrateWebApi, readJsonResponse, startProcess, stopProcess } from './local-api.mjs';
-import { applicationGraph, matchesRoute, sourceFiles } from './source-graph.mjs';
+import { applicationGraph, matchesRoute, sourceFiles, webSmokeRoute } from './source-graph.mjs';
 
 const graph = applicationGraph('web');
 const context = await jsonFile('/input/context.json');
 const manifest = await jsonFile('/patch/patch.json');
-const route = context.route;
-if (context.app !== 'web' || typeof route !== 'string' || !/^\/[A-Za-z0-9_/-]*$/.test(route) || route.startsWith('//'))
-  throw new Error('Unsafe smoke path');
+const route = webSmokeRoute(context, process.env.AUTOFIX_OFFLINE_STANDALONE === '1');
 const roots = [];
 let matched = false;
 for (const file of await sourceFiles(`${graph.root}/src/routes`)) {
@@ -36,6 +34,8 @@ if (
 // accepted production target; offline verification still requires the local
 // koin-api auxiliary Worker to be bound in place of it.
 const PRODUCTION_API_ORIGINS = ['https://koin-api.bcsdlab.workers.dev', 'https://api.koreatech.in'];
+const MOBILE_USER_AGENT =
+  'Mozilla/5.0 (Linux; Android 14; Pixel 7a) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36';
 const deployPath = resolve('apps/web/.wrangler/deploy/config.json');
 const deployment = await jsonFile(deployPath);
 const configPath = resolve(dirname(deployPath), deployment.configPath);
@@ -135,6 +135,15 @@ try {
     }
     throw new Error(`Local preview/browser did not become ready: ${url}`);
   }
+  async function waitUntil(predicate, description, attempts = 60) {
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      server.assertRunning();
+      browser.assertRunning();
+      if (predicate()) return;
+      await delay(250);
+    }
+    throw new Error(`${description} timed out`);
+  }
   await ready('http://127.0.0.1:4173/api/health');
   const categories = await readJsonResponse('http://127.0.0.1:4173/api/shops/categories');
   if (!Array.isArray(categories.shop_categories) || categories.count !== categories.shop_categories.length)
@@ -149,9 +158,7 @@ try {
   const html = await document.text();
   if (!document.ok || !document.headers.get('content-type')?.includes('text/html') || !html.trim())
     throw new Error('Event route SSR did not return a successful HTML document');
-  for (let attempt = 0; attempt < 20 && requestCount(server.log) === beforeSsr; attempt += 1) await delay(100);
-  if (requestCount(server.log) === beforeSsr)
-    throw new Error('Event route did not exercise the real local API during SSR; manual reproduction required');
+  if (route === '/') await waitUntil(() => requestCount(server.log) > beforeSsr, 'Homepage SSR local API');
   assertApiHealthy(server.log);
   const tabs = await (await ready('http://127.0.0.1:9222/json/list')).json();
   const tab = tabs.find((entry) => entry.type === 'page');
@@ -209,8 +216,17 @@ try {
       inFlightRequests.delete(message.params.requestId);
     if (message.method === 'Page.loadEventFired') loaded = true;
     if (message.method === 'Runtime.exceptionThrown') failures.push('Unhandled browser exception');
-    if (message.method === 'Runtime.consoleAPICalled' && message.params.type === 'error')
-      failures.push('Browser console.error');
+    if (message.method === 'Runtime.consoleAPICalled') {
+      const text = message.params.args?.map((arg) => arg.value ?? arg.description ?? '').join(' ') ?? '';
+      if (message.params.type === 'error') failures.push('Browser console.error');
+      if (
+        ['warning', 'error'].includes(message.params.type) &&
+        /hydration failed|didn.t match|text content does not match|error while hydrating|Minified React error #4(?:1[89]|2[1-5])/i.test(
+          text,
+        )
+      )
+        failures.push('React hydration mismatch');
+    }
     if (message.method === 'Network.requestWillBeSent' && ['Document', 'Fetch', 'XHR'].includes(message.params.type)) {
       const url = new URL(message.params.request.url);
       if (url.origin !== 'http://127.0.0.1:4173' && !(navigatingBlank && url.href === 'about:blank'))
@@ -258,9 +274,7 @@ try {
   await send('Runtime.enable');
   await send('Network.enable');
   await send('Page.navigate', { url: `http://127.0.0.1:4173${route}` });
-  for (let attempt = 0; attempt < 60 && !loaded; attempt += 1) await delay(250);
-  if (!loaded) throw new Error('Route did not finish loading');
-  await delay(3000);
+  await waitUntil(() => loaded, 'Desktop route load');
   const gateway = await send('Runtime.evaluate', {
     expression:
       'fetch("/api/shops/categories", {redirect:"error"}).then(async response => ({status:response.status, type:response.headers.get("content-type"), body:await response.json()}))',
@@ -275,8 +289,7 @@ try {
     !isDeepStrictEqual(gatewayValue.body, categories)
   )
     failures.push('Browser gateway did not return the real local D1 categories response');
-  for (let attempt = 0; attempt < 60 && inFlightRequests.size; attempt += 1) await delay(250);
-  if (inFlightRequests.size) failures.push('Browser route still has unfinished application requests');
+  await waitUntil(() => inFlightRequests.size === 0, 'Desktop route requests');
   const dom = await send('Runtime.evaluate', {
     expression:
       '({ path: location.pathname, text: document.body.innerText, elements: document.body.querySelectorAll("*").length })',
@@ -304,8 +317,7 @@ try {
   navigatingBlank = true;
   loaded = false;
   await send('Page.navigate', { url: 'about:blank' });
-  for (let attempt = 0; attempt < 60 && !loaded; attempt += 1) await delay(250);
-  if (!loaded || inFlightRequests.size) throw new Error('Desktop browser did not settle before mobile navigation');
+  await waitUntil(() => loaded && inFlightRequests.size === 0, 'Desktop document cleanup');
   navigatingBlank = false;
   const beforeMobile = requestCount(server.log);
   mobilePhase = true;
@@ -317,20 +329,22 @@ try {
   });
   await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
   await send('Emulation.setUserAgentOverride', {
-    userAgent:
-      'Mozilla/5.0 (Linux; Android 14; Pixel 7a) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36',
+    userAgent: MOBILE_USER_AGENT,
     platform: 'Android',
   });
+  const mobileDocument = await fetch(`http://127.0.0.1:4173${route}`, {
+    headers: { 'user-agent': MOBILE_USER_AGENT },
+    signal: AbortSignal.timeout(30000),
+    redirect: 'error',
+  });
+  const mobileHtml = await mobileDocument.text();
+  if (!mobileDocument.ok || !mobileDocument.headers.get('content-type')?.includes('text/html') || !mobileHtml.trim())
+    throw new Error('Mobile event route SSR did not return a successful HTML document');
+  if (route === '/') await waitUntil(() => requestCount(server.log) > beforeMobile, 'Mobile homepage SSR local API');
   loaded = false;
   await send('Page.navigate', { url: `http://127.0.0.1:4173${route}` });
-  for (let attempt = 0; attempt < 60 && !loaded; attempt += 1) await delay(250);
-  if (!loaded) failures.push('Mobile route did not finish loading');
-  await delay(3000);
-  for (let attempt = 0; attempt < 60 && inFlightRequests.size; attempt += 1) await delay(250);
-  if (inFlightRequests.size) failures.push('Mobile route still has unfinished application requests');
-  for (let attempt = 0; attempt < 40 && requestCount(server.log) === beforeMobile; attempt += 1) await delay(250);
-  if (requestCount(server.log) === beforeMobile) failures.push('Mobile route did not exercise the real local API');
-
+  await waitUntil(() => loaded, 'Mobile route load');
+  await waitUntil(() => inFlightRequests.size === 0, 'Mobile route requests');
   let mobile;
   for (let attempt = 0; attempt < 40; attempt += 1) {
     const dom = await send('Runtime.evaluate', {

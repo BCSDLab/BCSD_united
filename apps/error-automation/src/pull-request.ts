@@ -45,6 +45,7 @@ export class PullRequestRejected extends Error {
 export interface PullRequestPolicy {
   enabled: boolean;
   allowed: Set<number>;
+  auto?: boolean;
 }
 
 /** Default closed: review runs only for the literal 'true' flag and an explicit PR allowlist. */
@@ -56,7 +57,7 @@ export function pullRequestPolicy(env: Env): PullRequestPolicy {
     if (!/^[1-9][0-9]{0,8}$/.test(trimmed)) throw new PullRequestRejected(503, 'Invalid PR_REVIEW_ALLOWED_PRS.');
     allowed.add(Number(trimmed));
   }
-  return { enabled: env.PR_REVIEW_ENABLED === 'true', allowed };
+  return { enabled: env.PR_REVIEW_ENABLED === 'true', allowed, auto: env.PR_REVIEW_AUTO === 'true' };
 }
 
 export function pullRequestKey(identity: PullRequestIdentity): string {
@@ -90,6 +91,12 @@ interface Pull {
   html_url: string;
   head: { sha: string; ref: string; repo: { full_name: string; fork?: boolean } | null };
   base: { ref: string; repo: { full_name: string } };
+  user?: { login?: unknown; type?: unknown };
+  mergeable?: boolean | null;
+  labels?: { name?: unknown }[];
+  changed_files?: number;
+  additions?: number;
+  deletions?: number;
   title?: unknown;
   body?: unknown;
 }
@@ -103,6 +110,14 @@ export interface CanonicalPullRequest {
   baseSha: string;
   htmlUrl: string;
   /** Sanitized, bounded canonical title/body: untrusted data. */
+  author: string;
+  authorBot: boolean;
+  mergeable: boolean | null;
+  labels: string[] | null;
+  changedFilesCount: number;
+  additions: number;
+  mergeTitle: string | null;
+  deletions: number;
   title: string;
   body: string;
 }
@@ -119,7 +134,8 @@ export async function inspectPullRequest(
   policy: PullRequestPolicy,
 ): Promise<CanonicalPullRequest> {
   if (!policy.enabled) throw new PullRequestRejected(503, 'Pull request review is not enabled.');
-  if (!policy.allowed.has(pullNumber)) throw new PullRequestRejected(403, 'Pull request is not allowlisted.');
+  if (!policy.auto && !policy.allowed.has(pullNumber))
+    throw new PullRequestRejected(403, 'Pull request is not allowlisted.');
   const repository = `${env.GITHUB_OWNER}/${env.GITHUB_REPOSITORY}`.toLowerCase();
   if (repository !== 'bcsdlab/bcsd_united') throw new PullRequestRejected(503, 'Unexpected repository.');
   let pull: Pull;
@@ -162,6 +178,24 @@ export async function inspectPullRequest(
     htmlUrl: pull.html_url,
     title: contextText(pull.title, MAX_CONTEXT_TITLE),
     body: contextText(pull.body, MAX_CONTEXT_BODY),
+    author: typeof pull.user?.login === 'string' ? pull.user.login : '',
+    authorBot:
+      pull.user?.type !== 'User' || (typeof pull.user?.login === 'string' && /\[bot\]$/i.test(pull.user.login)),
+    mergeable: pull.mergeable === true ? true : pull.mergeable === false ? false : null,
+    labels:
+      Array.isArray(pull.labels) && pull.labels.every((label) => typeof label.name === 'string')
+        ? pull.labels.map((label) => label.name as string)
+        : null,
+    changedFilesCount: pull.changed_files ?? -1,
+    additions: pull.additions ?? -1,
+    deletions: pull.deletions ?? -1,
+    mergeTitle:
+      typeof pull.title === 'string' &&
+      pull.title.length <= 300 &&
+      pull.title.trim().length > 0 &&
+      !/[\p{Cc}\u2028\u2029]/u.test(pull.title)
+        ? pull.title
+        : null,
   };
 }
 
@@ -505,7 +539,7 @@ export function reviewComment(
         )
         .join('\n')
     : '- 없음 (리뷰 head 유지)';
-  return `${reviewMarker(job, proof)}\n\n## 자동 리뷰 결과 (${MODEL_BY_MODE['pull-request']}, 독립 검증)\n\n- 리뷰 head: \`${job.headSha}\`\n- 발행 head: \`${publishedHeadSha}\`\n- base(develop): \`${job.baseSha}\`\n- manifest sha256: \`${proof.manifestSha256}\`\n- 판정: **${review.decision}** (${severityLabel(review)})\n\n### 발견 사항\n\n${findings}\n\n### 적용된 수정\n\n${corrections}\n\n### 독립 검증 통과 항목\n\n${proof.passedChecks.map((check) => `- [x] ${check}`).join('\n')}\n\n### 주의\n\n- 이 댓글은 자동 리뷰 증거이며 승인·merge·배포가 아닙니다. PR 제목/본문/diff와 모델 출력은 신뢰할 수 없는 입력으로 취급했습니다.\n- 수정 커밋은 리뷰 head를 부모로 하는 fast-forward만 적용했으며 사람의 변경을 덮어쓰지 않습니다.\n`;
+  return `${reviewMarker(job, proof)}\n\n## 자동 리뷰 결과 (${MODEL_BY_MODE['pull-request']}, 독립 검증)\n\n- 리뷰 head: \`${job.headSha}\`\n- 발행 head: \`${publishedHeadSha}\`\n- base(develop): \`${job.baseSha}\`\n- manifest sha256: \`${proof.manifestSha256}\`\n- 판정: **${review.decision}** (${severityLabel(review)})\n\n### 발견 사항\n\n${findings}\n\n### 적용된 수정\n\n${corrections}\n\n### 독립 검증 통과 항목\n\n${proof.passedChecks.map((check) => `- [x] ${check}`).join('\n')}\n\n### 주의\n\n- 리뷰 판정은 GitHub approval이 아닙니다. merge 여부는 아래 자동 merge 정책으로 별도 결정하며 main 승격과 배포는 수동입니다. PR 제목/본문/diff와 모델 출력은 신뢰할 수 없는 입력으로 취급했습니다.\n- 수정 커밋은 리뷰 head를 부모로 하는 fast-forward만 적용했으며 사람의 변경을 덮어쓰지 않습니다.\n`;
 }
 
 /** The fixed App installation's bot; a human or another app can never satisfy this. */
@@ -521,11 +555,7 @@ interface IssueComment {
 
 export function isPublisherComment(comment: IssueComment): boolean {
   const app = comment.performed_via_github_app;
-  return (
-    comment.user?.login === PUBLISHER_LOGIN &&
-    comment.user.type === 'Bot' &&
-    (app === undefined || app === null || app.id === PUBLISHER_APP_ID)
-  );
+  return comment.user?.login === PUBLISHER_LOGIN && comment.user.type === 'Bot' && app?.id === PUBLISHER_APP_ID;
 }
 
 /** Only our own bot comment carrying the exact proof-bound marker counts as a prior publication. */

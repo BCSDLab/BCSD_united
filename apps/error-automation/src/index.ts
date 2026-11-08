@@ -7,13 +7,14 @@ import type { App, Diagnostic, Env, Identity, PatchManifest } from './types';
 export type { Env } from './types';
 export { AutofixQueue } from './queue';
 import { isPolicyRejection, type AutofixQueue, type ExecutorResult } from './queue';
-import { GitHubError, installationToken } from './github';
+import { GitHubError, github, installationToken } from './github';
 import {
   PullRequestRejected,
   assertPinned,
   inspectPullRequest,
   parsePullRequestIdentity,
   pullRequestPolicy,
+  PUBLISHER_LOGIN,
 } from './pull-request';
 
 interface CloudflareSource {
@@ -27,6 +28,7 @@ export interface Configuration {
   organization: string;
   projects: Set<string>;
   cloudflare: CloudflareSource[];
+  sourceBranches: Record<string, 'main' | 'develop'>;
   owner: string;
   repository: string;
 }
@@ -93,6 +95,7 @@ export function configuration(env: Env): Configuration {
     };
     const projects = record(JSON.parse(env.SENTRY_PROJECT_APPS));
     const sources: unknown = JSON.parse(env.CLOUDFLARE_SOURCES);
+    const sourceBranches = record(JSON.parse(env.ERROR_SOURCE_BRANCHES));
     if (
       !Array.isArray(sources) ||
       sources.length > 100 ||
@@ -137,11 +140,21 @@ export function configuration(env: Env): Configuration {
       throw new Error('Ambiguous Cloudflare policy and Worker');
     }
     // A half-configured or malformed omp gateway is a deployment defect; missing both only disables inference.
+    const configuredProjects = [
+      ...Object.keys(projects).map((project) => `sentry:${project}`),
+      ...cloudflare.map((source) => `cloudflare:${source.workerName}`),
+    ];
+    if (
+      Object.keys(sourceBranches).sort().join(',') !== configuredProjects.sort().join(',') ||
+      Object.values(sourceBranches).some((value) => value !== 'main' && value !== 'develop')
+    )
+      throw new Error('Invalid error source branches');
     gatewayTransport(env);
     return {
       organization: env.SENTRY_ORGANIZATION,
       projects: new Set(Object.keys(projects)),
       cloudflare,
+      sourceBranches: sourceBranches as Record<string, 'main' | 'develop'>,
       owner,
       repository,
     };
@@ -211,6 +224,107 @@ async function verifySignature(request: Request, body: Uint8Array<ArrayBuffer>, 
   if (!(await crypto.subtle.verify('HMAC', key, bytes, body))) {
     throw new RequestError(401, 'Invalid Sentry webhook signature.');
   }
+}
+
+async function verifyGitHubSignature(request: Request, body: Uint8Array<ArrayBuffer>, secret: string): Promise<void> {
+  if (secret.length < 32) throw new RequestError(503, 'GitHub webhook secret is not configured.');
+  const signature = request.headers.get('X-Hub-Signature-256');
+  if (!signature || !/^sha256=[a-fA-F0-9]{64}$/.test(signature))
+    throw new RequestError(401, 'Missing or malformed GitHub webhook signature.');
+  const bytes = new Uint8Array(32);
+  for (let i = 0; i < bytes.length; i++) bytes[i] = Number.parseInt(signature.slice(7 + i * 2, 9 + i * 2), 16);
+  const key = await crypto.subtle.importKey('raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, [
+    'verify',
+  ]);
+  if (!(await crypto.subtle.verify('HMAC', key, bytes, body)))
+    throw new RequestError(401, 'Invalid GitHub webhook signature.');
+}
+
+async function githubWebhook(request: Request, env: Env, json: unknown): Promise<Response> {
+  if (
+    request.headers.get('X-GitHub-Event') !== 'pull_request' ||
+    !json ||
+    typeof json !== 'object' ||
+    Array.isArray(json)
+  )
+    return reply(200, { status: 'ignored' });
+  const event = json as Record<string, unknown>;
+  if (!['opened', 'reopened', 'synchronize', 'ready_for_review'].includes(String(event.action)))
+    return reply(200, { status: 'ignored' });
+  const installation = event.installation as { id?: unknown } | undefined;
+  const repository = event.repository as { full_name?: unknown } | undefined;
+  const pull = event.pull_request as { number?: unknown } | undefined;
+  if (
+    installation?.id !== 176455083 ||
+    repository?.full_name !== 'BCSDLab/BCSD_united' ||
+    !Number.isSafeInteger(pull?.number) ||
+    (pull!.number as number) < 1 ||
+    (pull!.number as number) > 999_999_999 ||
+    event.number !== pull!.number
+  )
+    return reply(200, { status: 'ignored' });
+  if (env.PR_REVIEW_ENABLED !== 'true' || env.PR_REVIEW_AUTO !== 'true') return reply(200, { status: 'ignored' });
+  if (
+    env.GITHUB_DISPATCH_APP_ID !== '5522353' ||
+    env.GITHUB_DISPATCH_INSTALLATION_ID !== '176455083' ||
+    `${env.GITHUB_OWNER}/${env.GITHUB_REPOSITORY}` !== 'BCSDLab/BCSD_united'
+  )
+    throw new RequestError(503, 'Unexpected GitHub App configuration.');
+  const token = await installationToken(env, 'read');
+  let current;
+  try {
+    current = await inspectPullRequest(env, token, pull!.number as number, { ...pullRequestPolicy(env), auto: true });
+  } catch (error) {
+    if (error instanceof PullRequestRejected && error.status === 403) return reply(200, { status: 'ignored' });
+    throw error;
+  }
+  if (!current.author || current.authorBot || current.author === PUBLISHER_LOGIN)
+    return reply(200, { status: 'ignored' });
+  const comparison = await github<{ behind_by: number }>(
+    env,
+    token,
+    `/compare/${current.baseSha}...${current.headSha}`,
+  );
+  if (!Number.isSafeInteger(comparison.behind_by) || comparison.behind_by < 0)
+    throw new RequestError(503, 'Invalid GitHub comparison.');
+  const stub = env.AUTOFIX_QUEUE.getByName('bcsdlab/bcsd_united');
+  if (comparison.behind_by > 0) {
+    if (!(await stub.reserveBranchUpdate(current.pullNumber, current.headSha)))
+      return reply(200, { status: 'ignored' });
+    const write = await installationToken(env, 'publish');
+    try {
+      await github(env, write, `/pulls/${current.pullNumber}/update-branch`, 'PUT', {
+        expected_head_sha: current.headSha,
+      });
+    } catch {
+      // A conflict is terminal for this head; never re-attempt it on duplicate deliveries.
+      const marker = `<!-- pr-update-conflict:${current.pullNumber}:${current.headSha} -->`;
+      const comments = await github<
+        { body?: string; user?: { login?: string; type?: string }; performed_via_github_app?: { id?: number } }[]
+      >(env, write, `/issues/${current.pullNumber}/comments?per_page=100`);
+      if (
+        !comments.some(
+          (comment) =>
+            comment.body?.includes(marker) &&
+            comment.user?.login === PUBLISHER_LOGIN &&
+            comment.user.type === 'Bot' &&
+            comment.performed_via_github_app?.id === 5522353,
+        )
+      )
+        await github(env, write, `/issues/${current.pullNumber}/comments`, 'POST', {
+          body: `${marker}\n\n자동 리뷰를 위해 develop을 반영하려 했으나 충돌로 실패했습니다. 수동으로 브랜치를 갱신해 주세요.`,
+        });
+      return reply(200, { status: 'ignored' });
+    }
+    return reply(200, { status: 'branch-update-requested' });
+  }
+  const admitted = await stub.enqueuePullRequest({
+    source: 'github-pr',
+    pullNumber: current.pullNumber,
+    headSha: current.headSha,
+    baseSha: current.baseSha,
+  });
+  return reply(200, { status: admitted.status, runId: admitted.runId });
 }
 
 function sentryUrl(value: unknown, field: string): URL {
@@ -316,6 +430,7 @@ export function redact(value: unknown, env: Env): string {
     env.SENTRY_CLIENT_SECRET,
     env.CLOUDFLARE_WEBHOOK_SECRET,
     env.GITHUB_DISPATCH_APP_PRIVATE_KEY,
+    env.GITHUB_WEBHOOK_SECRET,
     env.OMP_GATEWAY_TOKEN,
     env.SENTRY_READ_TOKEN,
     env.DIAGNOSTICS_READ_TOKEN,
@@ -810,7 +925,7 @@ export default {
         throw new RequestError(503, 'Only the fixed production installation is enabled.');
       if (url.pathname.startsWith('/executor/')) return await executorRequest(request, env, url);
       const retrieval = url.pathname.startsWith('/diagnostics/');
-      if (!retrieval && !['/webhooks/sentry', '/webhooks/cloudflare'].includes(url.pathname))
+      if (!retrieval && !['/webhooks/sentry', '/webhooks/cloudflare', '/webhooks/github'].includes(url.pathname))
         return reply(404, { error: 'Not found.' });
       const method = retrieval ? 'GET' : 'POST';
       if (request.method !== method) return new Response(`Use ${method}.`, { status: 405, headers: { Allow: method } });
@@ -839,6 +954,8 @@ export default {
       }
       const body = await boundedBody(request);
       if (url.pathname === '/webhooks/sentry') await verifySignature(request, body, env.SENTRY_CLIENT_SECRET);
+      else if (url.pathname === '/webhooks/github')
+        await verifyGitHubSignature(request, body, env.GITHUB_WEBHOOK_SECRET ?? '');
       else await verifySecret(request.headers.get('cf-webhook-auth'), env.CLOUDFLARE_WEBHOOK_SECRET);
       let json: unknown;
       try {
@@ -846,6 +963,7 @@ export default {
       } catch {
         throw new RequestError(400, 'Webhook must contain valid UTF-8 JSON.');
       }
+      if (url.pathname === '/webhooks/github') return await githubWebhook(request, env, json);
       if (
         (env.CLOUDFLARE_WEBHOOK_SECRET?.length ?? 0) >= 32 &&
         url.pathname === '/webhooks/cloudflare' &&

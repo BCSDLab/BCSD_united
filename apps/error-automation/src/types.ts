@@ -25,7 +25,8 @@ export interface PreparedJob {
   identity: Identity;
   owner: string;
   repository: string;
-  baseBranch: string;
+  baseBranch: 'main' | 'develop';
+  targetBranch: 'develop';
   baseSha: string;
   branch: string;
   domain: string;
@@ -130,6 +131,7 @@ export interface PullRequestReceipt {
     passedChecks: string[];
     commentUrl: string | null;
   } | null;
+  autoMerge: { status: 'merged' | 'skipped'; reason: string } | null;
 }
 
 export interface Env {
@@ -144,6 +146,7 @@ export interface Env {
   CLOUDFLARE_DIAGNOSTICS_TOKEN?: string;
   DIAGNOSTICS_READ_TOKEN: string;
   ERROR_PROJECT_DOMAINS: string;
+  ERROR_SOURCE_BRANCHES: string;
   /** The only model upstream: bare HTTPS origin of the operator's omp auth-gateway bridge, paired with its bearer. */
   OMP_GATEWAY_ORIGIN?: string;
   OMP_GATEWAY_TOKEN?: string;
@@ -151,9 +154,11 @@ export interface Env {
   GITHUB_REPOSITORY: string;
   GITHUB_DISPATCH_APP_ID: string;
   GITHUB_DISPATCH_APP_PRIVATE_KEY: string;
+  GITHUB_WEBHOOK_SECRET?: string;
   GITHUB_DISPATCH_INSTALLATION_ID: string;
   /** Explicit opt-in; only the literal string 'true' enables PR review intake. */
   PR_REVIEW_ENABLED?: string;
+  PR_REVIEW_AUTO?: string;
   /** Comma-separated explicit PR numbers; empty means no PR is accepted. */
   PR_REVIEW_ALLOWED_PRS?: string;
   ERROR_ISSUES: DurableObjectNamespace;

@@ -44,7 +44,8 @@ const job = {
   identity,
   owner: 'BCSDLab',
   repository: 'BCSD_united',
-  baseBranch: 'develop',
+  baseBranch: 'main',
+  targetBranch: 'develop',
   baseSha: 'a'.repeat(40),
   branch: identityBranch,
   domain: '공통',
@@ -465,7 +466,7 @@ test('App mints exact single-repository role-scoped installation tokens', async 
   assert.equal(await installationToken(env, 'read'), 'scoped-token');
   assert.equal(await installationToken(env, 'publish'), 'scoped-token');
   assert.deepEqual(permissions, [
-    { contents: 'read', issues: 'read', pull_requests: 'read' },
+    { contents: 'read', issues: 'read', pull_requests: 'read', checks: 'read', statuses: 'read' },
     { contents: 'write', issues: 'write', pull_requests: 'write' },
   ]);
 });
@@ -477,13 +478,25 @@ test('prepare verifies provider evidence with a read-only token, then deduplicat
     SENTRY_CLIENT_SECRET: 'webhook-secret',
     SENTRY_READ_TOKEN: 'provider-read-token',
     SENTRY_ORGANIZATION: 'bcsd',
-    SENTRY_PROJECT_APPS: '{"koin-united-prod":"web"}',
-    SENTRY_PROJECT_HOSTS: '{"koin-united-prod":["koreatech.in"]}',
-    CLOUDFLARE_SOURCES: '[]',
+    SENTRY_PROJECT_APPS: '{"koin-united-prod":"web","koin-united-preview":"web"}',
+    SENTRY_PROJECT_HOSTS: '{"koin-united-prod":["koreatech.in"],"koin-united-preview":["stage.koreatech.in"]}',
+    CLOUDFLARE_SOURCES: JSON.stringify([
+      {
+        accountId: 'abe06b869950de952decf9df29c6f1a3',
+        policyId: '3bcbfa2a0c04416ca7e3da038f77ac37',
+        workerName: 'koin-api',
+        app: 'api',
+      },
+    ]),
+    CLOUDFLARE_WEBHOOK_SECRET: 'local-cloudflare-secret-32-characters',
+    CLOUDFLARE_DIAGNOSTICS_TOKEN: 'local-cloudflare-diagnostic-read-secret',
     DIAGNOSTICS_READ_TOKEN: 'd'.repeat(32),
     AUTOFIX_EXECUTOR_TOKEN: 'e'.repeat(32),
     AUTOFIX_EXECUTOR_ID: 'koin-rocky-umpc',
-    ERROR_PROJECT_DOMAINS: '{"sentry:koin-united-prod":"공통"}',
+    ERROR_PROJECT_DOMAINS:
+      '{"sentry:koin-united-prod":"공통","sentry:koin-united-preview":"공통","cloudflare:koin-api":"공통"}',
+    ERROR_SOURCE_BRANCHES:
+      '{"sentry:koin-united-prod":"main","sentry:koin-united-preview":"develop","cloudflare:koin-api":"main"}',
     GITHUB_OWNER: 'BCSDLab',
     GITHUB_REPOSITORY: 'BCSD_united',
     GITHUB_DISPATCH_APP_ID: '5522353',
@@ -491,16 +504,47 @@ test('prepare verifies provider evidence with a read-only token, then deduplicat
     GITHUB_DISPATCH_APP_PRIVATE_KEY: key,
     ERROR_ISSUES: {
       idFromName: (name) => name,
-      get: () => ({
-        fetch: async () =>
-          Response.json({
+      get: (name) => ({
+        fetch: async () => {
+          const current = name === identityKey ? identity : name.startsWith('sentry/') ? preview : cloudflare;
+          return Response.json({
             version: 1,
-            identity,
+            identity: current,
             capturedAt: new Date().toISOString(),
             summary: 'error',
-            details: {},
-          }),
+            details:
+              current.source === 'cloudflare'
+                ? {
+                    alertType: 'issues',
+                    timestamp: Date.now(),
+                    data: {},
+                    verifiedEvidence: {
+                      route: '/shops/categories',
+                      requestMethod: 'GET',
+                      data: {
+                        source: 'cloudflare',
+                        issueId: current.sourceId,
+                        workerName: current.project,
+                        sourceFrames: [{ path: 'apps/api/src/bug.ts', line: 12, column: 1 }],
+                      },
+                    },
+                  }
+                : {},
+          });
+        },
       }),
+    },
+  };
+  const preview = { ...identity, sourceId: '124', project: 'koin-united-preview' };
+  const cloudflare = {
+    source: 'cloudflare',
+    sourceId: 'a'.repeat(32),
+    project: 'koin-api',
+    app: 'api',
+    scope: {
+      accountId: 'abe06b869950de952decf9df29c6f1a3',
+      policyId: '3bcbfa2a0c04416ca7e3da038f77ac37',
+      workerName: 'koin-api',
     },
   };
   const requests = [];
@@ -509,15 +553,27 @@ test('prepare verifies provider evidence with a read-only token, then deduplicat
   t.mock.method(globalThis, 'fetch', async (url, options = {}) => {
     const href = String(url);
     requests.push([href, options.method ?? 'GET']);
-    if (href === 'https://sentry.io/api/0/organizations/bcsd/issues/123/')
-      return Response.json({ id: 123, project: { slug: identity.project }, title: 'error' });
+    if (
+      href === 'https://sentry.io/api/0/organizations/bcsd/issues/123/' ||
+      href === 'https://sentry.io/api/0/organizations/bcsd/issues/124/'
+    ) {
+      const current = href.endsWith('/124/') ? preview : identity;
+      return Response.json({ id: Number(current.sourceId), project: { slug: current.project }, title: 'error' });
+    }
     if (href.endsWith('/events/latest/'))
       return Response.json({
         platform: 'javascript',
         sdk: { name: 'sentry.javascript.react' },
-        groupID: 123,
+        groupID: href.includes('/124/') ? 124 : 123,
         entries: [
-          { type: 'request', data: { url: 'https://koreatech.in/campus?private=1' } },
+          {
+            type: 'request',
+            data: {
+              url: href.includes('/124/')
+                ? 'https://stage.koreatech.in/campus'
+                : 'https://koreatech.in/campus?private=1',
+            },
+          },
           {
             type: 'exception',
             data: {
@@ -530,7 +586,13 @@ test('prepare verifies provider evidence with a read-only token, then deduplicat
       });
     if (href.endsWith('/access_tokens')) {
       const body = JSON.parse(options.body);
-      assert.deepEqual(body.permissions, { contents: 'read', issues: 'read', pull_requests: 'read' });
+      assert.deepEqual(body.permissions, {
+        contents: 'read',
+        issues: 'read',
+        pull_requests: 'read',
+        checks: 'read',
+        statuses: 'read',
+      });
       return Response.json({
         token: 'read-token',
         expires_at: new Date(Date.now() + 3600000).toISOString(),
@@ -540,10 +602,11 @@ test('prepare verifies provider evidence with a read-only token, then deduplicat
     }
     if (href === 'https://api.github.com/repos/BCSDLab/BCSD_united')
       return Response.json({ default_branch: 'develop', owner: { login: 'BCSDLab' } });
-    if (href.endsWith('/commits/develop'))
+    if (href.endsWith('/commits/main'))
       return Response.json({ sha: job.baseSha, commit: { tree: { sha: 'b'.repeat(40) } } });
+    if (href.endsWith('/commits/develop'))
+      return Response.json({ sha: 'd'.repeat(40), commit: { tree: { sha: 'e'.repeat(40) } } });
     if (href.includes('/pulls?')) {
-      assert.ok(href.includes(encodeURIComponent(identityBranch)));
       return Response.json(duplicate ? [{ html_url: prUrl }] : []);
     }
     throw new Error(`Unexpected prepare request: ${href}`);
@@ -551,11 +614,31 @@ test('prepare verifies provider evidence with a read-only token, then deduplicat
   const prepared = await prepare(env, identity, identityKey);
   assert.equal(prepared.prUrl, null);
   assert.deepEqual(prepared.job?.branch, identityBranch);
+  assert.equal(prepared.job?.baseBranch, 'main');
+  assert.equal(prepared.job?.baseSha, job.baseSha);
+  assert.equal(prepared.job?.targetBranch, 'develop');
   assert.equal(prepared.job?.issueNumber, undefined);
   assert.equal(prepared.job?.context.route, '/campus');
   duplicate = true;
   const repeated = await prepare(env, identity, identityKey);
   assert.deepEqual(repeated, { job: null, prUrl });
+  duplicate = false;
+  const previewKey = 'sentry/bcsd/koin-united-preview/124';
+  const previewPrepared = await prepare(env, preview, previewKey);
+  assert.equal(previewPrepared.job?.baseBranch, 'develop');
+  assert.equal(previewPrepared.job?.baseSha, 'd'.repeat(40));
+  assert.equal(previewPrepared.job?.targetBranch, 'develop');
+  const cloudflareKey = `cloudflare/${cloudflare.scope.accountId}/${cloudflare.scope.policyId}/${cloudflare.project}/${cloudflare.sourceId}`;
+  const cloudflarePrepared = await prepare(env, cloudflare, cloudflareKey);
+  assert.equal(cloudflarePrepared.job?.baseBranch, 'main');
+  assert.equal(cloudflarePrepared.job?.baseSha, job.baseSha);
+  assert.equal(cloudflarePrepared.job?.targetBranch, 'develop');
+  const configured = env.ERROR_SOURCE_BRANCHES;
+  env.ERROR_SOURCE_BRANCHES = '{"sentry:koin-united-prod":"main","sentry:koin-united-preview":"develop"}';
+  await assert.rejects(prepare(env, cloudflare, cloudflareKey), /Configure fixed GitHub App/);
+  env.ERROR_SOURCE_BRANCHES = configured.replace('"cloudflare:koin-api":"main"', '"cloudflare:koin-api":"preview"');
+  await assert.rejects(prepare(env, cloudflare, cloudflareKey), /Configure fixed GitHub App/);
+  env.ERROR_SOURCE_BRANCHES = configured;
   assert.equal(
     requests.some(([url]) => url.includes('/issues') && url.startsWith('https://api.github.com/')),
     false,
@@ -585,6 +668,7 @@ test('publish creates a PR directly with source context and independently verifi
   };
   let duplicate = false;
   let humanBranch = false;
+  let advanced = false;
   t.mock.method(globalThis, 'fetch', async (endpoint, options = {}) => {
     const href = String(endpoint);
     if (href.endsWith('/access_tokens')) {
@@ -600,12 +684,18 @@ test('publish creates a PR directly with source context and independently verifi
     const api = href.replace('https://api.github.com/repos/BCSDLab/BCSD_united', '');
     if (options.method === 'POST') writes.push(api);
     if (api === '') return Response.json({ default_branch: 'develop', owner: { login: 'BCSDLab' } });
-    if (api === '/commits/develop')
-      return Response.json({ sha: job.baseSha, commit: { tree: { sha: 'b'.repeat(40) } } });
+    if (api === '/commits/main')
+      return Response.json({ sha: advanced ? 'f'.repeat(40) : job.baseSha, commit: { tree: { sha: 'b'.repeat(40) } } });
     if (api.startsWith('/pulls?')) return Response.json(duplicate ? [{ html_url: url }] : []);
     if (api === '/git/blobs') return Response.json({ sha: 'c'.repeat(40) });
-    if (api === '/git/trees') return Response.json({ sha: 'd'.repeat(40) });
-    if (api === '/git/commits') return Response.json({ sha: 'e'.repeat(40) });
+    if (api === '/git/trees') {
+      assert.equal(JSON.parse(options.body).base_tree, 'b'.repeat(40));
+      return Response.json({ sha: 'd'.repeat(40) });
+    }
+    if (api === '/git/commits') {
+      assert.deepEqual(JSON.parse(options.body).parents, [job.baseSha]);
+      return Response.json({ sha: 'e'.repeat(40) });
+    }
     if (api === '/git/refs') {
       assert.deepEqual(JSON.parse(options.body), { ref: `refs/heads/${identityBranch}`, sha: 'e'.repeat(40) });
       return humanBranch ? Response.json({}, { status: 422 }) : Response.json({ ref: identityBranch });
@@ -622,7 +712,8 @@ test('publish creates a PR directly with source context and independently verifi
       assert.match(body.body, /Project: `koin-united-prod`/);
       assert.match(body.body, /App: `apps\/web`/);
       assert.match(body.body, /Verified request: `GET \/campus`/);
-      assert.match(body.body, /Verified base: `develop` at `a{40}`/);
+      assert.match(body.body, /Verified source branch: `main` at `a{40}`/);
+      assert.match(body.body, /PR target branch: `develop`/);
       assert.match(body.body, /regression-fails-on-base/);
       assert.doesNotMatch(body.body, /Close #|issue : #/);
       return Response.json({ html_url: url });
@@ -642,4 +733,8 @@ test('publish creates a PR directly with source context and independently verifi
   humanBranch = true;
   await assert.rejects(publish(env, job, proof), /never overwrite human changes/);
   assert.equal(writes.filter((request) => request === '/pulls').length, 1);
+  advanced = true;
+  const beforeStale = writes.length;
+  await assert.rejects(publish(env, job, proof), /Source branch advanced/);
+  assert.equal(writes.length, beforeStale, 'advanced main forbids all repository writes');
 });

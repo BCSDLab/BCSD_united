@@ -587,8 +587,6 @@ if (prMode) {
   const before = docker(['node', '--test', ...tests.map((file) => file.path)]);
   if (before.error || before.status !== 1 || !`${before.stdout}${before.stderr}`.includes('ERR_ASSERTION'))
     throw new Error('Regression must fail with an assertion against the untouched base, not a loader/setup failure');
-  await applyManifest({ version: 1, files: manifest.files.filter((file) => isSourcePath(file.path)) }, root);
-  await readablePatch(manifest.files.filter((file) => isSourcePath(file.path)));
 }
 const testCommand = ['node', '--test', ...tests.map((file) => file.path)];
 if (profiles.has('web'))
@@ -640,6 +638,14 @@ const workspaceCommand = (script) =>
         '--if-present',
         script,
       ];
+// SWE-bench-style pass-to-pass gate: the native fixtures must pass on the
+// pinned base as well as on the candidate. New failing regression tests are
+// checked separately above; an already broken base is not a verified fix.
+if (!offlineSmoke && !prMode) {
+  requireSuccess(docker(workspaceCommand('test')), 'Untouched base native fixture tests');
+  await applyManifest({ version: 1, files: manifest.files.filter((file) => isSourcePath(file.path)) }, root);
+  await readablePatch(manifest.files.filter((file) => isSourcePath(file.path)));
+}
 const lintDirectories = prMode
   ? ['apps/api', 'packages/telemetry', 'scripts/autofix', ...(profiles.has('web') ? ['apps/web'] : []), ...related]
   : ['apps/api', 'packages/telemetry', 'scripts/autofix', ...(context.app === 'web' ? ['apps/web'] : [])];
@@ -771,6 +777,14 @@ for (const [label, command] of checks) {
     process.stdout.write(`${WEB_PROOF}\n`);
     if (!result.stdout?.includes(MOBILE_PROOF)) throw new Error('Runtime mobile homepage proof is unavailable');
     process.stdout.write(`${MOBILE_PROOF}\n`);
+  }
+  if (!offlineSmoke && !prMode && label === 'Runtime route smoke' && context.app === 'web') {
+    for (const proof of [
+      `Real local API/D1 smoke passed: SSR ${context.route}, browser ${context.route}, gateway /api/shops/categories`,
+      `Mobile local API/D1 smoke passed: ${context.route} at 390px, gateway /api/shops/categories`,
+    ])
+      if (!result.stdout?.split('\n').includes(proof))
+        throw new Error(`Observed web route proof is unavailable: ${proof}`);
   }
 }
 if (offlineSmoke) {
