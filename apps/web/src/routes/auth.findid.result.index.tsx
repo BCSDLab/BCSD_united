@@ -36,8 +36,6 @@ function ResultPage() {
   );
 }
 
-export default ResultPage;
-
 export const Route = createFileRoute('/auth/findid/result/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   component: RouteComponent,

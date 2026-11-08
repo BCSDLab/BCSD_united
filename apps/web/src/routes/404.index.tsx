@@ -6,7 +6,7 @@ import ROUTES from 'static/routes';
 
 import styles from 'pages/404/PageNotFound.module.scss';
 
-export default function PageNotFound() {
+function PageNotFound() {
   const routeNavigate = useNavigate();
 
   return (

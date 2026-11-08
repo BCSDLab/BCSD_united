@@ -3,6 +3,8 @@ declare module '*.scss' {
   export default classes;
 }
 
+declare module '*.css';
+
 declare module '*.svg' {
   import type { FunctionComponent, SVGProps } from 'react';
   const component: FunctionComponent<SVGProps<SVGSVGElement>>;

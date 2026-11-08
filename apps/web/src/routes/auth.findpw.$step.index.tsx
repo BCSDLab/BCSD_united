@@ -179,8 +179,6 @@ function FindPassword() {
   return <FindPasswordPage step={step} />;
 }
 
-export default FindPassword;
-
 export const Route = createFileRoute('/auth/findpw/$step/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   component: RouteComponent,

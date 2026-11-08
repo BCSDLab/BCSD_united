@@ -45,11 +45,7 @@ function useBoardIdParams(initialBoardId: number) {
   return typeof boardId === 'string' ? Number(boardId) : initialBoardId;
 }
 
-export default function ArticleListPage({
-  initialPage,
-  initialBoardId,
-  serverNow,
-}: Awaited<ReturnType<typeof getPageData>>) {
+function ArticleListPage({ initialPage, initialBoardId, serverNow }: Awaited<ReturnType<typeof getPageData>>) {
   const isLoggedIn = useIsLoggedIn();
   const paramsPage = usePageParams(initialPage);
   const boardId = useBoardIdParams(initialBoardId);

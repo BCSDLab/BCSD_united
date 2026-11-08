@@ -260,7 +260,7 @@ function NewClubEvent({ id }: { id: string }) {
   );
 }
 
-export default function NewClubEventWrapper() {
+function NewClubEventWrapper() {
   const routeQuery: Record<string, string | string[] | undefined> = {
     ...useSearch({ strict: false }),
     ...useParams({ strict: false }),

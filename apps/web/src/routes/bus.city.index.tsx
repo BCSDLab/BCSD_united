@@ -31,7 +31,7 @@ const cityBusDirections: CityDirectionOption[] = [
 
 const getHours = (time: string) => parseInt(time.split(':')[0], 10);
 
-export default function CityBusTimetable() {
+function CityBusTimetable() {
   const [selectedBusNumber, setSelectedBusNumber] = useState(CITY_COURSES[3].bus_number); // 400
   const [selectedDirectionType, setSelectedDirectionType] = useState<DirectionType>(CITY_COURSES[3].direction_type); // to (병천 방면)
 

@@ -24,8 +24,6 @@ function Index(props: Awaited<ReturnType<typeof getPageData>>) {
   return <HomePage {...props} />;
 }
 
-export default Index;
-
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
   .handler(({ data }) =>

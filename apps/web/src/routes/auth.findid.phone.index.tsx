@@ -11,8 +11,6 @@ function FindIdPage() {
   return isMobile ? <MobileFindIdByPhone /> : <PCFindIdByPhone />;
 }
 
-export default FindIdPage;
-
 export const Route = createFileRoute('/auth/findid/phone/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   component: RouteComponent,

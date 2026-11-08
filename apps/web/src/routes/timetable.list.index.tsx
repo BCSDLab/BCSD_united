@@ -11,7 +11,7 @@ import ROUTES from 'static/routes';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { isUnauthorizedError } from 'utils/ts/httpError';
 
-export default function TimetableListPage() {
+function TimetableListPage() {
   return (
     <React.Suspense fallback={null}>
       <MobileTimetableListPage />

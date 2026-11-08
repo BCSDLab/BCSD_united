@@ -21,7 +21,7 @@ function asString(value: string | string[]): string {
   return Array.isArray(value) ? value[0] : value;
 }
 
-export default function ShuttleDetailPage() {
+function ShuttleDetailPage() {
   const routeNavigate = useNavigate();
   const routeQuery: Record<string, string | string[] | undefined> = {
     ...useSearch({ strict: false }),

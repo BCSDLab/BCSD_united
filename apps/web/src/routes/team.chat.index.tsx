@@ -11,7 +11,7 @@ import { parseQueryId } from 'utils/ts/parseServerSideParams';
 
 import styles from 'pages/team/chat/TeamChatPage.module.scss';
 
-export default function TeamChatPage() {
+function TeamChatPage() {
   const routeNavigate = useNavigate();
   const routeQuery: Record<string, string | string[] | undefined> = {
     ...useSearch({ strict: false }),

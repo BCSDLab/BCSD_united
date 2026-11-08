@@ -22,8 +22,6 @@ function OrderDeliveryOutsideRoute({ isDesktop }: Props) {
   );
 }
 
-export default OrderDeliveryOutsideRoute;
-
 // 배달지 선택은 사용자별 화면이라 공개 캐시를 켜지 않는다. 첫 화면은 검색 안내만 있어 받아 둘 데이터가 없다
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)

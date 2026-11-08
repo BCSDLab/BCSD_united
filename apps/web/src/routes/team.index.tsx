@@ -71,7 +71,7 @@ const createRequestParams = (filter: TeamRecruitmentFilter, keyword?: string): T
 
 const INITIAL_REQUEST_PARAMS = createRequestParams(INITIAL_FILTER);
 
-export default function TeamListPage() {
+function TeamListPage() {
   const routeNavigate = useNavigate();
 
   const routeLocation = useLocation();
