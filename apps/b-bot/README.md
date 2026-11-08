@@ -1,14 +1,15 @@
 # B-BOT · Cloudflare Worker
 
-[BCSDLab/B_BOT](https://github.com/BCSDLab/B_BOT)의 Slack 봇을 이 모노레포에 통합한 앱이다. Nitro HTTP 라우트와 기존 도메인 로직을 유지하고 Workers·Queues·KV·Workers AI에서 실행한다. Slack HTTP는 Worker에, 기존 업무 API는 Java에 남고, GitHub·Notion·Google Drive 문서 색인만 별도의 동아리방 Raspberry Pi 프로세스가 실행한다. Clarity는 이 분리에 포함되지 않는다.
+[BCSDLab/B_BOT](https://github.com/BCSDLab/B_BOT)의 Slack 봇을 이 모노레포에 통합한 앱이다. Nitro HTTP 라우트와 기존 도메인 로직을 유지하고 Workers·Queues·KV·Workers AI에서 실행한다. Slack HTTP는 Worker에, 기존 업무 API는 Java에 남는다.
+
+원본에 있던 조직 지식 RAG(`!질문`, GitHub·Notion·Google Drive 문서 색인, 👍👎 피드백)는 2026-11-07에 제거했다. 제거 시점에 RAG는 토큰 과금 생성 모델(Luna)과 설치되지 않은 Pi 색인기에 의존해 실제로 운영되지 않고 있었고, 원본 B_BOT에서도 같은 날 Ollama와 함께 제거했다. 봇 PostgreSQL의 `rag_*` 테이블과 마이그레이션은 적용 이력 보존을 위해 그대로 둔다.
 
 배포 주소: <https://b-bot-workers.bcsdlab.workers.dev> · 상태 확인: [`GET /health`](https://b-bot-workers.bcsdlab.workers.dev/health).
 
 ## 구성
 
-- `apps/b-bot`: Slack HTTP 수신, 큐 소비, Google OAuth/Meet, 검토 페이지, 정적 PDF, 예약 작업의 Pi 색인 요청.
-- [`apps/b-bot-crawler`](../b-bot-crawler/README.md): Raspberry Pi의 문서 색인 작업 큐와 크롤러. Java 업무 API를 대체하거나 Worker에 D1을 추가하지 않는다.
-- `packages/b-bot-ai`: Workers AI 호출, 구조화 출력·이미지 입력·SSE·임베딩 검증.
+- `apps/b-bot`: Slack HTTP 수신, 큐 소비, Google OAuth/Meet, 검토 페이지, 정적 PDF, 예약 작업.
+- `packages/b-bot-ai`: Workers AI 호출, 구조화 출력·이미지 입력 검증.
 - `packages/b-bot-database`: 호출 단위 PostgreSQL 연결과 기존 데이터베이스 도구.
 
 `worker.ts`와 Nitro 라우트는 같은 AI·DB 호출 컨텍스트를 공유해야 한다. Nitro 빌드는 두 공용 패키지를 외부 import로 남기고, Wrangler가 최종 Worker 번들에서 한 번만 묶는다. Nitro 결과만 직접 배포하지 않으며 `wrangler deploy --dry-run`까지 확인한다.
@@ -55,16 +56,16 @@ pnpm --filter @koin/b-bot exec wrangler secret put WEBHOOK_SECRET
 
 ## AI와 한도
 
-생성·구조화 출력·생협 이미지 해석·Superset 자연어 처리는 **`openai/gpt-6-luna`**를 사용한다. 벡터 검색 임베딩은 **`@cf/baai/bge-m3`**, 1024차원이다.
+구조화 출력·생협 이미지 해석·Superset 자연어 처리는 **`openai/gpt-6-luna`**를 사용한다.
 
 - Worker에서는 네이티브 `AI` 바인딩을 사용한다. Node CLI 도구는 `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`으로 같은 Cloudflare 모델의 REST API를 호출한다.
 - Luna는 [서드파티 토큰 과금 모델](https://developers.cloudflare.com/ai/models/openai/gpt-6-luna/)이다. [Cloudflare-hosted 모델의 일일 무료 10,000 Neurons](https://developers.cloudflare.com/workers-ai/platform/pricing/)와 같은 한도로 취급하지 않는다.
 - 계정 크레딧·사용 한도·권한 오류가 나면 중단한다. 다른 OpenAI·Anthropic·Ollama 모델로 전환하거나 자동 재시도하지 않는다. 애플리케이션이 별도 무료 한도를 계산하지 않는다.
 - AI Gateway의 `2021: Insufficient AI Gateway credits`는 크레딧 부족이다. 계정의 실제 결제·크레딧 설정이 있어야 Luna 생성이 가능하다. 예산 알림만으로 강제 사용 상한이 생긴다고 가정하지 않는다.
 - `store: false`, `reasoning.effort: none`을 사용한다. 출력 토큰 예산을 숨은 추론 토큰이 소비하지 않게 한다.
-- 거절·불완전 응답·잘린 JSON·실패한 SSE를 정상 결과로 사용하지 않는다. 임베딩은 유한한 숫자 1024개인지 확인한다.
+- 거절·불완전 응답·잘린 JSON을 정상 결과로 사용하지 않는다.
 
-질문, 선택한 문서·이미지, Superset 조회 결과는 Cloudflare와 모델 제공자 OpenAI에 전달될 수 있다. 외부 전송과 Slack 공유가 승인된 자료만 사용한다.
+선택한 이미지, Superset 질문과 조회 결과는 Cloudflare와 모델 제공자 OpenAI에 전달될 수 있다. 외부 전송과 Slack 공유가 승인된 자료만 사용한다.
 
 ## Slack 연동
 
@@ -78,15 +79,15 @@ pnpm --filter @koin/b-bot exec wrangler secret put WEBHOOK_SECRET
 
 큐는 at-least-once 전달이다. 반영·생성 기능의 기존 DB 상태 전이와 선점 규칙을 유지한다. 도메인 처리 실패는 사용자에게 알리고 무조건 외부 변경을 재실행하지 않는다. 예상하지 못한 큐 실패는 재시도 후 dead-letter 큐에 남긴다.
 
-## Google Meet와 Drive
+## Google Meet
 
 Worker의 Google OAuth/Meet는 기존대로 유지한다. `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `GOOGLE_AUTH_SECRET`를 설정한다. 콜백은 `<Worker 주소>/auth/google_callback`이며 Google Cloud Console의 허용 리디렉션 URI에도 등록해야 한다. 운영에서는 HTTPS가 필요하다.
 
 1. `/auth/google`에 접속해 Basic 인증을 한다. 사용자 이름은 `admin`, 비밀번호는 `GOOGLE_AUTH_SECRET`이다.
-2. Google에서 Meet 생성·Drive 읽기 권한에 동의한다.
+2. Google에서 Meet 생성 권한에 동의한다.
 3. 서명된 10분 상태, HttpOnly/SameSite 쿠키, PKCE를 검증하고 refresh token을 Worker의 `BOT_KV`에 저장한다.
 
-Meet 생성·종료는 Worker의 REST API를 사용한다. Google Drive **문서 색인**은 Pi에서 실행하며, Pi에 `GOOGLE_REFRESH_TOKEN`을 별도로 안전하게 제공해야 한다([설치 안내](../b-bot-crawler/README.md)). Worker KV의 비공개 refresh token은 Pi로 자동 전송·복사하지 않는다. 기존 서버의 토큰 파일이나 파일 기반 KV도 자동 이관하지 않는다.
+Meet 생성·종료는 Worker의 REST API를 사용한다. 기존 서버의 토큰 파일이나 파일 기반 KV는 자동 이관하지 않는다.
 
 ## DB와 예약 작업
 
@@ -100,17 +101,12 @@ pnpm --filter @koin/b-bot-database migrate
 
 마이그레이션은 SQL 파일 체크섬과 적용 이력을 기록하고 트랜잭션으로 실행한다. 기존 추적 정보가 없는 운영 스키마에 자동으로 덮어쓰지 않는다. MySQL 데이터 교체는 별도의 `import:mysql --confirm-destructive` 명령이며 테이블을 비우므로 신규 스키마 생성 명령과 혼동하지 않는다.
 
-`wrangler.jsonc`의 Cron은 초기 배포에서 비워둔다. DB, Pi, Cloudflare Tunnel/Access와 필요한 외부 연동을 준비하고 운영 연결을 별도 승인받은 뒤에만 다음 스케줄을 활성화한다. `nitro.config.ts`의 작업 이름·Cron 표현식과 함께 맞춘다.
+`wrangler.jsonc`의 Cron은 초기 배포에서 비워둔다. DB와 필요한 외부 연동을 준비하고 운영 연결을 별도 승인받은 뒤에만 다음 스케줄을 활성화한다. `nitro.config.ts`의 작업 이름·Cron 표현식과 함께 맞춘다.
 
 - 매분: `dining:deliver`. 환경별 최대 5건을 처리하고 종료한다. `DINING_WORKER_ENVS`는 명시적 opt-in이며 로컬에서는 비운다.
 - 5분마다: `bus:versionUpdate`.
-- 매일 18:00 UTC: `sync:github`.
-- 월요일 18:30 UTC: `sync:notion`.
-- 매일 19:00 UTC: `sync:gdrive`.
 
-문서 색인 3종은 Worker에서 크롤링하거나 임베딩하지 않는다. Worker는 HTTPS Tunnel의 정확한 origin(`B_BOT_CRAWLER_ORIGIN`)으로 `POST /jobs`를 보내고, Pi Bearer 토큰(`B_BOT_CRAWLER_TOKEN`, 32자 이상)과 Cloudflare Access 서비스 토큰(`B_BOT_CRAWLER_ACCESS_CLIENT_ID`, `B_BOT_CRAWLER_ACCESS_CLIENT_SECRET`)을 모두 제시한다. 누락·연결 실패 시 로컬 색인으로 대체하지 않는다. 10초 안에 등록 응답을 받고 종료하며 반환된 `queued`/`running`은 완료가 아니다. 같은 UTC 실행 날짜의 작업은 동일 키로 등록하고, Notion은 첫째 주 월요일 full/그 외 incremental 모드를 키에 포함한다. 수동 실행은 `idempotencyKey`와 `full`(Notion만), 필요하면 `scheduledTime`을 payload로 지정할 수 있다. Pi의 작업 상태는 인증된 `GET /jobs/:id`로 별도 확인한다.
-
-Pi에는 DB/AI 자격 증명과 GitHub·Notion·Drive 접근 정보가 별도로 필요하다. Pi Tailscale 접속정보가 아직 없으므로 실제 설치·터널/Access 생성·비밀 등록·운영 크롤링·Slack 연결 변경은 하지 않는다. 자세한 실행과 승인 절차는 [Pi 운영 안내](../b-bot-crawler/README.md)를 따른다. 원본 upstream `BCSDLab/B_BOT`의 `cf92284373d52ed39301a72a7bc576334d3025cf`에서 세 문서 색인 기능이 존재함을 확인했고, 이 변경은 색인 기능을 재작성하는 대신 실행 장소와 전송 경계만 분리한다. KOIN 운영 API 주소·서비스 토큰을 설정하기 전에는 운영 반영과 식단 전송을 활성화하지 않는다.
+KOIN 운영 API 주소·서비스 토큰을 설정하기 전에는 운영 반영과 식단 전송을 활성화하지 않는다.
 
 ## Superset
 

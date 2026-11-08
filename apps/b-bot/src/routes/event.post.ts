@@ -20,10 +20,6 @@ export default defineEventHandler(async (event) => {
     return body.challenge ? { challenge: body.challenge } : undefined;
   }
 
-  if (body.event.type === 'reaction_added' || body.event.type === 'reaction_removed') {
-    await enqueueSlackJob(event, { type: 'reaction', event: body.event });
-    return { ok: true };
-  }
   if (body.event.type !== 'message' || body.event.channel_type !== 'channel') {
     return 'not Implemented';
   }

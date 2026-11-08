@@ -1,11 +1,6 @@
 const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
 
-export const GOOGLE_OAUTH_SCOPES = [
-  'https://www.googleapis.com/auth/meetings.space.created',
-  'https://www.googleapis.com/auth/drive.readonly',
-  'email',
-  'profile',
-];
+export const GOOGLE_OAUTH_SCOPES = ['https://www.googleapis.com/auth/meetings.space.created', 'email', 'profile'];
 
 export const GOOGLE_OAUTH_COOKIE = 'bbot-google-oauth';
 export const GOOGLE_OAUTH_MAX_AGE = 600;

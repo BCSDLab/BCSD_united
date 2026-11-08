@@ -1,5 +1,4 @@
 import type { BlockAction, SlackShortcut, ViewSubmitAction } from '@slack/bolt';
-import type { ReactionAddedEvent, ReactionRemovedEvent } from '@slack/web-api';
 import type { H3Event } from 'h3';
 import type { IncomingMessage } from '~/services/slack/incomingMessage';
 import type { Command } from '~/services/slack/types';
@@ -10,7 +9,6 @@ type WithoutSlackCredentials<T> = T extends unknown
 
 export type SlackJob =
   | { type: 'message'; message: IncomingMessage }
-  | { type: 'reaction'; event: ReactionAddedEvent | ReactionRemovedEvent }
   | { type: 'block_actions'; body: WithoutSlackCredentials<BlockAction> }
   | { type: 'command'; command: WithoutSlackCredentials<Command> }
   | { type: 'shortcut'; body: WithoutSlackCredentials<SlackShortcut> }
