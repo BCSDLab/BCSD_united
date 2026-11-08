@@ -92,7 +92,14 @@ function TimetablePreview({ isLoggedIn, serverSemester, hasSemesterCookie }: Tim
       <Link
         to={ROUTES.Timetable()}
         className={styles.timetable__link}
-        onClick={() => logger.actionEventClick({ team: 'CAMPUS', event_label: 'home_timetable', value: '내 시간표' })}
+        onClick={() =>
+          // 홈화면 리디자인 4-1 내 시간표 클릭
+          logger.actionEventClick({
+            event_name: 'DA2',
+            event_label: 'timetable__main_profile__timetable_entry__entry__click',
+            value: '내 시간표',
+          })
+        }
       >
         <h2 className={styles.timetable__title}>내 시간표</h2>
         <div className={styles.timetable__board}>
