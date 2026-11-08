@@ -49,7 +49,7 @@ export default function Panel({ openModal }: PanelProps) {
     if (title === '복덕방')
       logger.actionEventClick({
         event_name: 'DA1',
-        event_label: 'real_estate__main_category__real_estate_entry__category_entry__click',
+        event_label: 'real_estate__main_category__category_navigation__real_estate_entry__click',
         value: '복덕방',
       });
     if (title === '주변상점')
