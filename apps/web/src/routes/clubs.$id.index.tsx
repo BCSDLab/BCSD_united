@@ -40,7 +40,7 @@ import { stringifySearch } from 'utils/routing/search';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { copyToClipboard } from 'utils/ts/copyToClipboard';
 import { formatPhoneNumber } from 'utils/ts/formatPhoneNumber';
-import { backButtonTapped } from 'utils/ts/iosBridge';
+import { closeWebView } from 'utils/ts/nativeCommands';
 import showToast from 'utils/ts/showToast';
 
 import styles from 'pages/clubs/[id]/ClubDetailPage.module.scss';
@@ -285,11 +285,7 @@ export default function ClubDetailPage({ initialClubId, initialTab, initialEvent
 
   // 앱 웹뷰에서 인기 동아리로 바로 열린 화면은 앱으로 돌려보낸다
   const handleBack = () => {
-    if (window.webkit?.messageHandlers != null && routeQuery.hot === 'true') {
-      backButtonTapped();
-
-      return;
-    }
+    if (routeQuery.hot === 'true' && closeWebView()) return;
 
     goBack();
   };
