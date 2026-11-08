@@ -96,7 +96,7 @@ function IndexMobileCafeteria() {
     const diningIndex = availableDinings.findIndex((dining) => dining.place === place);
 
     logger.actionEventClick({
-      event_name: 'DA1',
+      event_name: 'DA2',
       event_label: 'main__main__corner__select',
       value: place,
       event_category: 'select',

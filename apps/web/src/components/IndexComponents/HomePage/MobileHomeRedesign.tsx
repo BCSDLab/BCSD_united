@@ -42,6 +42,7 @@ const transportCards = [
     description: '노선 별 출발 시간',
     Icon: BusTimeIcon,
     logging: {
+      event_name: 'DA2' as const,
       event_label: 'main__main__bus_entry__timetable_entry__click' as const,
       value: '버스 시간표',
     },
@@ -52,7 +53,8 @@ const transportCards = [
     description: '가장 빠른 버스 찾기',
     Icon: BusRouteIcon,
     logging: {
-      event_label: 'main__main__bus_entry__search_entry__click' as const,
+      event_name: 'DA1' as const,
+      event_label: 'bus__main__bus_entry__search_entry__click' as const,
       value: '버스 노선 조회',
     },
   },
@@ -156,7 +158,7 @@ function MobileHomeRedesign() {
             className={styles['ticket-card']}
             target="_blank"
             rel="noreferrer"
-            onClick={() => logClick('main__main__bus_entry__ticket_entry__click', '셔틀 탑승권')}
+            onClick={() => logClick('ticket__main__bus_entry__ticket_entry__click', '셔틀 탑승권')}
           >
             <span className={styles['ticket-card__text']}>
               <strong>셔틀 탑승권</strong>
@@ -193,7 +195,7 @@ function MobileHomeRedesign() {
               search={parseSearch(href.split('?')[1] ?? '')}
               className={styles['transport-card']}
               key={href}
-              onClick={() => logClick(logging.event_label, logging.value)}
+              onClick={() => logClick(logging.event_label, logging.value, logging.event_name)}
             >
               <IconBox>
                 <Icon />
@@ -214,7 +216,7 @@ function MobileHomeRedesign() {
             to={mobileStoreLink.split('?')[0]}
             search={parseSearch(mobileStoreLink.split('?')[1] ?? '')}
             className={styles['section-link']}
-            onClick={() => logClick('main__main__shop_entry__main_entry__click', '주변상점')}
+            onClick={() => logClick('main__main__shop_entry__main_entry__click', '주변상점', 'DA2')}
           >
             <span>전체보기</span>
             <ArrowRightIcon aria-hidden />
@@ -225,7 +227,7 @@ function MobileHomeRedesign() {
           to={mobileStoreLink.split('?')[0]}
           search={parseSearch(mobileStoreLink.split('?')[1] ?? '')}
           className={styles['store-card']}
-          onClick={() => logClick('shop__main__shop_entry__popular_entry__click', '많이 찾는 상점 둘러보기', 'DA2')}
+          onClick={() => logClick('shop__main__shop_entry__popular_entry__click', '많이 찾는 상점 둘러보기')}
         >
           <div className={styles['store-card__content-wrapper']}>
             <IconBox>
