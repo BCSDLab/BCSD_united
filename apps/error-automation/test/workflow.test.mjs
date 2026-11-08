@@ -464,9 +464,11 @@ test('App mints exact single-repository role-scoped installation tokens', async 
     });
   });
   assert.equal(await installationToken(env, 'read'), 'scoped-token');
+  assert.equal(await installationToken(env, 'merge-evidence'), 'scoped-token');
   assert.equal(await installationToken(env, 'publish'), 'scoped-token');
   assert.deepEqual(permissions, [
-    { contents: 'read', issues: 'read', pull_requests: 'read', checks: 'read', statuses: 'read' },
+    { contents: 'read', issues: 'read', pull_requests: 'read' },
+    { contents: 'read', pull_requests: 'read', checks: 'read', statuses: 'read' },
     { contents: 'write', issues: 'write', pull_requests: 'write' },
   ]);
 });
@@ -590,8 +592,6 @@ test('prepare verifies provider evidence with a read-only token, then deduplicat
         contents: 'read',
         issues: 'read',
         pull_requests: 'read',
-        checks: 'read',
-        statuses: 'read',
       });
       return Response.json({
         token: 'read-token',
@@ -714,6 +714,9 @@ test('publish creates a PR directly with source context and independently verifi
       assert.match(body.body, /Verified request: `GET \/campus`/);
       assert.match(body.body, /Verified source branch: `main` at `a{40}`/);
       assert.match(body.body, /PR target branch: `develop`/);
+      assert.match(body.body, /Candidate was independently verified on the source branch \(`main`\)/);
+      assert.match(body.body, /PR's CI must validate develop integration/);
+      assert.match(body.body, /authored by the GitHub App bot and is never eligible/);
       assert.match(body.body, /regression-fails-on-base/);
       assert.doesNotMatch(body.body, /Close #|issue : #/);
       return Response.json({ html_url: url });

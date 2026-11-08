@@ -131,7 +131,7 @@ export interface PullRequestReceipt {
     passedChecks: string[];
     commentUrl: string | null;
   } | null;
-  autoMerge: { status: 'merged' | 'skipped'; reason: string } | null;
+  autoMerge: { status: 'merged' | 'skipped' | 'pending-checks'; reason: string } | null;
 }
 
 export interface Env {

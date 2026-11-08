@@ -280,6 +280,8 @@ async function githubWebhook(request: Request, env: Env, json: unknown): Promise
   }
   if (!current.author || current.authorBot || current.author === PUBLISHER_LOGIN)
     return reply(200, { status: 'ignored' });
+  const stub = env.AUTOFIX_QUEUE.getByName('bcsdlab/bcsd_united');
+  if (await stub.isPublisherHead(current.pullNumber, current.headSha)) return reply(200, { status: 'ignored' });
   const comparison = await github<{ behind_by: number }>(
     env,
     token,
@@ -287,17 +289,24 @@ async function githubWebhook(request: Request, env: Env, json: unknown): Promise
   );
   if (!Number.isSafeInteger(comparison.behind_by) || comparison.behind_by < 0)
     throw new RequestError(503, 'Invalid GitHub comparison.');
-  const stub = env.AUTOFIX_QUEUE.getByName('bcsdlab/bcsd_united');
   if (comparison.behind_by > 0) {
+    const write = await installationToken(env, 'publish');
     if (!(await stub.reserveBranchUpdate(current.pullNumber, current.headSha)))
       return reply(200, { status: 'ignored' });
-    const write = await installationToken(env, 'publish');
     try {
       await github(env, write, `/pulls/${current.pullNumber}/update-branch`, 'PUT', {
         expected_head_sha: current.headSha,
       });
-    } catch {
-      // A conflict is terminal for this head; never re-attempt it on duplicate deliveries.
+      await stub.finishBranchUpdate(current.pullNumber, current.headSha, 'updated');
+    } catch (error) {
+      if (!(error instanceof GitHubError) || ![409, 422].includes(error.status)) {
+        // Only a 4xx response proves GitHub did not accept the update; a timeout or 5xx may have
+        // been applied, so a second PUT could race it and report a false conflict.
+        const rejected = error instanceof GitHubError && error.status >= 400 && error.status < 500;
+        await stub.finishBranchUpdate(current.pullNumber, current.headSha, rejected ? 'retry' : 'ambiguous');
+        throw error;
+      }
+      await stub.finishBranchUpdate(current.pullNumber, current.headSha, 'conflict');
       const marker = `<!-- pr-update-conflict:${current.pullNumber}:${current.headSha} -->`;
       const comments = await github<
         { body?: string; user?: { login?: string; type?: string }; performed_via_github_app?: { id?: number } }[]

@@ -597,6 +597,7 @@ export async function publishPullRequest(
   manifest: PatchManifest,
   review: PullRequestReview,
   proof: PullRequestVerification,
+  onPublisherHead: (headSha: string) => Promise<void>,
 ): Promise<Published> {
   const token = await installationToken(env, 'publish');
   const current = await inspectPullRequest(env, token, job.pullNumber, pullRequestPolicy(env));
@@ -633,6 +634,7 @@ export async function publishPullRequest(
       );
       if (head.tree.sha !== resultTree.sha || head.parents.length !== 1 || head.parents[0].sha !== job.headSha)
         throw new PullRequestRejected(409, 'Pull request head moved since review.');
+      await onPublisherHead(current.headSha);
       publishedHeadSha = current.headSha;
     } else {
       const commit = await github<{ sha: string }>(env, token, '/git/commits', 'POST', {
@@ -641,6 +643,8 @@ export async function publishPullRequest(
         parents: [job.headSha],
       });
       if (!HEX.test(commit.sha)) throw new Error('Invalid generated commit');
+      // Persist our generated head before moving the ref: synchronize can race the comment write.
+      await onPublisherHead(commit.sha);
       try {
         await github(env, token, `/git/refs/heads/${encodeURIComponent(job.headRef)}`, 'PATCH', {
           sha: commit.sha,

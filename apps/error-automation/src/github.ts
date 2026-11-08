@@ -15,7 +15,7 @@ const CHECKS = [
   'runtime-route-smoke',
 ];
 
-type Permission = 'read' | 'publish';
+type Permission = 'read' | 'merge-evidence' | 'publish';
 
 export function base64(bytes: Uint8Array): string {
   let encoded = '';
@@ -61,8 +61,10 @@ export async function installationToken(env: Env, role: Permission): Promise<str
   const jwt = `${message}.${base64url(new Uint8Array(await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, encoder.encode(message))))}`;
   const permissions =
     role === 'read'
-      ? { contents: 'read', issues: 'read', pull_requests: 'read', checks: 'read', statuses: 'read' }
-      : { contents: 'write', issues: 'write', pull_requests: 'write' };
+      ? { contents: 'read', issues: 'read', pull_requests: 'read' }
+      : role === 'merge-evidence'
+        ? { contents: 'read', pull_requests: 'read', checks: 'read', statuses: 'read' }
+        : { contents: 'write', issues: 'write', pull_requests: 'write' };
   const response = await fetch(
     `https://api.github.com/app/installations/${env.GITHUB_DISPATCH_INSTALLATION_ID}/access_tokens`,
     {
@@ -322,7 +324,7 @@ export async function publish(env: Env, job: PreparedJob, verification: Verifica
     job.identity.source === 'sentry'
       ? `[Sentry issue](https://${job.identity.scope.organization}.sentry.io/issues/${job.identity.sourceId}/)`
       : `[Cloudflare account dashboard](https://dash.cloudflare.com/${job.identity.scope.accountId}/) (Issue ID: \`${job.identity.sourceId}\`, policy: \`${job.identity.scope.policyId}\`)`;
-  const body = `${marker(job.identity)}\n\n## What is this PR?\n\n- Source: ${source}\n- Project: \`${job.identity.project}\`\n- App: \`apps/${job.context.app}\`\n- Verified request: \`${job.context.requestMethod} ${job.context.route}\`\n- Verified source branch: \`${job.baseBranch}\` at \`${job.baseSha}\`\n- PR target branch: \`${job.targetBranch}\`\n\n## Changes\n\n${verification.verifiedManifest.files.map((file) => `- \`${file.path}\``).join('\n')}\n\n## Independent checks\n\n${verification.passedChecks.map((check) => `- [x] ${check}`).join('\n')}\n\n## Precaution\n\n- Rocky 실행기에서 독립 생성/검증; 자동 merge/배포는 하지 않습니다. 실제 사용자 데이터와 인증된 화면은 검증하지 않았습니다.\n- 오류 문자열과 생성 코드는 신뢰할 수 없는 입력입니다. 원인 및 테스트 타당성을 리뷰해 주세요.\n`;
+  const body = `${marker(job.identity)}\n\n## What is this PR?\n\n- Source: ${source}\n- Project: \`${job.identity.project}\`\n- App: \`apps/${job.context.app}\`\n- Verified request: \`${job.context.requestMethod} ${job.context.route}\`\n- Verified source branch: \`${job.baseBranch}\` at \`${job.baseSha}\`\n- PR target branch: \`${job.targetBranch}\`\n\n## Changes\n\n${verification.verifiedManifest.files.map((file) => `- \`${file.path}\``).join('\n')}\n\n## Independent checks\n\n${verification.passedChecks.map((check) => `- [x] ${check}`).join('\n')}\n\n## Precaution\n\n- Candidate was independently verified on the source branch (\`${job.baseBranch}\`), not on the develop integration tip. The PR's CI must validate develop integration before human merge.\n- This PR is authored by the GitHub App bot and is never eligible for automatic PR-review merge.\n- Rocky 실행기에서 독립 생성/검증; 자동 merge/배포는 하지 않습니다. 실제 사용자 데이터와 인증된 화면은 검증하지 않았습니다.\n- 오류 문자열과 생성 코드는 신뢰할 수 없는 입력입니다. 원인 및 테스트 타당성을 리뷰해 주세요.\n`;
   let pr: Pull;
   try {
     pr = await github<Pull>(env, token, '/pulls', 'POST', {

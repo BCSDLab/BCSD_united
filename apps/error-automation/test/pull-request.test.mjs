@@ -4,6 +4,13 @@ import { registerHooks } from 'node:module';
 import { DatabaseSync } from 'node:sqlite';
 import { test } from 'node:test';
 
+const QUALITY = ['ESLint', 'Format', 'TypeCheck'].map((name) => ({
+  name,
+  app: { slug: 'github-actions' },
+  status: 'completed',
+  conclusion: 'success',
+}));
+
 const platform =
   'data:text/javascript,' +
   encodeURIComponent('export class DurableObject { constructor(ctx,env) { this.ctx=ctx; this.env=env; } }');
@@ -94,6 +101,7 @@ function githubMock(t, state) {
     if (method !== 'GET' && href.startsWith('https://api.github.com/')) writes.push(`${method} ${api}`);
     if (href.endsWith('/access_tokens')) {
       const { permissions, repositories } = JSON.parse(options.body);
+      if (state.rejectMergeEvidence && permissions.checks === 'read') return new Response('{}', { status: 403 });
       assert.deepEqual(repositories, ['BCSD_united']);
       return Response.json({
         token: 'test-only-repo-scoped-token',
@@ -119,6 +127,11 @@ function githubMock(t, state) {
     }
     if (api === '/pulls/3' || api === '/pulls/7') {
       const number = Number(api.slice(-1));
+      if (number === 3) {
+        state.pullReads = (state.pullReads ?? 0) + 1;
+        if (state.retargetOnPullRead === state.pullReads) state.pulls[3].base.ref = 'main';
+        if (state.advanceDevelopOnPullRead === state.pullReads) state.develop = movedHead;
+      }
       const pull = state.pulls[number];
       if (!pull) return new Response('{}', { status: 404 });
       return Response.json(pull);
@@ -127,7 +140,8 @@ function githubMock(t, state) {
       return Response.json({ behind_by: state.behindBy ?? 0 });
     if (api === '/pulls/3/update-branch' && method === 'PUT') {
       assert.equal(JSON.parse(options.body).expected_head_sha, state.headSha);
-      return state.updateConflict ? new Response('{}', { status: 422 }) : Response.json({ message: 'update queued' });
+      const status = state.updateFailures?.shift() ?? (state.updateConflict ? 422 : 0);
+      return status ? new Response('{}', { status }) : Response.json({ message: 'update queued' });
     }
     if (api === '/git/ref/heads/develop') return Response.json({ object: { sha: state.develop } });
     if (api === `/git/commits/${head}`) return Response.json({ sha: head, tree: { sha: headTree } });
@@ -140,7 +154,7 @@ function githubMock(t, state) {
     if (api.startsWith('/pulls/3/files'))
       return Response.json(
         (state.files ?? changed).map((filename) =>
-          typeof filename === 'string' ? { filename, additions: 1, deletions: 1 } : filename,
+          typeof filename === 'string' ? { filename, status: 'modified', additions: 1, deletions: 1 } : filename,
         ),
       );
     if (api.startsWith('/pulls/3/reviews')) return Response.json(state.reviews ?? []);
@@ -163,11 +177,14 @@ function githubMock(t, state) {
       state.comments.at(-1).body = JSON.parse(options.body).body;
       return Response.json({ id: 1 });
     }
-    if (api === `/commits/${head}/check-runs?per_page=100`)
+    if (api.startsWith(`/commits/${head}/check-runs?per_page=100`)) {
+      const page = Number(new URL(href).searchParams.get('page') ?? 1);
       return Response.json(
-        state.checks ?? { total_count: 1, check_runs: [{ status: 'completed', conclusion: 'success' }] },
+        state.checkPages?.[page - 1] ?? state.checks ?? { total_count: QUALITY.length, check_runs: QUALITY },
       );
-    if (api === `/commits/${head}/status`) return Response.json(state.statuses ?? { state: 'success', statuses: [] });
+    }
+    if (api === `/commits/${head}/status?per_page=100`)
+      return Response.json(state.statuses ?? { state: 'pending', total_count: 0, statuses: [] });
     if (api === '/pulls/3/merge' && method === 'PUT') {
       state.mergeRequest = JSON.parse(options.body);
       return Response.json({ merged: true });
@@ -974,9 +991,16 @@ function intakeHarness(t, overrides = {}, state = pullState()) {
         },
         async reserveBranchUpdate(pullNumber, headSha) {
           const key = `${pullNumber}/${headSha}`;
-          if (receipts.has(key)) return false;
-          receipts.set(key, true);
+          const previous = receipts.get(key);
+          if (previous && (previous.status !== 'retry' || previous.attempts >= 3)) return false;
+          receipts.set(key, { attempts: (previous?.attempts ?? 0) + 1, status: 'reserved' });
           return true;
+        },
+        async finishBranchUpdate(pullNumber, headSha, status) {
+          receipts.get(`${pullNumber}/${headSha}`).status = status;
+        },
+        async isPublisherHead() {
+          return false;
         },
         async status(runId) {
           return receipts.get(runId) ?? null;
@@ -1308,30 +1332,55 @@ test('auto merge fail-closes for size, paths, findings, corrections, checks, lab
     [
       'pending checks',
       (s) => {
-        s.checks = { total_count: 1, check_runs: [{ status: 'in_progress' }] };
+        s.checks = {
+          total_count: 3,
+          check_runs: [{ ...QUALITY[0], status: 'in_progress', conclusion: null }, ...QUALITY.slice(1)],
+        };
       },
       /check run/,
+      'pending-checks',
+    ],
+    [
+      'checks not yet created',
+      (s) => {
+        s.checks = { total_count: 0, check_runs: [] };
+      },
+      /check run/,
+      'pending-checks',
     ],
     [
       'failed checks',
       (s) => {
-        s.checks = { total_count: 1, check_runs: [{ status: 'completed', conclusion: 'failure' }] };
+        s.checks = { total_count: 3, check_runs: [{ ...QUALITY[0], conclusion: 'failure' }, ...QUALITY.slice(1)] };
       },
       /check run/,
+    ],
+    [
+      'unrelated success without Quality jobs',
+      (s) => {
+        s.checks = {
+          total_count: 1,
+          check_runs: [{ name: 'Workers Builds: koin-web', status: 'completed', conclusion: 'success' }],
+        };
+      },
+      /Quality/,
+      'pending-checks',
     ],
     [
       'pending status',
       (s) => {
-        s.statuses = { state: 'pending', statuses: [{ state: 'pending' }] };
+        s.statuses = { state: 'pending', total_count: 1, statuses: [{ state: 'pending' }] };
       },
       /check run/,
+      'pending-checks',
     ],
     [
       'missing statuses',
       (s) => {
-        s.statuses = { state: 'pending', statuses: [] };
+        s.statuses = { state: 'pending', total_count: 0, statuses: [] };
       },
-      /check run/,
+      null,
+      'merged',
     ],
     [
       'label',
@@ -1349,7 +1398,7 @@ test('auto merge fail-closes for size, paths, findings, corrections, checks, lab
       /head/,
     ],
   ];
-  for (const [name, mutate, reason] of cases) {
+  for (const [name, mutate, reason, expected = 'skipped'] of cases) {
     await t.test(name, async (t) => {
       const h = queueHarness(t);
       h.state.pulls[3].title = 'Simple fix';
@@ -1381,11 +1430,11 @@ test('auto merge fail-closes for size, paths, findings, corrections, checks, lab
         name === 'manifest' ? correction : emptyManifest,
         review,
       );
-      assert.equal(outcome.status, 'skipped');
-      assert.match(outcome.reason, reason);
+      assert.equal(outcome.status, expected);
+      if (reason) assert.match(outcome.reason, reason);
       assert.equal(
         h.writes.some((write) => write === 'PUT /pulls/3/merge'),
-        false,
+        expected === 'merged',
       );
     });
   }
@@ -1412,3 +1461,229 @@ test('review outcome uses a marker follow-up when the review comment cannot be e
   assert.match(h.state.comments.at(-1).body, /skipped:/);
   assert.equal((await h.queue.status(claim.runId)).autoMerge.status, 'skipped');
 });
+
+function mergeJob() {
+  return {
+    mode: 'pull-request',
+    owner: 'BCSDLab',
+    repository: 'BCSD_united',
+    pullNumber: 3,
+    headSha: head,
+    headRef: 'feat/order',
+    headTree,
+    baseBranch: 'develop',
+    baseSha: base,
+    changedFiles: changed,
+    reviewContext: { version: 1, title: '', body: '', comments: [] },
+  };
+}
+
+test('renamed paths protect both old and new names; malformed rename metadata fails closed', async (t) => {
+  for (const [file, reason] of [
+    [
+      {
+        filename: 'apps/web/src/order/store.ts',
+        previous_filename: '.github/workflows/ci.yml',
+        status: 'renamed',
+        additions: 0,
+        deletions: 0,
+      },
+      /보호된/,
+    ],
+    [
+      {
+        filename: 'apps/web/src/auth/token.ts',
+        previous_filename: 'apps/web/src/order/store.ts',
+        status: 'renamed',
+        additions: 0,
+        deletions: 0,
+      },
+      /보호된/,
+    ],
+    [{ filename: 'apps/web/src/order/store.ts', status: 'renamed', additions: 0, deletions: 0 }, /목록/],
+    [
+      { filename: 'apps/web/src/order/store.ts', previous_filename: 42, status: 'renamed', additions: 0, deletions: 0 },
+      /목록/,
+    ],
+    [
+      {
+        filename: 'apps/web/src/order/store.ts',
+        previous_filename: '.github/workflows/ci.yml',
+        status: 'modified',
+        additions: 0,
+        deletions: 0,
+      },
+      /목록/,
+    ],
+  ]) {
+    await t.test(`${file.status}:${String(file.previous_filename)}`, async (t) => {
+      const h = queueHarness(t);
+      h.state.pulls[3].title = 'Safe title';
+      h.state.files = [file];
+      h.state.pulls[3].changed_files = 1;
+      const outcome = await autoMergePullRequest(h.env, mergeJob(), emptyManifest, {
+        decision: 'approved',
+        findings: [],
+      });
+      assert.equal(outcome.status, 'skipped');
+      assert.match(outcome.reason, reason);
+      assert.equal(h.writes.includes('PUT /pulls/3/merge'), false);
+    });
+  }
+});
+
+test('merge evidence pagination uses all check runs and base retarget immediately before merge blocks PUT', async (t) => {
+  const h = queueHarness(t);
+  h.state.pulls[3].title = 'Safe title';
+  h.state.files = ['apps/web/src/order/store.ts'];
+  h.state.pulls[3].changed_files = 1;
+  const succeeded = { status: 'completed', conclusion: 'success' };
+  h.state.checkPages = [
+    { total_count: 101, check_runs: [...QUALITY, ...Array.from({ length: 97 }, () => succeeded)] },
+    { total_count: 101, check_runs: [succeeded] },
+  ];
+  h.state.retargetOnPullRead = 2;
+  const retargeted = await autoMergePullRequest(h.env, mergeJob(), emptyManifest, {
+    decision: 'approved',
+    findings: [],
+  });
+  assert.equal(retargeted.status, 'skipped');
+  assert.match(retargeted.reason, /merge 직전/);
+  assert.equal(h.writes.includes('PUT /pulls/3/merge'), false);
+  h.state.retargetOnPullRead = undefined;
+  h.state.pulls[3].base.ref = 'develop';
+  h.state.pullReads = 0;
+  h.state.advanceDevelopOnPullRead = 2;
+  const advanced = await autoMergePullRequest(h.env, mergeJob(), emptyManifest, {
+    decision: 'approved',
+    findings: [],
+  });
+  assert.equal(advanced.status, 'skipped');
+  assert.match(advanced.reason, /merge 직전/);
+  assert.equal(h.writes.includes('PUT /pulls/3/merge'), false);
+  h.state.advanceDevelopOnPullRead = undefined;
+  h.state.develop = base;
+  assert.equal(
+    (await autoMergePullRequest(h.env, mergeJob(), emptyManifest, { decision: 'approved', findings: [] })).status,
+    'merged',
+  );
+  assert.equal(h.writes.filter((write) => write === 'PUT /pulls/3/merge').length, 1);
+});
+
+test('unapproved Checks/Statuses permission skips auto-merge without failing review publication', async (t) => {
+  const h = queueHarness(t);
+  h.state.rejectMergeEvidence = true;
+  await h.queue.enqueuePullRequest(identity3);
+  const claim = await h.queue.claim('f'.repeat(64));
+  await h.queue.model(claim.runId, claim.leaseToken, request);
+  await h.queue.verificationStart(claim.runId, claim.leaseToken);
+  const receipt = await h.queue.result(claim.runId, await reviewed(claim.leaseToken, emptyManifest));
+  assert.equal(receipt.status, 'published');
+  assert.deepEqual((await h.queue.status(claim.runId)).autoMerge, {
+    status: 'skipped',
+    reason: 'App 권한(checks/statuses) 승인 대기',
+  });
+  assert.match(h.state.comments[0].body, /App 권한\(checks\/statuses\) 승인 대기/);
+  assert.equal(h.writes.includes('PUT /pulls/3/merge'), false);
+});
+
+test('pending checks are retried by a durable alarm until merged or timed out', async (t) => {
+  for (const timeout of [false, true]) {
+    await t.test(timeout ? 'timeout' : 'CI completed', async (t) => {
+      const h = queueHarness(t);
+      h.state.pulls[3].title = 'Safe title';
+      h.state.files = ['apps/web/src/order/store.ts'];
+      h.state.pulls[3].changed_files = 1;
+      h.state.checks = {
+        total_count: 3,
+        check_runs: [{ ...QUALITY[0], status: 'in_progress', conclusion: null }, ...QUALITY.slice(1)],
+      };
+      await h.queue.enqueuePullRequest(identity3);
+      const claim = await h.queue.claim('f'.repeat(64));
+      await h.queue.model(claim.runId, claim.leaseToken, request);
+      await h.queue.verificationStart(claim.runId, claim.leaseToken);
+      await h.queue.result(claim.runId, await reviewed(claim.leaseToken, emptyManifest));
+      assert.equal((await h.queue.status(claim.runId)).autoMerge.status, 'pending-checks');
+      assert.equal(h.db.prepare('SELECT count(*) AS count FROM pending_auto_merges').get().count, 1);
+      h.db
+        .prepare('UPDATE pending_auto_merges SET next_at = ?, until_at = ?')
+        .run(Date.now() - 1, timeout ? Date.now() - 1 : Date.now() + 10_000);
+      if (!timeout) h.state.checks = { total_count: QUALITY.length, check_runs: QUALITY };
+      await h.restart().alarm();
+      assert.equal((await h.queue.status(claim.runId)).autoMerge.status, timeout ? 'skipped' : 'merged');
+      assert.equal(h.db.prepare('SELECT count(*) AS count FROM pending_auto_merges').get().count, 0);
+      assert.match(h.state.comments[0].body, timeout ? /30분/ : /- merged:/);
+      assert.equal(h.writes.includes('PUT /pulls/3/merge'), !timeout);
+    });
+  }
+});
+
+test('publisher-produced correction SHA is recorded before synchronize and ignored by webhook intake', async (t) => {
+  const h = queueHarness(t);
+  await h.queue.enqueuePullRequest(identity3);
+  const claim = await h.queue.claim('f'.repeat(64));
+  await h.queue.model(claim.runId, claim.leaseToken, request);
+  await h.queue.verificationStart(claim.runId, claim.leaseToken);
+  await h.queue.result(
+    claim.runId,
+    await reviewed(claim.leaseToken, correction, { decision: 'approved', findings: [] }),
+  );
+  assert.equal(await h.restart().isPublisherHead(3, newCommit), true);
+  h.env.PR_REVIEW_AUTO = 'true';
+  h.env.AUTOFIX_QUEUE = { getByName: () => h.queue };
+  const body = JSON.stringify({
+    action: 'synchronize',
+    installation: { id: 176455083 },
+    repository: { full_name: 'BCSDLab/BCSD_united' },
+    number: 3,
+    pull_request: { number: 3 },
+  });
+  const response = await worker.fetch(
+    new Request('https://automation.example/webhooks/github', {
+      method: 'POST',
+      body,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-GitHub-Event': 'pull_request',
+        'X-Hub-Signature-256': `sha256=${createHmac('sha256', h.env.GITHUB_WEBHOOK_SECRET).update(body).digest('hex')}`,
+      },
+    }),
+    h.env,
+  );
+  assert.deepEqual(await response.json(), { status: 'ignored' });
+  assert.equal(await h.queue.status(runIdFor(3, newCommit, base)), null);
+});
+
+for (const [label, failures, attempts] of [
+  ['ambiguous 5xx update-branch is attempted once per head', [503, 502, 503], 1],
+  ['provably rejected 4xx update-branch retries at most three times', [403, 403, 403], 3],
+]) {
+  test(`${label}, never creating conflict comments`, async (t) => {
+    const h = intakeHarness(t, { PR_REVIEW_AUTO: 'true' });
+    h.state.behindBy = 1;
+    h.state.updateFailures = [...failures];
+    const body = JSON.stringify({
+      action: 'synchronize',
+      installation: { id: 176455083 },
+      repository: { full_name: 'BCSDLab/BCSD_united' },
+      number: 3,
+      pull_request: { number: 3 },
+    });
+    const send = () =>
+      h.send(
+        new Request('https://automation.example/webhooks/github', {
+          method: 'POST',
+          body,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-GitHub-Event': 'pull_request',
+            'X-Hub-Signature-256': `sha256=${createHmac('sha256', h.env.GITHUB_WEBHOOK_SECRET).update(body).digest('hex')}`,
+          },
+        }),
+      );
+    for (let attempt = 0; attempt < attempts; attempt++) assert.equal((await send()).status, 503);
+    assert.equal((await send()).status, 200);
+    assert.equal(h.writes.filter((write) => write === 'PUT /pulls/3/update-branch').length, attempts);
+    assert.equal(h.writes.includes('POST /issues/3/comments'), false);
+  });
+}
