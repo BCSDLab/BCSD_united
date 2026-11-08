@@ -77,21 +77,24 @@ function requestCount(log) {
     (match) => match[1] !== '/health',
   ).length;
 }
-function assertApiHealthy(log, { weatherUnavailable = false, coopshopUnavailable = false } = {}) {
-  if (!log.includes('AUTOFIX_API_REQUEST')) throw new Error('Local auxiliary API request evidence is unavailable');
-  const errors = [...log.matchAll(/AUTOFIX_API_REQUEST (\S+) (\/\S*) ([45]\d{2})\b/g)];
-  if (
-    errors.some(
-      ([, method, path, status]) =>
-        !(
-          method === 'GET' &&
-          ((weatherUnavailable && path === '/weather' && status === '503') ||
-            (coopshopUnavailable && path === '/coopshop/1' && status === '404'))
-        ),
-    )
-  )
-    throw new Error('Local auxiliary API returned an HTTP error');
+function hasUnexpectedApiError(log, { weatherUnavailable = false, coopshopUnavailable = false } = {}) {
+  return [...log.matchAll(/AUTOFIX_API_REQUEST (\S+) (\/\S*) ([45]\d{2})\b/g)].some(
+    ([, method, path, status]) =>
+      !(
+        method === 'GET' &&
+        ((weatherUnavailable && path === '/weather' && status === '503') ||
+          (coopshopUnavailable && path === '/coopshop/1' && status === '404'))
+      ),
+  );
 }
+function assertApiHealthy(log, allowed) {
+  if (!log.includes('AUTOFIX_API_REQUEST')) throw new Error('Local auxiliary API request evidence is unavailable');
+  if (hasUnexpectedApiError(log, allowed)) throw new Error('Local auxiliary API returned an HTTP error');
+}
+// The offline home route has no weather provider or cafeteria metadata, and both SSR and the
+// client request them. Tolerate exactly those responses until the final check, which requires
+// their explicit API codes and unavailable UI states.
+const homeUnavailable = { weatherUnavailable: route === '/', coopshopUnavailable: route === '/' };
 
 await migrateWebApi();
 let server;
@@ -124,7 +127,7 @@ try {
     for (let attempt = 0; attempt < 90; attempt += 1) {
       server.assertRunning();
       browser.assertRunning();
-      if (/AUTOFIX_API_REQUEST \S+ \S+ [45]\d{2}\b/i.test(server.log))
+      if (hasUnexpectedApiError(server.log, homeUnavailable))
         throw new Error('Local auxiliary API returned an HTTP error');
       try {
         const response = await fetch(url, { signal: AbortSignal.timeout(1000), redirect: 'error' });
@@ -149,7 +152,7 @@ try {
   if (!Array.isArray(categories.shop_categories) || categories.count !== categories.shop_categories.length)
     throw new Error('Local D1 categories handler returned an unexpected response');
   for (let attempt = 0; attempt < 20 && requestCount(server.log) === 0; attempt += 1) await delay(100);
-  assertApiHealthy(server.log);
+  assertApiHealthy(server.log, homeUnavailable);
   const beforeSsr = requestCount(server.log);
   const document = await fetch(`http://127.0.0.1:4173${route}`, {
     signal: AbortSignal.timeout(30000),
@@ -159,7 +162,7 @@ try {
   if (!document.ok || !document.headers.get('content-type')?.includes('text/html') || !html.trim())
     throw new Error('Event route SSR did not return a successful HTML document');
   if (route === '/') await waitUntil(() => requestCount(server.log) > beforeSsr, 'Homepage SSR local API');
-  assertApiHealthy(server.log);
+  assertApiHealthy(server.log, homeUnavailable);
   const tabs = await (await ready('http://127.0.0.1:9222/json/list')).json();
   const tab = tabs.find((entry) => entry.type === 'page');
   if (!tab) throw new Error('Chromium page unavailable');
@@ -188,7 +191,6 @@ try {
   const failures = [];
   const inFlightRequests = new Map();
   let loaded = false;
-  let mobilePhase = false;
   let navigatingBlank = false;
   let unavailableWeatherResponse = false;
   let unavailableCoopshopResponse = false;
@@ -244,7 +246,7 @@ try {
     ) {
       const response = message.params.response;
       const path = new URL(response.url).pathname;
-      if (mobilePhase && route === '/' && ['Fetch', 'XHR'].includes(message.params.type)) {
+      if (route === '/' && ['Fetch', 'XHR'].includes(message.params.type)) {
         if (response.status === 503 && path === '/api/weather') unavailableWeatherResponse = true;
         else if (response.status === 404 && path === '/api/coopshop/1') unavailableCoopshopResponse = true;
         else failures.push(`Browser ${message.params.type} HTTP ${response.status}`);
@@ -308,7 +310,7 @@ try {
   browser.assertRunning();
   if (/\[ERROR\]|uncaught|unhandled rejection/i.test(server.log)) failures.push('Web Worker emitted runtime errors');
   if (failures.length) throw new Error([...new Set(failures)].join('; '));
-  assertApiHealthy(server.log);
+  assertApiHealthy(server.log, homeUnavailable);
   process.stdout.write(
     `Real local API/D1 smoke passed: SSR ${route}, browser ${route}, gateway /api/shops/categories\n`,
   );
@@ -320,7 +322,6 @@ try {
   await waitUntil(() => loaded && inFlightRequests.size === 0, 'Desktop document cleanup');
   navigatingBlank = false;
   const beforeMobile = requestCount(server.log);
-  mobilePhase = true;
   await send('Emulation.setDeviceMetricsOverride', {
     width: 390,
     height: 844,
