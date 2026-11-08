@@ -19,7 +19,7 @@ import HomeLayout from 'components/layout/HomeLayout';
 import LoginRequiredModal from 'components/modal/LoginRequiredModal';
 import type { Portal } from 'components/modal/Modal/PortalProvider';
 import IconBox from 'components/ui/IconBox';
-import type { LoggingTeam } from 'lib/gtag';
+import type { LoggingTarget } from 'lib/gtag';
 import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useModalPortal from 'utils/hooks/layout/useModalPortal';
@@ -29,26 +29,8 @@ import { parseSearch } from 'utils/routing/search';
 import styles from 'pages/category/CategoryPage.module.scss';
 
 type IconComponent = ComponentType<SVGProps<SVGSVGElement>>;
-type CategoryEventLabel =
-  | 'category_team_recruitment'
-  | 'category_lost_and_found'
-  | 'category_facility'
-  | 'category_department'
-  | 'category_dining'
-  | 'category_nearby_store'
-  | 'category_timetable'
-  | 'category_bus_timetable'
-  | 'category_transportation'
-  | 'category_callvan_recruitment'
-  | 'category_chat'
-  | 'category_room'
-  | 'category_koin_for_business';
-
-interface CategoryLogging {
-  team: LoggingTeam;
-  event_label: CategoryEventLabel;
-  value: string;
-}
+// 명세가 있는 항목은 네이밍룰 v1.0(event_name·새 label)으로, 명세가 없는 항목(식단·버스·교통편·코인 for Business)은 기존 team 로그로 보낸다
+type CategoryLogging = LoggingTarget & { value: string };
 
 interface CategoryItem {
   title: string;
@@ -70,8 +52,8 @@ const quickMenus: CategoryItem[] = [
     href: ROUTES.Team(),
     Icon: TeamIcon,
     logging: {
-      team: 'CAMPUS',
-      event_label: 'category_team_recruitment',
+      event_name: 'DA1',
+      event_label: 'team_recruit__main_category__team_recruit_entry__category_entry__click',
       value: '팀원 모집',
     },
   },
@@ -81,8 +63,8 @@ const quickMenus: CategoryItem[] = [
     href: ROUTES.LostItems(),
     Icon: DeliveryBoxIcon,
     logging: {
-      team: 'CAMPUS',
-      event_label: 'category_lost_and_found',
+      event_name: 'DA2',
+      event_label: 'board__main_category__lost_item_entry__category_entry__click',
       value: '분실물',
     },
   },
@@ -97,8 +79,8 @@ const sections: CategorySection[] = [
         href: ROUTES.CampusInfo(),
         Icon: PermanentJobIcon,
         logging: {
-          team: 'CAMPUS',
-          event_label: 'category_facility',
+          event_name: 'DA2',
+          event_label: 'facility__main_category__category_navigation__facility_entry__click',
           value: '교내 시설물 정보',
         },
       },
@@ -107,8 +89,8 @@ const sections: CategorySection[] = [
         href: ROUTES.Department(),
         Icon: InfoIcon,
         logging: {
-          team: 'CAMPUS',
-          event_label: 'category_department',
+          event_name: 'DA2',
+          event_label: 'department__main_category__category_navigation__department_entry__click',
           value: '학교 부서 정보',
         },
       },
@@ -127,8 +109,8 @@ const sections: CategorySection[] = [
         href: `${ROUTES.Store()}?category=1`,
         Icon: StoreIcon,
         logging: {
-          team: 'CAMPUS',
-          event_label: 'category_nearby_store',
+          event_name: 'DA1',
+          event_label: 'shop__main_category__shop_entry__category_entry__click',
           value: '주변상점',
         },
       },
@@ -137,8 +119,8 @@ const sections: CategorySection[] = [
         href: ROUTES.Timetable(),
         Icon: CalendarIcon,
         logging: {
-          team: 'USER',
-          event_label: 'category_timetable',
+          event_name: 'DA1',
+          event_label: 'timetable__main_category__timetable_entry__category_entry__click',
           value: '시간표',
         },
       },
@@ -172,8 +154,8 @@ const sections: CategorySection[] = [
         href: ROUTES.Callvan(),
         Icon: UserAddIcon,
         logging: {
-          team: 'CAMPUS',
-          event_label: 'category_callvan_recruitment',
+          event_name: 'DA2',
+          event_label: 'callvan__main_category__category_navigation__callvan_entry__click',
           value: '콜밴팟 모집',
         },
       },
@@ -187,8 +169,8 @@ const sections: CategorySection[] = [
         href: ROUTES.LostItemChat(),
         Icon: ChatIcon,
         logging: {
-          team: 'CAMPUS',
-          event_label: 'category_chat',
+          event_name: 'DA2',
+          event_label: 'chat__main_category__category_navigation__chat_entry__click',
           value: '채팅',
         },
       },
@@ -197,8 +179,8 @@ const sections: CategorySection[] = [
         href: ROUTES.Room(),
         Icon: HomeIcon,
         logging: {
-          team: 'BUSINESS',
-          event_label: 'category_room',
+          event_name: 'DA1',
+          event_label: 'real_estate__main_category__real_estate_entry__category_entry__click',
           value: '복덕방',
         },
       },
