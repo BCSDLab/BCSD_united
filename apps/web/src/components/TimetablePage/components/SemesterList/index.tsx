@@ -108,7 +108,15 @@ function SemesterList({ isViewMode }: { isViewMode?: boolean }) {
       portalManager.open((portalOption: Portal) => (
         <DeleteSemesterModal
           onClose={portalOption.close}
-          handleDeleteSemester={handleDeleteSemester}
+          handleDeleteSemester={() => {
+            // 시간표 2-14 학기 삭제 팝업의 삭제하기
+            logger.actionEventClick({
+              event_name: 'DA1',
+              event_label: 'timetable__timetable__semester_manage__edit_apply__click',
+              value: `${semes.year}_${semes.term}`,
+            });
+            handleDeleteSemester();
+          }}
           setModalOpenFalse={setModalOpenFalse}
         />
       ));

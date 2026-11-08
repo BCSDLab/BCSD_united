@@ -13,6 +13,7 @@ import useMyLectures from 'components/TimetablePage/hooks/useMyLectures';
 import useTimetableMutation from 'components/TimetablePage/hooks/useTimetableMutation';
 import { Selector } from 'components/ui/Selector';
 import { DAYS_STRING, HOUR, MINUTE, START_TIME, END_TIME } from 'static/timetable';
+import useLogger from 'utils/hooks/analytics/useLogger';
 import useParamsHandler from 'utils/hooks/routing/useParamsHandler';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import showToast from 'utils/ts/showToast';
@@ -352,6 +353,7 @@ function TimeSpaceInput({
 }
 
 function CustomLecture({ timetableFrameId, semester }: { timetableFrameId: number; semester: Semester }) {
+  const logger = useLogger();
   const isLoggedIn = useIsLoggedIn();
   const customTempLecture = useCustomTempLecture();
   const { updateCustomTempLecture } = useCustomTempLectureAction();
@@ -437,6 +439,12 @@ function CustomLecture({ timetableFrameId, semester }: { timetableFrameId: numbe
 
   const handleSubmitLecture = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    // 시간표 2-19 직접 추가 탭의 일정 저장
+    logger.actionEventClick({
+      event_name: 'DA1',
+      event_label: 'timetable__timetable_edit__timetable_edit__custom_save__click',
+      value: '일정 저장',
+    });
     if (!isValid) {
       setIsFirstSubmit(false);
 

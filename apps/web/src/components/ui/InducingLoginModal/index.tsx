@@ -9,15 +9,26 @@ interface InducingLoginModalProps {
   actionTitle: string;
   detailExplanation: string;
   onClose: () => void;
+  /** 로그인하기 버튼을 누를 때 (로깅 등). 바깥 클릭으로 닫힐 때는 부르지 않는다 */
+  onLoginClick?: () => void;
+  /** 취소하기 버튼을 누를 때 (로깅 등). 바깥 클릭으로 닫힐 때는 부르지 않는다 */
+  onCancelClick?: () => void;
 }
 
-function InducingLoginModal({ actionTitle, detailExplanation, onClose }: InducingLoginModalProps) {
+function InducingLoginModal({
+  actionTitle,
+  detailExplanation,
+  onClose,
+  onLoginClick,
+  onCancelClick,
+}: InducingLoginModalProps) {
   const routeLocation = useLocation();
   const { backgroundRef } = useOutsideClick({ onOutsideClick: onClose });
 
   const sentences = detailExplanation.split('.');
 
   const goLogin = () => {
+    onLoginClick?.();
     onClose();
     redirectToLogin(routeLocation.href);
   };
@@ -41,7 +52,14 @@ function InducingLoginModal({ actionTitle, detailExplanation, onClose }: Inducin
           </div>
         </div>
         <div className={styles.container__button}>
-          <button type="button" className={styles['container__button--cancel']} onClick={onClose}>
+          <button
+            type="button"
+            className={styles['container__button--cancel']}
+            onClick={() => {
+              onCancelClick?.();
+              onClose();
+            }}
+          >
             취소하기
           </button>
           <button type="button" className={styles['container__button--login']} onClick={goLogin}>

@@ -55,6 +55,7 @@ function CurrentSemesterLectureList({
   const { data: userInfo } = useUser();
   const { data: lectureList } = useLectureList(currentSemester);
   const { updateTempLecture } = useTempLectureAction();
+  const logger = useLogger();
   const { addMyLecture } = useTimetableMutation(timetableFrameId, currentSemester);
 
   const isOverlapping = (selected: LectureInfo, existing: LectureInfo) => {
@@ -108,7 +109,16 @@ function CurrentSemesterLectureList({
       myLectures={myLectures}
       selectedLecture={tempLecture ?? undefined}
       semester={currentSemester}
-      onClickRow={(clickedLecture) => ('lecture_id' in clickedLecture ? undefined : updateTempLecture(clickedLecture))}
+      onClickRow={(clickedLecture) => {
+        if ('lecture_id' in clickedLecture) return;
+        // 시간표 2-18 정규 과목 한 번 클릭(미리 보기 선택)
+        logger.actionEventClick({
+          event_name: 'DA1',
+          event_label: 'timetable__timetable_edit__lecture_add__lecture_entry__click',
+          value: clickedLecture.name,
+        });
+        updateTempLecture(clickedLecture);
+      }}
       onDoubleClickRow={(clickedLecture) => {
         if ('lecture_id' in clickedLecture) {
           return;
@@ -227,7 +237,20 @@ function LectureList({ timetableFrameId, semester }: { timetableFrameId: number;
           </button>
         </div>
         <div className={styles.page__depart}>
-          <DeptListbox value={departmentFilterValue} onChange={onChangeDeptSelect} isWhiteBackground={false} />
+          <DeptListbox
+            value={departmentFilterValue}
+            onChange={(e) => {
+              // 시간표 2-20 정규 과목 탭의 학부 드롭다운
+              logger.actionEventClick({
+                event_name: 'DA1',
+                event_label: 'timetable__timetable_edit__search__department__select',
+                value: e.target.value,
+                event_category: 'select',
+              });
+              onChangeDeptSelect(e);
+            }}
+            isWhiteBackground={false}
+          />
         </div>
       </div>
       <div className={styles.table__header} role="row">

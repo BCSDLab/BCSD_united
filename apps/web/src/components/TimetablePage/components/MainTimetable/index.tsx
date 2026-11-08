@@ -85,6 +85,7 @@ function MainTimetableLayout({
 }
 
 function InvalidMainTimetable() {
+  const logger = useLogger();
   const semester = useSemester();
   const { data: timeTableFrameList } = useTimetableFrameList(semester);
   const { data: deptList } = useSuspenseQuery(deptQueries.list());
@@ -96,6 +97,12 @@ function InvalidMainTimetable() {
   };
 
   const onClickEdit = () => {
+    // 시간표 2-23 시간표 수정
+    logger.actionEventClick({
+      event_name: 'DA1',
+      event_label: 'timetable__timetable__timetable_edit__entry__click',
+      value: '시간표 수정',
+    });
     checkSemesterAndTimetable(mySemester, timeTableFrameList);
   };
 
@@ -137,6 +144,12 @@ function ValidMainTimetable({ timetableFrameId }: { readonly timetableFrameId: n
   };
 
   const onClickEdit = () => {
+    // 시간표 2-23 시간표 수정
+    logger.actionEventClick({
+      event_name: 'DA1',
+      event_label: 'timetable__timetable__timetable_edit__entry__click',
+      value: '시간표 수정',
+    });
     if (checkSemesterAndTimetable(mySemester, timeTableFrameList)) {
       router.navigate({
         href: `${ROUTES.TimetableModify({ id: String(timetableFrameId), type: 'regular' })}&year=${semester?.year}&term=${semester?.term}`,
