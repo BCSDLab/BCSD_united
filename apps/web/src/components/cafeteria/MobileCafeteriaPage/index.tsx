@@ -65,8 +65,7 @@ export default function MobileCafeteriaPage({ onReportSoldout }: MobileCafeteria
 
   const handleDiningToStore = () => {
     sessionLogger.actionSessionEvent({
-      event_name: 'DA1',
-      event_label: 'shop__cafeteria__shop_banner__click',
+      event_label: 'dining_to_shop',
       value: DINING_TYPE_MAP[diningType],
       session_name: 'dining2shop',
       session_lifetime_minutes: 30,
