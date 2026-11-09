@@ -18,6 +18,8 @@
     { "tag": "v2", "new_sqlite_classes": ["AutofixQueue"] },
   ],
   "observability": { "enabled": true, "head_sampling_rate": 1 },
+  // Private route to the Rocky omp gateway (tunnel koin-omp-gateway-rocky -> 127.0.0.1:43129); no public hostname.
+  "vpc_services": [{ "binding": "OMP_GATEWAY", "service_id": "01a1bdd6-d594-76d1-9898-d116f61b6be7" }],
   "vars": {
     "ENVIRONMENT": "production",
     "SENTRY_ORGANIZATION": "bcsd",
