@@ -88,7 +88,8 @@ export default function LoginForm() {
             onClick={() => {
               sessionLogger.actionSessionEvent({
                 session_name: 'sign_up',
-                event_label: 'start_sign_up',
+                event_name: 'DA2',
+                event_label: 'account__login__sign_up__entry__click',
                 value: '회원가입 시작',
               });
             }}

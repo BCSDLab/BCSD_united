@@ -87,7 +87,8 @@ function Verification({ onNext, onBack, setUserType }: VerificationProps) {
     setUserType('학생');
     onNext();
     sessionLogger.actionSessionEvent({
-      event_label: 'create_account',
+      event_name: 'DA2',
+      event_label: 'account__user_type_selection__sign_up__user_type__click',
       value: '학생',
       session_name: 'sign_up',
     });
@@ -97,7 +98,8 @@ function Verification({ onNext, onBack, setUserType }: VerificationProps) {
     setUserType('외부인');
     onNext();
     sessionLogger.actionSessionEvent({
-      event_label: 'create_account',
+      event_name: 'DA2',
+      event_label: 'account__user_type_selection__sign_up__user_type__click',
       value: '외부인',
       session_name: 'sign_up',
     });
@@ -219,7 +221,8 @@ function Verification({ onNext, onBack, setUserType }: VerificationProps) {
                       checkPhoneNumber(phoneNumber);
                       setButtonText('인증번호 재발송');
                       sessionLogger.actionSessionEvent({
-                        event_label: 'identity_verification',
+                        event_name: 'DA2',
+                        event_label: 'account__identity_verification__sign_up__send_code__click',
                         value: '인증번호 발송',
                         session_name: 'sign_up',
                       });

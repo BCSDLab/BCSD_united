@@ -1,4 +1,4 @@
-export const IS_STAGE = process.env.NEXT_PUBLIC_API_PATH?.includes('stage');
+export const IS_STAGE = process.env.NEXT_PUBLIC_KOIN_ENVIRONMENT === 'preview';
 
 const BASE_DOMAIN = 'koreatech.in';
 const STAGE_DOMAIN = `stage.${BASE_DOMAIN}`;

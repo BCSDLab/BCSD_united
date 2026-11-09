@@ -1086,10 +1086,12 @@ async function preflight(signal) {
   const host = await statfs(JOBS);
   if (BigInt(host.bavail) * BigInt(host.bsize) < 12n * 1024n ** 3n)
     throw new Error('Executor job filesystem has under 12 GiB free');
+  // Admission heuristic, not a reservation: verifier steps run one container at a time under verify.mjs's 3 GiB
+  // cgroup cap (measured peaks: 1.9 GiB anonymous, 2.3 GiB memory.peak), plus 1 GiB for the host's other services.
   const memory = await readFile('/proc/meminfo', 'utf8');
   const available = /^MemAvailable:\s+(\d+)\s+kB/m.exec(memory);
-  if (!available || BigInt(available[1]) * 1024n < 5n * 1024n ** 3n)
-    throw new Error('Linux host has under 5 GiB available memory (3 GiB verifier plus 2 GiB headroom)');
+  if (!available || BigInt(available[1]) * 1024n < 4n * 1024n ** 3n)
+    throw new Error('Linux host has under 4 GiB available memory (3 GiB verifier cap plus 1 GiB headroom)');
   const disk = await command(
     'docker',
     [

@@ -125,7 +125,7 @@ export default function LostItemFilterContent({
   const [filter, setFilter] = useState<FilterState>(initialFilter ?? DEFAULT_FILTER);
 
   const handleApply = () => {
-    logLostItemFilterApply();
+    logLostItemFilterApply(filter);
     onApply(filter);
   };
 

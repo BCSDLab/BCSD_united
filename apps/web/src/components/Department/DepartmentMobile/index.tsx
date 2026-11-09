@@ -59,7 +59,7 @@ export default function DepartmentMobile({
             <h2 className={styles['search-result__title']}>{categoryName}</h2>
             <div className={styles['search-result__list']}>
               {departments.map((department) => (
-                <DepartmentCard key={department.name} department={department} />
+                <DepartmentCard key={department.name} department={department} screen="department_main" />
               ))}
             </div>
           </section>

@@ -130,7 +130,8 @@ function usePhoneVerification({ phoneNumber, onNext, step }: UsePhoneVerificatio
       setCorrect();
       if (step === 'signup') {
         sessionLogger.actionSessionEvent({
-          event_label: 'identity_verification',
+          event_name: 'DA2',
+          event_label: 'account__identity_verification__sign_up__code_verify_success__click',
           value: '인증완료',
           session_name: 'sign_up',
         });

@@ -41,7 +41,12 @@ function PCCafeteriaComponent() {
   const { containerRef } = useOutsideClick({ onOutsideClick: closeDropdown });
 
   const handleDiningTypeChange = (value: DiningType) => {
-    logger.actionEventClick({ team: 'CAMPUS', event_label: 'menu_time', value: DINING_TYPE_MAP[value] });
+    logger.actionEventClick({
+      event_name: 'DA1',
+      event_label: 'cafeteria__cafeteria__meal_time__select',
+      value: DINING_TYPE_MAP[value],
+      event_category: 'select',
+    });
     setDiningType(value);
     toggleDropdown();
   };

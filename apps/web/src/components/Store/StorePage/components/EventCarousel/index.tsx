@@ -28,8 +28,8 @@ function Card({ shop_id, event_id, shop_name, thumbnail_images }: CardProps) {
 
   const handleClick = () => {
     logger.actionEventClick({
-      team: 'BUSINESS',
-      event_label: 'shop_categories_event',
+      event_name: 'DA1',
+      event_label: 'shop__shop_list__shop_event__entry__click',
       value: `${shop_name}`,
     });
     router.navigate({ href: `${ROUTES.StoreDetail({ id: String(shop_id) })}?state=이벤트/공지` });

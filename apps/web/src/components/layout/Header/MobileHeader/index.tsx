@@ -2,7 +2,6 @@ import { createPortal } from 'react-dom';
 import { cn } from '@bcsdlab/utils';
 import { useRouter, useLocation, useParams } from '@tanstack/react-router';
 
-import { getStoreDetailInfo } from 'api/store';
 import BlackArrowBackIcon from 'assets/svg/black-arrow-back-icon.svg';
 import HamburgerIcon from 'assets/svg/hamburger-icon.svg';
 import KoinServiceLogo from 'assets/svg/koin-service-logo.svg';
@@ -15,7 +14,7 @@ import useParamsHandler from 'utils/hooks/routing/useParamsHandler';
 import useMount from 'utils/hooks/state/useMount';
 import { isomorphicSessionStorage } from 'utils/ts/env';
 import getElapsedSeconds from 'utils/ts/getElapsedSeconds';
-import { backButtonTapped } from 'utils/ts/iosBridge';
+import { closeWebView } from 'utils/ts/nativeCommands';
 import { useMobileSidebar } from 'utils/zustand/mobileSidebar';
 
 import type { LegacyRoute } from './legacyRoute';
@@ -40,13 +39,12 @@ export default function MobileHeader({ openModal, route }: MobileHeaderProps) {
 
   const { params } = useParamsHandler();
 
-  const backInDetailPage = async () => {
+  const backInDetailPage = () => {
     if (pathname.includes(ROUTES.Store()) && id) {
-      const response = await getStoreDetailInfo(Array.isArray(id) ? id[0] : id);
       logger.actionEventClick({
-        team: 'BUSINESS',
-        event_label: 'shop_detail_view_back',
-        value: response.name,
+        event_name: 'DA1',
+        event_label: 'shop__shop_detail__navigation__back__click',
+        value: '뒤로가기',
         current_page: isomorphicSessionStorage.getItem('cameFrom') || '',
         duration_time: getElapsedSeconds('enter_storeDetail'),
       }); // 상점 내 뒤로가기 버튼 로깅
@@ -54,15 +52,8 @@ export default function MobileHeader({ openModal, route }: MobileHeaderProps) {
 
       return;
     }
-    if (
-      typeof window !== 'undefined' &&
-      window.webkit?.messageHandlers != null &&
-      (pathname === ROUTES.Club() || params.hot === 'true')
-    ) {
-      backButtonTapped();
-
-      return;
-    }
+    // 앱 웹뷰의 동아리 화면은 앱으로 돌려보낸다. 앱 웹뷰가 아니거나 보내지 못하면 웹 뒤로가기로 대신한다
+    if ((pathname === ROUTES.Club() || params.hot === 'true') && closeWebView()) return;
     goBack();
   };
 

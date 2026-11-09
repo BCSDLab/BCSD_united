@@ -16,7 +16,11 @@ const DESKTOP_TRANSPORT_LINKS = [
     subtitle: '노선 별 출발 시간',
     link: ROUTES.BusCourseShuttle(),
     SvgIcon: BusTimetableIcon,
-    logging: { event_label: 'main_bus_timetable', value: '버스 시간표 바로가기' },
+    logging: {
+      event_name: 'DA2' as const,
+      event_label: 'main__main__bus_entry__timetable_entry__click' as const,
+      value: '버스 시간표',
+    },
   },
   {
     key: 'route',
@@ -24,7 +28,11 @@ const DESKTOP_TRANSPORT_LINKS = [
     subtitle: '가장 빠른 버스 찾기',
     link: ROUTES.BusRoute(),
     SvgIcon: BusRouteIcon,
-    logging: { event_label: 'main_bus_search', value: '가장 빠른 버스 조회하기' },
+    logging: {
+      event_name: 'DA1' as const,
+      event_label: 'bus__main__bus_entry__search_entry__click' as const,
+      value: '버스 노선 조회',
+    },
   },
 ];
 
@@ -41,12 +49,7 @@ function IndexBus() {
       </div>
       <div className={styles.cards}>
         {DESKTOP_TRANSPORT_LINKS.map(({ key, title, subtitle, link, SvgIcon, logging }) => (
-          <Link
-            to={link}
-            key={key}
-            className={styles.card}
-            onClick={() => logger.actionEventClick({ team: 'CAMPUS', ...logging })}
-          >
+          <Link to={link} key={key} className={styles.card} onClick={() => logger.actionEventClick(logging)}>
             <div className={styles.card__segment}>
               <IconBox className={styles.card__icon}>
                 <SvgIcon aria-hidden />

@@ -113,7 +113,8 @@ function MobileVerification({ onNext }: MobileVerificationProps) {
       enableVerified();
       setCorrect();
       sessionLogger.actionSessionEvent({
-        event_label: 'identity_verification',
+        event_name: 'DA2',
+        event_label: 'account__identity_verification__sign_up__code_verify_success__click',
         value: '인증완료',
         session_name: 'sign_up',
       });
@@ -136,7 +137,8 @@ function MobileVerification({ onNext }: MobileVerificationProps) {
     onSuccess: () => {
       sendSMSToUser({ phone_number: phoneNumber });
       sessionLogger.actionSessionEvent({
-        event_label: 'identity_verification',
+        event_name: 'DA2',
+        event_label: 'account__identity_verification__sign_up__send_code__click',
         value: '인증번호 발송',
         session_name: 'sign_up',
       });

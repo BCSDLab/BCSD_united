@@ -2,6 +2,7 @@ import type { TimetableFrameInfo } from 'api/timetable/entity';
 import CloseIcon from 'assets/svg/close-icon-black.svg';
 import useDeleteTimetableFrame from 'components/TimetablePage/hooks/useDeleteTimetableFrame';
 import useUpdateTimetableFrame from 'components/TimetablePage/hooks/useUpdateTimetableFrame';
+import useLogger from 'utils/hooks/analytics/useLogger';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import { useOutsideClick } from 'utils/hooks/ui/useOutsideClick';
 import showToast from 'utils/ts/showToast';
@@ -15,11 +16,17 @@ export interface TimetableSettingModalProps {
 
 export default function TimetableSettingModal({ focusFrame, onClose }: TimetableSettingModalProps) {
   const isLoggedIn = useIsLoggedIn();
+  const logger = useLogger();
   const { mutate: updateFrameInfo } = useUpdateTimetableFrame();
   const { backgroundRef } = useOutsideClick({ onOutsideClick: onClose });
 
   const submitFrameForm = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    logger.actionEventClick({
+      event_name: 'DA1',
+      event_label: 'timetable__timetable__timetable_config__save__click',
+      value: '저장하기',
+    });
 
     const target = e.currentTarget;
 
@@ -46,6 +53,11 @@ export default function TimetableSettingModal({ focusFrame, onClose }: Timetable
 
   const { mutate: deleteTimetableFrame } = useDeleteTimetableFrame(isLoggedIn, focusFrame);
   const onDelete = () => {
+    logger.actionEventClick({
+      event_name: 'DA1',
+      event_label: 'timetable__timetable__timetable_config__delete__click',
+      value: '삭제하기',
+    });
     if (!focusFrame.id) {
       showToast('warning', '로그인 후 이용 가능합니다.');
 

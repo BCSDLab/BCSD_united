@@ -43,8 +43,8 @@ export default function AuthenticateUserModal({ onClose, disabledClose = false }
     const hashedPassword = await sha256(password);
     checkPassword({ password: hashedPassword });
     logger.actionEventClick({
-      team: 'USER',
-      event_label: 'header',
+      event_name: 'DA2',
+      event_label: 'account__header__profile_edit__header_entry__click',
       value: '정보수정 시도',
     });
   };

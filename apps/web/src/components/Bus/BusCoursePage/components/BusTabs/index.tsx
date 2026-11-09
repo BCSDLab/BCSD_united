@@ -24,8 +24,8 @@ export default function BusTabs() {
 
   const onClickBusTab = (type: (typeof BUS_TYPES)[number]) => {
     logger.actionEventClick({
-      team: 'CAMPUS',
-      event_label: 'timetable_bus_type_tab',
+      event_name: 'DA1',
+      event_label: 'bus__bus_timetable__filter__bus_type__click',
       value: type.tabValue,
     });
     router.navigate({ href: BUS_TAB_ROUTES[type.key], replace: true });

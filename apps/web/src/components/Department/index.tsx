@@ -27,10 +27,9 @@ export default function DepartmentPage() {
 
   const handleCategoryClick = (category: DepartmentContactCategory, title: string) => {
     logger.actionEventClick({
-      team: 'CAMPUS',
-      event_label: 'department_category',
+      event_name: 'DA2',
+      event_label: 'department__department_main__department_category__click',
       value: title,
-      custom_session_id: category,
     });
   };
 
@@ -40,8 +39,8 @@ export default function DepartmentPage() {
     }
 
     logger.actionEventClick({
-      team: 'CAMPUS',
-      event_label: 'department_search',
+      event_name: 'DA2',
+      event_label: 'department__department_main__search__click',
       value: searchValue.trim(),
     });
   };

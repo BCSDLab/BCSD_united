@@ -94,6 +94,7 @@ function Cafeteria() {
     hasLoggedSoldoutExposureRef.current = true;
     logger.actionEventClick({
       event_name: 'DA1',
+      screen_view: 'cafeteria',
       event_category: 'exposure',
       event_label: 'cafeteria__dining__abtest__exposure',
       value: isSoldoutReportHeaderVariant ? 'A안' : 'B안',
@@ -122,6 +123,7 @@ function Cafeteria() {
     const variantLabel = isSoldoutReportHeaderVariant ? 'A안' : 'B안';
     logger.actionEventClick({
       event_name: 'DA1',
+      screen_view: 'cafeteria',
       event_label: 'cafeteria__dining__soldout__start',
       value: isSoldoutReportHeaderVariant ? variantLabel : `${variantLabel}_${initialPlace ?? ''}`,
     });

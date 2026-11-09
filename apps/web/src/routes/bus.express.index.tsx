@@ -64,9 +64,10 @@ function ExpressBusTimetable() {
                 setSelectedCourseId(index);
                 setDestinationCategory(course.name);
                 logger.actionEventClick({
-                  team: 'CAMPUS',
-                  event_label: 'ds_bus_direction',
+                  event_name: 'DA1',
+                  event_label: 'bus__bus_timetable__filter__daeseong_direction__select',
                   value: course.name,
+                  event_category: 'select',
                 });
               }}
               onMouseEnter={() =>
@@ -85,11 +86,7 @@ function ExpressBusTimetable() {
 
         <Template typeNumber={1} arrivalList={arrivalList} />
 
-        <InfoFooter
-          type="EXPRESS"
-          updated={dayjs(timetable?.updated_at).format('YYYY-MM-DD')}
-          destinationCategory={destinationCategory}
-        />
+        <InfoFooter type="EXPRESS" updated={dayjs(timetable?.updated_at).format('YYYY-MM-DD')} />
       </div>
     </BusCoursePage>
   );

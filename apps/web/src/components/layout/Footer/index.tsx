@@ -8,7 +8,8 @@ import KoinLogo from 'components/ui/KoinLogo';
 import { CATEGORY } from 'static/category';
 import type { SubmenuTitle } from 'static/category';
 import ROUTES from 'static/routes';
-import { SHORTCUT_LOGGING_MAP } from 'utils/hooks/analytics/shortcutLoggingMap';
+import { IS_STAGE } from 'static/url';
+import { getShortcutLog } from 'utils/hooks/analytics/shortcutLoggingMap';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useModalPortal from 'utils/hooks/layout/useModalPortal';
@@ -20,7 +21,6 @@ import styles from './Footer.module.scss';
 function Footer() {
   const isMobile = useMediaQuery();
   const logger = useLogger();
-  const isStage = process.env.NEXT_PUBLIC_API_PATH?.includes('stage');
   const portalManager = useModalPortal();
   const isLoggedIn = useIsLoggedIn();
   const copyrightYear = useServerCalendarDate().getFullYear();
@@ -33,10 +33,10 @@ function Footer() {
   }
 
   const logShortcut = (title: SubmenuTitle) => {
-    const info = SHORTCUT_LOGGING_MAP[title];
+    const shortcutLog = getShortcutLog(title, 'footer');
 
-    if (info) {
-      logger.actionEventClick({ ...info, event_label: 'footer' });
+    if (shortcutLog) {
+      logger.actionEventClick(shortcutLog);
 
       if (String(pathname) === ROUTES.GraduationCalculator()) {
         logger.actionEventClick({
@@ -73,17 +73,17 @@ function Footer() {
               <li className={styles.footer__service} key={submenuInfo.title}>
                 <>
                   {/^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(
-                    isStage && submenuInfo.stageLink ? submenuInfo.stageLink : submenuInfo.link,
+                    IS_STAGE && submenuInfo.stageLink ? submenuInfo.stageLink : submenuInfo.link,
                   ) ? (
                     <a
-                      href={isStage && submenuInfo.stageLink ? submenuInfo.stageLink : submenuInfo.link}
+                      href={IS_STAGE && submenuInfo.stageLink ? submenuInfo.stageLink : submenuInfo.link}
                       onClick={(e) => handleClickMenu(e, submenuInfo.title)}
                     >
                       {submenuInfo.title}
                     </a>
                   ) : (
                     <Link
-                      to={isStage && submenuInfo.stageLink ? submenuInfo.stageLink : submenuInfo.link}
+                      to={IS_STAGE && submenuInfo.stageLink ? submenuInfo.stageLink : submenuInfo.link}
                       preload={false}
                       onClick={(e) => handleClickMenu(e, submenuInfo.title)}
                     >

@@ -7,6 +7,7 @@ import Close from 'assets/svg/close-icon-grey.svg';
 import ArrowRightIcon from 'assets/svg/common/arrow-right-icon.svg';
 import useDinings from 'components/cafeteria/hooks/useDinings';
 import type { ServerDining } from 'components/IndexComponents/HomePage/types';
+import { DINING_TYPE_MAP } from 'static/cafeteria';
 import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
@@ -14,6 +15,8 @@ import { isomorphicLocalStorage } from 'utils/ts/env';
 
 import DiningCarousel from './DiningCarousel';
 import styles from './IndexCafeteria.module.scss';
+
+type MealClickTarget = '전체보기' | '카드' | '제목';
 
 interface IndexCafeteriaProps {
   serverDining: ServerDining;
@@ -32,22 +35,27 @@ function IndexCafeteria({ serverDining }: IndexCafeteriaProps) {
   const diningType = serverDining.type;
   const dayLabel = serverDining.dayLabel;
 
-  const handleMoreClick = () => {
+  const handleMealClick = (target: MealClickTarget) => {
     logger.actionEventClick({
-      team: 'CAMPUS',
-      event_label: 'main_menu_moveDetailView',
-      value: `${dayLabel} 식단`,
+      event_name: 'DA2',
+      event_label: 'main__main__meal__click',
+      value: `${diningType ? DINING_TYPE_MAP[diningType] : ''}_${target}`,
     });
     router.navigate({ href: ROUTES.Cafeteria() });
   };
 
   const handlePlaceClick = (place: DiningPlace) => {
-    logger.actionEventClick({ team: 'CAMPUS', event_label: 'main_menu_corner', value: place });
+    logger.actionEventClick({
+      event_name: 'DA2',
+      event_label: 'main__main__corner__select',
+      value: place,
+      event_category: 'select',
+    });
   };
 
   const handleTooltipContentButtonClick = () => {
     isomorphicLocalStorage.setItem('cafeteria-tooltip', 'used');
-    handleMoreClick();
+    handleMealClick('전체보기');
   };
 
   const handleTooltipCloseButtonClick = () => {
@@ -64,10 +72,10 @@ function IndexCafeteria({ serverDining }: IndexCafeteriaProps) {
   return (
     <section>
       <h2 className={styles.header}>
-        <button type="button" className={styles.header__title} onClick={handleMoreClick}>
+        <button type="button" className={styles.header__title} onClick={() => handleMealClick('제목')}>
           {`${dayLabel}의 식단`}
         </button>
-        <button type="button" className={styles.header__more} onClick={handleMoreClick}>
+        <button type="button" className={styles.header__more} onClick={() => handleMealClick('전체보기')}>
           전체보기
           <ArrowRightIcon aria-hidden />
         </button>
@@ -101,7 +109,7 @@ function IndexCafeteria({ serverDining }: IndexCafeteriaProps) {
         dinings={dinings}
         diningType={diningType}
         dayLabel={dayLabel}
-        onDiningClick={handleMoreClick}
+        onDiningClick={() => handleMealClick('카드')}
         onPlaceClick={handlePlaceClick}
       />
     </section>

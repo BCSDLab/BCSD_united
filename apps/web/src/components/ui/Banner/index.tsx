@@ -103,17 +103,17 @@ function Banner({ bannersList }: BannerProps) {
 
   const handleImageLinkClick = () => {
     logger.actionEventClick({
-      team: 'CAMPUS',
-      event_label: 'main_modal',
-      value: `${currentBanner.title}`,
+      event_name: 'DA2',
+      event_label: 'banner__main__fixed_banner__click',
+      value: currentBanner.title,
     });
   };
 
   const handlePrevButtonClick = () => {
     logger.actionEventClick({
-      team: 'CAMPUS',
-      event_label: 'main_next_modal',
-      value: `${currentBanner.title}`,
+      event_name: 'DA2',
+      event_label: 'banner__main__fixed_banner__previous__click',
+      value: currentBanner.title,
     });
     setPageIndex((prev) => (prev - 1 + bannerCount) % bannerCount);
     resetAutoSlide();
@@ -121,9 +121,9 @@ function Banner({ bannersList }: BannerProps) {
 
   const handleNextButtonClick = () => {
     logger.actionEventClick({
-      team: 'CAMPUS',
-      event_label: 'main_next_modal',
-      value: `${currentBanner.title}`,
+      event_name: 'DA2',
+      event_label: 'banner__main__fixed_banner__next__click',
+      value: currentBanner.title,
     });
     setPageIndex((prev) => (prev + 1) % bannerCount);
     resetAutoSlide();
@@ -131,9 +131,9 @@ function Banner({ bannersList }: BannerProps) {
 
   const handlePageButtonClick = (index: number) => {
     logger.actionEventClick({
-      team: 'CAMPUS',
-      event_label: 'main_next_modal',
-      value: `${currentBanner.title}`,
+      event_name: 'DA2',
+      event_label: 'banner__main__fixed_banner__page_select__click',
+      value: currentBanner.title,
     });
     setPageIndex(index);
     resetAutoSlide();

@@ -30,8 +30,8 @@ export default function PCDiningBlocks({ diningType, isThisWeek }: PCDiningBlock
     if (!dining.image_url) return;
 
     logger.actionEventClick({
-      team: 'CAMPUS',
-      event_label: 'menu_image',
+      event_name: 'DA1',
+      event_label: 'cafeteria__cafeteria__photo_view__open__click',
       value: `${DINING_TYPE_MAP[dining.type]}_${dining.place}`,
     });
 

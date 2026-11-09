@@ -13,12 +13,14 @@ import TotalGrades from 'components/TimetablePage/components/TotalGrades';
 import useLectureList from 'components/TimetablePage/hooks/useLectureList';
 import useMyLectures from 'components/TimetablePage/hooks/useMyLectures';
 import ROUTES from 'static/routes';
+import useLogger from 'utils/hooks/analytics/useLogger';
 import { useTempLecture } from 'utils/zustand/myTempLecture';
 
 import styles from './DefaultPage.module.scss';
 
 export default function DefaultPage({ timetableFrameId, semester }: { timetableFrameId: number; semester: Semester }) {
   const router = useRouter();
+  const logger = useLogger();
   const routeSearch = useSearch({ strict: false });
   const navigate = (href: string) => router.navigate({ href });
   const { myLectures } = useMyLectures(Number(timetableFrameId), semester);
@@ -30,6 +32,11 @@ export default function DefaultPage({ timetableFrameId, semester }: { timetableF
   );
   const handleCourseClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     const { value: courseType } = e.currentTarget;
+    logger.actionEventClick({
+      event_name: 'DA1',
+      event_label: 'timetable__timetable_edit__timetable_edit__tab__click',
+      value: courseType === 'regular' ? '정규 과목' : '직접 추가',
+    });
     navigate(
       `${ROUTES.TimetableModify({ id: String(timetableFrameId), type: courseType })}&year=${semester?.year}&term=${semester?.term}`,
     );
@@ -90,11 +97,16 @@ export default function DefaultPage({ timetableFrameId, semester }: { timetableF
               <button
                 type="button"
                 className={styles['page__save-button']}
-                onClick={() =>
+                onClick={() => {
+                  logger.actionEventClick({
+                    event_name: 'DA1',
+                    event_label: 'timetable__timetable_edit__timetable_edit__confirm__click',
+                    value: '수정 완료',
+                  });
                   navigate(
                     `/timetable?timetableFrameId=${timetableFrameId}&year=${semester.year}&term=${semester.term}`,
-                  )
-                }
+                  );
+                }}
               >
                 <div className={styles['page__pen-icon']}>
                   <PenIcon />

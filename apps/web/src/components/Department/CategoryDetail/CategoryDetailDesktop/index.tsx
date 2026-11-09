@@ -25,7 +25,12 @@ export default function CategoryDetailDesktop({
         ) : (
           <div className={styles.list}>
             {departments.map((department) => (
-              <DepartmentCard key={department.name} department={department} className={styles.list__card} />
+              <DepartmentCard
+                key={department.name}
+                department={department}
+                screen="department_list"
+                className={styles.list__card}
+              />
             ))}
           </div>
         )}

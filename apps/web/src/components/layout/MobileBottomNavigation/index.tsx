@@ -12,28 +12,28 @@ import styles from './MobileBottomNavigation.module.scss';
 const NAVIGATION_ITEMS = [
   {
     key: 'home',
-    event_label: 'nav_home',
+    event_label: 'main__main__navigation__main_entry__click' as const,
     label: '홈',
     href: ROUTES.Main(),
     Icon: HomeIcon,
   },
   {
     key: 'category',
-    event_label: 'nav_category',
+    event_label: 'main__main__navigation__category_menu_entry__click' as const,
     label: '카테고리',
     href: ROUTES.Category(),
     Icon: CategoryIcon,
   },
   {
     key: 'board',
-    event_label: 'nav_bulletin',
+    event_label: 'main__main__notice_entry__navigation_entry__click' as const,
     label: '게시판',
     href: ROUTES.Articles(),
     Icon: ClipBoardIcon,
   },
   {
     key: 'profile',
-    event_label: 'nav_profile',
+    event_label: 'main__main__navigation__profile_entry__click' as const,
     label: '프로필',
     href: ROUTES.Profile(),
     Icon: UserIcon,
@@ -68,9 +68,9 @@ function MobileBottomNavigation() {
                 aria-current={isActive ? 'page' : undefined}
                 onClick={() =>
                   logger.actionEventClick({
-                    team: 'CAMPUS',
-                    event_label: event_label,
-                    value: label,
+                    event_name: 'DA2',
+                    event_label,
+                    value: key === 'board' ? '공지사항' : label,
                   })
                 }
               >

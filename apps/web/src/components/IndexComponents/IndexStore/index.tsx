@@ -25,6 +25,13 @@ export default function IndexStore() {
         to={titleLink.split('?')[0]}
         search={parseSearch(titleLink.split('?')[1] ?? '')}
         className={styles.template__title}
+        onClick={() =>
+          logger.actionEventClick({
+            event_name: 'DA2',
+            event_label: 'main__main__shop_entry__main_entry__click',
+            value: '주변상점',
+          })
+        }
       >
         주변 상점
       </Link>
@@ -40,8 +47,8 @@ export default function IndexStore() {
             href={titleLink}
             onClick={() =>
               logger.actionEventClick({
-                team: 'CAMPUS',
-                event_label: 'popular_shop',
+                event_name: 'DA1',
+                event_label: 'shop__main__shop_entry__popular_entry__click',
                 value: '많이 찾는 상점 둘러보기',
                 duration_time: getMainDurationTime(),
               })

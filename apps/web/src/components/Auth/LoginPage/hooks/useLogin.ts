@@ -28,8 +28,8 @@ export const useLogin = (state: IsAutoLogin) => {
     mutationFn: webLogin,
     onSuccess: (data: WebAuthResponse) => {
       logger.actionEventClick({
-        team: 'USER',
-        event_label: 'login',
+        event_name: 'DA2',
+        event_label: 'account__login__login__confirm__click',
         value: '로그인 완료',
       });
       // invalidate는 데이터를 남긴 채 stale 표시만 하므로, 리페치가 끝나기 전까지
@@ -45,8 +45,8 @@ export const useLogin = (state: IsAutoLogin) => {
       if (isKoinError(error)) {
         showToast('error', error.message || '로그인에 실패했습니다.');
         logger.actionEventClick({
-          team: 'USER',
-          event_label: 'login',
+          event_name: 'DA2',
+          event_label: 'account__login__login__confirm__click',
           value: '로그인 실패',
         });
       } else {
