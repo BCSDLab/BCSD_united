@@ -26,7 +26,15 @@ interface DiningCardProps {
 
 function DiningCard({ place, dining, diningType, onClick, onInteract }: DiningCardProps) {
   return (
-    <button type="button" className={styles['meal-card']} onClick={onClick} onFocus={onInteract} onKeyDown={onInteract}>
+    <button
+      type="button"
+      className={styles['meal-card']}
+      onClick={onClick}
+      onFocus={(event) => {
+        if (event.currentTarget.matches(':focus-visible')) onInteract();
+      }}
+      onKeyDown={onInteract}
+    >
       <div className={styles['meal-card__meta']}>
         <span>{DINING_TYPE_MAP[diningType]}</span>
         {dining && (
