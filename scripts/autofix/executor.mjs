@@ -1086,12 +1086,12 @@ async function preflight(signal) {
   const host = await statfs(JOBS);
   if (BigInt(host.bavail) * BigInt(host.bsize) < 12n * 1024n ** 3n)
     throw new Error('Executor job filesystem has under 12 GiB free');
-  // Gate on what a job actually uses, not the 3 GiB cgroup cap: steps run one container at a time and the
-  // heaviest (web build) peaked at ~1.9 GiB anonymous memory on Rocky (2026-11-09), plus 1 GiB host headroom.
+  // One verifier container runs at a time under verify.mjs's 3 GiB cgroup cap, so a job can never need more than
+  // the cap; keep 1 GiB beyond it for the services sharing this host. (Measured peak is ~1.9 GiB, see README.)
   const memory = await readFile('/proc/meminfo', 'utf8');
   const available = /^MemAvailable:\s+(\d+)\s+kB/m.exec(memory);
-  if (!available || BigInt(available[1]) * 1024n < 3n * 1024n ** 3n)
-    throw new Error('Linux host has under 3 GiB available memory (~2 GiB verifier peak plus 1 GiB headroom)');
+  if (!available || BigInt(available[1]) * 1024n < 4n * 1024n ** 3n)
+    throw new Error('Linux host has under 4 GiB available memory (3 GiB verifier cap plus 1 GiB headroom)');
   const disk = await command(
     'docker',
     [
