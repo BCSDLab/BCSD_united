@@ -936,13 +936,13 @@ test('unconfigured provider and executor secrets fail closed while exact authent
   h.env.AUTOFIX_EXECUTOR_TOKEN = '';
   assert.equal((await h.send(signed())).status, 503);
   h.env.AUTOFIX_EXECUTOR_TOKEN = executorToken;
-  // A gateway token without its origin (or vice versa) is a deployment defect, never a silent API-key fallback.
+  // A gateway token without its binding (or vice versa) is a deployment defect, never a silent API-key fallback.
   h.env.OMP_GATEWAY_TOKEN = 'local-gateway-bearer-0123456789abcdef';
   assert.equal((await h.send(signed())).status, 503);
   delete h.env.OMP_GATEWAY_TOKEN;
-  h.env.OMP_GATEWAY_ORIGIN = 'https://bridge.example/v1';
+  h.env.OMP_GATEWAY = { fetch: (...args) => globalThis.fetch(...args) };
   assert.equal((await h.send(signed())).status, 503);
-  delete h.env.OMP_GATEWAY_ORIGIN;
+  delete h.env.OMP_GATEWAY;
   h.env.AUTOFIX_EXECUTOR_TOKEN = '';
   assert.equal(
     (

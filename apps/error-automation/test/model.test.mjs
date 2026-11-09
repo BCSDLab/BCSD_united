@@ -23,12 +23,14 @@ const base = {
   messages: [{ role: 'user', content: 'Read observed source' }],
 };
 const review = { ...base, model: 'claude-opus-5-5' };
+// The binding delegates to the (mocked) global fetch at call time, like the VPC service fetcher.
+const gatewayBinding = { fetch: (...args) => globalThis.fetch(...args) };
 const gatewayEnv = {
-  OMP_GATEWAY_ORIGIN: 'https://bridge.example',
+  OMP_GATEWAY: gatewayBinding,
   OMP_GATEWAY_TOKEN: 'local-gateway-bearer-0123456789abcdef',
 };
 const env = gatewayEnv;
-const gatewayUrl = 'https://bridge.example/v1/messages';
+const gatewayUrl = 'http://omp-gateway/v1/messages';
 
 test('proxy admits only the two tier models, five file tools, and bounded message blocks', () => {
   assert.equal(parseModelRequest(base).model, 'claude-sonnet-5-5');
@@ -235,47 +237,34 @@ test('a failing gateway is terminal: one request, no retry and no other upstream
     reply = () => Response.json({ type: 'message', model, content: [], stop_reason: 'end_turn' });
     await assert.rejects(invokeModel(gatewayEnv, parseModelRequest(base)), /Unexpected omp gateway model response/);
   }
-  assert.deepEqual(urls, Array(3).fill('https://bridge.example/v1/messages'));
+  assert.deepEqual(urls, Array(3).fill(gatewayUrl));
 });
 
-test('gateway configuration must be a bare HTTPS origin paired with a header-safe token, or nothing', async (t) => {
-  assert.equal(gatewayTransport({ OMP_GATEWAY_ORIGIN: undefined, OMP_GATEWAY_TOKEN: undefined }), null);
+test('gateway configuration must be the VPC binding paired with a header-safe token, or nothing', async (t) => {
+  assert.equal(gatewayTransport({ OMP_GATEWAY: undefined, OMP_GATEWAY_TOKEN: undefined }), null);
   assert.deepEqual(gatewayTransport(gatewayEnv), {
-    url: 'https://bridge.example/v1/messages',
+    gateway: gatewayBinding,
+    url: gatewayUrl,
     headers: { Authorization: `Bearer ${gatewayEnv.OMP_GATEWAY_TOKEN}` },
   });
-  assert.equal(
-    gatewayTransport({ ...gatewayEnv, OMP_GATEWAY_ORIGIN: 'https://bridge.example:8443' }).url,
-    'https://bridge.example:8443/v1/messages',
-  );
   let invoked = 0;
   t.mock.method(globalThis, 'fetch', async () => {
     invoked++;
     return Response.json({ type: 'message', model: 'claude-sonnet-5-5', content: [], stop_reason: 'end_turn' });
   });
   for (const broken of [
-    { OMP_GATEWAY_ORIGIN: 'https://bridge.example' },
+    { OMP_GATEWAY: gatewayBinding },
     { OMP_GATEWAY_TOKEN: gatewayEnv.OMP_GATEWAY_TOKEN },
-    { ...gatewayEnv, OMP_GATEWAY_ORIGIN: '' },
+    { ...gatewayEnv, OMP_GATEWAY: null },
+    { ...gatewayEnv, OMP_GATEWAY: {} },
+    { ...gatewayEnv, OMP_GATEWAY: 'https://bridge.example' },
     { ...gatewayEnv, OMP_GATEWAY_TOKEN: '' },
     { ...gatewayEnv, OMP_GATEWAY_TOKEN: 'short' },
     { ...gatewayEnv, OMP_GATEWAY_TOKEN: `${gatewayEnv.OMP_GATEWAY_TOKEN}\r\nX-Injected: 1` },
     { ...gatewayEnv, OMP_GATEWAY_TOKEN: `${gatewayEnv.OMP_GATEWAY_TOKEN} with space` },
-    { ...gatewayEnv, OMP_GATEWAY_ORIGIN: 'http://bridge.example' },
-    { ...gatewayEnv, OMP_GATEWAY_ORIGIN: 'https://bridge.example/' },
-    { ...gatewayEnv, OMP_GATEWAY_ORIGIN: 'https://bridge.example/v1' },
-    { ...gatewayEnv, OMP_GATEWAY_ORIGIN: 'https://bridge.example?x=1' },
-    { ...gatewayEnv, OMP_GATEWAY_ORIGIN: 'https://bridge.example#frag' },
-    { ...gatewayEnv, OMP_GATEWAY_ORIGIN: 'https://user:pass@bridge.example' },
-    { ...gatewayEnv, OMP_GATEWAY_ORIGIN: 'https://bridge.example:443' },
-    { ...gatewayEnv, OMP_GATEWAY_ORIGIN: 'https://Bridge.example' },
-    { ...gatewayEnv, OMP_GATEWAY_ORIGIN: ' https://bridge.example' },
-    { ...gatewayEnv, OMP_GATEWAY_ORIGIN: 'bridge.example' },
-    { ...gatewayEnv, OMP_GATEWAY_ORIGIN: 'https://' },
-    { ...gatewayEnv, OMP_GATEWAY_ORIGIN: `https://${'a'.repeat(260)}.example` },
   ]) {
     const env = { ...broken };
-    assert.throws(() => gatewayTransport(env), JSON.stringify(broken));
+    assert.throws(() => gatewayTransport(env), String(Object.keys(broken)));
     await assert.rejects(invokeModel(env, parseModelRequest(base)), /omp gateway/);
   }
   assert.equal(invoked, 0);
