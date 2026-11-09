@@ -92,17 +92,27 @@ heartbeat 실패 원인(원인 체인의 오류 코드 포함)과 중단·실패
 2. 새 `tests/autofix/*.test.mjs`는 수정 전 실제 assertion 실패, 수정 후 통과해야 한다. loader/setup 실패는 재현이 아니다. 오류 모드에서는 고정 base의 기존 native fixtures를 후보 적용 **전과 후** 모두 실행해 이미 통과하던 테스트를 보존한다. API 후보는 `@koin/api...`, 웹 후보는 추가로 `@koin/web...` 의존성 범위의 기존 native fixtures·타입·빌드를 검사하고 autofix 보안 테스트와 해당 범위 lint를 수행한다. B-BOT의 별도 PostgreSQL 런타임은 이 자동 수정 대상이 아니며 저장소 전체 검증에서 따로 검사한다. 기존 fixture/test 파일은 패치에서 수정할 수 없다.
 3. 웹은 정적 route/import graph에서 모든 변경 소스가 관측 경로에 도달하는지 확인한다. 오류 작업은 인증된 관측 경로를 그대로 사용하며, PR/단독 오프라인 스모크만 홈 `/`를 사용한다. 웹 검증 전 로컬 D1 migration을 적용하고, Vite 빌드에 검증 전용 `koin-api` auxiliary Worker를 포함하여 SSR service binding과 브라우저 gateway가 동일한 실제 로컬 API/D1을 사용하게 한다. API smoke는 별도 실제 Wrangler Worker에서 관측된 GET endpoint 실행과 2xx/JSON을 확인한다. 배포 설정의 레거시 Worker API는 `API_ENABLED` 기본 비활성(`"false"`)이므로, `local-api.mjs`는 격리 Miniflare에만 `API_ENABLED`를 `"true"`로 명시한다(`wrangler dev --var API_ENABLED:true`, auxiliary Worker 사본의 `vars` 치환). 이 값은 로컬 프로세스에만 적용되며 원격 Worker·D1·Queue 설정을 바꾸지 않는다. `SOURCE_SYNC_ENABLED`는 그대로 `"false"`이고 검증기가 별도 게이트를 추가하지 않는다. 데스크톱 SSR/Chromium 후 문서를 떠나 `requestContext.ts`의 모바일 분류와 일치하는 Android Mobile UA로 **같은 관측 경로**의 SSR/390px Chromium을 새로 열고, 문서·gateway 응답, 앱 DOM, console.error·예외·hydration 경고·HTTP 오류를 확인한다. 홈에서는 실제 인사·식단 위젯과 SSR의 로컬 API 요청도 확인하되, 정적 경로에 존재하지 않는 API 요청을 강요하지 않는다. 빈 로컬 D1에서 `/weather` 503과 `/coopshop/1` 404는 정확한 API 오류 코드와 명시적 unavailable/빈 식단 UI를 모두 확인한 경우에만 허용한다. 임시 entrypoint·registry·브라우저 프로필·프로세스·컨테이너·source snapshot을 정리한다. mutating 요청/인증/필수 query/운영 데이터 의존은 자동 재생하지 않으며 운영 데이터나 가짜 fallback을 사용하지 않는다.
 
-## 로컬 omp 게이트웨이
+## omp 게이트웨이 (Rocky 상주)
 
-Worker의 **유일한** 모델 인증 경로다. 직접 Anthropic API key 호출 경로는 제거되었고 복원용 fallback도 없다. Worker는 env `OMP_GATEWAY_ORIGIN`(HTTPS origin만)과 secret `OMP_GATEWAY_TOKEN`이 모두 설정된 경우에만 고정 system/tools/model 본문을 `POST <origin>/v1/messages`에 `Authorization: Bearer <OMP_GATEWAY_TOKEN>`으로 보내며 redirect를 따르지 않는다. 둘 중 하나라도 없으면 모델 호출은 설정 오류로 실패하고 작업은 종료된다. 운영자 기기에서는 `scripts/autofix/local-omp-gateway.mjs`가 `127.0.0.1`에만 바인딩되어 요청마다 공식 `omp auth-gateway stdio` 자식 한 개를 띄워 추론만 위임한다. omp는 이미 로그인된 자체 자격증명(또는 설정된 broker)을 쓰며, access/refresh token·API key를 읽거나 복사하거나 내보내지 않고, 계정 회전이나 한도 우회를 하지 않는다. 개인 omp 한도가 소진되면 요청은 그대로 실패한다.
+Worker의 **유일한** 모델 인증 경로다. 직접 Anthropic API key 호출 경로는 제거되었고 복원용 fallback도 없다. Worker는 Workers VPC 바인딩 `OMP_GATEWAY`와 secret `OMP_GATEWAY_TOKEN`이 모두 설정된 경우에만 고정 system/tools/model 본문을 바인딩의 `POST /v1/messages`에 `Authorization: Bearer <OMP_GATEWAY_TOKEN>`으로 보내며 redirect를 따르지 않는다. 둘 중 하나라도 없으면 모델 호출은 설정 오류로 실패하고 작업은 종료된다. Rocky에서는 `scripts/autofix/local-omp-gateway.mjs`가 `127.0.0.1:43129`에만 바인딩되어 요청마다 공식 `omp auth-gateway stdio` 자식 한 개를 띄워 추론만 위임한다. omp 자식은 Rocky의 기존 omp auth-broker(`127.0.0.1:8766`)로 인증하며, access/refresh token·API key를 읽거나 복사하거나 내보내지 않고, 계정 회전이나 한도 우회를 하지 않는다. omp 한도가 소진되면 요청은 그대로 실패한다.
+
+경로: Worker → VPC 서비스 `koin-omp-gateway`(HTTP, `127.0.0.1:43129`) → 원격 관리 터널 `koin-omp-gateway-rocky`(Rocky `koin-omp-tunnel.service`, 아웃바운드 전용) → `koin-omp-gateway.service`. 공개 hostname은 없다(koreatech.in 하위 도메인은 koin-web preview 와일드카드가 가로챈다). 설치:
 
 ```sh
-(umask 077 && mkdir -p ~/.config/koin-autofix && node -e 'process.stdout.write(require("node:crypto").randomBytes(32).toString("hex"))' > ~/.config/koin-autofix/omp-gateway.token)
-OMP_GATEWAY_TOKEN_FILE=~/.config/koin-autofix/omp-gateway.token OMP_GATEWAY_PORT=43129 node scripts/autofix/local-omp-gateway.mjs
-cloudflared tunnel --url http://127.0.0.1:43129   # 출력된 https://*.trycloudflare.com 을 Worker의 OMP_GATEWAY_ORIGIN으로, 같은 토큰을 OMP_GATEWAY_TOKEN secret으로 등록
+# 스크립트·유닛 배치 (root)
+install -D -m 0644 scripts/autofix/local-omp-gateway.mjs /usr/local/lib/koin-autofix/local-omp-gateway.mjs
+install -m 0644 scripts/autofix/koin-omp-gateway.service scripts/autofix/koin-omp-tunnel.service /etc/systemd/system/
+# 게이트웨이 전용 HOME: broker bearer 복사 + 게이트웨이 bearer 생성 (homebutler 소유 0600)
+install -d -o homebutler -g homebutler -m 0700 /home/user/.home-butler/koin-omp-gateway /home/user/.home-butler/koin-omp-gateway/.omp
+install -o homebutler -g homebutler -m 0600 /home/user/.home-butler/auth-home/.omp/auth-broker.token /home/user/.home-butler/koin-omp-gateway/.omp/auth-broker.token
+sudo -u homebutler sh -c 'umask 077; node -e "process.stdout.write(require(\"node:crypto\").randomBytes(32).toString(\"hex\"))" > /home/user/.home-butler/koin-omp-gateway/omp-gateway.token'
+# 터널 토큰(대시보드 Networks > Tunnels > koin-omp-gateway-rocky)은 /etc/koin-autofix/omp-tunnel.token (root 0600)
+systemctl daemon-reload && systemctl enable --now koin-omp-gateway koin-omp-tunnel
+# 같은 게이트웨이 bearer를 Worker secret으로 등록
+cat /home/user/.home-butler/koin-omp-gateway/omp-gateway.token | pnpm --dir apps/error-automation exec wrangler secret put OMP_GATEWAY_TOKEN
 ```
 
-브리지 계약:
+게이트웨이 계약:
 
 - `OMP_GATEWAY_TOKEN_FILE`은 현재 uid 소유의 **0600 일반 파일**(symlink 불가)이어야 하며 32–512자 URL-safe 토큰 한 줄을 담는다. 조건이 하나라도 어긋나면 시작하지 않는다. `OMP_GATEWAY_PORT` 기본값은 `43129`다.
 - 정확히 `POST /v1/messages`만 받는다(query 포함 다른 경로 404, 다른 메서드 405). bearer는 시간 일정 비교로 먼저 검사하며(실패 401), 인증 전에는 omp를 실행하지 않는다. broker/usage/models 등 다른 게이트웨이 경로는 노출하지 않는다.
@@ -114,7 +124,7 @@ cloudflared tunnel --url http://127.0.0.1:43129   # 출력된 https://*.trycloud
 - **시작 게이트:** 시작 시 `GET /v1/models`(quota 소비 없음)로 `anthropic/claude-sonnet-5-5`와 `anthropic/claude-opus-5-5`가 omp의 자격증명 선택에 따라 실제 서비스되는지 확인하고, 하나라도 없으면 listen하지 않고 종료한다. 로그인 만료 등은 요청 시점에 502로 드러나며 브리지가 로그인을 대신 수행하지 않는다.
 - **인증 방식 한계:** `omp auth-gateway stdio`는 다른 omp 명령과 같은 자격증명 사다리(runtime key → `models.yml` `apiKey` → 저장된 OAuth → 로그인 저장 key → env → 기타 저장 key)를 쓴다. 저장된 OAuth 로그인이 있으면 env key보다 우선하지만, 브리지가 **OAuth 전용을 강제할 수는 없다**: `apiKeys:false` 계정 풀은 broker 모드 전용이고 로컬 저장소에는 같은 스위치가 없다. 따라서 "OAuth-only"가 아니라 "운영자의 기존 omp 로그인 선택을 그대로 사용"이 정확한 표현이다. 같은 provider의 다른 계정으로의 credential 회전은 설정으로 끄는 항목이 아니며 현재 Anthropic 로그인이 하나뿐이라 발생하지 않는다; 계정을 추가하면 이 전제가 깨진다. 브리지는 로컬 자격증명을 읽거나 삭제·수정하지 않는다.
 
-제한과 해제: 임시 Cloudflare quick tunnel URL은 공개 주소이므로 bearer만이 접근을 막는다. 게이트웨이 bearer는 연결 인증용 비밀이며 provider 자격증명이 아니다. 해제할 때는 터널과 브리지를 내리고 토큰 파일을 삭제한 뒤 Worker의 `OMP_GATEWAY_ORIGIN`/`OMP_GATEWAY_TOKEN`을 제거한다. 그 시점부터 새 인증 게이트웨이를 설정할 때까지 **모델 처리는 불가능**하며(모델 호출이 설정 오류로 실패), API key를 다시 등록하는 복구 경로는 없다. 브리지는 운영자 기기와 omp 로그인 상태에 의존하고, 모델 호출 외의 어떤 Worker 동작(발행·검증·merge)도 바꾸지 않는다.
+제한과 해제: 게이트웨이는 공개 주소가 없고 VPC 바인딩을 가진 Worker만 도달하며, bearer가 추가로 접근을 막는다. 게이트웨이 bearer는 연결 인증용 비밀이며 provider 자격증명이 아니다. 해제할 때는 두 유닛을 내리고 토큰 파일을 삭제한 뒤 Worker의 `OMP_GATEWAY_TOKEN`과 VPC 바인딩을 제거한다. 그 시점부터 새 인증 게이트웨이를 설정할 때까지 **모델 처리는 불가능**하며(모델 호출이 설정 오류로 실패), API key를 다시 등록하는 복구 경로는 없다. 게이트웨이는 Rocky와 omp auth-broker 상태에 의존하고, 모델 호출 외의 어떤 Worker 동작(발행·검증·merge)도 바꾸지 않는다.
 
 ## 기존 PR 검토·수정 모드 (`mode: 'pull-request'`)
 

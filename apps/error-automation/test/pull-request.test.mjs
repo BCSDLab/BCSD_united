@@ -76,7 +76,7 @@ function env(overrides = {}) {
     GITHUB_DISPATCH_INSTALLATION_ID: '176455083',
     AUTOFIX_EXECUTOR_ID: 'koin-rocky-umpc',
     AUTOFIX_EXECUTOR_TOKEN: 'local-dedicated-executor-secret-32-characters',
-    OMP_GATEWAY_ORIGIN: 'https://bridge.example',
+    OMP_GATEWAY: { fetch: (...args) => globalThis.fetch(...args) },
     OMP_GATEWAY_TOKEN: 'local-gateway-bearer-0123456789abcdef',
     GITHUB_WEBHOOK_SECRET: 'local-github-webhook-secret-at-least-32-characters',
     PR_REVIEW_AUTO: 'false',
@@ -110,7 +110,7 @@ function githubMock(t, state) {
         repositories: [{ full_name: 'BCSDLab/BCSD_united' }],
       });
     }
-    if (href === 'https://bridge.example/v1/messages') {
+    if (href === 'http://omp-gateway/v1/messages') {
       const body = JSON.parse(options.body);
       systems.push(body.system);
       forwarded.push(body.max_tokens);

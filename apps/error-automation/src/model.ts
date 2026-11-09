@@ -293,33 +293,27 @@ async function modelFailureMetadata(response: Response): Promise<Record<string, 
 }
 
 export interface ModelTransport {
+  gateway: Fetcher;
   url: string;
   headers: Record<string, string>;
 }
 
 const GATEWAY_TOKEN = /^[A-Za-z0-9._~+/=-]{32,512}$/;
+/** The VPC service pins the tunnel host and port; this URL only supplies the path and Host header. */
+const GATEWAY_URL = 'http://omp-gateway/v1/messages';
 
 /**
- * Operator-configured omp auth-gateway bridge, the only model upstream; null when neither `OMP_GATEWAY_*` value
- * exists (ingress keeps working, inference fails until both are set). Once either is present both must be valid:
- * a bare HTTPS origin equal to its own `URL.origin` (no credentials, path, query, fragment, trailing slash, default
- * port or uppercase host) paired with a header-safe bearer. There is no provider API key path.
+ * The omp auth-gateway on Rocky, reached privately through the `OMP_GATEWAY` Workers VPC binding; the only model
+ * upstream. Null when neither the binding nor its bearer exists (ingress keeps working, inference fails until both
+ * are set). Once either is present both must be valid. There is no provider API key or public origin path.
  */
 export function gatewayTransport(env: Env): ModelTransport | null {
-  const origin = env.OMP_GATEWAY_ORIGIN;
+  const gateway = env.OMP_GATEWAY;
   const token = env.OMP_GATEWAY_TOKEN;
-  if (origin === undefined && token === undefined) return null;
-  if (typeof origin !== 'string' || typeof token !== 'string' || !GATEWAY_TOKEN.test(token))
-    throw new Error('omp gateway origin and token must be configured together');
-  let parsed: URL;
-  try {
-    parsed = new URL(origin);
-  } catch {
-    throw new Error('omp gateway origin is not a URL');
-  }
-  if (parsed.protocol !== 'https:' || parsed.origin !== origin || origin.length > 264)
-    throw new Error('omp gateway origin must be a bare HTTPS origin');
-  return { url: `${origin}/v1/messages`, headers: { Authorization: `Bearer ${token}` } };
+  if (gateway === undefined && token === undefined) return null;
+  if (typeof gateway?.fetch !== 'function' || typeof token !== 'string' || !GATEWAY_TOKEN.test(token))
+    throw new Error('omp gateway binding and token must be configured together');
+  return { gateway, url: GATEWAY_URL, headers: { Authorization: `Bearer ${token}` } };
 }
 
 /** The exact JSON body sent upstream; the queue measures this same serialization to reserve input budget. */
@@ -380,7 +374,7 @@ export async function invokeModel(
   const startedAt = Date.now();
   let providerRejected = false;
   try {
-    const response = await fetch(transport.url, {
+    const response = await transport.gateway.fetch(transport.url, {
       method: 'POST',
       redirect: 'manual',
       signal: AbortSignal.timeout(Math.max(1, Math.min(timeoutMs, CALL_TIMEOUT_MS[mode]))),
