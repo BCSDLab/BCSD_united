@@ -1086,8 +1086,8 @@ async function preflight(signal) {
   const host = await statfs(JOBS);
   if (BigInt(host.bavail) * BigInt(host.bsize) < 12n * 1024n ** 3n)
     throw new Error('Executor job filesystem has under 12 GiB free');
-  // One verifier container runs at a time under verify.mjs's 3 GiB cgroup cap, so a job can never need more than
-  // the cap; keep 1 GiB beyond it for the services sharing this host. (Measured peak is ~1.9 GiB, see README.)
+  // Admission heuristic, not a reservation: verifier steps run one container at a time under verify.mjs's 3 GiB
+  // cgroup cap (measured peaks: 1.9 GiB anonymous, 2.3 GiB memory.peak), plus 1 GiB for the host's other services.
   const memory = await readFile('/proc/meminfo', 'utf8');
   const available = /^MemAvailable:\s+(\d+)\s+kB/m.exec(memory);
   if (!available || BigInt(available[1]) * 1024n < 4n * 1024n ** 3n)
