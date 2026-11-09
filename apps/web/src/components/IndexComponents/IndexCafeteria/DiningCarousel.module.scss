@@ -140,18 +140,4 @@
     line-height: 1.6;
     overflow-wrap: anywhere;
   }
-
-  &__empty {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    margin: auto 0;
-    color: #6f6f6f;
-    font-size: 14px;
-    line-height: 1.6;
-
-    svg {
-      margin-bottom: 12px;
-    }
-  }
 }
