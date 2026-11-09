@@ -2,7 +2,7 @@
 
 [BCSDLab/B_BOT](https://github.com/BCSDLab/B_BOT)의 Slack 봇을 이 모노레포에 통합한 앱이다. Nitro HTTP 라우트와 기존 도메인 로직을 유지하고 Workers·Queues·KV·Workers AI에서 실행한다. Slack HTTP는 Worker에, 기존 업무 API는 Java에 남는다.
 
-원본에 있던 조직 지식 RAG(`!질문`, GitHub·Notion·Google Drive 문서 색인, 👍👎 피드백)는 2026-11-07에 제거했다. 제거 시점에 RAG는 토큰 과금 생성 모델(Luna)과 설치되지 않은 Pi 색인기에 의존해 실제로 운영되지 않고 있었고, 원본 B_BOT에서도 같은 날 Ollama와 함께 제거했다. 봇 PostgreSQL의 `rag_*` 테이블과 마이그레이션은 적용 이력 보존을 위해 그대로 둔다.
+원본에 있던 조직 지식 RAG(`!질문`, GitHub·Notion·Google Drive 문서 색인, 👍👎 피드백)는 포함하지 않는다. 봇 PostgreSQL의 `rag_*` 테이블과 마이그레이션은 적용 이력 보존을 위해 그대로 둔다.
 
 배포 주소: <https://b-bot-workers.bcsdlab.workers.dev> · 상태 확인: [`GET /health`](https://b-bot-workers.bcsdlab.workers.dev/health).
 

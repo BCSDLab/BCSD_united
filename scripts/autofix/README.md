@@ -7,8 +7,6 @@
 - **Sentry:** 고정된 Sentry API에서 프로젝트/이슈/브라우저 SDK를 확인한다. 허용 호스트의 요청 경로와 애플리케이션 소스 프레임이 있어야 모델을 호출한다. 새 행동 회귀 테스트, 기존 native fixtures, 타입/lint/build/runtime 검증을 모두 통과한 후보만 PR로 발행한다.
 - **Cloudflare Issues:** Worker가 공식 Notifications envelope를 인증하고 계정·정책·Worker·앱을 재검증한다. 불투명한 `data`를 예외/경로/소스 프레임으로 임의 해석하지 않고, 일치하는 Issues occurrence·Tail/Telemetry·고정 소스 버전의 안전한 GET 경로와 매핑된 앱 소스 프레임을 별도 확인한 경우에만 수정 후보를 만든다. 근거가 부족하면 `CLOUDFLARE_EVIDENCE_UNAVAILABLE`로 실패 기록을 남기며 원본 Cloudflare Issue는 변경하지 않는다. 기존 Workers 지표 알림을 Issues 대신 쓰거나 존재하지 않는 비공개 Issues 수정 API를 호출하지 않는다.
 - 외부 API, 인증된 사용자 상태, dependency/config/generated code 수정, Node 회귀로 재현할 수 없는 오류는 안전 범위 밖이다. 실패를 우회하거나 빈 PR을 만들지 않는다.
-- 2026-10-29 커밋 `68c6d24`의 독립 오프라인 실행에서 `/shops/categories` 실제 API/D1 GET, 홈 `/` SSR, 데스크톱 Chromium, 390px Android 에뮬레이션 Chromium의 홈 UI·브라우저 gateway 비교가 통과했다. 빈 로컬 D1에서 날씨 제공자 부재(`CONFIGURATION_ERROR`)와 학생식당 운영정보 부재(`NOT_FOUND_DATA`)가 명시적인 unavailable/빈 식단 UI로 표시되는 것도 확인했다. 이는 실제 휴대전화·운영 데이터·Sentry/Cloudflare/GitHub 제공자 연동의 성공을 뜻하지 않는다.
-  2026-11-06 격리된 실제 workerd 스모크에서 서명된 Sentry 알림의 입장, GitHub 이슈 번호 없는 lease, 실제 실행기 결과 endpoint의 `no-fix`/`failed`, 인증된 내부 진단의 처분·사유, 무인증 401·중복 결과/알림 억제를 확인했다. 이는 운영 제공자 호출, 원격 PR 발행 또는 Rocky 호스트 설치의 증거가 아니다.
 
 ## 고정 제공자 식별자
 
@@ -71,7 +69,7 @@ PR 모델 요청은 Worker 최대 180초·실행기 최대 190초이며 남은 1
 
 제공자 429 처리(`requestModel`): Worker는 게이트웨이 429가 숫자 `Retry-After`를 싣고 `rate_limit_error`이며 spend cap(`enforced_spend_limit_reached`)이 아닐 때만 `/model`에 429와 canonical 십진 정수 `Retry-After`(1~3600초)를 돌려준다. 실행기는 그 429에 한해 **같은 요청 바이트**(대화 transcript 무변경)를 최대 3회 재전송하되, 서버 지연 이상을 기다리고 대기가 남은 generation 창 안에 끝날 때만 한다. 창을 넘는 지연은 더 짧게 기다리지 않고 즉시 실패하며, 대기 중 작업 abort(기한·lease 상실·종료)는 재시도를 취소한다. 헤더가 없거나 잘못된 429, 예산 초과 거절, spend cap, 400/401/403, 503, TLS/전송 실패, 잘못된 본문은 재시도하지 않는다. 로컬 omp 게이트웨이의 429에는 `Retry-After`가 없으므로 현재 구성에서는 재시도가 일어나지 않는다. lease heartbeat는 대기와 무관하게 독립적으로 이어지고, 429로 끝난 요청도 Worker의 모델 호출 상한에 그대로 계산된다. 운영 로그에는 `retryAfterSeconds`와 재시도 횟수만 남기고 제공자 응답 본문은 기록하지 않는다.
 
-자원 프로필은 검증 컨테이너당 RAM 최대 **3 GiB**, CPU 2개다. 시작 시 가용 메모리 **5 GiB**를 확인해 검증기 상한 외에 2 GiB 여유를 둔다. 컨트롤러의 기존 2 GiB 상한은 유지하고, workspace 타입 검사·테스트·빌드는 하나씩 실행해 중첩 메모리 피크를 줄인다. 한도 초과로 검증 프로세스가 종료되면 실패로 처리하며 검증 생략·자동 한도 상향·다른 서비스 중지는 하지 않는다.
+자원 프로필은 검증 컨테이너당 RAM 상한 **3 GiB**, CPU 2개다. 단계는 한 컨테이너씩 순차 실행되므로 상한이 동시에 쌓이지 않는다. claim 전 `MemAvailable` 기준은 이 상한에 공유 호스트 여유 1 GiB를 더한 **4 GiB**다. 컨트롤러는 2 GiB 상한을 유지하고, workspace 타입 검사·테스트·빌드는 하나씩 실행해 중첩 메모리 피크를 줄인다. 한도 초과로 검증 프로세스가 종료되면 실패로 처리하며 검증 생략·자동 한도 상향·다른 서비스 중지는 하지 않는다.
 
 실행기는 공개 저장소의 검증된 고정 SHA를 각 작업의 별도 model/verifier git worktree로 준비한다. verifier image는 미리 빌드해 재사용하되, 후보 소스는 독립적인 새 검증 작업공간/매번 disposable Docker 실행으로 검증한다. `/verification-start` 이후 모델 프록시는 닫힌다. source-only 모델이 낸 manifest는 최대 24 text 파일, 파일당 256 KB, 합계 1 MB이며 수정 앱 src와 새 `tests/autofix/*.test.mjs`로만 제한한다. 기존 테스트/설정/lockfile/schema/generated 변경과 다른 앱 변경은 거부한다.
 
@@ -83,8 +81,6 @@ Rocky/UMPC의 root 신뢰 실행기는 고정 SHA 소스에서 후보와 독립 
 두 단계는 `PNPM_CONFIG_CACHE_DIR=/work/node_modules/.cache/pnpm`을 공유한다. 온라인 획득 단계의 공급망 정책 검증 캐시를 오프라인 rebuild에서도 사용하며, 정책 검사 자체를 끄거나 lifecycle에 네트워크를 열지 않는다.
 
 heartbeat 실패 원인(원인 체인의 오류 코드 포함)과 중단·실패한 하위 명령의 마지막 12 KB는 실행기 운영 로그에만 남긴다. URL과 긴 토큰형 문자열은 제거하고 사유는 500자로 제한하며, 이 진단을 PR 댓글이나 검증 성공 증거로 사용하지 않는다.
-
-2026-10-29 Rocky 호스트에서 고정 커밋 `68c6d24`의 root 컨트롤러 이미지로 오프라인 전체 스모크가 종료 코드 0으로 완료됐다. 검증 코드가 Docker 내부 `id -u`의 비루트 일치를 확인했고, 실제 로컬 API/D1 GET·홈 SSR/Chromium·390px 모바일 게이트가 통과했으며 격리 컨테이너와 소스 스냅샷 정리까지 끝났다. 이는 후보 패치의 회귀 전후 검증, 실제 제공자 호출 또는 운영 PR 발행의 증거는 아니다.
 
 검증 세부 조건:
 
@@ -120,7 +116,7 @@ cat /home/user/.home-butler/koin-omp-gateway/omp-gateway.token | pnpm --dir apps
 - 응답은 요청한 모델이 실제로 답한 `message` envelope(`anthropic/<요청 id>` 또는 bare id)일 때만 200이며 `model`을 요청한 bare id로 정규화한다. 다른 모델·fallback chain이 답하면 502다. omp 상위 429는 `rate_limit_error`로 429를 돌려주되 `Retry-After`는 붙이지 않고(stdio는 헤더를 주지 않음), 그 밖의 상위 실패는 상위 오류 문구 없이 502 `upstream_error`다. omp의 오류 문구와 자식 stderr는 로컬 경로·계정 정보를 담을 수 있어 응답·로그 어디에도 쓰지 않는다.
 - 동시 요청은 하나만 처리한다(진행 중이면 503 + `Retry-After: 5`, Worker는 이를 종료 실패로 취급). 요청당 180초 기한은 본문 수신부터 적용되어 본문이 멈추거나 추론이 늦으면 504이며, 기한 초과·클라이언트 연결 종료·종료 신호 때 브리지가 띄운 omp 자식을 SIGKILL하고 슬롯을 즉시 비운다. 자식 stdout은 4 MiB까지만 읽고 초과 시 자식을 종료한다. shell을 거치지 않고 `omp auth-gateway stdio`를 직접 실행한다.
 - 로그는 경로 분류·상태·소요 시간만 남긴다.
-- **자식 환경과 재시도 차단:** omp 자식은 허용 목록 환경만 받는다(`PATH`/`HOME`/`USER`/`TMPDIR`/`LANG`/`LC_*`/`XDG_*`/`PI_CONFIG_DIR`/`PI_PROXY`/proxy 변수/`NODE_EXTRA_CA_CERTS`/`OMP_AUTH_BROKER_*`). `ANTHROPIC_API_KEY`·`ANTHROPIC_OAUTH_TOKEN`·`ANTHROPIC_BASE_URL`·`CLAUDE_CODE_*`·다른 `*_API_KEY`와 운영자의 `PI_CONFIG_FILES`는 전달되지 않으므로 브리지 환경으로 요청을 다른 endpoint나 key로 돌릴 수 없다. 브리지는 시작 시 0600 임시 overlay(`PI_CONFIG_FILES`)로 `retry.enabled=false`, `maxRetries=0`, `modelFallback=false`, `usageAwareFallback=false`, `waitForUsageReset=false`, `rateLimitWalksChain=false`, 두 모델의 `fallbackChains=[]`를 자식 프로세스에만 적용한다(사용자 전역 `config.yml`은 수정하지 않음). 따라서 Worker가 예산에 계산하는 게이트웨이 호출 한 번은 provider 시도 한 번이며, 같은 모델 재시도·다른 모델 fallback·usage reset 대기는 일어나지 않는다. overlay가 stdio에 적용되는 것은 `disabledProviders` overlay로 `/v1/models` 결과가 바뀌는 것으로 확인했고, 실패 상황에서의 fallback 억제 자체는 실제 오류를 유발하지 않고는 관측하지 않았다.
+- **자식 환경과 재시도 차단:** omp 자식은 허용 목록 환경만 받는다(`PATH`/`HOME`/`USER`/`TMPDIR`/`LANG`/`LC_*`/`XDG_*`/`PI_CONFIG_DIR`/`PI_PROXY`/proxy 변수/`NODE_EXTRA_CA_CERTS`/`OMP_AUTH_BROKER_*`). `ANTHROPIC_API_KEY`·`ANTHROPIC_OAUTH_TOKEN`·`ANTHROPIC_BASE_URL`·`CLAUDE_CODE_*`·다른 `*_API_KEY`와 운영자의 `PI_CONFIG_FILES`는 전달되지 않으므로 브리지 환경으로 요청을 다른 endpoint나 key로 돌릴 수 없다. 브리지는 시작 시 0600 임시 overlay(`PI_CONFIG_FILES`)로 `retry.enabled=false`, `maxRetries=0`, `modelFallback=false`, `usageAwareFallback=false`, `waitForUsageReset=false`, `rateLimitWalksChain=false`, 두 모델의 `fallbackChains=[]`를 자식 프로세스에만 적용한다(사용자 전역 `config.yml`은 수정하지 않음). 따라서 Worker가 예산에 계산하는 게이트웨이 호출 한 번은 provider 시도 한 번이며, 같은 모델 재시도·다른 모델 fallback·usage reset 대기는 일어나지 않는다.
 - **시작 게이트:** 시작 시 `GET /v1/models`(quota 소비 없음)로 `anthropic/claude-sonnet-5-5`와 `anthropic/claude-opus-5-5`가 omp의 자격증명 선택에 따라 실제 서비스되는지 확인하고, 하나라도 없으면 listen하지 않고 종료한다. 로그인 만료 등은 요청 시점에 502로 드러나며 브리지가 로그인을 대신 수행하지 않는다.
 - **인증 방식 한계:** `omp auth-gateway stdio`는 다른 omp 명령과 같은 자격증명 사다리(runtime key → `models.yml` `apiKey` → 저장된 OAuth → 로그인 저장 key → env → 기타 저장 key)를 쓴다. 저장된 OAuth 로그인이 있으면 env key보다 우선하지만, 브리지가 **OAuth 전용을 강제할 수는 없다**: `apiKeys:false` 계정 풀은 broker 모드 전용이고 로컬 저장소에는 같은 스위치가 없다. 따라서 "OAuth-only"가 아니라 "운영자의 기존 omp 로그인 선택을 그대로 사용"이 정확한 표현이다. 같은 provider의 다른 계정으로의 credential 회전은 설정으로 끄는 항목이 아니며 현재 Anthropic 로그인이 하나뿐이라 발생하지 않는다; 계정을 추가하면 이 전제가 깨진다. 브리지는 로컬 자격증명을 읽거나 삭제·수정하지 않는다.
 
