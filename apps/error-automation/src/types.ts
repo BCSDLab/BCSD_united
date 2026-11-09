@@ -147,8 +147,8 @@ export interface Env {
   DIAGNOSTICS_READ_TOKEN: string;
   ERROR_PROJECT_DOMAINS: string;
   ERROR_SOURCE_BRANCHES: string;
-  /** The only model upstream: bare HTTPS origin of the operator's omp auth-gateway bridge, paired with its bearer. */
-  OMP_GATEWAY_ORIGIN?: string;
+  /** The only model upstream: Workers VPC service binding to the Rocky omp gateway, paired with its bearer. */
+  OMP_GATEWAY?: Fetcher;
   OMP_GATEWAY_TOKEN?: string;
   GITHUB_OWNER: string;
   GITHUB_REPOSITORY: string;
