@@ -30,7 +30,6 @@ export default function DepartmentPage() {
       event_name: 'DA2',
       event_label: 'department__department_main__department_category__click',
       value: title,
-      custom_session_id: category,
     });
   };
 

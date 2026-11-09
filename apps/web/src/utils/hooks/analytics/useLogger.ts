@@ -9,7 +9,6 @@ type ActionLoggerProps = LoggingTarget & {
   previous_page?: string;
   current_page?: string;
   duration_time?: number;
-  custom_session_id?: string;
 };
 
 type LoggerEventProps = ActionLoggerProps & {
