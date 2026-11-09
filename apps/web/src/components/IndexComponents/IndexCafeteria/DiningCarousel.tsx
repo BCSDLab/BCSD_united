@@ -79,19 +79,33 @@ export default function DiningCarousel({
     const carousel = carouselRef.current;
     if (!carousel) return;
 
+    const hasPrevious = carousel.scrollLeft > 1;
     const hasMore = carousel.scrollWidth - carousel.clientWidth - carousel.scrollLeft > 1;
-    setHasPreviousCards(carousel.scrollLeft > 1);
+    setHasPreviousCards(hasPrevious);
     setHasMoreCards(hasMore);
 
     // 코너 탭이나 카드 포커스로 선택한 코너를 자동 스크롤 위치로 덮어쓰지 않는다.
     if (isTabScrollRef.current) return;
 
-    const [firstCard, secondCard] = carousel.children;
-    if (!firstCard) return;
+    const carouselRect = carousel.getBoundingClientRect();
+    const carouselCenter = carouselRect.left + carousel.clientWidth / 2;
+    let activeIndex = 0;
+    let closestDistance = Infinity;
 
-    const firstCardRect = firstCard.getBoundingClientRect();
-    const cardStep = secondCard ? secondCard.getBoundingClientRect().left - firstCardRect.left : firstCardRect.width;
-    const activeIndex = hasMore ? Math.round(carousel.scrollLeft / cardStep) : carousel.children.length - 1;
+    Array.from(carousel.children).forEach((card, index) => {
+      const cardRect = card.getBoundingClientRect();
+      const cardCenter = cardRect.left + cardRect.width / 2;
+      const distance = Math.abs(carouselCenter - cardCenter);
+
+      if (distance < closestDistance) {
+        activeIndex = index;
+        closestDistance = distance;
+      }
+    });
+
+    if (!hasPrevious) activeIndex = 0;
+    else if (!hasMore) activeIndex = carousel.children.length - 1;
+
     const activePlace = PLACE_ORDER[activeIndex];
     if (activePlace) setSelectedPlace(activePlace);
   }, []);
@@ -156,9 +170,10 @@ export default function DiningCarousel({
     const card = carousel?.children[PLACE_ORDER.indexOf(place)];
     if (carousel && card) {
       isTabScrollRef.current = true;
-      carousel.scrollTo({
-        left: carousel.scrollLeft + card.getBoundingClientRect().left - carousel.getBoundingClientRect().left,
+      card.scrollIntoView({
         behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center',
       });
     }
   };
