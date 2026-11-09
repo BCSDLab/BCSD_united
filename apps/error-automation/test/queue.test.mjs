@@ -64,7 +64,7 @@ function harness(t) {
     GITHUB_DISPATCH_INSTALLATION_ID: '176455083',
     AUTOFIX_EXECUTOR_ID: 'koin-rocky-umpc',
     AUTOFIX_EXECUTOR_TOKEN: 'local-dedicated-executor-secret-32-characters',
-    OMP_GATEWAY_ORIGIN: 'https://bridge.example',
+    OMP_GATEWAY: { fetch: (...args) => globalThis.fetch(...args) },
     OMP_GATEWAY_TOKEN: 'local-gateway-bearer-0123456789abcdef',
     ERROR_ISSUES: {
       idFromName: (name) => name,
@@ -100,7 +100,7 @@ function harness(t) {
       return Response.json({ default_branch: 'develop', owner: { login: 'BCSDLab' } });
     if (href.endsWith('/commits/main')) return Response.json({ sha: base, commit: { tree: { sha: tree } } });
     if (href.includes('/pulls?')) return Response.json([]);
-    if (href === 'https://bridge.example/v1/messages') {
+    if (href === 'http://omp-gateway/v1/messages') {
       assert.equal(options.headers.Authorization, `Bearer ${env.OMP_GATEWAY_TOKEN}`);
       assert.deepEqual(
         JSON.parse(options.body).tools.map((tool) => tool.name),

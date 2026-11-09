@@ -1,0 +1,28 @@
+[Unit]
+Description=KOIN autofix omp model gateway (Rocky, client of the existing OMP auth broker)
+Wants=network-online.target homebutler-auth-broker.service
+After=network-online.target homebutler-auth-broker.service
+
+[Service]
+Type=simple
+User=homebutler
+Group=homebutler
+UMask=0077
+# Dedicated HOME: the omp child keeps its own state in $HOME/.omp and authenticates only through the broker.
+WorkingDirectory=/home/user/.home-butler/koin-omp-gateway
+Environment=HOME=/home/user/.home-butler/koin-omp-gateway
+Environment=OMP_AUTH_BROKER_URL=http://127.0.0.1:8766
+Environment=PATH=/home/user/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=OMP_GATEWAY_TOKEN_FILE=/home/user/.home-butler/koin-omp-gateway/omp-gateway.token
+Environment=OMP_GATEWAY_PORT=43129
+ExecStart=/usr/bin/node /usr/local/lib/koin-autofix/local-omp-gateway.mjs
+NoNewPrivileges=yes
+Restart=always
+RestartSec=5s
+TimeoutStopSec=20s
+KillMode=control-group
+MemoryMax=768M
+TasksMax=128
+
+[Install]
+WantedBy=multi-user.target
