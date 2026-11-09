@@ -75,7 +75,7 @@ Issues의 **Generic Webhook** destination URL은 `https://<운영 호스트>/web
 
 UUID는 소문자 32자리 hex 또는 표준 하이픈 표기를 받고 저장/큐 등록 전에 하이픈 없는 32자리로 정규화한다. `alert_event`는 선택적 문자열이며 알려진 `ALERT_STATE_EVENT_END`는 인증·식별 검증 후 무시한다. 요청 본문은 1 MiB까지 받는다.
 
-공식 `workers_alert`/`workers_observability_alert` 예시는 Issues payload가 아니다. native Issues 알림에서 `data.issue.id`는 대시보드 canonical ID와 같고, `data.issue.services[0].name`은 Worker 이름(`koin-web` 등), `policy_id`는 위 정책 ID이며 `account_id`는 생략된다. 이 필드는 관찰된 계약이며 공개 문서의 고정 schema는 아니다. 제공자가 형식을 바꾸면 다른 필드에서 Worker/이슈를 추측하지 않고 닫힌다. Cloudflare 활동의 `성공`은 Notifications 접수 표시일 뿐 Worker 진단 수락·Rocky lease·GitHub PR 성공을 뜻하지 않는다.
+공식 `workers_alert`/`workers_observability_alert` 예시는 Issues payload가 아니다. native Issues 알림에서 `data.issue.id`는 대시보드 canonical ID와 같고, `data.issue.services[0].name`은 Worker 이름(`koin-web` 등), `policy_id`는 위 정책 ID다. `account_id`는 보통 생략되며, 포함되면 등록 계정과 일치해야 한다. 이 필드는 관찰된 계약이며 공개 문서의 고정 schema는 아니다. 제공자가 형식을 바꾸면 다른 필드에서 Worker/이슈를 추측하지 않고 닫힌다. Cloudflare 활동의 `성공`은 Notifications 접수 표시일 뿐 Worker 진단 수락·Rocky lease·GitHub PR 성공을 뜻하지 않는다.
 
 Cloudflare Generic Webhook의 인증된 설정 확인에는 문서의 `...configured properly.`와 실제 Issues destination wizard에서 관찰한 `...configured correctly.` 두 **정확한** 단일 `text` 메시지만 204로 응답한다. 이 경로는 HTTPS·POST·본문 제한·전용 `cf-webhook-auth`를 먼저 검증하고 진단·큐에 넣지 않는다. 다른 단일 문장이나 추가 필드는 전체 identity/증거 검증을 거친다. 설정 probe 204는 실제 Issues 알림 또는 수정 작업 증거가 아니다.
 
