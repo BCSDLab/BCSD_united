@@ -9,6 +9,7 @@ import KoinLogo from 'components/ui/KoinLogo';
 import type { SubmenuTitle } from 'static/category';
 import { DESKTOP_NAVIGATION, type DesktopCategory } from 'static/desktopNavigation';
 import ROUTES from 'static/routes';
+import { IS_STAGE } from 'static/url';
 import { SHORTCUT_LOGGING_MAP } from 'utils/hooks/analytics/shortcutLoggingMap';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import { useSessionLogger } from 'utils/hooks/analytics/useSessionLogger';
@@ -36,7 +37,6 @@ export default function PCHeader({ openModal }: PCHeaderProps) {
   const { href: asPath } = routeLocation;
   const pathname = asPath.split('?')[0] || '/';
   const search = asPath.includes('?') ? `?${asPath.split('?')[1]}` : '';
-  const isStage = process.env.NEXT_PUBLIC_API_PATH?.includes('stage');
   const isLoggedin = useIsLoggedIn();
 
   const logShortcut = (title: SubmenuTitle) => {
@@ -172,7 +172,7 @@ export default function PCHeader({ openModal }: PCHeaderProps) {
         >
           <ul className={styles.megamenu__content}>
             {activeCategory?.submenu.map((menu) => {
-              const preferred = isStage && menu.stageLink ? menu.stageLink : menu.link;
+              const preferred = IS_STAGE && menu.stageLink ? menu.stageLink : menu.link;
               const href = preferred ?? ROUTES.Main();
 
               return (
