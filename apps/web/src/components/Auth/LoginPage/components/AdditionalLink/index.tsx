@@ -17,16 +17,16 @@ export default function AdditionalLink() {
 
   const onClickFindId = () => {
     logger.actionEventClick({
-      team: 'USER',
-      event_label: 'login',
+      event_name: 'DA2',
+      event_label: 'account__login__account_recovery__id_entry__click',
       value: '아이디찾기',
     });
   };
 
   const onClickFindPassword = () => {
     logger.actionEventClick({
-      team: 'USER',
-      event_label: 'login',
+      event_name: 'DA2',
+      event_label: 'account__login__account_recovery__password_entry__click',
       value: '비밀번호 찾기',
     });
   };
@@ -74,7 +74,8 @@ export default function AdditionalLink() {
         onClick={() => {
           sessionLogger.actionSessionEvent({
             session_name: 'sign_up',
-            event_label: 'start_sign_up',
+            event_name: 'DA2',
+            event_label: 'account__login__sign_up__entry__click',
             value: '회원가입 시작',
           });
         }}

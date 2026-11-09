@@ -54,8 +54,11 @@ export default function DesktopStoreList(storeListProps: StoreListProps) {
           key={store.id}
           onClick={() =>
             logger.actionEventClick({
-              team: 'BUSINESS',
-              event_label: `${storeType}_click`,
+              event_name: 'DA1',
+              event_label:
+                storeType === 'benefit_shop'
+                  ? 'shop__shop_benefit__shop_detail__entry__click'
+                  : 'shop__shop_list__shop_detail__entry__click',
               value: store.name,
               previous_page: `${koreanCategory || '전체보기'}`,
               current_page: `${store.name}`,

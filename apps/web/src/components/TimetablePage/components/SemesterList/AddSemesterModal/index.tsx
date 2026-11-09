@@ -10,6 +10,7 @@ import type {
 } from 'api/timetable/entity';
 import CloseIcon from 'assets/svg/close-icon-black.svg';
 import { Selector } from 'components/ui/Selector';
+import useLogger from 'utils/hooks/analytics/useLogger';
 import { useOutsideClick } from 'utils/hooks/ui/useOutsideClick';
 import showToast from 'utils/ts/showToast';
 
@@ -43,6 +44,7 @@ export default function AddSemesterModal({
   addSemester,
   mySemester,
 }: AddSemesterModalProps) {
+  const logger = useLogger();
   const { backgroundRef } = useOutsideClick({ onOutsideClick: onClose });
 
   const [yearValue, setYearValue] = React.useState(years[0].label);
@@ -65,6 +67,11 @@ export default function AddSemesterModal({
       if (mySemester.semesters.some((semes) => semes.year === semesters.year && semes.term === semesters.term)) {
         showToast('info', '이미 있는 학기입니다.');
       } else {
+        logger.actionEventClick({
+          event_name: 'DA1',
+          event_label: 'timetable__timetable__semester_manage__edit_apply__click',
+          value: `${semesters.year}_${semesters.term}`,
+        });
         addSemester(semesters);
         closeModal();
       }

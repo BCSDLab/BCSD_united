@@ -67,6 +67,12 @@ function ShuttleBusTimetable() {
         <ShuttleCategoryTabs
           category={category}
           onChange={(v) => {
+            logger.actionEventClick({
+              event_name: 'DA1',
+              event_label: 'bus__bus_timetable__filter__shuttle_route__select',
+              value: v,
+              event_category: 'select',
+            });
             if (v === '전체') {
               routeNavigate({ href: ROUTES.BusCourseShuttle(), replace: true });
             } else {
@@ -123,9 +129,9 @@ function ShuttleBusTimetable() {
                 onClick={() => {
                   window.open(BUS_FEEDBACK_FORM);
                   logger.actionEventClick({
-                    team: 'CAMPUS',
-                    event_label: 'error_feedback_button',
-                    value: `셔틀_${category}`,
+                    event_name: 'DA1',
+                    event_label: 'bus__bus_timetable__bus_feedback__entry__click',
+                    value: '셔틀',
                   });
                 }}
               >
@@ -136,9 +142,7 @@ function ShuttleBusTimetable() {
           </div>
         )}
 
-        {!isMobile && updatedAt && (
-          <InfoFooter type="SHUTTLE" updated={dayjs(updatedAt).format('YYYY-MM-DD')} category={category} />
-        )}
+        {!isMobile && updatedAt && <InfoFooter type="SHUTTLE" updated={dayjs(updatedAt).format('YYYY-MM-DD')} />}
       </div>
     </BusCoursePage>
   );
@@ -194,8 +198,8 @@ function TemplateShuttleVersion({ region, routes, category }: TemplateShuttleVer
             className={styles['template-shuttle__list_wrapper']}
             onClick={() => {
               logger.actionEventClick({
-                team: 'CAMPUS',
-                event_label: 'area_specific_route',
+                event_name: 'DA1',
+                event_label: 'bus__bus_timetable__shuttle_route__entry__click',
                 value: `${route.type}_${route.route_name}`,
               });
               routeNavigate({ to: ROUTES.BusShuttleDetail({ routeId: route.id }), search: { category } });

@@ -54,9 +54,10 @@ function CityBusTimetable() {
   const handleBusNumberButton = (busNum: number) => {
     setSelectedBusNumber(busNum);
     logger.actionEventClick({
-      team: 'CAMPUS',
-      event_label: 'city_bus_route',
+      event_name: 'DA1',
+      event_label: 'bus__bus_timetable__filter__city_route__select',
       value: `${busNum}번`,
+      event_category: 'select',
     });
   };
 
@@ -64,9 +65,10 @@ function CityBusTimetable() {
     setSelectedDirectionType(direction.value);
 
     logger.actionEventClick({
-      team: 'CAMPUS',
-      event_label: 'city_bus_direction',
+      event_name: 'DA1',
+      event_label: 'bus__bus_timetable__filter__city_direction__select',
       value: direction.label,
+      event_category: 'select',
     });
   };
 
@@ -145,12 +147,7 @@ function CityBusTimetable() {
 
         <Template typeNumber={2} arrivalList={processedTimetable} />
 
-        <InfoFooter
-          type="CITY"
-          updated={dayjs(timetable.info.updated_at).format('YYYY-MM-DD')}
-          selectedDirection={selectedDirection}
-          selectedBusNumber={selectedBusNumber}
-        />
+        <InfoFooter type="CITY" updated={dayjs(timetable.info.updated_at).format('YYYY-MM-DD')} />
       </div>
     </BusCoursePage>
   );

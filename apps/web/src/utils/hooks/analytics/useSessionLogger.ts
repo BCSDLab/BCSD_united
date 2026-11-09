@@ -1,14 +1,22 @@
 import * as gtag from 'lib/gtag';
+import type { LoggingEventName, NamingRuleEventLabel } from 'lib/gtag';
 import { getCookie, setCookie } from 'utils/ts/cookie';
 
-interface SessionEvent {
+/**
+ * 기존 세션 로그는 GA 이벤트명 session_start로 보내고,
+ * 네이밍룰 v1.0으로 바꾼 세션 로그는 event_name(DA1·DA2)으로 보내며 custom_session_id를 추가 파라미터로 함께 보낸다.
+ */
+type SessionEventTarget =
+  | { event_name?: never; event_label: string }
+  | { event_name: LoggingEventName; event_label: NamingRuleEventLabel };
+
+type SessionEvent = SessionEventTarget & {
   session_name: string;
-  event_label: string;
   value: string;
   event_category?: string;
   is_login?: LoginStatus;
   session_lifetime_minutes?: number;
-}
+};
 
 export const LOGIN_STATUS = {
   LOGOUT: 0,
@@ -50,15 +58,28 @@ const getSessionId = (session_name: string, is_login: LoginStatus, sessionLifeti
 export const useSessionLogger = () => {
   const actionSessionEvent = ({
     session_name,
-    event_label,
     value,
     event_category,
     is_login = LOGIN_STATUS.LOGOUT,
     session_lifetime_minutes: session_lifetime = 15,
+    ...target
   }: SessionEvent) => {
     const customSessionId = getSessionId(session_name, is_login, session_lifetime);
+
+    if (target.event_name !== undefined) {
+      gtag.event({
+        event_name: target.event_name,
+        event_label: target.event_label,
+        value,
+        event_category: event_category || 'click',
+        params: { custom_session_id: customSessionId },
+      });
+
+      return;
+    }
+
     gtag.startSession({
-      event_label,
+      event_label: target.event_label,
       value,
       event_category: event_category || 'click',
       custom_session_id: customSessionId,

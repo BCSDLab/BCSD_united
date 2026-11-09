@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router';
 import type { ArticleWithNew } from 'api/articles/entity';
 import { convertArticlesTag } from 'components/Articles/utils/convertArticlesTag';
 import ROUTES from 'static/routes';
+import useLogger from 'utils/hooks/analytics/useLogger';
 import showToast from 'utils/ts/showToast';
 
 import styles from './MobileArticleList.module.scss';
@@ -26,6 +27,8 @@ const getLink = (article: ArticleWithNew) => {
 const formatTag = (boardId: number) => convertArticlesTag(boardId).replace(/^\[|\]$/g, '');
 
 export default function MobileArticleList({ articles }: MobileArticleListProps) {
+  const logger = useLogger();
+
   return (
     <div className={styles.list}>
       {articles.map((article) => {
@@ -55,7 +58,19 @@ export default function MobileArticleList({ articles }: MobileArticleListProps) 
         }
 
         return (
-          <Link key={article.id} to={getLink(article)} className={styles.item}>
+          <Link
+            key={article.id}
+            to={getLink(article)}
+            className={styles.item}
+            onClick={() => {
+              if (article.board_id === 14) return;
+              logger.actionEventClick({
+                event_name: 'DA2',
+                event_label: 'board__main_notice__notice_detail__entry__click',
+                value: String(article.id),
+              });
+            }}
+          >
             <span className={styles.item__tag}>{tag}</span>
             <p className={styles.item__title}>{article.title}</p>
             <div className={styles.item__meta}>

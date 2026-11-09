@@ -14,21 +14,25 @@ import styles from './HotArticles.module.scss';
 const LINK_LIST = [
   {
     title: ['코리아텍', '바로가기'],
+    logValue: '코리아텍 바로가기',
     url: 'https://www.koreatech.ac.kr/kor',
     image: 'https://static.koreatech.in/assets/img/banner_koreatech.png',
   },
   {
     title: ['아우누리', '바로가기'],
+    logValue: '아우누리 바로가기',
     url: 'https://portal.koreatech.ac.kr/login.jsp?sso=ok',
     image: 'https://static.koreatech.in/assets/img/banner_awoonori.png',
   },
   {
     title: ['새로운 서비스', '요청하기'],
+    logValue: '새로운 서비스 요청하기',
     url: 'https://docs.google.com/forms/d/1VEuxVK9ioVRZN36eb6m0UClyTJwW4lYiKLWcaQw2JzQ/edit',
     image: 'https://static.koreatech.in/assets/img/banner_add.png',
   },
   {
     title: ['BCSDLab', '알아보기'],
+    logValue: 'BCSD Lab 알아보기',
     url: 'http://bcsdlab.com/',
     image: 'https://static.koreatech.in/assets/img/banner_bcsd.png',
   },
@@ -58,7 +62,11 @@ export default function HotArticles() {
               to={ROUTES.ArticlesDetail({ id: String(article.id) })}
               key={article.id + article.board_id}
               onClick={() =>
-                logger.actionEventClick({ team: 'CAMPUS', event_label: 'notice_hot', value: article.title })
+                logger.actionEventClick({
+                  event_name: 'DA2',
+                  event_label: 'board__main_notice__notice_detail__popular_post_entry__click',
+                  value: String(article.id),
+                })
               }
             >
               <span className={styles['hot-article__rank']}>{index + 1}</span>
@@ -74,7 +82,11 @@ export default function HotArticles() {
             key={link.url}
             href={link.url}
             onClick={() => {
-              logger.actionEventClick({ team: 'CAMPUS', event_label: 'short_cut', value: link.title.join('_') });
+              logger.actionEventClick({
+                event_name: 'DA2',
+                event_label: 'board__main_notice__external_link__shortcut_entry__click',
+                value: link.logValue,
+              });
             }}
           >
             <Image className={styles.link__image} src={link.image} alt="alineImg" width={120} height={50} />

@@ -2,7 +2,6 @@ import { createPortal } from 'react-dom';
 import { cn } from '@bcsdlab/utils';
 import { useRouter, useLocation, useParams } from '@tanstack/react-router';
 
-import { getStoreDetailInfo } from 'api/store';
 import BlackArrowBackIcon from 'assets/svg/black-arrow-back-icon.svg';
 import HamburgerIcon from 'assets/svg/hamburger-icon.svg';
 import KoinServiceLogo from 'assets/svg/koin-service-logo.svg';
@@ -40,13 +39,12 @@ export default function MobileHeader({ openModal, route }: MobileHeaderProps) {
 
   const { params } = useParamsHandler();
 
-  const backInDetailPage = async () => {
+  const backInDetailPage = () => {
     if (pathname.includes(ROUTES.Store()) && id) {
-      const response = await getStoreDetailInfo(Array.isArray(id) ? id[0] : id);
       logger.actionEventClick({
-        team: 'BUSINESS',
-        event_label: 'shop_detail_view_back',
-        value: response.name,
+        event_name: 'DA1',
+        event_label: 'shop__shop_detail__navigation__back__click',
+        value: '뒤로가기',
         current_page: isomorphicSessionStorage.getItem('cameFrom') || '',
         duration_time: getElapsedSeconds('enter_storeDetail'),
       }); // 상점 내 뒤로가기 버튼 로깅

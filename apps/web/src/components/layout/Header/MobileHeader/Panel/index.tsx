@@ -46,7 +46,12 @@ export default function Panel({ openModal }: PanelProps) {
       logger.actionEventClick({ team: 'CAMPUS', event_label: 'hamburger', value: '버스 시간표' });
     if (title === '식단') logger.actionEventClick({ team: 'CAMPUS', event_label: 'hamburger', value: '식단' });
     if (title === '시간표') logger.actionEventClick({ team: 'USER', event_label: 'hamburger', value: '시간표' });
-    if (title === '복덕방') logger.actionEventClick({ team: 'BUSINESS', event_label: 'hamburger', value: '복덕방' });
+    if (title === '복덕방')
+      logger.actionEventClick({
+        event_name: 'DA1',
+        event_label: 'real_estate__main_category__category_navigation__real_estate_entry__click',
+        value: '복덕방',
+      });
     if (title === '주변상점')
       logger.actionEventClick({ team: 'BUSINESS', event_label: 'hamburger_shop', value: '주변상점' });
     if (title === '교내 시설물 정보')

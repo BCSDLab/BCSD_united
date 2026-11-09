@@ -9,10 +9,13 @@ import QRCodeIcon from 'assets/svg/common/qr-code-icon.svg';
 import BusRouteIcon from 'assets/svg/common/route-icon.svg';
 import VanIcon from 'assets/svg/common/van-icon.svg';
 import ErrorBoundary from 'components/boundary/ErrorBoundary';
+import { DiningTime } from 'components/cafeteria/utils/time';
 import IndexMobileCafeteria from 'components/IndexComponents/IndexMobileCafeteria';
 import StoreCard from 'components/IndexComponents/IndexStore/StoreCard';
 import IconBox from 'components/ui/IconBox';
+import type { LoggingEventName, NamingRuleEventLabel } from 'lib/gtag';
 import { BUS_LINKS } from 'static/bus';
+import { DINING_TYPE_MAP } from 'static/cafeteria';
 import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import { parseSearch } from 'utils/routing/search';
@@ -24,30 +27,28 @@ import styles from './MobileHomeRedesign.module.scss';
 const unibus = BUS_LINKS[2];
 const mobileStoreLink = `${ROUTES.Store()}?category=1`;
 
-const MOBILE_HOME_CLICK_VALUES = {
-  today_meal: '전체보기',
-  shuttle_ticket: '셔틀 탑승권',
-  callvanpot: '콜밴팟 모집보기',
-  bus_timetable: '버스 시간표 조회하기',
-  bus_route: '버스 노선 조회하기',
-  shop: '전체보기',
-  popular_shop: '많이 찾는 상점 둘러보기',
-} as const;
-
 const transportCards = [
   {
     href: ROUTES.BusCourseShuttle(),
     title: '버스 시간표',
     description: '노선 별 출발 시간',
     Icon: BusTimeIcon,
-    loggingKey: 'bus_timetable',
+    logging: {
+      event_name: 'DA2',
+      event_label: 'main__main__bus_entry__timetable_entry__click',
+      value: '버스 시간표',
+    },
   },
   {
     href: ROUTES.BusRoute(),
     title: '버스 노선 조회',
     description: '가장 빠른 버스 찾기',
     Icon: BusRouteIcon,
-    loggingKey: 'bus_route',
+    logging: {
+      event_name: 'DA1',
+      event_label: 'bus__main__bus_entry__search_entry__click',
+      value: '버스 노선 조회',
+    },
   },
 ] as const;
 
@@ -79,12 +80,8 @@ function MobileHomeRedesign() {
     }),
   });
 
-  const logClick = (event_label: keyof typeof MOBILE_HOME_CLICK_VALUES) => {
-    logger.actionEventClick({
-      team: 'CAMPUS',
-      event_label,
-      value: MOBILE_HOME_CLICK_VALUES[event_label],
-    });
+  const logClick = (event_name: LoggingEventName, event_label: NamingRuleEventLabel, value: string) => {
+    logger.actionEventClick({ event_name, event_label, value });
   };
 
   return (
@@ -93,7 +90,13 @@ function MobileHomeRedesign() {
 
       <section className={styles.section} aria-labelledby="today-menu-title">
         <SectionHeader titleId="today-menu-title" title="오늘의 식단">
-          <Link to={ROUTES.Cafeteria()} className={styles['section-link']} onClick={() => logClick('today_meal')}>
+          <Link
+            to={ROUTES.Cafeteria()}
+            className={styles['section-link']}
+            onClick={() =>
+              logClick('DA2', 'main__main__meal__click', `${DINING_TYPE_MAP[new DiningTime().getType()]}_전체보기`)
+            }
+          >
             <span>전체보기</span>
             <ArrowRightIcon aria-hidden />
           </Link>
@@ -109,7 +112,7 @@ function MobileHomeRedesign() {
             className={styles['ticket-card']}
             target="_blank"
             rel="noreferrer"
-            onClick={() => logClick('shuttle_ticket')}
+            onClick={() => logClick('DA1', 'ticket__main__bus_entry__ticket_entry__click', '셔틀 탑승권')}
           >
             <span className={styles['ticket-card__text']}>
               <strong>셔틀 탑승권</strong>
@@ -119,7 +122,13 @@ function MobileHomeRedesign() {
           </a>
         </SectionHeader>
 
-        <Link to={ROUTES.Callvan()} className={styles['callvan-card']} onClick={() => logClick('callvanpot')}>
+        <Link
+          to={ROUTES.Callvan()}
+          className={styles['callvan-card']}
+          onClick={() =>
+            logger.actionEventClick({ team: 'CAMPUS', event_label: 'callvanpot', value: '콜밴팟 모집보기' })
+          }
+        >
           <IconBox className={styles['callvan-card__icon']}>
             <VanIcon />
           </IconBox>
@@ -134,13 +143,13 @@ function MobileHomeRedesign() {
         </Link>
 
         <div className={styles['transport-grid']}>
-          {transportCards.map(({ href, title, description, Icon, loggingKey }) => (
+          {transportCards.map(({ href, title, description, Icon, logging }) => (
             <Link
               to={href.split('?')[0]}
               search={parseSearch(href.split('?')[1] ?? '')}
               className={styles['transport-card']}
               key={href}
-              onClick={() => logClick(loggingKey)}
+              onClick={() => logClick(logging.event_name, logging.event_label, logging.value)}
             >
               <IconBox>
                 <Icon />
@@ -161,7 +170,7 @@ function MobileHomeRedesign() {
             to={mobileStoreLink.split('?')[0]}
             search={parseSearch(mobileStoreLink.split('?')[1] ?? '')}
             className={styles['section-link']}
-            onClick={() => logClick('shop')}
+            onClick={() => logClick('DA2', 'main__main__shop_entry__main_entry__click', '주변상점')}
           >
             <span>전체보기</span>
             <ArrowRightIcon aria-hidden />
@@ -176,7 +185,10 @@ function MobileHomeRedesign() {
               </div>
             }
           >
-            <StoreCard href={mobileStoreLink} onClick={() => logClick('popular_shop')} />
+            <StoreCard
+              href={mobileStoreLink}
+              onClick={() => logClick('DA1', 'shop__main__shop_entry__popular_entry__click', '많이 찾는 상점 둘러보기')}
+            />
           </Suspense>
         </ErrorBoundary>
       </section>

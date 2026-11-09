@@ -1,154 +1,104 @@
+import type { FilterState } from 'components/Articles/components/LostItemFilterContent';
+import type { NamingRuleEventLabel } from 'lib/gtag';
+import { CATEGORY_OPTIONS, ITEM_TYPE_OPTIONS, LIST_OPTIONS, STATUS_OPTIONS } from 'static/filterOptions';
 import useLogger from 'utils/hooks/analytics/useLogger';
 
-const CLICK_EVENTS = [
-  {
-    label: 'item_write',
-    value: '글쓰기',
-  },
-  {
-    label: 'find_user_write',
-    value: '주인을 찾아요',
-  },
-  {
-    label: 'lost_item_write',
-    value: '잃어버렸어요',
-  },
-  {
-    label: 'find_user_add_item',
-    value: '물품 추가',
-  },
-  {
-    label: 'lost_item_add_item',
-    value: '물품 추가',
-  },
-  {
-    label: 'lost_item_category', // 11-9. 분실물신고_품목선택_클릭
-    value: '', // {”카드”, ”신분증”, ”지갑”, ”전자제품”, ”기타”}
-  },
-  {
-    label: 'find_user_write_confirm',
-    value: '작성완료',
-  },
-  {
-    label: 'lost_item_write_confirm',
-    value: '작성완료',
-  },
-  {
-    label: 'find_user_delete',
-    value: '', // {”분실물”, ”습득물”}
-  },
-  {
-    label: 'find_user_delete_confirm',
-    value: '확인',
-  },
-  {
-    label: 'find_user_category',
-    value: '', // {”카드”, ”신분증”, ”지갑”, ”전자제품”, ”기타”}
-  },
-  {
-    label: 'item_post_report',
-    value: '신고하기',
-  },
-  {
-    label: 'item_post_report_confirm',
-    value: '신고하기',
-  },
-  {
-    label: 'login_prompt',
-    value: '', // {"게시글 작성 팝업", "쪽지 보내기 팝업"}
-  },
-  {
-    label: 'lost_item_filter',
-    value: '분실물',
-  },
-  {
-    label: 'lost_item_filter_apply',
-    value: '분실물',
-  },
-  {
-    label: 'lost_item_post_entry',
-    value: '', // {"분실물", "습득물"}
-  },
-  {
-    label: 'lost_item_message_login_request',
-    value: '', // {"닫기", "로그인하기"}
-  },
-  {
-    label: 'lost_item_write_login_request',
-    value: '', // {"닫기", "로그인하기"}
-  },
-  {
-    label: 'lost_item_state_change',
-    value: '',
-  },
-  {
-    label: 'lost_item_found',
-    value: '',
-  },
-  {
-    label: 'lost_item_modify',
-    value: '',
-  },
-  {
-    label: 'lost_item_modify_complete',
-    value: '',
-  },
-  {
-    label: 'item_message_send',
-    value: '', // {"분실물 쪽지 보내기", "습득물 쪽지 보내기"}
-  },
-] as const;
-
-export type ClickEventLabel = (typeof CLICK_EVENTS)[number]['label'];
+const EVENT_NAME = 'DA2';
 
 export type FindUserCategory = '카드' | '신분증' | '지갑' | '전자제품' | '기타';
 
 // 추후 로깅 수정 가능성을 염두해두고 남겨둡니다.
 export type ReportCategory = '주제에 맞지 않음' | '스팸' | '욕설' | '개인정보' | '기타';
 
-export type LoginPopUpCategory = '게시글 작성 팝업' | '쪽지 보내기 팝업';
+type ArticleType = '분실물' | '습득물';
+type LoginPopupAnswer = '닫기' | '로그인하기';
+
+const ALL_FILTER_VALUE = '전체';
+
+const labelOf = <K extends string>(options: ReadonlyArray<{ key: K; label: string }>, key: K) =>
+  options.find((option) => option.key === key)?.label ?? ALL_FILTER_VALUE;
+
+const toFilterParams = (filter: FilterState) => {
+  const itemTypes = ITEM_TYPE_OPTIONS.filter(({ key }) => filter.category.includes(key)).map(({ label }) => label);
+
+  return {
+    filter_scope: filter.author === 'ALL' ? ALL_FILTER_VALUE : labelOf(LIST_OPTIONS, filter.author),
+    filter_post_type: filter.type === 'ALL' ? ALL_FILTER_VALUE : labelOf(CATEGORY_OPTIONS, filter.type),
+    filter_item_type: itemTypes.length > 0 ? itemTypes.join('|') : ALL_FILTER_VALUE,
+    filter_status: filter.foundStatus === 'ALL' ? ALL_FILTER_VALUE : labelOf(STATUS_OPTIONS, filter.foundStatus),
+  };
+};
 
 export const useArticlesLogger = () => {
   const logger = useLogger();
 
-  const logEvent = (eventLabel: ClickEventLabel, eventValue?: string) => {
-    const event = CLICK_EVENTS.find(({ label }) => label === eventLabel);
-    if (event) {
-      logger.actionEventClick({
-        team: 'CAMPUS',
-        event_label: event.label,
-        value: eventValue || event.value,
-      });
-    }
-  };
+  const logClick = (event_label: NamingRuleEventLabel, value: string, event_category = 'click') =>
+    logger.actionEventClick({ event_name: EVENT_NAME, event_label, value, event_category });
 
-  const logItemWriteClick = () => logEvent('item_write');
-  const logFindUserWriteClick = () => logEvent('find_user_write');
-  const logLostItemWriteClick = () => logEvent('lost_item_write');
-  const logFindUserAddItemClick = () => logEvent('find_user_add_item');
-  const logLostItemAddItemClick = () => logEvent('lost_item_add_item');
-  const logFindUserWriteConfirmClick = () => logEvent('find_user_write_confirm');
-  const logLostItemWriteConfirmClick = () => logEvent('lost_item_write_confirm');
-  const logFindUserDeleteClick = (value: '분실물' | '습득물') => logEvent('find_user_delete', value);
-  const logFindUserDeleteConfirmClick = () => logEvent('find_user_delete_confirm');
-  const logFindUserCategory = (category: FindUserCategory) => logEvent('find_user_category', category);
-  const logLostItemCategory = (category: FindUserCategory) => logEvent('lost_item_category', category);
-  const logItemPostReportClick = () => logEvent('item_post_report');
-  const logItemPostReportConfirm = () => logEvent('item_post_report_confirm');
-  const logLoginRequire = (category: LoginPopUpCategory) => logEvent('login_prompt', category);
-  const logLostItemFilter = () => logEvent('lost_item_filter');
-  const logLostItemFilterApply = () => logEvent('lost_item_filter_apply');
-  const logLostItemPostEntry = (value: '분실물' | '습득물') => logEvent('lost_item_post_entry', value);
-  const logLostItemMessageLoginRequest = (value: '닫기' | '로그인하기') =>
-    logEvent('lost_item_message_login_request', value);
-  const logLostItemWriteLoginRequest = (value: '닫기' | '로그인하기') =>
-    logEvent('lost_item_write_login_request', value);
-  const logLostItemStateChange = (value: '분실물' | '습득물') => logEvent('lost_item_state_change', value);
-  const logLostItemFound = (value: '분실물' | '습득물') => logEvent('lost_item_found', value);
-  const logLostItemModify = (value: '분실물' | '습득물') => logEvent('lost_item_modify', value);
-  const logLostItemModifyComplete = (value: '분실물' | '습득물') => logEvent('lost_item_modify_complete', value);
+  const logItemWriteClick = () => logClick('board__lost_item_list__lost_item_write__entry__click', '글쓰기');
+  const logFindUserWriteClick = () =>
+    logClick('board__lost_item_list__lost_item_write__post_type__select', '주인을 찾아요', 'select');
+  const logLostItemWriteClick = () =>
+    logClick('board__lost_item_list__lost_item_write__post_type__select', '잃어버렸어요', 'select');
+  const logFindUserAddItemClick = () =>
+    logClick('board__found_item_write__lost_item_write__item_add__click', '물품 추가');
+  const logLostItemAddItemClick = () =>
+    logClick('board__lost_item_write__lost_item_write__item_add__click', '물품 추가');
+  const logFindUserWriteConfirmClick = () =>
+    logClick('board__found_item_write__lost_item_write__submit', '작성완료', 'submit');
+  const logLostItemWriteConfirmClick = () =>
+    logClick('board__lost_item_write__lost_item_write__submit', '작성완료', 'submit');
+  const logFindUserDeleteClick = (value: ArticleType) =>
+    logClick('board__lost_item_detail__lost_item_delete__open__click', value);
+  const logFindUserDeleteConfirmClick = () =>
+    logClick('board__lost_item_detail__lost_item_delete__confirm__click', '확인');
+  const logFindUserCategory = (category: FindUserCategory) =>
+    logClick('board__found_item_write__lost_item_write__item_category__select', category, 'select');
+  const logLostItemCategory = (category: FindUserCategory) =>
+    logClick('board__lost_item_write__lost_item_write__item_category__select', category, 'select');
+  const logItemPostReportClick = () => logClick('board__lost_item_detail__lost_item_report__entry__click', '신고하기');
+  const logItemPostReportConfirm = () =>
+    logClick('board__lost_item_report__lost_item_report__submit', '신고하기', 'submit');
+  const logLostItemFilter = () => logClick('board__lost_item_list__filter__open__click', '분실물');
+  const logLostItemFilterApply = (filter: FilterState) =>
+    logger.actionEventClick({
+      event_name: EVENT_NAME,
+      event_label: 'board__lost_item_list__filter__apply__click',
+      value: '분실물',
+      params: toFilterParams(filter),
+    });
+  const logLostItemPostEntry = (value: ArticleType) =>
+    logClick('board__lost_item_list__lost_item_detail__entry__click', value);
+  const logLostItemMessageLoginRequest = (value: LoginPopupAnswer) =>
+    logClick(
+      value === '로그인하기'
+        ? 'account__lost_item_detail__login_popup__login_entry__click'
+        : 'account__lost_item_detail__login_popup__close__click',
+      value,
+    );
+  const logLostItemWriteLoginRequest = (value: LoginPopupAnswer) =>
+    logClick(
+      value === '로그인하기'
+        ? 'account__lost_item_list__login_popup__login_entry__click'
+        : 'account__lost_item_list__login_popup__close__click',
+      value,
+    );
+  const logLostItemStateChange = (value: ArticleType) =>
+    logClick('board__lost_item_detail__lost_item_status__open__click', value);
+  const logLostItemFound = (value: ArticleType) =>
+    logClick('board__lost_item_detail__lost_item_status__found_confirm__click', value);
+  const logLostItemModify = (value: ArticleType) =>
+    logClick('board__lost_item_detail__lost_item_edit__entry__click', value);
+  const logLostItemModifyComplete = (value: ArticleType) =>
+    logClick(
+      value === '분실물'
+        ? 'board__lost_item_edit__lost_item_edit__submit'
+        : 'board__found_item_edit__lost_item_edit__submit',
+      value,
+      'submit',
+    );
   const logItemMessageSend = (value: '분실물 쪽지 보내기' | '습득물 쪽지 보내기') =>
-    logEvent('item_message_send', value);
+    logClick('board__lost_item_detail__lost_item_message__entry__click', value);
 
   return {
     logItemWriteClick,
@@ -164,7 +114,6 @@ export const useArticlesLogger = () => {
     logFindUserCategory,
     logItemPostReportClick,
     logItemPostReportConfirm,
-    logLoginRequire,
     logLostItemFilter,
     logLostItemFilterApply,
     logLostItemPostEntry,

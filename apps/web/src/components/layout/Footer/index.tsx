@@ -9,7 +9,7 @@ import { CATEGORY } from 'static/category';
 import type { SubmenuTitle } from 'static/category';
 import ROUTES from 'static/routes';
 import { IS_STAGE } from 'static/url';
-import { SHORTCUT_LOGGING_MAP } from 'utils/hooks/analytics/shortcutLoggingMap';
+import { getShortcutLog } from 'utils/hooks/analytics/shortcutLoggingMap';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useModalPortal from 'utils/hooks/layout/useModalPortal';
@@ -33,10 +33,10 @@ function Footer() {
   }
 
   const logShortcut = (title: SubmenuTitle) => {
-    const info = SHORTCUT_LOGGING_MAP[title];
+    const shortcutLog = getShortcutLog(title, 'footer');
 
-    if (info) {
-      logger.actionEventClick({ ...info, event_label: 'footer' });
+    if (shortcutLog) {
+      logger.actionEventClick(shortcutLog);
 
       if (String(pathname) === ROUTES.GraduationCalculator()) {
         logger.actionEventClick({

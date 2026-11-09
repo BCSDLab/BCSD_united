@@ -6,6 +6,7 @@ import RadioOnIcon from 'assets/svg/timetable-radio-on.svg';
 import useApplySemesterChanges from 'components/TimetablePage/hooks/useApplySemesterChanges';
 import useSemesterCheck from 'components/TimetablePage/hooks/useMySemester';
 import useSemestersWithLectures from 'components/TimetablePage/hooks/useSemestersWithLectures';
+import useLogger from 'utils/hooks/analytics/useLogger';
 import { useOutsideClick } from 'utils/hooks/ui/useOutsideClick';
 import { useServerCalendarDate } from 'utils/ssr/useServerNow';
 import { getRecentSemester, getSemesterKey } from 'utils/timetable/semester';
@@ -25,6 +26,7 @@ export default function SemesterEditModal({ onClose }: SemesterEditModalProps) {
   const currentYear = useServerCalendarDate().getFullYear();
   const years = Array.from({ length: currentYear - START_YEAR + 1 }, (_, index) => currentYear - index);
 
+  const logger = useLogger();
   const { backgroundRef } = useOutsideClick({ onOutsideClick: onClose });
   const { data: mySemester } = useSemesterCheck();
   const semesters = mySemester?.semesters ?? [];
@@ -53,7 +55,17 @@ export default function SemesterEditModal({ onClose }: SemesterEditModalProps) {
   const needsConfirm = toRemove.some((semester) => semestersWithLectures.has(getSemesterKey(semester)));
 
   const apply = () => {
-    if (toAdd.length > 0 || toRemove.length > 0) applyChanges({ toAdd, toRemove });
+    if (toAdd.length > 0 || toRemove.length > 0) {
+      logger.actionEventClick({
+        event_name: 'DA1',
+        event_label: 'timetable__timetable__semester_manage__edit_apply__click',
+        value: [
+          ...toAdd.map((semester) => `추가_${semester.year}_${semester.term}`),
+          ...toRemove.map((semester) => `삭제_${semester.year}_${semester.term}`),
+        ].join(','),
+      });
+      applyChanges({ toAdd, toRemove });
+    }
     onClose();
   };
 

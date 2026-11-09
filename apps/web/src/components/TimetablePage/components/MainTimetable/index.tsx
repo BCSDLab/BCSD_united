@@ -85,6 +85,7 @@ function MainTimetableLayout({
 }
 
 function InvalidMainTimetable() {
+  const logger = useLogger();
   const semester = useSemester();
   const { data: timeTableFrameList } = useTimetableFrameList(semester);
   const { data: deptList } = useSuspenseQuery(deptQueries.list());
@@ -96,6 +97,11 @@ function InvalidMainTimetable() {
   };
 
   const onClickEdit = () => {
+    logger.actionEventClick({
+      event_name: 'DA1',
+      event_label: 'timetable__timetable__timetable_edit__entry__click',
+      value: '시간표 수정',
+    });
     checkSemesterAndTimetable(mySemester, timeTableFrameList);
   };
 
@@ -127,9 +133,9 @@ function ValidMainTimetable({ timetableFrameId }: { readonly timetableFrameId: n
 
     if (checkSemesterAndTimetable(mySemester, timeTableFrameList)) {
       logger.actionEventClick({
-        team: 'USER',
-        event_label: 'timetable',
-        value: '이미지저장',
+        event_name: 'DA1',
+        event_label: 'timetable__timetable__timetable_export__image_save__click',
+        value: '이미지 저장',
         duration_time: getElapsedSeconds('enterTimetablePage'),
       });
       openModal();
@@ -137,6 +143,11 @@ function ValidMainTimetable({ timetableFrameId }: { readonly timetableFrameId: n
   };
 
   const onClickEdit = () => {
+    logger.actionEventClick({
+      event_name: 'DA1',
+      event_label: 'timetable__timetable__timetable_edit__entry__click',
+      value: '시간표 수정',
+    });
     if (checkSemesterAndTimetable(mySemester, timeTableFrameList)) {
       router.navigate({
         href: `${ROUTES.TimetableModify({ id: String(timetableFrameId), type: 'regular' })}&year=${semester?.year}&term=${semester?.term}`,

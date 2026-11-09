@@ -83,11 +83,11 @@ export default function SearchBarModal({ onClose }: SearchBarModalProps) {
               const currentCategoryId = Number(params.category); // 검색창에 포커스되면 로깅
               if (categories) {
                 logger.actionEventClick({
-                  team: 'BUSINESS',
-                  event_label: 'shop_categories_search',
-                  value: `search in ${
-                    categories.shop_categories.find((category) => category.id === currentCategoryId)?.name || '전체보기'
-                  }`,
+                  event_name: 'DA1',
+                  event_label: 'shop__shop_list__search__click',
+                  value:
+                    categories.shop_categories.find((category) => category.id === currentCategoryId)?.name ||
+                    '전체보기',
                 });
               }
             }}

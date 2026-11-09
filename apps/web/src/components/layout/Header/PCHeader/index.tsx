@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { cn } from '@bcsdlab/utils';
 import { Link, useLocation } from '@tanstack/react-router';
 
-import { getStoreDetailInfo } from 'api/store';
 import LoginRequiredModal from 'components/modal/LoginRequiredModal';
 import type { Portal } from 'components/modal/Modal/PortalProvider';
 import KoinLogo from 'components/ui/KoinLogo';
@@ -10,7 +9,7 @@ import type { SubmenuTitle } from 'static/category';
 import { DESKTOP_NAVIGATION, type DesktopCategory } from 'static/desktopNavigation';
 import ROUTES from 'static/routes';
 import { IS_STAGE } from 'static/url';
-import { SHORTCUT_LOGGING_MAP } from 'utils/hooks/analytics/shortcutLoggingMap';
+import { getShortcutLog } from 'utils/hooks/analytics/shortcutLoggingMap';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import { useSessionLogger } from 'utils/hooks/analytics/useSessionLogger';
 import { useLogout } from 'utils/hooks/auth/useLogout';
@@ -40,10 +39,10 @@ export default function PCHeader({ openModal }: PCHeaderProps) {
   const isLoggedin = useIsLoggedIn();
 
   const logShortcut = (title: SubmenuTitle) => {
-    const info = SHORTCUT_LOGGING_MAP[title];
+    const shortcutLog = getShortcutLog(title, 'header');
 
-    if (info) {
-      logger.actionEventClick({ ...info, event_label: 'header' });
+    if (shortcutLog) {
+      logger.actionEventClick(shortcutLog);
 
       if (pathname === ROUTES.GraduationCalculator()) {
         logger.actionEventClick({
@@ -55,7 +54,7 @@ export default function PCHeader({ openModal }: PCHeaderProps) {
     }
   };
 
-  const escapeByLogo = async () => {
+  const escapeByLogo = () => {
     if (pathname === ROUTES.Timetable()) {
       logger.actionEventClick({
         team: 'USER',
@@ -67,13 +66,10 @@ export default function PCHeader({ openModal }: PCHeaderProps) {
       });
     }
     if (pathname.includes(ROUTES.Store()) && search.includes('state')) {
-      const shopId = pathname.split('/')[2];
-      const shopName = await getStoreDetailInfo(shopId);
       logger.actionEventClick({
-        team: 'BUSINESS',
-        event_label: 'shop_detail_view_back',
-        value: shopName.name,
-        event_category: 'logo',
+        event_name: 'DA1',
+        event_label: 'shop__shop_detail__navigation__back__click',
+        value: '로고',
         current_page: isomorphicSessionStorage.getItem('cameFrom') || '전체보기',
         duration_time: getElapsedSeconds('enter_storeDetail'),
       });
@@ -217,7 +213,8 @@ export default function PCHeader({ openModal }: PCHeaderProps) {
                 onClick={() => {
                   sessionLogger.actionSessionEvent({
                     session_name: 'sign_up',
-                    event_label: 'header',
+                    event_name: 'DA2',
+                    event_label: 'account__header__sign_up__header_entry__click',
                     value: '회원가입 시작',
                   });
                 }}
@@ -231,8 +228,8 @@ export default function PCHeader({ openModal }: PCHeaderProps) {
                 preload={false}
                 onClick={() => {
                   logger.actionEventClick({
-                    team: 'USER',
-                    event_label: 'header',
+                    event_name: 'DA2',
+                    event_label: 'account__header__login__header_entry__click',
                     value: '로그인 시도',
                   });
                 }}
@@ -261,8 +258,8 @@ export default function PCHeader({ openModal }: PCHeaderProps) {
                   logout();
                   escapeByheader('로그아웃');
                   logger.actionEventClick({
-                    team: 'USER',
-                    event_label: 'header',
+                    event_name: 'DA2',
+                    event_label: 'account__header__logout__click',
                     value: '로그아웃',
                   });
                 }}

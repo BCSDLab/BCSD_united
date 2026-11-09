@@ -75,18 +75,12 @@ const MOBILE_FILTER_CHECK_BOX = [
   },
 ] as const;
 
-const toggleNameLabel = {
-  COUNT: 'review',
-  RATING: 'star',
-  OPEN: 'open',
-  DELIVERY: 'delivery',
+const TOGGLE_LOG_VALUE = {
+  COUNT: '리뷰',
+  RATING: '별점',
+  OPEN: '영업중',
+  DELIVERY: '배달',
 } as const;
-
-const loggingCategoryToggleSorterValue = (toggleName: 'COUNT' | 'RATING', category: string | undefined) =>
-  `check_${toggleNameLabel[toggleName]}_${category || '전체보기'}`;
-
-const loggingCategoryToggleFilterValue = (toggleName: 'OPEN' | 'DELIVERY', category: string | undefined) =>
-  `check_${toggleNameLabel[toggleName]}_${category || '전체보기'}`;
 
 const useStoreList = (sorter: StoreSorterType, filter: StoreFilterType[], params: StoreSearchQueryType) => {
   const selectedCategory = Number(params.category);
@@ -148,9 +142,9 @@ function Store() {
   const handleCategoryClick = (category: StoreCategory) => {
     const { id: categoryId } = category;
     logger.actionEventClick({
-      team: 'BUSINESS',
-      event_label: 'shop_categories',
-      value: categoryId.toString(),
+      event_name: 'DA1',
+      event_label: 'shop__shop_list__filter__category__click',
+      value: category.name,
       previous_page: categories.shop_categories.find((item) => item.id === selectedCategory)?.name || '전체보기',
       duration_time: getCategoryDurationTime(),
       current_page: categoryId.toString(),
@@ -166,9 +160,10 @@ function Store() {
 
     if (type === 'COUNT' || type === 'RATING') {
       logger.actionEventClick({
-        team: 'BUSINESS',
-        event_label: 'shop_can',
-        value: loggingCategoryToggleSorterValue(type, categories.shop_categories[selectedCategory]?.name),
+        event_name: 'DA1',
+        event_label: 'shop__shop_list__filter__checkbox__select',
+        value: TOGGLE_LOG_VALUE[type],
+        event_category: 'select',
       });
     }
   };
@@ -177,9 +172,10 @@ function Store() {
     setStoreFilterList((prevFilterList) => ({ ...prevFilterList, [type]: !prevFilterList[type] }));
 
     logger.actionEventClick({
-      team: 'BUSINESS',
-      event_label: 'shop_can',
-      value: loggingCategoryToggleFilterValue(type, categories.shop_categories[selectedCategory]?.name),
+      event_name: 'DA1',
+      event_label: 'shop__shop_list__filter__checkbox__select',
+      value: TOGGLE_LOG_VALUE[type],
+      event_category: 'select',
     });
   };
 
@@ -187,9 +183,9 @@ function Store() {
     const currentCategoryId = selectedCategory;
 
     logger.actionEventClick({
-      team: 'BUSINESS',
-      event_label: 'shop_categories',
-      value: `scroll in ${categories.shop_categories[currentCategoryId]?.name || '전체보기'}`,
+      event_name: 'DA1',
+      event_label: 'shop__shop_list__shop_list__scroll',
+      value: categories.shop_categories[currentCategoryId]?.name || '전체보기',
       event_category: 'scroll',
     });
   };
@@ -207,8 +203,8 @@ function Store() {
 
   const handleBenefitClick = () => {
     logger.actionEventClick({
-      team: 'BUSINESS',
-      event_label: 'shop_categories_benefit',
+      event_name: 'DA1',
+      event_label: 'shop__shop_list__shop_benefit__entry__click',
       value: '혜택이 있는 상점 모아보기',
       previous_page: categories.shop_categories.find((item) => item.id === selectedCategory)?.name || '전체보기',
       duration_time: getCategoryDurationTime(),

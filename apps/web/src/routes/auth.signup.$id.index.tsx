@@ -41,7 +41,8 @@ function SignupPage() {
   const onClickStudent = (user: UserType) => {
     setUserType(user);
     sessionLogger.actionSessionEvent({
-      event_label: 'create_account',
+      event_name: 'DA2',
+      event_label: 'account__user_type_selection__sign_up__user_type__click',
       value: user,
       session_name: 'sign_up',
     });

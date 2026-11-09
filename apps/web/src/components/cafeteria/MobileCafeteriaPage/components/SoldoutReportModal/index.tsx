@@ -50,6 +50,7 @@ export default function SoldoutReportModal({ initialPlace, variantLabel, onClose
     if (variantLabel === 'A안') {
       logger.actionEventClick({
         event_name: 'DA1',
+        screen_view: 'cafeteria',
         event_category: 'select',
         event_label: 'cafeteria__dining__soldout__select',
         value: `A안_${place}`,
@@ -61,6 +62,7 @@ export default function SoldoutReportModal({ initialPlace, variantLabel, onClose
   const handlePhotoCapture = (file: File) => {
     logger.actionEventClick({
       event_name: 'DA1',
+      screen_view: 'cafeteria',
       event_label: 'cafeteria__dining__soldout__photo',
       value: `${variantLabel}_${selectedPlace ?? ''}`,
     });
@@ -85,6 +87,7 @@ export default function SoldoutReportModal({ initialPlace, variantLabel, onClose
 
     logger.actionEventClick({
       event_name: 'DA1',
+      screen_view: 'cafeteria',
       event_category: 'submit',
       event_label: 'cafeteria__dining__soldout__submit',
       value: `${variantLabel}_${selectedPlace}`,
@@ -111,6 +114,7 @@ export default function SoldoutReportModal({ initialPlace, variantLabel, onClose
   const handleClose = () => {
     logger.actionEventClick({
       event_name: 'DA1',
+      screen_view: 'cafeteria',
       event_label: 'cafeteria__dining__soldout__exit',
       value: selectedPlace ? `${variantLabel}_${selectedPlace}_이탈` : `${variantLabel}_이탈`,
     });

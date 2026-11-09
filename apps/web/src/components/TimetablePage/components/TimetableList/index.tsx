@@ -13,6 +13,7 @@ import useAddTimetableFrame from 'components/TimetablePage/hooks/useAddTimetable
 import useSemesterCheck from 'components/TimetablePage/hooks/useMySemester';
 import useTimetableFrameList from 'components/TimetablePage/hooks/useTimetableFrameList';
 import InducingLoginModal from 'components/ui/InducingLoginModal';
+import useLogger from 'utils/hooks/analytics/useLogger';
 import useModalPortal from 'utils/hooks/layout/useModalPortal';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
@@ -20,6 +21,11 @@ import showToast from 'utils/ts/showToast';
 import { useSemester } from 'utils/zustand/semester';
 
 import styles from './TimetableList.module.scss';
+
+const LOGIN_POPUP_LOG = {
+  login: { event_label: 'account__timetable__login_popup__login_entry__click', value: '로그인하기' },
+  close: { event_label: 'account__timetable__login_popup__close__click', value: '취소하기' },
+} as const;
 
 interface TimetableListProps {
   currentFrameIndex: number;
@@ -30,6 +36,11 @@ export default function TimetableList({ currentFrameIndex, setCurrentFrameIndex 
   const portalManager = useModalPortal();
   const semester = useSemester();
   const isLoggedIn = useIsLoggedIn();
+  const logger = useLogger();
+  const loginPopupLogProps = {
+    onLoginClick: () => logger.actionEventClick({ event_name: 'DA2', ...LOGIN_POPUP_LOG.login }),
+    onCancelClick: () => logger.actionEventClick({ event_name: 'DA2', ...LOGIN_POPUP_LOG.close }),
+  };
   const { data } = useTimetableFrameList(semester);
   const { data: mySemester } = useSemesterCheck();
   const { mutate: addTimetableFrame } = useAddTimetableFrame(isLoggedIn);
@@ -41,6 +52,11 @@ export default function TimetableList({ currentFrameIndex, setCurrentFrameIndex 
   const timetableFrameList = data.filter((frame) => !frame.is_main);
 
   const handleTimetableSettingClick = (frame: TimetableFrameInfo) => {
+    logger.actionEventClick({
+      event_name: 'DA1',
+      event_label: 'timetable__timetable__timetable_config__open__click',
+      value: '설정',
+    });
     if (isLoggedIn) {
       setFocusFrame(frame);
       openModal();
@@ -50,12 +66,18 @@ export default function TimetableList({ currentFrameIndex, setCurrentFrameIndex 
           actionTitle="시간표 설정"
           detailExplanation="시간표 설정은 회원만 사용 가능합니다. 회원가입 또는 로그인 후 이용해주세요 :-)"
           onClose={portalOption.close}
+          {...loginPopupLogProps}
         />
       ));
     }
   };
 
   const handleAddTimetableClick = () => {
+    logger.actionEventClick({
+      event_name: 'DA1',
+      event_label: 'timetable__timetable__timetable_manage__add__click',
+      value: '시간표 추가하기',
+    });
     if (isLoggedIn) {
       if (mySemester?.semesters.length === 0) {
         showToast('error', '학기가 존재하지 않습니다. 학기를 추가해주세요.');
@@ -74,6 +96,7 @@ export default function TimetableList({ currentFrameIndex, setCurrentFrameIndex 
           actionTitle="시간표 추가"
           detailExplanation="시간표 추가는 회원만 사용 가능합니다. 회원가입 또는 로그인 후 이용해주세요 :-)"
           onClose={portalOption.close}
+          {...loginPopupLogProps}
         />
       ));
     }

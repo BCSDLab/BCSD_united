@@ -55,6 +55,7 @@ function CurrentSemesterLectureList({
   const { data: userInfo } = useUser();
   const { data: lectureList } = useLectureList(currentSemester);
   const { updateTempLecture } = useTempLectureAction();
+  const logger = useLogger();
   const { addMyLecture } = useTimetableMutation(timetableFrameId, currentSemester);
 
   const isOverlapping = (selected: LectureInfo, existing: LectureInfo) => {
@@ -108,7 +109,15 @@ function CurrentSemesterLectureList({
       myLectures={myLectures}
       selectedLecture={tempLecture ?? undefined}
       semester={currentSemester}
-      onClickRow={(clickedLecture) => ('lecture_id' in clickedLecture ? undefined : updateTempLecture(clickedLecture))}
+      onClickRow={(clickedLecture) => {
+        if ('lecture_id' in clickedLecture) return;
+        logger.actionEventClick({
+          event_name: 'DA1',
+          event_label: 'timetable__timetable_edit__lecture_add__lecture_entry__click',
+          value: clickedLecture.name,
+        });
+        updateTempLecture(clickedLecture);
+      }}
       onDoubleClickRow={(clickedLecture) => {
         if ('lecture_id' in clickedLecture) {
           return;
@@ -197,6 +206,13 @@ function LectureList({ timetableFrameId, semester }: { timetableFrameId: number;
   const [isToggled, setIsToggled] = React.useState(false);
   const { widthInfo } = useFlexibleWidth(9, [61, 173, 41, 61, 61, 41, 41, 41, 61]);
 
+  const logSearch = () =>
+    logger.actionEventClick({
+      event_name: 'DA1',
+      event_label: 'timetable__timetable_edit__search__click',
+      value: '검색',
+    });
+
   const toggleLectureList = () => {
     setIsToggled((prev) => !prev);
   };
@@ -209,25 +225,36 @@ function LectureList({ timetableFrameId, semester }: { timetableFrameId: number;
             ref={searchInputRef}
             className={styles['search-input__input']}
             placeholder="검색어를 입력해주세요."
-            onKeyDown={onKeyDownSearchInput}
+            onKeyDown={(e) => {
+              onKeyDownSearchInput(e);
+              if (e.key === 'Enter' && !e.nativeEvent.isComposing) logSearch();
+            }}
           />
           <button
             className={styles['search-input__button']}
             type="button"
             onClick={() => {
               onClickSearchButton();
-              logger.actionEventClick({
-                team: 'USER',
-                event_label: 'timetable',
-                value: 'search',
-              });
+              logSearch();
             }}
           >
             <SearchIcon />
           </button>
         </div>
         <div className={styles.page__depart}>
-          <DeptListbox value={departmentFilterValue} onChange={onChangeDeptSelect} isWhiteBackground={false} />
+          <DeptListbox
+            value={departmentFilterValue}
+            onChange={(e) => {
+              logger.actionEventClick({
+                event_name: 'DA1',
+                event_label: 'timetable__timetable_edit__search__department__select',
+                value: e.target.value,
+                event_category: 'select',
+              });
+              onChangeDeptSelect(e);
+            }}
+            isWhiteBackground={false}
+          />
         </div>
       </div>
       <div className={styles.table__header} role="row">

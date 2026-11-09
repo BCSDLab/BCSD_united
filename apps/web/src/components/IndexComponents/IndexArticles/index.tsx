@@ -28,7 +28,13 @@ export default function IndexArticles({ serverNow }: IndexArticlesProps) {
       <div className={styles.template__header}>
         <Link
           to={ROUTES.Articles()}
-          onClick={() => logger.actionEventClick({ team: 'CAMPUS', event_label: 'main_notice', value: '공지사항' })}
+          onClick={() =>
+            logger.actionEventClick({
+              event_name: 'DA2',
+              event_label: 'board__main__notice_entry__title_entry__click',
+              value: '공지사항',
+            })
+          }
         >
           <h2 className={styles.template__title}>공지사항</h2>
         </Link>
@@ -36,7 +42,11 @@ export default function IndexArticles({ serverNow }: IndexArticlesProps) {
           to={ROUTES.Articles()}
           className={styles.template__link}
           onClick={() =>
-            logger.actionEventClick({ team: 'CAMPUS', event_label: 'main_notice_detail', value: '공지사항' })
+            logger.actionEventClick({
+              event_name: 'DA2',
+              event_label: 'board__main__notice_entry__more_entry__click',
+              value: '공지사항 더보기',
+            })
           }
         >
           전체보기
@@ -51,6 +61,13 @@ export default function IndexArticles({ serverNow }: IndexArticlesProps) {
               to={ROUTES.ArticlesDetail({ id: String(article.id) })}
               preload={false}
               className={styles['list__item-link']}
+              onClick={() =>
+                logger.actionEventClick({
+                  event_name: 'DA2',
+                  event_label: 'board__main__notice_detail__entry__click',
+                  value: String(article.id),
+                })
+              }
             >
               <span className={styles['list__item-type']}>{convertArticlesTag(article.board_id)}</span>
               <span className={styles['list__item-title']}>{article.title}</span>

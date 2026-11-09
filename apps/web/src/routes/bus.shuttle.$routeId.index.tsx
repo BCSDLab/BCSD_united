@@ -65,8 +65,11 @@ function ShuttleDetailPage() {
           onSelect={(name) => {
             setSelectedDetail(name);
             logger.actionEventClick({
-              team: 'CAMPUS',
-              event_label: name === '등교' ? 'go_to_school' : 'go_home',
+              event_name: 'DA1',
+              event_label:
+                name === '등교'
+                  ? 'bus__bus_timetable_detail__filter__to_school__click'
+                  : 'bus__bus_timetable_detail__filter__to_home__click',
               value: `${shuttleTimetableDetail.route_type}_${shuttleTimetableDetail.route_name}`,
             });
           }}
@@ -106,8 +109,11 @@ function ShuttleDetailPage() {
                   onClick={() => {
                     setSelectedDetail(name);
                     logger.actionEventClick({
-                      team: 'CAMPUS',
-                      event_label: name === '등교' ? 'go_to_school' : 'go_home',
+                      event_name: 'DA1',
+                      event_label:
+                        name === '등교'
+                          ? 'bus__bus_timetable_detail__filter__to_school__click'
+                          : 'bus__bus_timetable_detail__filter__to_home__click',
                       value: `${shuttleTimetableDetail.route_type}_${shuttleTimetableDetail.route_name}`,
                     });
                   }}

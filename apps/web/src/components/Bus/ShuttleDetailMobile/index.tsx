@@ -122,9 +122,9 @@ export default function ShuttleDetailMobile({ timetable, selectedName, onSelect 
         rel="noreferrer"
         onClick={() => {
           logger.actionEventClick({
-            team: 'CAMPUS',
-            event_label: 'error_feedback_button',
-            value: `셔틀_${timetable.route_type}_${timetable.route_name}`,
+            event_name: 'DA1',
+            event_label: 'bus__bus_timetable__bus_feedback__entry__click',
+            value: `${timetable.route_type}_${timetable.route_name}`,
           });
         }}
       >

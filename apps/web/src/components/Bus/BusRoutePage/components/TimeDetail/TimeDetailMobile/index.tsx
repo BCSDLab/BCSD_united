@@ -4,6 +4,7 @@ import { useSuspenseQuery } from '@tanstack/react-query';
 import { coopshopQueries } from 'api/coopshop/queries';
 import PickerColumn from 'components/Bus/BusRoutePage/components/PickerColumn';
 import type { useTimeSelect } from 'components/Bus/BusRoutePage/hooks/useTimeSelect';
+import { useBusLogger } from 'components/Bus/hooks/useBusLogger';
 import { useBodyScrollLock } from 'utils/hooks/ui/useBodyScrollLock';
 import { useEscapeKeyDown } from 'utils/hooks/ui/useEscapeKeyDown';
 import { useOutsideClick } from 'utils/hooks/ui/useOutsideClick';
@@ -28,10 +29,18 @@ export default function TimeDetailMobile({ timeSelect, close }: TimeDetailMobile
   const { hour, minute } = timeSelect.timeState;
   const { setNow } = timeSelect.timeHandler;
 
-  const [dayOfMonthDiff, setDayOfMonthDiff] = useState(0);
-  const [meridiem, setMeridiem] = useState(hour >= 12 ? 1 : 0);
-  const [selectedHour, setSelectedHour] = useState(hour % 12 || 12);
-  const [selectedMinute, setSelectedMinute] = useState(minute);
+  const { logDepartureNowClick, logDepartureTimeConfirm } = useBusLogger();
+  // 창을 열었을 때의 값. 완료 시 이 값과 비교해 시간을 바꿨는지 판단한다
+  const [initialPicker] = useState(() => ({
+    dayOfMonthDiff: 0,
+    meridiem: hour >= 12 ? 1 : 0,
+    hour: hour % 12 || 12,
+    minute,
+  }));
+  const [dayOfMonthDiff, setDayOfMonthDiff] = useState(initialPicker.dayOfMonthDiff);
+  const [meridiem, setMeridiem] = useState(initialPicker.meridiem);
+  const [selectedHour, setSelectedHour] = useState(initialPicker.hour);
+  const [selectedMinute, setSelectedMinute] = useState(initialPicker.minute);
 
   const { data: semesterData } = useSuspenseQuery(coopshopQueries.allShopInfo());
   const { backgroundRef } = useOutsideClick({ onOutsideClick: close });
@@ -39,12 +48,19 @@ export default function TimeDetailMobile({ timeSelect, close }: TimeDetailMobile
   useBodyScrollLock();
 
   const handleNowDepartClick = () => {
+    logDepartureNowClick();
     const now = new Date();
     setNow(now);
     close();
   };
 
   const handleCompleteClick = () => {
+    logDepartureTimeConfirm(
+      dayOfMonthDiff !== initialPicker.dayOfMonthDiff ||
+        meridiem !== initialPicker.meridiem ||
+        selectedHour !== initialPicker.hour ||
+        selectedMinute !== initialPicker.minute,
+    );
     const date = new Date(today);
     date.setDate(date.getDate() + dayOfMonthDiff);
     const hour = (selectedHour % 12) + (meridiem === 1 ? 12 : 0);

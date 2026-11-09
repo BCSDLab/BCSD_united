@@ -33,9 +33,9 @@ function MobilePage({ timetableFrameId, setCurrentFrameId }: MobilePageProps) {
   const handleImageDownloadClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     logger.actionEventClick({
-      team: 'USER',
-      event_label: 'timetable_imageDownload_click',
-      value: '시간표 저장',
+      event_name: 'DA1',
+      event_label: 'timetable__timetable__timetable_export__image_save__click',
+      value: '이미지 저장',
     });
     onTimetableImageDownload('my-timetable');
   };
@@ -63,7 +63,17 @@ function MobilePage({ timetableFrameId, setCurrentFrameId }: MobilePageProps) {
         <SemesterGuard />
       </React.Suspense>
       <div className={styles.page__header}>
-        <Link to={ROUTES.TimetableList()} className={styles.page__semester}>
+        <Link
+          to={ROUTES.TimetableList()}
+          className={styles.page__semester}
+          onClick={() =>
+            logger.actionEventClick({
+              event_name: 'DA1',
+              event_label: 'timetable__timetable__timetable_list__entry__click',
+              value: '학기 시간표 선택',
+            })
+          }
+        >
           {semesterLabel}
         </Link>
         <button type="button" className={styles.page__button} onClick={handleImageDownloadClick}>

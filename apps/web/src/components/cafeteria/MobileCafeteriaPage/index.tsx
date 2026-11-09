@@ -30,7 +30,12 @@ export default function MobileCafeteriaPage({ onReportSoldout }: MobileCafeteria
   const lastLoggedDiningTypeRef = useRef<DiningType | null>(null);
 
   const handleDiningTypeChange = (dining: DiningType) => {
-    logger.actionEventClick({ team: 'CAMPUS', event_label: 'menu_time', value: DINING_TYPE_MAP[dining] });
+    logger.actionEventClick({
+      event_name: 'DA1',
+      event_label: 'cafeteria__cafeteria__meal_time__select',
+      value: DINING_TYPE_MAP[dining],
+      event_category: 'select',
+    });
     setDiningType(dining);
   };
 
@@ -41,7 +46,12 @@ export default function MobileCafeteriaPage({ onReportSoldout }: MobileCafeteria
       const maxHeight = doc.scrollHeight - doc.clientHeight;
       const scrollPercentage = (scrolled / maxHeight) * 100;
       if (scrollPercentage > 70 && lastLoggedDiningTypeRef.current !== diningType) {
-        logger.actionEventClick({ team: 'CAMPUS', event_label: 'menu_time', value: DINING_TYPE_MAP[diningType] });
+        logger.actionEventClick({
+          event_name: 'DA1',
+          event_label: 'cafeteria__cafeteria__meal_time__scroll',
+          value: DINING_TYPE_MAP[diningType],
+          event_category: 'scroll',
+        });
         lastLoggedDiningTypeRef.current = diningType;
       }
     };
