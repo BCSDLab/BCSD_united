@@ -1,3 +1,5 @@
+import { IS_STAGE } from 'static/url';
+
 export type LoggingTeam = 'CAMPUS' | 'BUSINESS' | 'USER';
 
 /** 로깅 네이밍룰 v1.0의 GA 이벤트명. 서비스 담당자 기준으로 정해진다 */
@@ -45,7 +47,6 @@ interface SessionEvent {
 }
 
 export const GA_TRACKING_ID = process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID;
-const API_PATH = process.env.NEXT_PUBLIC_API_PATH;
 
 // https://developers.google.com/analytics/devguides/collection/gtagjs/pages
 export const pageView = (url: string, userId?: string) => {
@@ -80,7 +81,7 @@ export const event = (props: GTagEvent) => {
     screen_view: screenView,
   });
 
-  if (API_PATH?.includes('stage')) {
+  if (IS_STAGE) {
     // eslint-disable-next-line no-console -- stage 환경에서만 분석 이벤트 디버깅용으로 출력
     console.table({
       '이벤트명(team/event_name)': eventName,
@@ -106,7 +107,7 @@ export const startSession = ({ event_label, value, event_category, custom_sessio
     custom_session_id,
   });
 
-  if (API_PATH?.includes('stage')) {
+  if (IS_STAGE) {
     // eslint-disable-next-line no-console -- stage 환경에서만 분석 이벤트 디버깅용으로 출력
     console.table({
       '세션 시작': event_label,

@@ -7,6 +7,8 @@ import react from '@vitejs/plugin-react';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import svgr from 'vite-plugin-svgr';
 
+import { isStageBuild } from './scripts/build-target.mjs';
+
 const root = fileURLToPath(new URL('.', import.meta.url));
 const publicEnvironmentKeys = [
   'NEXT_PUBLIC_API_PATH',
@@ -77,7 +79,7 @@ export default defineConfig(({ command, mode, isPreview }) => {
   const offlineSmoke = env.AUTOFIX_OFFLINE_SMOKE === '1' && env.WORKERS_CI !== '1';
   const devServer = command === 'serve' && !isPreview;
   // 클라이언트와 SSR의 쿠키 이름은 API 프록시 경로가 아닌 배포 환경으로 결정한다.
-  env.NEXT_PUBLIC_KOIN_ENVIRONMENT = !offlineSmoke && (devServer || branch === previewBranch) ? 'preview' : 'main';
+  env.NEXT_PUBLIC_KOIN_ENVIRONMENT = !offlineSmoke && (devServer || isStageBuild(env)) ? 'preview' : 'main';
   env.NEXT_PUBLIC_SENTRY_ENVIRONMENT = branch === productionBranch ? 'production' : 'preview';
   env.NEXT_PUBLIC_SENTRY_RELEASE ||= env.WORKERS_CI_COMMIT_SHA;
 

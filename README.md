@@ -70,7 +70,9 @@ pnpm build
 | `koin-api`              | `apps/api`              | `pnpm deploy` | `pnpm deploy:preview --name preview` |
 | `bcsd-error-automation` | `apps/error-automation` | `pnpm deploy` | 검사만 실행                          |
 
-웹은 `KOIN_API_ORIGIN`으로 Java API를 호출합니다. 운영은 `https://api.koreatech.in`, Preview와 로컬은 `https://api.stage.koreatech.in`입니다. 봇은 [별도 안내](apps/b-bot/README.md)를 따릅니다.
+웹은 `KOIN_API_ORIGIN`으로 Java API를 호출합니다. 운영은 `https://api.koreatech.in`, Preview와 로컬은 `https://api.stage.koreatech.in`입니다. stage API가 발급하는 `__Secure-koin-stage-web-*` 쿠키 이름 같은 stage 전용 값은 빌드 상수 `NEXT_PUBLIC_KOIN_ENVIRONMENT`로 고릅니다. Workers Builds의 `KOIN_PREVIEW_BRANCH` 빌드와 로컬 개발 서버는 `preview`, 나머지 빌드는 `main`입니다.
+
+stage는 검색 색인에서 뺍니다. `KOIN_ENVIRONMENT`가 `main`이 아닌 Worker는 SSR 응답에, stage 빌드는 `_headers`로 정적 자산에 `X-Robots-Tag: noindex, nofollow`를 붙입니다. 크롤러가 이 헤더를 읽어야 기존 색인이 지워지므로 stage `robots.txt`는 크롤링을 허용하고 sitemap은 만들지 않습니다. 봇은 [별도 안내](apps/b-bot/README.md)를 따릅니다.
 
 ### 레거시 Worker API 비활성화와 복원
 
