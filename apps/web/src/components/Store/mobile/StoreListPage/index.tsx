@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from 'react';
 import { cn } from '@bcsdlab/utils';
 import { keepPreviousData, useQuery, useSuspenseQuery } from '@tanstack/react-query';
-import { useRouter, useSearch } from '@tanstack/react-router';
+import { useRouter, useRouterState, useSearch } from '@tanstack/react-router';
 
 import type { ShopCategory } from 'api/storeMobile/entity';
 import { storeMobileQueries } from 'api/storeMobile/queries';
@@ -23,6 +23,7 @@ import useLogger from 'utils/hooks/analytics/useLogger';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
 
 import SearchBar from './components/SearchBar';
+import ShopListSkeleton from './components/ShopListSkeleton';
 import useScrollLogging from './hooks/useScrollLogging';
 import {
   getListRequestParams,
@@ -38,18 +39,29 @@ import styles from './StoreListPage.module.scss';
 // 카테고리는 서버에 보내지 않고 받은 목록을 클라이언트에서 거른다(order와 같은 요청)
 export default function StoreListPage() {
   const router = useRouter();
+  // loader가 반영한 주소. 목록은 이 주소의 정렬·필터로 받은 데이터를 그린다
   const routeSearch = useSearch({ strict: false });
+  // 같은 화면 안에서 주소를 바꾸면 loader가 끝나기 전에 주소부터 바뀐다. 선택 상태는 이 주소를 바로 따른다
+  const locationSearch = useRouterState({
+    select: (state) =>
+      state.location.pathname === state.resolvedLocation?.pathname ? state.location.search : undefined,
+  });
+  const latestSearch = locationSearch ?? routeSearch;
   const logger = useLogger();
   const [isSortModalOpen, openSortModal, closeSortModal] = useBooleanState(false);
 
-  const { category: selectedCategory, sort: selectedSort, filter: selectedFilter } = parseListQuery(routeSearch);
-  const { sorter, filter } = getListRequestParams(selectedSort, selectedFilter);
+  const { category: selectedCategory, sort: selectedSort, filter: selectedFilter } = parseListQuery(latestSearch);
+  const loadedQuery = parseListQuery(routeSearch);
+  const { sorter, filter } = getListRequestParams(loadedQuery.sort, loadedQuery.filter);
 
   const { data: categories } = useSuspenseQuery(storeMobileQueries.categories());
-  const { data: shopList } = useQuery({
+  const { data: shopList, isPlaceholderData } = useQuery({
     ...storeMobileQueries.list(sorter, filter),
     placeholderData: keepPreviousData,
   });
+  // 정렬·필터를 바꾸면 새 조건의 목록을 받을 때까지 이전 조건의 목록 대신 스켈레톤을 보인다
+  const isShopListLoading =
+    isPlaceholderData || loadedQuery.sort !== selectedSort || loadedQuery.filter !== selectedFilter;
 
   const shops = (shopList?.shops ?? []).filter((shop) => {
     if (!selectedCategory || selectedCategory === 1) return true;
@@ -61,7 +73,7 @@ export default function StoreListPage() {
     categories.shop_categories.find((category) => category.id === selectedCategory)?.name || '전체보기';
 
   const replaceQuery = (key: 'category' | 'sort' | 'filter', value: string | null) => {
-    const nextQuery = { ...routeSearch };
+    const nextQuery = { ...latestSearch };
     if (value === null) delete nextQuery[key];
     else nextQuery[key] = value;
 
@@ -205,8 +217,9 @@ export default function StoreListPage() {
           </div>
         </div>
 
-        <div className={styles.list}>
-          {shops.length > 0 ? (
+        <div className={styles.list} aria-busy={isShopListLoading}>
+          {isShopListLoading && <ShopListSkeleton />}
+          {!isShopListLoading &&
             shops.map((shop) => (
               <ShopCard
                 key={shop.id}
@@ -218,8 +231,8 @@ export default function StoreListPage() {
                 reviewCount={shop.review_count}
                 thumbnailUrl={shop.images[0] ?? ''}
               />
-            ))
-          ) : (
+            ))}
+          {!isShopListLoading && shops.length === 0 && (
             <div className={styles.empty}>
               <PlanetIcon className={styles.empty__icon} />
               <div className={styles.empty__title}>이용 가능한 가게가 없어요</div>
