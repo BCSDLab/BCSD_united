@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { startTransition, useCallback, useEffect, useOptimistic } from 'react';
 import { cn } from '@bcsdlab/utils';
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { useRouter, useSearch } from '@tanstack/react-router';
@@ -40,10 +40,11 @@ import styles from './StoreListPage.module.scss';
 export default function StoreListPage() {
   const router = useRouter();
   const routeSearch = useSearch({ strict: false });
+  const [optimisticSearch, setOptimisticSearch] = useOptimistic(routeSearch);
   const logger = useLogger();
   const [isSortModalOpen, openSortModal, closeSortModal] = useBooleanState(false);
 
-  const { category: selectedCategory, sort: selectedSort, filter: selectedFilter } = parseListQuery(routeSearch);
+  const { category: selectedCategory, sort: selectedSort, filter: selectedFilter } = parseListQuery(optimisticSearch);
   const { sorter, filter } = getListRequestParams(selectedSort, selectedFilter);
 
   const { data: categories } = useSuspenseQuery(storeMobileQueries.categories());
@@ -60,11 +61,14 @@ export default function StoreListPage() {
     categories.shop_categories.find((category) => category.id === selectedCategory)?.name || '전체보기';
 
   const replaceQuery = (key: 'category' | 'sort' | 'filter', value: string | null) => {
-    const nextQuery = { ...routeSearch };
+    const nextQuery = { ...optimisticSearch };
     if (value === null) delete nextQuery[key];
     else nextQuery[key] = value;
 
-    router.navigate({ to: ROUTES.Store(), search: nextQuery, replace: true, resetScroll: false });
+    startTransition(async () => {
+      setOptimisticSearch(nextQuery);
+      await router.navigate({ to: ROUTES.Store(), search: nextQuery, replace: true, resetScroll: false });
+    });
   };
 
   const currentSortLabel = SORT_OPTIONS.find((option) => option.id === selectedSort)?.label || '기본순';
