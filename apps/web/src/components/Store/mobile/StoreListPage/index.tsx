@@ -208,6 +208,10 @@ export default function StoreListPage() {
           </div>
         </div>
 
+        <p className={styles['loading-status']} role="status">
+          {isShopListPending ? '상점 목록을 불러오는 중입니다.' : ''}
+        </p>
+
         <div className={styles.list} aria-busy={isShopListPending}>
           {isShopListPending && <ShopListSkeleton />}
           {!isShopListPending &&

@@ -425,8 +425,8 @@ const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
     }),
   );
 
-// 정렬·필터·카테고리·검색어는 화면이 클라이언트 쿼리로 처리한다. loader는 화면에 들어올 때(SSR·다른 화면에서 이동)만
-// 그 시점 주소로 미리 받고, 같은 화면 안에서 search만 바뀌면 다시 실행하지 않아 이동이 서버 왕복을 기다리지 않는다
+// 정렬·필터·카테고리·검색어는 화면이 클라이언트 쿼리로 처리한다. search만 바뀌면 페이지 loader는 다시 실행하지 않는다.
+// StoreListPage는 낙관적 상태로 선택을 즉시 반영한다.
 export const Route = createFileRoute('/store/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   loader: ({ params, location }) => getPageData({ data: { params, search: location.search } }),

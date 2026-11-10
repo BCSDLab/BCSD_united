@@ -22,8 +22,6 @@ scripts/
 - 업무 API: 기존 Java 서버(KOIN_API_V2)를 사용합니다. `apps/api`는 레거시로 보존합니다.
 - 도구: pnpm workspace, oxlint, oxfmt, TypeScript, ESLint·Stylelint(웹)
 
-모바일 주변상점의 정렬·영업중 필터는 선택을 즉시 표시하고 새 목록을 기다리는 동안 스켈레톤을 표시합니다. 화면 이동과 라우터 갱신에서는 서버 인증·시각 스냅샷을 다시 조회합니다.
-
 ## 개발 환경
 
 Node.js `24.22.1`(`.nvmrc`), pnpm `12.16.1`(`packageManager`)을 사용합니다.

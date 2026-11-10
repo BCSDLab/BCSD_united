@@ -28,7 +28,6 @@ export const Route = createRootRoute({
     parseSearch(stringifySearch(search)),
   beforeLoad: async ({ location }) => {
     if (isDisabledOrderPath(location.pathname)) throw notFound();
-
     const snapshot = await getRootSnapshot();
     if (isProtectedPath(location.pathname) && !snapshot.hasSession) {
       throw redirect({ href: ROUTES.Auth() + '?redirect=' + encodeURIComponent(location.href) });
