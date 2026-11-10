@@ -8,10 +8,11 @@
     "deploy": "wrangler deploy",
     "deploy:preview": "wrangler preview --name stage",
     "cf:typegen": "wrangler types",
+    "test": "node --import tsx --test test/*.test.ts",
     "typecheck": "tsc --noEmit",
     "build": "vite build && node scripts/generate-sitemap.mjs",
     "lint": "pnpm lint:eslint && pnpm lint:stylelint",
-    "lint:eslint": "eslint src/ --max-warnings 0",
+    "lint:eslint": "eslint src/ test/ --max-warnings 0",
     "lint:stylelint": "stylelint \"src/**/*.scss\" --config .stylelint.json",
     "dev": "vite --port 3000"
   },

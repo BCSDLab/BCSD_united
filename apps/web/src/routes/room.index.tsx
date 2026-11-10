@@ -1,4 +1,4 @@
-import { QueryClient, dehydrate, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
@@ -11,6 +11,7 @@ import useNaverMapScript from 'components/Room/RoomPage/hooks/useNaverMapScript'
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useScrollToTop from 'utils/hooks/ui/useScrollToTop';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
+import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
 import { ROOM_ISR_REVALIDATE_SECONDS, withStaticFetchRetry } from 'utils/ts/isr';
 
 import styles from 'pages/room/RoomPage.module.scss';
@@ -36,26 +37,23 @@ function RoomPage() {
   );
 }
 
+const loadPage = definePageLoad(async ({ queryClient }, cacheControl) => {
+  await withStaticFetchRetry('room.list', () => queryClient.fetchQuery(roomQueries.list()));
+
+  cacheControl.enablePublicCache(`public, s-maxage=${ROOM_ISR_REVALIDATE_SECONDS}, stale-while-revalidate=300`);
+
+  return {};
+});
+
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
-  .handler(({ data }) =>
-    loadPageData(data, async (_context, cacheControl) => {
-      const queryClient = new QueryClient();
-
-      await withStaticFetchRetry('room.list', () => queryClient.fetchQuery(roomQueries.list()));
-
-      cacheControl.enablePublicCache(`public, s-maxage=${ROOM_ISR_REVALIDATE_SECONDS}, stale-while-revalidate=300`);
-
-      return {
-        dehydratedState: dehydrate(queryClient),
-      };
-    }),
-  );
+  .handler(({ data }) => loadPageData(data, loadPage));
+const pageLoader = createPageLoader(getPageData, loadPage);
 
 export const Route = createFileRoute('/room/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   loaderDeps: ({ search }) => ({ search }),
-  loader: ({ params, deps }) => getPageData({ data: { params, search: deps.search } }),
+  loader: ({ params, deps, context }) => pageLoader({ params, search: deps.search }, context),
   component: RouteComponent,
 });
 

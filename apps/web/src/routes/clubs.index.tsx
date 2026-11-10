@@ -1,5 +1,5 @@
 import { cn } from '@bcsdlab/utils';
-import { dehydrate, QueryClient, useQuery, useSuspenseQuery } from '@tanstack/react-query';
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
@@ -24,6 +24,7 @@ import useParamsHandler from 'utils/hooks/routing/useParamsHandler';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
+import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
 import {
   createQueryParser,
   parseQueryBoolean,
@@ -348,42 +349,40 @@ function ClubListPage({ initialQuery }: Awaited<ReturnType<typeof getPageData>>)
   );
 }
 
+const loadPage = definePageLoad(async ({ search, queryClient }, cacheControl, serverRequest) => {
+  const params = parseClubListQuery(search);
+
+  await Promise.all([
+    queryClient.prefetchQuery(clubQueries.categories()),
+    queryClient.prefetchQuery(
+      clubQueries.list({
+        isLoggedIn: serverRequest.isLoggedIn,
+        categoryId: params.categoryId ?? undefined,
+        sortType: params.sortType,
+        isRecruiting: params.isRecruiting,
+        clubName: params.clubName,
+      }),
+    ),
+  ]);
+
+  if (!serverRequest.isLoggedIn) {
+    cacheControl.enablePublicCache();
+  }
+
+  return {
+    initialQuery: params,
+  };
+});
+
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
-  .handler(({ data }) =>
-    loadPageData(data, async (context, cacheControl, serverRequest) => {
-      const params = parseClubListQuery(context.search);
-
-      const queryClient = new QueryClient();
-
-      await Promise.all([
-        queryClient.prefetchQuery(clubQueries.categories()),
-        queryClient.prefetchQuery(
-          clubQueries.list({
-            isLoggedIn: serverRequest.isLoggedIn,
-            categoryId: params.categoryId ?? undefined,
-            sortType: params.sortType,
-            isRecruiting: params.isRecruiting,
-            clubName: params.clubName,
-          }),
-        ),
-      ]);
-
-      if (!serverRequest.isLoggedIn) {
-        cacheControl.enablePublicCache();
-      }
-
-      return {
-        dehydratedState: dehydrate(queryClient),
-        initialQuery: params,
-      };
-    }),
-  );
+  .handler(({ data }) => loadPageData(data, loadPage));
+const pageLoader = createPageLoader(getPageData, loadPage);
 
 export const Route = createFileRoute('/clubs/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   loaderDeps: ({ search }) => ({ search }),
-  loader: ({ params, deps }) => getPageData({ data: { params, search: deps.search } }),
+  loader: ({ params, deps, context }) => pageLoader({ params, search: deps.search }, context),
   component: RouteComponent,
 });
 

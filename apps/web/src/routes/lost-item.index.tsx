@@ -1,4 +1,4 @@
-import { dehydrate, keepPreviousData, QueryClient, useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { createFileRoute, useSearch, useParams } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
@@ -13,6 +13,7 @@ import { SSRLayout } from 'components/layout';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import useMount from 'utils/hooks/state/useMount';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
+import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
 
 import styles from 'pages/lost-item/LostItemArticleListPage.module.scss';
 
@@ -82,43 +83,40 @@ function LostItemArticleListPage({ initialParams }: Awaited<ReturnType<typeof ge
   );
 }
 
+const loadPage = definePageLoad(async ({ search: query, queryClient }, cacheControl, serverRequest) => {
+  const fallback: LostItemParams = {
+    page: 1,
+    type: null,
+    category: [],
+    foundStatus: 'ALL',
+    sort: 'LATEST',
+    author: 'ALL',
+  };
+
+  const params = parseLostItemQuery(query, fallback);
+
+  const apiParams = toLostItemArticlesRequest(params);
+
+  await queryClient.prefetchQuery(articleQueries.lostItemList(serverRequest.isLoggedIn, apiParams));
+
+  if (!serverRequest.isLoggedIn) {
+    cacheControl.enablePublicCache();
+  }
+
+  return {
+    initialParams: params,
+  };
+});
+
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
-  .handler(({ data }) =>
-    loadPageData(data, async (context, cacheControl, serverRequest) => {
-      const queryClient = new QueryClient();
-      const { search: query } = context;
-
-      const fallback: LostItemParams = {
-        page: 1,
-        type: null,
-        category: [],
-        foundStatus: 'ALL',
-        sort: 'LATEST',
-        author: 'ALL',
-      };
-
-      const params = parseLostItemQuery(query, fallback);
-
-      const apiParams = toLostItemArticlesRequest(params);
-
-      await queryClient.prefetchQuery(articleQueries.lostItemList(serverRequest.isLoggedIn, apiParams));
-
-      if (!serverRequest.isLoggedIn) {
-        cacheControl.enablePublicCache();
-      }
-
-      return {
-        dehydratedState: dehydrate(queryClient),
-        initialParams: params,
-      };
-    }),
-  );
+  .handler(({ data }) => loadPageData(data, loadPage));
+const pageLoader = createPageLoader(getPageData, loadPage);
 
 export const Route = createFileRoute('/lost-item/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   loaderDeps: ({ search }) => ({ search }),
-  loader: ({ params, deps }) => getPageData({ data: { params, search: deps.search } }),
+  loader: ({ params, deps, context }) => pageLoader({ params, search: deps.search }, context),
   component: RouteComponent,
 });
 

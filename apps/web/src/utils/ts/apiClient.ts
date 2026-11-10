@@ -9,6 +9,7 @@ import { hasSessionCookie } from 'utils/auth/session';
 import { markSessionAuthenticated, markSessionExpired } from 'utils/auth/sessionControl';
 import { fetchApiRequest, getApiBaseUrl } from 'utils/ssr/apiTarget';
 import { getServerRequestHeaders } from 'utils/ssr/cookieForwarding';
+import { sampleServerClock } from 'utils/ssr/serverClock';
 import qsStringify from 'utils/ts/qsStringfy';
 
 import { getCookie } from './cookie';
@@ -183,11 +184,13 @@ export default class APIClient {
             headers: this.createHeaders(request),
             body: this.body(request),
             signal: controller.signal,
+            cache: request instanceof WebSession ? 'no-store' : undefined,
             credentials: request.withCredentials === false ? 'omit' : 'include',
             // Java SSR 요청의 쿠키가 리다이렉트 대상에 전달되지 않도록 기존 보호를 유지한다.
             redirect: isBrowser ? 'follow' : 'manual',
           }),
         );
+        if (isBrowser && request instanceof WebSession) sampleServerClock(response);
         const text = await response.text();
         let data: unknown = text;
         if (text) {

@@ -12,7 +12,8 @@ import { DINING_TYPE_MAP } from 'static/cafeteria';
 import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import { parseSearch } from 'utils/routing/search';
-import { getYyyyMmDd } from 'utils/ts/calendar';
+import { useServerNow } from 'utils/ssr/useServerNow';
+import { kstDateKey, kstDayOfWeek } from 'utils/ts/calendar';
 
 import styles from './IndexMobileCafeteria.module.scss';
 
@@ -20,7 +21,7 @@ const mealTabs: DiningPlace[] = ['A코너', 'B코너', 'C코너', '능수관'];
 
 const getDiningTimeLabel = (cafeteriaInfo: CoopShopDetailResponse, diningDate: Date, diningType: Dining['type']) => {
   const diningTypeLabel = DINING_TYPE_MAP[diningType];
-  const dayOfWeek = diningDate.getDay();
+  const dayOfWeek = kstDayOfWeek(diningDate);
   const dayLabel = dayOfWeek === 6 ? '토요일' : '평일';
   const schedule = cafeteriaInfo.opens.find((open) => open.day_of_week === dayLabel && open.type === diningTypeLabel);
 
@@ -61,7 +62,7 @@ function MealCard({ dining, diningLabel, href, onClick }: MealCardProps) {
 
 function IndexMobileCafeteria() {
   const logger = useLogger();
-  const diningTime = new DiningTime();
+  const diningTime = new DiningTime(useServerNow());
   const diningDate = diningTime.generateDiningDate();
   const currentDiningType: DiningType = diningTime.getType();
 
@@ -78,7 +79,7 @@ function IndexMobileCafeteria() {
   const diningLabel = cafeteriaInfo
     ? getDiningTimeLabel(cafeteriaInfo, diningDate, currentDiningType)
     : '운영시간 정보 제공 불가';
-  const cafeteriaLink = ROUTES.Cafeteria({ date: getYyyyMmDd(diningDate), type: currentDiningType });
+  const cafeteriaLink = ROUTES.Cafeteria({ date: kstDateKey(diningDate), type: currentDiningType });
   const activePlace = availableDinings.some((dining) => dining.place === selectedPlace)
     ? selectedPlace
     : availableDinings[0]?.place;

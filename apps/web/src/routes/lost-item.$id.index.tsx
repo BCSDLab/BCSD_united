@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { dehydrate, QueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate, useRouter, notFound } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
@@ -28,6 +28,7 @@ import useBooleanState from 'utils/hooks/state/useBooleanState';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import useScrollToTop from 'utils/hooks/ui/useScrollToTop';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
+import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
 
 import styles from 'pages/lost-item/[id]/LostItemDetailPage.module.scss';
 
@@ -245,42 +246,40 @@ function LostItemDetailPage({ articleId }: LostItemDetailPageProps) {
   );
 }
 
+const loadPage = definePageLoad(async ({ params, queryClient }, cacheControl, serverRequest) => {
+  const id = params.id;
+  if (typeof id !== 'string') {
+    throw notFound();
+  }
+  const articleId = Number(id);
+
+  const latestLostItemParams = { limit: 10, sort: 'LATEST' as const };
+
+  await Promise.all([
+    queryClient.prefetchQuery(articleQueries.lostItemDetail(serverRequest.isLoggedIn, articleId)),
+    queryClient.prefetchInfiniteQuery(
+      articleQueries.lostItemInfiniteList(serverRequest.isLoggedIn, latestLostItemParams),
+    ),
+  ]);
+
+  if (!serverRequest.isLoggedIn) {
+    cacheControl.enablePublicCache();
+  }
+
+  return {
+    articleId,
+  };
+});
+
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
-  .handler(({ data }) =>
-    loadPageData(data, async (context, cacheControl, serverRequest) => {
-      const id = context.params.id;
-      if (typeof id !== 'string') {
-        throw notFound();
-      }
-      const articleId = Number(id);
-
-      const queryClient = new QueryClient();
-
-      const latestLostItemParams = { limit: 10, sort: 'LATEST' as const };
-
-      await Promise.all([
-        queryClient.prefetchQuery(articleQueries.lostItemDetail(serverRequest.isLoggedIn, articleId)),
-        queryClient.prefetchInfiniteQuery(
-          articleQueries.lostItemInfiniteList(serverRequest.isLoggedIn, latestLostItemParams),
-        ),
-      ]);
-
-      if (!serverRequest.isLoggedIn) {
-        cacheControl.enablePublicCache();
-      }
-
-      return {
-        dehydratedState: dehydrate(queryClient),
-        articleId,
-      };
-    }),
-  );
+  .handler(({ data }) => loadPageData(data, loadPage));
+const pageLoader = createPageLoader(getPageData, loadPage);
 
 export const Route = createFileRoute('/lost-item/$id/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   loaderDeps: ({ search }) => ({ search }),
-  loader: ({ params, deps }) => getPageData({ data: { params, search: deps.search } }),
+  loader: ({ params, deps, context }) => pageLoader({ params, search: deps.search }, context),
   staticData: { hasPageSeo: true },
   component: RouteComponent,
 });

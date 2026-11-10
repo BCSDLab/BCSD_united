@@ -12,6 +12,7 @@ import CloseIcon from 'assets/svg/close-icon-black.svg';
 import { Selector } from 'components/ui/Selector';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import { useOutsideClick } from 'utils/hooks/ui/useOutsideClick';
+import { useServerCalendarDate } from 'utils/ssr/useServerNow';
 import showToast from 'utils/ts/showToast';
 
 import styles from './AddSemesterModal.module.scss';
@@ -22,14 +23,6 @@ export interface AddSemesterModalProps {
   addSemester: UseMutateFunction<TimetableFrameListResponse, unknown, AddTimetableFrameRequest, unknown>;
   mySemester: SemesterCheckResponse | null;
 }
-
-const currentYear = new Date().getFullYear();
-const startYear = 2019;
-const years = Array.from({ length: currentYear - startYear + 1 }, (_, index) => {
-  const year = currentYear - index;
-
-  return { label: `${year}년도`, value: `${year}년도` };
-});
 
 const semester = [
   { label: '겨울학기', value: '겨울학기' },
@@ -45,6 +38,12 @@ export default function AddSemesterModal({
   mySemester,
 }: AddSemesterModalProps) {
   const logger = useLogger();
+  const currentYear = useServerCalendarDate().getFullYear();
+  const years = Array.from({ length: currentYear - 2019 + 1 }, (_, index) => {
+    const year = currentYear - index;
+
+    return { label: `${year}년도`, value: `${year}년도` };
+  });
   const { backgroundRef } = useOutsideClick({ onOutsideClick: onClose });
 
   const [yearValue, setYearValue] = React.useState(years[0].label);

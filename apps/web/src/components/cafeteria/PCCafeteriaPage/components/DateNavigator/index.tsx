@@ -4,6 +4,7 @@ import LeftArrow from 'assets/svg/left-angle-bracket.svg';
 import RightArrow from 'assets/svg/right-angle-bracket.svg';
 import CafeteriaInfoBoundary from 'components/cafeteria/components/CafeteriaInfoBoundary';
 import { useCafeteriaParams } from 'components/cafeteria/hooks/useCafeteriaParams';
+import { kstDateKey, kstDayOfWeek } from 'utils/ts/calendar';
 
 import CafeteriaInfoTrigger from './components/CafeteriaInfoTrigger';
 import styles from './DateNavigator.module.scss';
@@ -17,22 +18,20 @@ interface DayInfo {
 const generateWeek = (today: Date) => {
   const WEEK = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
 
-  const currentDate = new Date(today);
-  while (currentDate.getDay() !== 0) {
-    currentDate.setDate(currentDate.getDate() - 1);
-  }
+  const currentDate = new Date(`${kstDateKey(today)}T00:00:00Z`);
+  currentDate.setUTCDate(currentDate.getUTCDate() - kstDayOfWeek(currentDate));
 
   const week: DayInfo[] = [];
   for (let i = 0; i < 7; i += 1) {
     const weekDay = WEEK[i];
-    const dateOfMonth = currentDate.getDate();
+    const dateOfMonth = currentDate.getUTCDate();
     const newDate = new Date(currentDate);
     week.push({
       weekDay,
       dateOfMonth,
       date: newDate,
     });
-    currentDate.setDate(currentDate.getDate() + 1);
+    currentDate.setUTCDate(currentDate.getUTCDate() + 1);
   }
 
   return week;
@@ -76,7 +75,7 @@ export default function DateNavigator() {
             key={dayInfo.weekDay}
             className={cn({
               [styles['week__one-day']]: true,
-              [styles['week__one-day--selected']]: dayInfo.date.toDateString() === date.current().toDateString(),
+              [styles['week__one-day--selected']]: kstDateKey(dayInfo.date) === kstDateKey(date.current()),
             })}
             type="button"
             onClick={() => date.set(dayInfo.date)}

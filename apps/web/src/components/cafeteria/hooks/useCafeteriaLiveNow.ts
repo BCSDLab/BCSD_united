@@ -1,7 +1,8 @@
 import { useCafeteriaServerValue } from 'components/cafeteria/context/CafeteriaServerContext';
-import { DiningTime, kstDateKey } from 'components/cafeteria/utils/time';
+import { DiningTime } from 'components/cafeteria/utils/time';
 import useLiveNow from 'utils/hooks/state/useLiveNow';
 import { useServerNow } from 'utils/ssr/useServerNow';
+import { kstDateKey } from 'utils/ts/calendar';
 
 const POLL_MS = 60_000;
 

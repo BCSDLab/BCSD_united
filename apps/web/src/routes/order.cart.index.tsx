@@ -1,4 +1,3 @@
-import { dehydrate, type DehydratedState, QueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
@@ -11,10 +10,10 @@ import OrderCartPage from 'components/Order/OrderCartPage';
 import OrderCartHeader from 'components/Order/OrderCartPage/components/OrderCartHeader';
 import StoreMobileHeader from 'components/Store/mobile/common/StoreMobileHeader';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
+import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
 
 interface Props {
   isDesktop: boolean;
-  dehydratedState?: DehydratedState;
 }
 
 function OrderCartRoute({ isDesktop }: Props) {
@@ -37,33 +36,33 @@ function OrderCartRoute({ isDesktop }: Props) {
 }
 
 // 장바구니는 사용자별 화면이라 공개 캐시를 켜지 않는다
+const loadPage = definePageLoad(async ({ queryClient }, _cacheControl, serverRequest) => {
+  if (serverRequest.device !== 'mobile') {
+    return { isDesktop: true };
+  }
+
+  // 로그인이면 장바구니(주문 유형 기본값 DELIVERY)를 미리 받아 본문까지 렌더한다.
+  // 만료된 쿠키 등으로 실패하면 결과를 내리지 않고(빈 장바구니로 확정하지 않는다) 클라이언트가 다시 조회한다.
+  // 비로그인은 조회하지 않고 빈 장바구니로 그린다(클라이언트가 order처럼 조회해 401이면 그대로 빈 장바구니)
+  if (serverRequest.isLoggedIn) {
+    await queryClient.prefetchQuery({
+      ...orderQueries.cart('DELIVERY', true),
+      queryFn: () => getCart('DELIVERY', true),
+    });
+  }
+
+  return { isDesktop: false };
+});
+
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
-  .handler(({ data }) =>
-    loadPageData(data, async (_context, _cacheControl, serverRequest) => {
-      if (serverRequest.device !== 'mobile') {
-        return { isDesktop: true };
-      }
-
-      // 로그인이면 장바구니(주문 유형 기본값 DELIVERY)를 서버에서 받아 본문까지 렌더한다.
-      // 만료된 쿠키 등으로 실패하면 결과를 내리지 않고(빈 장바구니로 확정하지 않는다) 클라이언트가 다시 조회한다.
-      // 비로그인은 조회하지 않고 빈 장바구니로 그린다(클라이언트가 order처럼 조회해 401이면 그대로 빈 장바구니)
-      const queryClient = new QueryClient();
-      if (serverRequest.isLoggedIn) {
-        await queryClient.prefetchQuery({
-          ...orderQueries.cart('DELIVERY', true),
-          queryFn: () => getCart('DELIVERY', true),
-        });
-      }
-
-      return { isDesktop: false, dehydratedState: dehydrate(queryClient) };
-    }),
-  );
+  .handler(({ data }) => loadPageData(data, loadPage));
+const pageLoader = createPageLoader(getPageData, loadPage);
 
 export const Route = createFileRoute('/order/cart/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   loaderDeps: ({ search }) => ({ search }),
-  loader: ({ params, deps }) => getPageData({ data: { params, search: deps.search } }),
+  loader: ({ params, deps, context }) => pageLoader({ params, search: deps.search }, context),
   component: RouteComponent,
 });
 

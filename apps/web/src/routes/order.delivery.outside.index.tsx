@@ -7,6 +7,7 @@ import DesktopNotice from 'components/Order/DesktopNotice';
 import OrderDeliveryOutsidePage from 'components/Order/OrderDelivery/OrderDeliveryOutsidePage';
 import StoreMobileHeader from 'components/Store/mobile/common/StoreMobileHeader';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
+import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
 
 interface Props {
   isDesktop: boolean;
@@ -23,18 +24,19 @@ function OrderDeliveryOutsideRoute({ isDesktop }: Props) {
 }
 
 // 배달지 선택은 사용자별 화면이라 공개 캐시를 켜지 않는다. 첫 화면은 검색 안내만 있어 받아 둘 데이터가 없다
+const loadPage = definePageLoad((_context, _cacheControl, serverRequest) => ({
+  isDesktop: serverRequest.device !== 'mobile',
+}));
+
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
-  .handler(({ data }) =>
-    loadPageData(data, (_context, _cacheControl, serverRequest) => ({
-      isDesktop: serverRequest.device !== 'mobile',
-    })),
-  );
+  .handler(({ data }) => loadPageData(data, loadPage));
+const pageLoader = createPageLoader(getPageData, loadPage);
 
 export const Route = createFileRoute('/order/delivery/outside/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   loaderDeps: ({ search }) => ({ search }),
-  loader: ({ params, deps }) => getPageData({ data: { params, search: deps.search } }),
+  loader: ({ params, deps, context }) => pageLoader({ params, search: deps.search }, context),
   component: RouteComponent,
 });
 

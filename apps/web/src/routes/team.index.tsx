@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { dehydrate, QueryClient, useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate, useLocation } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
@@ -28,6 +28,7 @@ import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import useInfiniteScroll from 'utils/hooks/ui/useInfiniteScroll';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
+import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
 import { redirectToLogin, setRedirectPath } from 'utils/ts/auth';
 import showToast from 'utils/ts/showToast';
 
@@ -290,30 +291,25 @@ function TeamListPage() {
   );
 }
 
+const loadPage = definePageLoad(async ({ queryClient }, cacheControl, serverRequest) => {
+  await queryClient.prefetchInfiniteQuery(teamQueries.infiniteList(INITIAL_REQUEST_PARAMS, serverRequest.isLoggedIn));
+
+  if (!serverRequest.isLoggedIn) {
+    cacheControl.enablePublicCache();
+  }
+
+  return {};
+});
+
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
-  .handler(({ data }) =>
-    loadPageData(data, async (_context, cacheControl, serverRequest) => {
-      const queryClient = new QueryClient();
-
-      await queryClient.prefetchInfiniteQuery(
-        teamQueries.infiniteList(INITIAL_REQUEST_PARAMS, serverRequest.isLoggedIn),
-      );
-
-      if (!serverRequest.isLoggedIn) {
-        cacheControl.enablePublicCache();
-      }
-
-      return {
-        dehydratedState: dehydrate(queryClient),
-      };
-    }),
-  );
+  .handler(({ data }) => loadPageData(data, loadPage));
+const pageLoader = createPageLoader(getPageData, loadPage);
 
 export const Route = createFileRoute('/team/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   loaderDeps: ({ search }) => ({ search }),
-  loader: ({ params, deps }) => getPageData({ data: { params, search: deps.search } }),
+  loader: ({ params, deps, context }) => pageLoader({ params, search: deps.search }, context),
   staticData: { hasPageSeo: true },
   component: RouteComponent,
 });

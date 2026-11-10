@@ -2,6 +2,7 @@ import { cn } from '@bcsdlab/utils';
 
 import { useCafeteriaLiveNow } from 'components/cafeteria/hooks/useCafeteriaLiveNow';
 import { useCafeteriaParams } from 'components/cafeteria/hooks/useCafeteriaParams';
+import { kstDateKey, kstDayOfWeek } from 'utils/ts/calendar';
 
 import styles from './WeeklyDatePicker.module.scss';
 
@@ -11,22 +12,8 @@ export default function WeeklyDatePicker() {
   const { date } = useCafeteriaParams();
   const today = useCafeteriaLiveNow();
 
-  const addDays = (date: Date, days: number) => {
-    const result = new Date(date);
-    result.setDate(result.getDate() + days);
-
-    return result;
-  };
-
-  const thisWeek = Array.from({ length: 7 }).map((_, index) => addDays(today, index - 3));
-
-  const dateFormat = (d = today) => {
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-
-    return `${year}-${month}-${day}`;
-  };
+  const thisWeek = Array.from({ length: 7 }, (_, index) => new Date(today.getTime() + (index - 3) * 86400000));
+  const dateFormat = (d = today) => kstDateKey(d);
 
   return (
     <div className={styles.container}>
@@ -38,9 +25,9 @@ export default function WeeklyDatePicker() {
                 [styles.picker__date]: true,
                 [styles['picker__date--before']]: dateFormat(day) < dateFormat(),
               })}
-              key={day.toDateString()}
+              key={dateFormat(day)}
             >
-              {WEEK[day.getDay()]}
+              {WEEK[kstDayOfWeek(day)]}
               <button
                 className={cn({
                   [styles.picker__button]: true,
@@ -52,7 +39,7 @@ export default function WeeklyDatePicker() {
                 onClick={() => date.set(day)}
               >
                 {dateFormat(day) === dateFormat() && <div className={styles['picker__button--selector']} />}
-                {day.getDate()}
+                {Number(dateFormat(day).slice(-2))}
               </button>
             </div>
           ))}

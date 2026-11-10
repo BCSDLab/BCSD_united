@@ -1,4 +1,4 @@
-import { dehydrate, keepPreviousData, QueryClient, useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { createFileRoute, useSearch, useParams } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
@@ -15,6 +15,7 @@ import HomeLayout from 'components/layout/HomeLayout';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import useMount from 'utils/hooks/state/useMount';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
+import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
 
 const DEFAULT_BOARD_ID = 4;
 
@@ -82,40 +83,35 @@ function ArticleListPage({ initialPage, initialBoardId, serverNow }: Awaited<Ret
   );
 }
 
+const loadPage = definePageLoad(async ({ search: query, queryClient }, cacheControl, serverRequest) => {
+  const pageNumber = typeof query.page === 'string' ? query.page : '1';
+  const boardId = typeof query.boardId === 'string' ? Number(query.boardId) : DEFAULT_BOARD_ID;
+
+  await Promise.all([
+    queryClient.prefetchQuery(articleQueries.hot()),
+    queryClient.prefetchQuery(articleQueries.list(serverRequest.isLoggedIn, pageNumber, boardId)),
+  ]);
+
+  if (!serverRequest.isLoggedIn) {
+    cacheControl.enablePublicCache();
+  }
+
+  return {
+    initialPage: pageNumber,
+    serverNow: serverRequest.now,
+    initialBoardId: boardId,
+  };
+});
+
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
-  .handler(({ data }) =>
-    loadPageData(data, async (context, cacheControl, serverRequest) => {
-      const { search: query } = context;
-      const pageNumber = typeof query.page === 'string' ? query.page : '1';
-      const boardId = typeof query.boardId === 'string' ? Number(query.boardId) : DEFAULT_BOARD_ID;
-
-      const queryClient = new QueryClient();
-
-      const prefetchPromises = [
-        queryClient.prefetchQuery(articleQueries.hot()),
-        queryClient.prefetchQuery(articleQueries.list(serverRequest.isLoggedIn, pageNumber, boardId)),
-      ];
-
-      await Promise.all(prefetchPromises);
-
-      if (!serverRequest.isLoggedIn) {
-        cacheControl.enablePublicCache();
-      }
-
-      return {
-        dehydratedState: dehydrate(queryClient),
-        initialPage: pageNumber,
-        serverNow: new Date().toISOString(),
-        initialBoardId: boardId,
-      };
-    }),
-  );
+  .handler(({ data }) => loadPageData(data, loadPage));
+const pageLoader = createPageLoader(getPageData, loadPage);
 
 export const Route = createFileRoute('/articles/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   loaderDeps: ({ search }) => ({ search }),
-  loader: ({ params, deps }) => getPageData({ data: { params, search: deps.search } }),
+  loader: ({ params, deps, context }) => pageLoader({ params, search: deps.search }, context),
   component: RouteComponent,
 });
 

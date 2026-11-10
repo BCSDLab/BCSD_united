@@ -1,4 +1,3 @@
-import { dehydrate, QueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
@@ -17,6 +16,7 @@ import HomePage from 'components/IndexComponents/HomePage';
 import HomeLayout from 'components/layout/HomeLayout';
 import { isKoinError } from 'interfaces/APIError';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
+import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
 import { getRecentSemester, resolveTimetableSemester } from 'utils/timetable/semester';
 import { isUnauthorizedError } from 'utils/ts/httpError';
 
@@ -24,150 +24,150 @@ function Index(props: Awaited<ReturnType<typeof getPageData>>) {
   return <HomePage {...props} />;
 }
 
-const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
-  .validator(validatePageInput)
-  .handler(({ data }) =>
-    loadPageData(data, async (_context, cacheControl, serverRequest) => {
-      const queryClient = new QueryClient();
-      let isLoggedIn = serverRequest.isLoggedIn;
-      let userType = serverRequest.userType;
-      const isMobile = serverRequest.device === 'mobile';
+const loadPage = definePageLoad(async ({ queryClient }, cacheControl, serverRequest) => {
+  let isLoggedIn = serverRequest.isLoggedIn;
+  let userType = serverRequest.userType;
+  const isMobile = serverRequest.device === 'mobile';
+  const serverNow = new Date(serverRequest.now);
 
-      const resetAuthContext = () => {
-        isLoggedIn = false;
-        userType = null;
-        serverRequest.isLoggedIn = false;
-        serverRequest.userType = null;
-      };
+  const resetAuthContext = () => {
+    isLoggedIn = false;
+    userType = null;
+    serverRequest.isLoggedIn = false;
+    serverRequest.userType = null;
+  };
 
-      const setDefaultTimetableFrameList = (semester = getRecentSemester()) => {
-        queryClient.setQueryData(timetableQueryKeys.frameList(semester, isLoggedIn), createDefaultTimetableFrameList());
-      };
+  const setDefaultTimetableFrameList = (semester = getRecentSemester(serverNow)) => {
+    queryClient.setQueryData(timetableQueryKeys.frameList(semester, isLoggedIn), createDefaultTimetableFrameList());
+  };
 
-      const fetchMySemester = async () => {
-        if (!isLoggedIn || userType !== 'STUDENT') return null;
+  const fetchMySemester = async () => {
+    if (!isLoggedIn || userType !== 'STUDENT') return null;
 
-        try {
-          return await queryClient.fetchQuery(timetableQueries.mySemester(isLoggedIn, { userType }));
-        } catch (error) {
-          if (isUnauthorizedError(error)) {
-            resetAuthContext();
+    try {
+      return await queryClient.fetchQuery(timetableQueries.mySemester(isLoggedIn, { userType }));
+    } catch (error) {
+      if (isUnauthorizedError(error)) {
+        resetAuthContext();
 
-            return null;
-          }
-          if (isKoinError(error) && error.status === 403) {
-            return null;
-          }
-          throw error;
-        }
-      };
+        return null;
+      }
+      if (isKoinError(error) && error.status === 403) {
+        return null;
+      }
+      throw error;
+    }
+  };
 
-      const diningTime = new DiningTime();
-      const diningDate = diningTime.generateDiningDate();
-      const serverDining = {
-        type: diningTime.getType(),
-        dayLabel: diningTime.isTodayDining() ? '오늘' : '내일',
-        date: diningDate.toISOString(),
-      };
+  const diningTime = new DiningTime(serverNow);
+  const diningDate = diningTime.generateDiningDate();
+  const serverDining = {
+    type: diningTime.getType(),
+    dayLabel: diningTime.isTodayDining() ? '오늘' : '내일',
+    date: diningDate.toISOString(),
+  };
 
-      const prefetchTimetable = async () => {
-        const mySemester = await fetchMySemester();
-        const userSemester = mySemester?.semesters?.[0];
+  const prefetchTimetable = async () => {
+    const mySemester = await fetchMySemester();
+    const userSemester = mySemester?.semesters?.[0];
 
-        if (isMobile || !isLoggedIn || userType !== 'STUDENT') return userSemester;
+    if (isMobile || !isLoggedIn || userType !== 'STUDENT') return userSemester;
 
-        if (!userSemester) {
-          setDefaultTimetableFrameList();
+    if (!userSemester) {
+      setDefaultTimetableFrameList();
 
-          return userSemester;
-        }
+      return userSemester;
+    }
 
-        try {
-          const timetableFrameList = await queryClient.fetchQuery(
-            timetableQueries.frameList(isLoggedIn, userSemester, { userType }),
-          );
-          const mainFrame = timetableFrameList.find((frame) => frame.is_main);
-          const activeMainFrameId = mainFrame?.id;
-          if (typeof activeMainFrameId === 'number') {
-            await queryClient.prefetchQuery(timetableQueries.lectureInfo(isLoggedIn, activeMainFrameId));
-          }
-        } catch (error) {
-          if (isUnauthorizedError(error)) {
-            resetAuthContext();
-          } else if (isKoinError(error) && (error.status === 403 || error.status === 404)) {
-            setDefaultTimetableFrameList(userSemester);
-          } else {
-            throw error;
-          }
-        }
+    try {
+      const timetableFrameList = await queryClient.fetchQuery(
+        timetableQueries.frameList(isLoggedIn, userSemester, { userType }),
+      );
+      const mainFrame = timetableFrameList.find((frame) => frame.is_main);
+      const activeMainFrameId = mainFrame?.id;
+      if (typeof activeMainFrameId === 'number') {
+        await queryClient.prefetchQuery(timetableQueries.lectureInfo(isLoggedIn, activeMainFrameId));
+      }
+    } catch (error) {
+      if (isUnauthorizedError(error)) {
+        resetAuthContext();
+      } else if (isKoinError(error) && (error.status === 403 || error.status === 404)) {
+        setDefaultTimetableFrameList(userSemester);
+      } else {
+        throw error;
+      }
+    }
 
-        return userSemester;
-      };
+    return userSemester;
+  };
 
-      const prefetchBanners = async () => {
-        const banners = await queryClient.fetchQuery(bannerQueries.categories());
-        const category = banners.banner_categories[0];
-        if (!category) return null;
+  const prefetchBanners = async () => {
+    const banners = await queryClient.fetchQuery(bannerQueries.categories());
+    const category = banners.banner_categories[0];
+    if (!category) return null;
 
-        const categoryId = Number(category.id);
+    const categoryId = Number(category.id);
 
-        return queryClient.fetchQuery(bannerQueries.list(categoryId));
-      };
+    return queryClient.fetchQuery(bannerQueries.list(categoryId));
+  };
 
-      let bannersList: BannersResponse = { count: 0, banners: [] };
+  let bannersList: BannersResponse = { count: 0, banners: [] };
 
-      const prefetchDeviceContent = async () => {
-        if (isMobile) {
-          await Promise.all([
-            queryClient.prefetchQuery(
-              callvanQueries.list({ statuses: ['RECRUITING'], sort: 'LATEST_DESC', page: 1, limit: 1 }),
-            ),
-            queryClient.prefetchQuery(coopshopQueries.cafeteriaInfo()),
-          ]);
-
-          return;
-        }
-
-        const [banners] = await Promise.all([
-          prefetchBanners(),
-          queryClient.prefetchQuery(articleQueries.list(isLoggedIn, '1')),
-          queryClient.prefetchQuery(timetableQueries.semesterInfo()),
-        ]);
-        if (banners) {
-          bannersList = banners;
-        }
-      };
-
-      const [userSemester] = await Promise.all([
-        prefetchTimetable(),
-        queryClient.prefetchQuery(weatherQueries.info()),
-        queryClient.prefetchQuery(storeQueries.counts()),
-        queryClient.prefetchQuery(storeQueries.eventCount()),
-        queryClient.prefetchQuery(cafeteriaQueries.dinings(convertDateToSimpleString(diningDate))),
-        isLoggedIn && queryClient.prefetchQuery(authQueries.userInfo(true)),
-        prefetchDeviceContent(),
+  const prefetchDeviceContent = async () => {
+    if (isMobile) {
+      await Promise.all([
+        queryClient.prefetchQuery(
+          callvanQueries.list({ statuses: ['RECRUITING'], sort: 'LATEST_DESC', page: 1, limit: 1 }),
+        ),
+        queryClient.prefetchQuery(coopshopQueries.cafeteriaInfo()),
       ]);
 
-      const serverSemester = resolveTimetableSemester(undefined, undefined, userSemester) ?? getRecentSemester();
+      return;
+    }
 
-      if (!isLoggedIn) {
-        cacheControl.enablePublicCache();
-      }
+    const [banners] = await Promise.all([
+      prefetchBanners(),
+      queryClient.prefetchQuery(articleQueries.list(isLoggedIn, '1')),
+      queryClient.prefetchQuery(timetableQueries.semesterInfo()),
+    ]);
+    if (banners) {
+      bannersList = banners;
+    }
+  };
 
-      return {
-        bannersList,
-        serverDining,
-        serverNow: serverRequest.now,
-        serverSemester,
-        dehydratedState: dehydrate(queryClient),
-      };
-    }),
-  );
+  const [userSemester] = await Promise.all([
+    prefetchTimetable(),
+    queryClient.prefetchQuery(weatherQueries.info()),
+    queryClient.prefetchQuery(storeQueries.counts()),
+    queryClient.prefetchQuery(storeQueries.eventCount()),
+    queryClient.prefetchQuery(cafeteriaQueries.dinings(convertDateToSimpleString(diningDate))),
+    isLoggedIn && queryClient.prefetchQuery(authQueries.userInfo(true)),
+    prefetchDeviceContent(),
+  ]);
+
+  const serverSemester = resolveTimetableSemester(undefined, undefined, userSemester) ?? getRecentSemester(serverNow);
+
+  if (!isLoggedIn) {
+    cacheControl.enablePublicCache();
+  }
+
+  return {
+    bannersList,
+    serverDining,
+    serverNow: serverRequest.now,
+    serverSemester,
+  };
+});
+
+const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
+  .validator(validatePageInput)
+  .handler(({ data }) => loadPageData(data, loadPage));
+const pageLoader = createPageLoader(getPageData, loadPage);
 
 export const Route = createFileRoute('/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   loaderDeps: ({ search }) => ({ search }),
-  loader: ({ params, deps }) => getPageData({ data: { params, search: deps.search } }),
+  loader: ({ params, deps, context }) => pageLoader({ params, search: deps.search }, context),
   component: RouteComponent,
 });
 

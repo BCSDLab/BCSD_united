@@ -1,11 +1,5 @@
 import { useEffect, useRef } from 'react';
-import {
-  dehydrate,
-  type DehydratedState,
-  HydrationBoundary,
-  QueryClient,
-  useSuspenseQuery,
-} from '@tanstack/react-query';
+import { useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
@@ -20,7 +14,7 @@ import { useCafeteriaParams } from 'components/cafeteria/hooks/useCafeteriaParam
 import MobileCafeteriaPage from 'components/cafeteria/MobileCafeteriaPage';
 import SoldoutReportModal from 'components/cafeteria/MobileCafeteriaPage/components/SoldoutReportModal';
 import PCCafeteriaPage from 'components/cafeteria/PCCafeteriaPage';
-import { convertDateToSimpleString, kstDayOfWeek, kstTimeOn } from 'components/cafeteria/utils/time';
+import { convertDateToSimpleString } from 'components/cafeteria/utils/time';
 import showMobileToast from 'components/feedback/Toast/showMobileToast';
 import Layout from 'components/layout';
 import MobilePageHeader from 'components/layout/MobilePageHeader';
@@ -35,6 +29,8 @@ import useModalPortal from 'utils/hooks/layout/useModalPortal';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import useScrollToTop from 'utils/hooks/ui/useScrollToTop';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
+import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
+import { kstDayOfWeek, kstTimeOn } from 'utils/ts/calendar';
 
 import styles from 'pages/cafeteria/Cafeteria.module.scss';
 
@@ -165,52 +161,46 @@ function Cafeteria() {
 }
 
 interface CafeteriaPageProps {
-  dehydratedState: DehydratedState;
   serverNowISO: string;
 }
 
-function CafeteriaPage({ dehydratedState, serverNowISO }: CafeteriaPageProps) {
+function CafeteriaPage({ serverNowISO }: CafeteriaPageProps) {
   return (
-    <HydrationBoundary state={dehydratedState}>
-      <CafeteriaServerProvider value={{ serverNow: new Date(serverNowISO) }}>
-        <Cafeteria />
-      </CafeteriaServerProvider>
-    </HydrationBoundary>
+    <CafeteriaServerProvider value={{ serverNow: new Date(serverNowISO) }}>
+      <Cafeteria />
+    </CafeteriaServerProvider>
   );
 }
 
+const loadPage = definePageLoad(async ({ search, queryClient }, cacheControl, serverRequest) => {
+  const { date } = search;
+
+  // date 쿼리 유무와 무관하게 요청 스냅샷의 시각을 렌더 경로의 "오늘" 기준값으로 쓴다.
+  const serverNowISO = serverRequest.now;
+  const serverNow = new Date(serverNowISO);
+  const currentDate = date ? new Date(Array.isArray(date) ? date[0] : date) : serverNow;
+
+  const convertedDate = convertDateToSimpleString(currentDate);
+
+  await Promise.all([
+    queryClient.prefetchQuery(cafeteriaQueries.dinings(convertedDate)),
+    queryClient.prefetchQuery(coopshopQueries.cafeteriaInfo()),
+  ]);
+
+  cacheControl.enablePublicCache();
+
+  return { serverNowISO };
+});
+
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
-  .handler(({ data }) =>
-    loadPageData(data, async (context, cacheControl) => {
-      const queryClient = new QueryClient();
-      const { date } = context.search;
-
-      // date 쿼리 유무와 무관한, 요청을 받은 실제 시각. 렌더 경로의 "오늘" 기준값으로 내려보낸다.
-      const serverNow = new Date();
-
-      const currentDate = date ? new Date(Array.isArray(date) ? date[0] : date) : serverNow;
-
-      const convertedDate = convertDateToSimpleString(currentDate);
-
-      await Promise.all([
-        queryClient.prefetchQuery(cafeteriaQueries.dinings(convertedDate)),
-        queryClient.prefetchQuery(coopshopQueries.cafeteriaInfo()),
-      ]);
-
-      cacheControl.enablePublicCache();
-
-      return {
-        dehydratedState: dehydrate(queryClient),
-        serverNowISO: serverNow.toISOString(),
-      };
-    }),
-  );
+  .handler(({ data }) => loadPageData(data, loadPage));
+const pageLoader = createPageLoader(getPageData, loadPage);
 
 export const Route = createFileRoute('/cafeteria/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   loaderDeps: ({ search }) => ({ search }),
-  loader: ({ params, deps }) => getPageData({ data: { params, search: deps.search } }),
+  loader: ({ params, deps, context }) => pageLoader({ params, search: deps.search }, context),
   staticData: { hasPageSeo: true },
   component: RouteComponent,
 });

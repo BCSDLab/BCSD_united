@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { dehydrate, QueryClient, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate, useRouter, redirect } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
@@ -18,6 +18,7 @@ import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import useMount from 'utils/hooks/state/useMount';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
+import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
 
 import styles from 'pages/callvan/notifications/CallvanNotifications.module.scss';
 
@@ -117,37 +118,35 @@ function CallvanNotificationsPage() {
   );
 }
 
+const loadPage = definePageLoad(async ({ queryClient }, _cacheControl, serverRequest) => {
+  // 모바일 전용 화면이므로 데스크톱은 메인으로 돌려보낸다.
+  if (serverRequest.device !== 'mobile') {
+    throw redirect({ href: ROUTES.Main(), statusCode: 302 });
+  }
+
+  const { isLoggedIn } = serverRequest;
+
+  try {
+    if (isLoggedIn) {
+      await queryClient.prefetchQuery(callvanQueries.notifications(isLoggedIn));
+    } else {
+      queryClient.setQueryData(callvanQueryKeys.notifications(isLoggedIn), []);
+    }
+  } catch (error) {
+    console.error('[SSR] callvan notifications prefetch failed:', error);
+  }
+
+  return {};
+});
+
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
-  .handler(({ data }) =>
-    loadPageData(data, async (_context, _cacheControl, serverRequest) => {
-      // 모바일 전용 화면이다. 데스크톱은 서버에서 바로 돌려보낸다.
-      if (serverRequest.device !== 'mobile') {
-        throw redirect({ href: ROUTES.Main(), statusCode: 302 });
-      }
-
-      const queryClient = new QueryClient();
-      const { isLoggedIn } = serverRequest;
-
-      try {
-        if (isLoggedIn) {
-          await queryClient.prefetchQuery(callvanQueries.notifications(isLoggedIn));
-        } else {
-          queryClient.setQueryData(callvanQueryKeys.notifications(isLoggedIn), []);
-        }
-      } catch (error) {
-        console.error('[SSR] callvan notifications prefetch failed:', error);
-      }
-
-      return {
-        dehydratedState: dehydrate(queryClient),
-      };
-    }),
-  );
+  .handler(({ data }) => loadPageData(data, loadPage));
+const pageLoader = createPageLoader(getPageData, loadPage);
 
 export const Route = createFileRoute('/callvan/notifications/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   loaderDeps: ({ search }) => ({ search }),
-  loader: ({ params, deps }) => getPageData({ data: { params, search: deps.search } }),
+  loader: ({ params, deps, context }) => pageLoader({ params, search: deps.search }, context),
   component: CallvanNotificationsPage,
 });
