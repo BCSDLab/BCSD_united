@@ -35,8 +35,14 @@ export const Route = createRootRoute({
     // 루트 매치는 항상 matches[0]이고 loaderData는 아래 loader가 돌려준 값이다. 자기 참조라 타입을 직접 적는다
     const rootLoaderData = matches[0]?.loaderData as { serverRequest?: ServerRequestContext } | undefined;
     const previousServerRequest = rootLoaderData?.serverRequest;
-    if (previousServerRequest && matches.at(-1)?.cause === 'stay') {
-      return { serverRequest: previousServerRequest, hasSession: hasSessionCookie() };
+    // 로그인·로그아웃으로 세션 쿠키가 바뀐 경우(같은 화면의 invalidate 등)는 스냅샷이 낡았으므로 서버에 다시 묻는다
+    const hasSession = hasSessionCookie();
+    if (
+      previousServerRequest &&
+      matches.at(-1)?.cause === 'stay' &&
+      previousServerRequest.isLoggedIn === hasSession
+    ) {
+      return { serverRequest: previousServerRequest, hasSession };
     }
 
     const snapshot = await getRootSnapshot();
