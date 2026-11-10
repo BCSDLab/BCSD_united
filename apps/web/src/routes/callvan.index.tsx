@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { dehydrate, QueryClient, useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate, useSearch, useParams, redirect } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
@@ -14,6 +14,7 @@ import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import useMount from 'utils/hooks/state/useMount';
 import useInfiniteScroll from 'utils/hooks/ui/useInfiniteScroll';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
+import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
 
 import listStyles from 'components/Callvan/components/CallvanList/CallvanList.module.scss';
 
@@ -112,44 +113,41 @@ function CallvanContent({ params }: CallvanContentProps) {
   );
 }
 
+const loadPage = definePageLoad(async ({ search: query, queryClient }, _cacheControl, serverRequest) => {
+  if (serverRequest.device !== 'mobile') {
+    throw redirect({ href: ROUTES.Main(), statusCode: 302 });
+  }
+
+  const params = parseCallvanQuery(query, DEFAULT_PARAMS);
+  const apiParams = toCallvanApiParams(params);
+
+  const { isLoggedIn } = serverRequest;
+
+  try {
+    await Promise.all([
+      queryClient.prefetchInfiniteQuery(callvanQueries.infiniteList(apiParams, isLoggedIn)),
+      isLoggedIn
+        ? queryClient.prefetchQuery(callvanQueries.notifications(isLoggedIn))
+        : queryClient.setQueryData(callvanQueryKeys.notifications(isLoggedIn), []),
+    ]);
+  } catch (error) {
+    console.error('[SSR] callvan prefetch failed:', error);
+  }
+
+  return {
+    initialParams: params,
+  };
+});
+
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
-  .handler(({ data }) =>
-    loadPageData(data, async (context, _cacheControl, serverRequest) => {
-      if (serverRequest.device !== 'mobile') {
-        throw redirect({ href: ROUTES.Main(), statusCode: 302 });
-      }
-
-      const queryClient = new QueryClient();
-      const { search: query } = context;
-
-      const params = parseCallvanQuery(query, DEFAULT_PARAMS);
-      const apiParams = toCallvanApiParams(params);
-
-      const { isLoggedIn } = serverRequest;
-
-      try {
-        await Promise.all([
-          queryClient.prefetchInfiniteQuery(callvanQueries.infiniteList(apiParams, isLoggedIn)),
-          isLoggedIn
-            ? queryClient.prefetchQuery(callvanQueries.notifications(isLoggedIn))
-            : queryClient.setQueryData(callvanQueryKeys.notifications(isLoggedIn), []),
-        ]);
-      } catch (error) {
-        console.error('[SSR] callvan prefetch failed:', error);
-      }
-
-      return {
-        dehydratedState: dehydrate(queryClient),
-        initialParams: params,
-      };
-    }),
-  );
+  .handler(({ data }) => loadPageData(data, loadPage));
+const pageLoader = createPageLoader(getPageData, loadPage);
 
 export const Route = createFileRoute('/callvan/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   loaderDeps: ({ search }) => ({ search }),
-  loader: ({ params, deps }) => getPageData({ data: { params, search: deps.search } }),
+  loader: ({ params, deps, context }) => pageLoader({ params, search: deps.search }, context),
   component: RouteComponent,
 });
 

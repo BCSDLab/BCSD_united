@@ -5,6 +5,7 @@ import { DEPARTMENT_CONTACT_CATEGORIES, type DepartmentContactCategory } from 'a
 import CategoryDetailPage from 'components/Department/CategoryDetail';
 import Layout from 'components/layout';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
+import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
 
 function isDepartmentContactCategory(value: string | string[] | undefined): value is DepartmentContactCategory {
   return typeof value === 'string' && (DEPARTMENT_CONTACT_CATEGORIES as string[]).includes(value);
@@ -25,21 +26,22 @@ function DepartmentCategoryRoutePage() {
   return <CategoryDetailPage category={category} />;
 }
 
-// 경로 카테고리는 서버에서 허용 목록으로 검증하므로 잘못된 주소도 HTTP 404로 응답한다.
+// 경로 카테고리는 허용 목록으로 검증하므로 잘못된 주소는 404로 응답한다.
+const loadPage = definePageLoad(({ params }) => {
+  if (!isDepartmentContactCategory(params.category)) throw notFound();
+
+  return {};
+});
+
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
-  .handler(({ data }) =>
-    loadPageData(data, ({ params }) => {
-      if (!isDepartmentContactCategory(params.category)) throw notFound();
-
-      return {};
-    }),
-  );
+  .handler(({ data }) => loadPageData(data, loadPage));
+const pageLoader = createPageLoader(getPageData, loadPage);
 
 export const Route = createFileRoute('/department/$category/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   loaderDeps: ({ search }) => ({ search }),
-  loader: ({ params, deps }) => getPageData({ data: { params, search: deps.search } }),
+  loader: ({ params, deps, context }) => pageLoader({ params, search: deps.search }, context),
   component: RouteComponent,
 });
 

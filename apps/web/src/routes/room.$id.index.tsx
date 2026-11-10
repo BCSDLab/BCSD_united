@@ -1,4 +1,3 @@
-import { dehydrate, QueryClient } from '@tanstack/react-query';
 import { createFileRoute, notFound } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
@@ -12,6 +11,7 @@ import useRoomDetail from 'components/Room/RoomDetailPage/hooks/useRoomDetail';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useScrollToTop from 'utils/hooks/ui/useScrollToTop';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
+import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
 import { isNotFoundKoinError, ROOM_ISR_REVALIDATE_SECONDS, withStaticFetchRetry } from 'utils/ts/isr';
 
 import styles from 'pages/room/[id]/RoomDetailPage.module.scss';
@@ -65,40 +65,37 @@ function RoomDetailPage({ id }: RoomDetailPageProps) {
   );
 }
 
+const loadPage = definePageLoad(async ({ params, queryClient }, cacheControl) => {
+  const { id } = params;
+  if (!id) {
+    cacheControl.enablePublicCache(`public, s-maxage=${ROOM_ISR_REVALIDATE_SECONDS}, stale-while-revalidate=300`);
+    throw notFound();
+  }
+
+  try {
+    await withStaticFetchRetry('room.detail', () => queryClient.fetchQuery(roomQueries.detail(id)));
+  } catch (error) {
+    if (isNotFoundKoinError(error)) {
+      cacheControl.enablePublicCache(`public, s-maxage=${ROOM_ISR_REVALIDATE_SECONDS}, stale-while-revalidate=300`);
+      throw notFound();
+    }
+    throw error;
+  }
+
+  cacheControl.enablePublicCache(`public, s-maxage=${ROOM_ISR_REVALIDATE_SECONDS}, stale-while-revalidate=300`);
+
+  return { id };
+});
+
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
-  .handler(({ data }) =>
-    loadPageData(data, async ({ params }, cacheControl) => {
-      const { id } = params;
-      if (!id) {
-        cacheControl.enablePublicCache(`public, s-maxage=${ROOM_ISR_REVALIDATE_SECONDS}, stale-while-revalidate=300`);
-        throw notFound();
-      }
-      const queryClient = new QueryClient();
-
-      try {
-        await withStaticFetchRetry('room.detail', () => queryClient.fetchQuery(roomQueries.detail(id)));
-      } catch (error) {
-        if (isNotFoundKoinError(error)) {
-          cacheControl.enablePublicCache(`public, s-maxage=${ROOM_ISR_REVALIDATE_SECONDS}, stale-while-revalidate=300`);
-          throw notFound();
-        }
-        throw error;
-      }
-
-      cacheControl.enablePublicCache(`public, s-maxage=${ROOM_ISR_REVALIDATE_SECONDS}, stale-while-revalidate=300`);
-
-      return {
-        dehydratedState: dehydrate(queryClient),
-        id,
-      };
-    }),
-  );
+  .handler(({ data }) => loadPageData(data, loadPage));
+const pageLoader = createPageLoader(getPageData, loadPage);
 
 export const Route = createFileRoute('/room/$id/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   loaderDeps: ({ search }) => ({ search }),
-  loader: ({ params, deps }) => getPageData({ data: { params, search: deps.search } }),
+  loader: ({ params, deps, context }) => pageLoader({ params, search: deps.search }, context),
   component: RouteComponent,
 });
 

@@ -1,5 +1,4 @@
 import { Suspense, useState } from 'react';
-import { dehydrate, QueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
@@ -17,6 +16,7 @@ import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
 import useScrollToTop from 'utils/hooks/ui/useScrollToTop';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
+import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
 
 import styles from 'pages/bus/route/BusRoutePage.module.scss';
 
@@ -85,24 +85,23 @@ function BusRoutePage() {
   );
 }
 
+const loadPage = definePageLoad(async ({ queryClient }, cacheControl) => {
+  await queryClient.prefetchQuery(busQueries.notice());
+
+  cacheControl.enablePublicCache(`public, s-maxage=${BUS_NOTICE_REVALIDATE_SECONDS}, stale-while-revalidate=300`);
+
+  return {};
+});
+
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
-  .handler(({ data }) =>
-    loadPageData(data, async (_context, cacheControl) => {
-      const queryClient = new QueryClient();
-
-      await queryClient.prefetchQuery(busQueries.notice());
-
-      cacheControl.enablePublicCache(`public, s-maxage=${BUS_NOTICE_REVALIDATE_SECONDS}, stale-while-revalidate=300`);
-
-      return { dehydratedState: dehydrate(queryClient) };
-    }),
-  );
+  .handler(({ data }) => loadPageData(data, loadPage));
+const pageLoader = createPageLoader(getPageData, loadPage);
 
 export const Route = createFileRoute('/bus/route/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   loaderDeps: ({ search }) => ({ search }),
-  loader: ({ params, deps }) => getPageData({ data: { params, search: deps.search } }),
+  loader: ({ params, deps, context }) => pageLoader({ params, search: deps.search }, context),
   component: RouteComponent,
 });
 

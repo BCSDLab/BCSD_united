@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { cn } from '@bcsdlab/utils';
-import { dehydrate, QueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate, useSearch, useParams, useLocation, notFound } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
@@ -38,6 +38,7 @@ import useBooleanState from 'utils/hooks/state/useBooleanState';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import { stringifySearch } from 'utils/routing/search';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
+import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
 import { copyToClipboard } from 'utils/ts/copyToClipboard';
 import { formatPhoneNumber } from 'utils/ts/formatPhoneNumber';
 import { closeWebView } from 'utils/ts/nativeCommands';
@@ -768,54 +769,51 @@ function ClubDetailPage({ initialClubId, initialTab, initialEventId }: ClubDetai
   );
 }
 
+const loadPage = definePageLoad(async ({ params, search: query, queryClient }, cacheControl, serverRequest) => {
+  const { id } = params;
+
+  if (!id) {
+    throw notFound();
+  }
+
+  const clubId = Number(id);
+  const tab = query.tab as TabType | undefined;
+  const eventId = query.eventId as string | undefined;
+  const numericEventId = eventId ? Number(eventId) : NO_SELECTED_EVENT_ID;
+
+  let initialTab: TabType = tab ?? 'intro';
+  if (!tab && eventId) {
+    initialTab = 'event';
+  }
+
+  const shouldPrefetchEventDetail = initialTab === 'event' && numericEventId !== NO_SELECTED_EVENT_ID;
+
+  await Promise.all([
+    queryClient.prefetchQuery(clubQueries.detail(clubId, serverRequest.isLoggedIn)),
+    queryClient.prefetchQuery(clubQueries.recruitment(clubId)),
+    shouldPrefetchEventDetail && queryClient.prefetchQuery(clubQueries.eventDetail(clubId, numericEventId)),
+  ]);
+
+  if (!serverRequest.isLoggedIn) {
+    cacheControl.enablePublicCache();
+  }
+
+  return {
+    initialClubId: clubId,
+    initialTab,
+    initialEventId: numericEventId,
+  };
+});
+
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
-  .handler(({ data }) =>
-    loadPageData(data, async (context, cacheControl, serverRequest) => {
-      const { params, search: query } = context;
-      const { id } = params;
-
-      if (!id) {
-        throw notFound();
-      }
-
-      const clubId = Number(id);
-      const tab = query.tab as TabType | undefined;
-      const eventId = query.eventId as string | undefined;
-      const numericEventId = eventId ? Number(eventId) : NO_SELECTED_EVENT_ID;
-
-      let initialTab: TabType = tab ?? 'intro';
-      if (!tab && eventId) {
-        initialTab = 'event';
-      }
-
-      const queryClient = new QueryClient();
-
-      const shouldPrefetchEventDetail = initialTab === 'event' && numericEventId !== NO_SELECTED_EVENT_ID;
-
-      await Promise.all([
-        queryClient.prefetchQuery(clubQueries.detail(clubId, serverRequest.isLoggedIn)),
-        queryClient.prefetchQuery(clubQueries.recruitment(clubId)),
-        shouldPrefetchEventDetail && queryClient.prefetchQuery(clubQueries.eventDetail(clubId, numericEventId)),
-      ]);
-
-      if (!serverRequest.isLoggedIn) {
-        cacheControl.enablePublicCache();
-      }
-
-      return {
-        dehydratedState: dehydrate(queryClient),
-        initialClubId: clubId,
-        initialTab,
-        initialEventId: numericEventId,
-      };
-    }),
-  );
+  .handler(({ data }) => loadPageData(data, loadPage));
+const pageLoader = createPageLoader(getPageData, loadPage);
 
 export const Route = createFileRoute('/clubs/$id/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   loaderDeps: ({ search }) => ({ search }),
-  loader: ({ params, deps }) => getPageData({ data: { params, search: deps.search } }),
+  loader: ({ params, deps, context }) => pageLoader({ params, search: deps.search }, context),
   component: RouteComponent,
 });
 

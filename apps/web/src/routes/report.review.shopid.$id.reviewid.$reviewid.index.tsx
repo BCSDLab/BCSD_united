@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { cn } from '@bcsdlab/utils';
-import { dehydrate, QueryClient } from '@tanstack/react-query';
 import { createFileRoute, useNavigate, useSearch, useParams, notFound } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
@@ -15,6 +14,7 @@ import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useMount from 'utils/hooks/state/useMount';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
+import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
 import showToast from 'utils/ts/showToast';
 
 import styles from 'pages/report/review/shopid/[id]/reviewid/[reviewid]/ReviewReporting.module.scss';
@@ -184,30 +184,30 @@ function ReviewReportRoute({ id, reviewId, isMobile }: Props) {
 }
 
 // 로그인 필수 화면이라 공용 캐시를 켜지 않는다(loadPageData 기본값 private)
+const loadPage = definePageLoad(async ({ params, queryClient }, _cacheControl, serverRequest) => {
+  const { id, reviewid: reviewId } = params;
+  if (!id || !reviewId) throw notFound();
+
+  // 데스크톱은 기존처럼 브라우저에서 그린다
+  if (serverRequest.device !== 'mobile') {
+    return { id, reviewId, isMobile: false };
+  }
+
+  // 모바일은 KOIN_ORDER_WEBVIEW처럼 신고 카테고리만 미리 받아 본문까지 렌더한다
+  await queryClient.fetchQuery(storeMobileQueries.reportCategories());
+
+  return { id, reviewId, isMobile: true };
+});
+
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
-  .handler(({ data }) =>
-    loadPageData(data, async (context, _cacheControl, serverRequest) => {
-      const { id, reviewid: reviewId } = context.params;
-      if (!id || !reviewId) throw notFound();
-
-      // 데스크톱은 기존처럼 클라이언트에서 그린다
-      if (serverRequest.device !== 'mobile') {
-        return { id, reviewId, isMobile: false };
-      }
-
-      // 모바일은 KOIN_ORDER_WEBVIEW처럼 신고 카테고리만 받아 본문까지 렌더한다(클라이언트는 같은 쿼리 키로 캐시를 이어받는다)
-      const queryClient = new QueryClient();
-      await queryClient.fetchQuery(storeMobileQueries.reportCategories());
-
-      return { id, reviewId, isMobile: true, dehydratedState: dehydrate(queryClient) };
-    }),
-  );
+  .handler(({ data }) => loadPageData(data, loadPage));
+const pageLoader = createPageLoader(getPageData, loadPage);
 
 export const Route = createFileRoute('/report/review/shopid/$id/reviewid/$reviewid/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   loaderDeps: ({ search }) => ({ search }),
-  loader: ({ params, deps }) => getPageData({ data: { params, search: deps.search } }),
+  loader: ({ params, deps, context }) => pageLoader({ params, search: deps.search }, context),
   staticData: { requireAuth: true },
   component: RouteComponent,
 });

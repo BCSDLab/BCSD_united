@@ -12,6 +12,7 @@ import MobileArticleDetailFooter from 'components/Articles/components/MobileArti
 import { isNewArticle } from 'components/Articles/utils/setArticleRegisteredDate';
 import { SSRLayout } from 'components/layout';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
+import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
 import { ARTICLE_DETAIL_ISR_REVALIDATE_SECONDS, isNotFoundKoinError, withStaticFetchRetry } from 'utils/ts/isr';
 
 function ArticlesDetailPage({ article, hotArticles }: { article: ArticleResponseWithNew; hotArticles?: HotArticle[] }) {
@@ -32,57 +33,58 @@ function ArticlesDetailPage({ article, hotArticles }: { article: ArticleResponse
   );
 }
 
+const loadPage = definePageLoad(async ({ params }, cacheControl, serverRequest) => {
+  const { id } = params;
+  if (!id) {
+    cacheControl.enablePublicCache(
+      `public, s-maxage=${ARTICLE_DETAIL_ISR_REVALIDATE_SECONDS}, stale-while-revalidate=300`,
+    );
+    throw notFound();
+  }
+
+  try {
+    const article = await withStaticFetchRetry('article.detail', () => getArticle(id));
+    const hotArticles = (await withStaticFetchRetry('article.hot', () => getHotArticles()).catch(() => [])) ?? [];
+    const serverTime = new Date(serverRequest.now);
+
+    const articleWithNew = traceOperation(
+      {
+        name: 'Transform article detail',
+        op: 'koin.isr.transform',
+        onlyIfParent: true,
+        attributes: { 'isr.resource': 'article.detail' },
+      },
+      (): ArticleResponseWithNew => ({
+        ...article,
+        isNew: isNewArticle(article.registered_at, serverTime),
+      }),
+    );
+
+    cacheControl.enablePublicCache(
+      `public, s-maxage=${ARTICLE_DETAIL_ISR_REVALIDATE_SECONDS}, stale-while-revalidate=300`,
+    );
+
+    return { article: articleWithNew, hotArticles };
+  } catch (error) {
+    if (isNotFoundKoinError(error)) {
+      cacheControl.enablePublicCache(
+        `public, s-maxage=${ARTICLE_DETAIL_ISR_REVALIDATE_SECONDS}, stale-while-revalidate=300`,
+      );
+      throw notFound();
+    }
+    throw error;
+  }
+});
+
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
-  .handler(({ data }) =>
-    loadPageData(data, async ({ params }, cacheControl) => {
-      const { id } = params;
-      if (!id) {
-        cacheControl.enablePublicCache(
-          `public, s-maxage=${ARTICLE_DETAIL_ISR_REVALIDATE_SECONDS}, stale-while-revalidate=300`,
-        );
-        throw notFound();
-      }
-
-      try {
-        const article = await withStaticFetchRetry('article.detail', () => getArticle(id));
-        const hotArticles = (await withStaticFetchRetry('article.hot', () => getHotArticles()).catch(() => [])) ?? [];
-        const serverTime = new Date();
-
-        const articleWithNew = traceOperation(
-          {
-            name: 'Transform article detail',
-            op: 'koin.isr.transform',
-            onlyIfParent: true,
-            attributes: { 'isr.resource': 'article.detail' },
-          },
-          (): ArticleResponseWithNew => ({
-            ...article,
-            isNew: isNewArticle(article.registered_at, serverTime),
-          }),
-        );
-
-        cacheControl.enablePublicCache(
-          `public, s-maxage=${ARTICLE_DETAIL_ISR_REVALIDATE_SECONDS}, stale-while-revalidate=300`,
-        );
-
-        return { article: articleWithNew, hotArticles };
-      } catch (error) {
-        if (isNotFoundKoinError(error)) {
-          cacheControl.enablePublicCache(
-            `public, s-maxage=${ARTICLE_DETAIL_ISR_REVALIDATE_SECONDS}, stale-while-revalidate=300`,
-          );
-          throw notFound();
-        }
-        throw error;
-      }
-    }),
-  );
+  .handler(({ data }) => loadPageData(data, loadPage));
+const pageLoader = createPageLoader(getPageData, loadPage);
 
 export const Route = createFileRoute('/articles/$id/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   loaderDeps: ({ search }) => ({ search }),
-  loader: ({ params, deps }) => getPageData({ data: { params, search: deps.search } }),
+  loader: ({ params, deps, context }) => pageLoader({ params, search: deps.search }, context),
   component: RouteComponent,
 });
 

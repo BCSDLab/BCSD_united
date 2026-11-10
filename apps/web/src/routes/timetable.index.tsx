@@ -1,10 +1,10 @@
 import { lazy, useEffect, useState } from 'react';
-import { dehydrate, QueryClient } from '@tanstack/react-query';
+import type { QueryClient } from '@tanstack/react-query';
 import { createFileRoute, useSearch, useParams } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
 import { deptQueries } from 'api/dept/queries';
-import type { TimetableFrameListResponse } from 'api/timetable/entity';
+import type { Semester, TimetableFrameListResponse } from 'api/timetable/entity';
 import {
   createDefaultTimetableFrameList,
   isValidTimetableFrameId,
@@ -21,7 +21,8 @@ import useLogger from 'utils/hooks/analytics/useLogger';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useGoBack from 'utils/hooks/routing/useGoBack';
 import useScrollToTop from 'utils/hooks/ui/useScrollToTop';
-import { loadPageData, validatePageInput, type PageRequest } from 'utils/ssr/pageData';
+import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
+import { createPageLoader, definePageLoad, type PageLoadContext } from 'utils/ssr/pageLoader';
 import type { ServerRequestContext } from 'utils/ssr/requestContext';
 import { getRecentSemester, getSemesterFromQuery, resolveTimetableSemester } from 'utils/timetable/semester';
 import { isomorphicSessionStorage } from 'utils/ts/env';
@@ -42,21 +43,17 @@ const prefetchBaseTimetableData = async (queryClient: QueryClient) => {
   ]);
 };
 
-const setDefaultTimetableFrameList = (
-  queryClient: QueryClient,
-  isLoggedIn: boolean,
-  semester = getRecentSemester(),
-) => {
+const setDefaultTimetableFrameList = (queryClient: QueryClient, isLoggedIn: boolean, semester: Semester) => {
   queryClient.setQueryData(timetableQueryKeys.frameList(semester, isLoggedIn), createDefaultTimetableFrameList());
 };
 
 async function prefetchTimetableData(
   queryClient: QueryClient,
-  context: PageRequest,
   isLoggedIn: boolean,
   userType: ServerRequestContext['userType'],
-  query: PageRequest['search'],
+  query: PageLoadContext['search'],
   validatedFrameId: number | null,
+  recentSemester: Semester,
 ): Promise<void> {
   // 학기·학과 목록은 사용자 학기와 무관하므로 먼저 띄워 두고 각 분기에서 기다린다. prefetchQuery는 실패해도 reject하지 않는다
   const baseTimetablePrefetch = prefetchBaseTimetableData(queryClient);
@@ -67,7 +64,7 @@ async function prefetchTimetableData(
     const semester = resolveTimetableSemester(query.year, query.term, userSemester);
 
     if (!semester) {
-      setDefaultTimetableFrameList(queryClient, isLoggedIn);
+      setDefaultTimetableFrameList(queryClient, isLoggedIn, recentSemester);
       await baseTimetablePrefetch;
 
       return;
@@ -107,7 +104,7 @@ async function prefetchTimetableData(
     setDefaultTimetableFrameList(
       queryClient,
       isLoggedIn,
-      getSemesterFromQuery(query.year, query.term) ?? getRecentSemester(),
+      getSemesterFromQuery(query.year, query.term) ?? recentSemester,
     );
     await baseTimetablePrefetch;
   }
@@ -167,39 +164,36 @@ function TimetablePage() {
   );
 }
 
+const loadPage = definePageLoad(async ({ search: query, queryClient }, cacheControl, serverRequest) => {
+  const frameId = Number(query.timetableFrameId);
+  const validatedFrameId = isValidTimetableFrameId(frameId) ? frameId : null;
+
+  if (serverRequest.isLoggedIn) {
+    await prefetchTimetableData(
+      queryClient,
+      serverRequest.isLoggedIn,
+      serverRequest.userType,
+      query,
+      validatedFrameId,
+      getRecentSemester(new Date(serverRequest.now)),
+    );
+  } else {
+    setDefaultTimetableFrameList(queryClient, false, getRecentSemester(new Date(serverRequest.now)));
+    cacheControl.enablePublicCache();
+  }
+
+  return {};
+});
+
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
-  .handler(({ data }) =>
-    loadPageData(data, async (context, cacheControl, serverRequest) => {
-      const queryClient = new QueryClient();
-      const { search: query } = context;
-      const frameId = Number(query.timetableFrameId);
-      const validatedFrameId = isValidTimetableFrameId(frameId) ? frameId : null;
-
-      if (serverRequest.isLoggedIn) {
-        await prefetchTimetableData(
-          queryClient,
-          context,
-          serverRequest.isLoggedIn,
-          serverRequest.userType,
-          query,
-          validatedFrameId,
-        );
-      } else {
-        setDefaultTimetableFrameList(queryClient, false);
-        cacheControl.enablePublicCache();
-      }
-
-      return {
-        dehydratedState: dehydrate(queryClient),
-      };
-    }),
-  );
+  .handler(({ data }) => loadPageData(data, loadPage));
+const pageLoader = createPageLoader(getPageData, loadPage);
 
 export const Route = createFileRoute('/timetable/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   loaderDeps: ({ search }) => ({ search }),
-  loader: ({ params, deps }) => getPageData({ data: { params, search: deps.search } }),
+  loader: ({ params, deps, context }) => pageLoader({ params, search: deps.search }, context),
   component: RouteComponent,
 });
 

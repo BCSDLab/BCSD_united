@@ -28,8 +28,8 @@ export function resolveTimetableSemester(year: QueryValue, term: QueryValue, use
   return null;
 }
 
-export function getRecentSemester(): Semester {
-  const date = new Date();
+// 기준 시각을 넘기지 않으면 실행 환경의 현재 시각을 쓴다. 페이지 load는 serverRequest.now를 넘긴다
+export function getRecentSemester(date: Date = new Date()): Semester {
   const year = date.getFullYear();
   const month = date.getMonth() + 1;
 

@@ -17,6 +17,7 @@ import ROUTES from 'static/routes';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useMount from 'utils/hooks/state/useMount';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
+import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
 
 import styles from 'pages/lost-item/report/[id]/ReportPage.module.scss';
 
@@ -62,28 +63,29 @@ function ReportPageWrapper() {
 }
 
 // 신고하기는 모바일 전용 화면이기에 데스크톱에서는 게시물 상세로 리다이랙션한다
+const loadPage = definePageLoad(({ params }, _cacheControl, serverRequest) => {
+  const { id } = params;
+
+  if (!id) {
+    throw notFound();
+  }
+
+  if (serverRequest.device !== 'mobile') {
+    throw redirect({ href: ROUTES.LostItemDetail({ id }), statusCode: 302 });
+  }
+
+  return {};
+});
+
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
-  .handler(({ data }) =>
-    loadPageData(data, (context, _cacheControl, serverRequest) => {
-      const { id } = context.params;
-
-      if (!id) {
-        throw notFound();
-      }
-
-      if (serverRequest.device !== 'mobile') {
-        throw redirect({ href: ROUTES.LostItemDetail({ id }), statusCode: 302 });
-      }
-
-      return {};
-    }),
-  );
+  .handler(({ data }) => loadPageData(data, loadPage));
+const pageLoader = createPageLoader(getPageData, loadPage);
 
 export const Route = createFileRoute('/lost-item/report/$id/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   loaderDeps: ({ search }) => ({ search }),
-  loader: ({ params, deps }) => getPageData({ data: { params, search: deps.search } }),
+  loader: ({ params, deps, context }) => pageLoader({ params, search: deps.search }, context),
   component: RouteComponent,
 });
 
