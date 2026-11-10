@@ -7,8 +7,10 @@ import PortalProvider from 'components/modal/Modal/PortalProvider';
 import Seo from 'components/seo/Seo';
 import ROUTES from 'static/routes';
 import { clearLegacySessionStorage } from 'utils/auth/legacyStorage';
+import { initializeSessionConfirmation } from 'utils/auth/sessionConfirmation';
 import { useSessionState } from 'utils/hooks/auth/useSession';
 import type { ServerRequestContext } from 'utils/ssr/requestContext';
+import { initializeServerClock } from 'utils/ssr/serverClock';
 import { ServerRequestProvider } from 'utils/ssr/useServerRequest';
 import { isomorphicLocalStorage } from 'utils/ts/env';
 import { createQueryClient, queryClient } from 'utils/ts/queryClient';
@@ -47,6 +49,16 @@ export default function ApplicationProviders({
   const data = matches.map((match): unknown => match.loaderData).findLast(isPageData);
   const title = leaf?.staticData.title;
   const pageTitle = typeof title === 'function' ? title(pathname) : title;
+
+  useState(() => {
+    if (typeof window !== 'undefined') {
+      const initial = data?.serverRequest ?? serverRequest;
+      if (initial) {
+        initializeSessionConfirmation(initial.isLoggedIn);
+        initializeServerClock(initial.now, initial.mayBeSharedCached);
+      }
+    }
+  });
 
   useEffect(() => {
     clearLegacySessionStorage();

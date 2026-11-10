@@ -10,8 +10,10 @@ export interface ServerRequestContext {
   isLoggedIn: boolean;
   /** `GET /v2/web/auth/session`으로 서버가 직접 확인한 값. 로그인 상태일 때만 의미 있다. */
   userType: UserType | null;
-  /** 서버 렌더 시각(ISO). 공유 캐시하지 않는 문서와 브라우저 경과 시간의 공통 기준값이다. */
+  /** 서버 렌더 시각(ISO). 공유 캐시된 문서에서는 오래됐을 수 있다. */
   now: string;
+  /** 문서가 공유 캐시에서 제공될 수 있으면 클라이언트는 새 서버 시각을 받아야 한다. */
+  mayBeSharedCached: boolean;
 }
 
 /**
@@ -70,15 +72,15 @@ export async function getServerRequestContext(request: Request): Promise<ServerR
     .find((entry) => entry.startsWith(`${WEB_AUTH_ACCESS_COOKIE_KEY}=`))
     ?.slice(WEB_AUTH_ACCESS_COOKIE_KEY.length + 1);
   if (!cookie || !hasUsableAccessToken(accessToken)) {
-    return { device, isLoggedIn: false, userType: null, now };
+    return { device, isLoggedIn: false, userType: null, now, mayBeSharedCached: true };
   }
 
   try {
     const session = await APIClient.request(new WebSession({ Cookie: cookie, Origin: new URL(request.url).origin }));
     const userType = session.authenticated ? toUserType(session.user_type) : null;
 
-    return { device, isLoggedIn: userType !== null, userType, now };
+    return { device, isLoggedIn: userType !== null, userType, now, mayBeSharedCached: userType === null };
   } catch {
-    return { device, isLoggedIn: false, userType: null, now };
+    return { device, isLoggedIn: false, userType: null, now, mayBeSharedCached: true };
   }
 }

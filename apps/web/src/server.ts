@@ -17,10 +17,7 @@ const entry = createServerEntry({
     );
     const headers = new Headers(response.headers);
     headers.set('Document-Policy', 'js-profiling');
-    // 문서의 SSR 시각은 브라우저 시계의 기준이므로 공유 캐시나 브라우저 캐시에 저장하지 않는다.
-    if (headers.get('Content-Type')?.toLowerCase().startsWith('text/html')) {
-      headers.set('Cache-Control', 'private, no-store');
-    } else if (!headers.has('Cache-Control')) {
+    if (!headers.has('Cache-Control')) {
       headers.set('Cache-Control', 'private, no-store');
     }
     if (!isIndexable) headers.set('X-Robots-Tag', 'noindex, nofollow');

@@ -4,6 +4,7 @@ import type { DiningType } from 'api/dinings/entity';
 import { useCafeteriaLiveNow } from 'components/cafeteria/hooks/useCafeteriaLiveNow';
 import { DiningTime } from 'components/cafeteria/utils/time';
 import { DINING_TYPES } from 'static/cafeteria';
+import { kstDateKey } from 'utils/ts/calendar';
 
 const DATE_KEY = 'date';
 const TYPE_KEY = 'type';
@@ -14,8 +15,7 @@ export const useCafeteriaParams = () => {
   const query = useSearch({ strict: false });
 
   const renderToday = useCafeteriaLiveNow();
-  const renderTomorrow = new Date(renderToday);
-  renderTomorrow.setDate(renderToday.getDate() + 1);
+  const renderTomorrow = new Date(renderToday.getTime() + 24 * 60 * 60 * 1000);
 
   const dateParam = (): Date | null => {
     const value = query[DATE_KEY];
@@ -33,27 +33,24 @@ export const useCafeteriaParams = () => {
   };
 
   const shiftDate = (days: number) => {
-    const base = dateParam() ?? new Date(renderToday);
-    base.setDate(base.getDate() + days);
-    updateDateQuery(base.toISOString().slice(0, 10));
+    const base = dateParam() ?? new Date(`${kstDateKey(renderToday)}T00:00:00Z`);
+    base.setUTCDate(base.getUTCDate() + days);
+    updateDateQuery(kstDateKey(base));
   };
 
   const date = {
     current: (): Date => dateParam() ?? renderToday,
     /** date 파라미터가 없을 때 매 렌더 새 Date를 반환하므로, 그대로 key로 쓰면 서브트리가 매번 재생성된다. */
     key: (Array.isArray(query[DATE_KEY]) ? query[DATE_KEY][0] : query[DATE_KEY]) ?? 'today',
-    checkToday: (d: Date) => renderToday.toDateString() === d.toDateString(),
-    checkTomorrow: (d: Date) => renderTomorrow.toDateString() === d.toDateString(),
-    checkPast: (d: Date) => renderToday > d,
+    checkToday: (d: Date) => kstDateKey(renderToday) === kstDateKey(d),
+    checkTomorrow: (d: Date) => kstDateKey(renderTomorrow) === kstDateKey(d),
+    checkPast: (d: Date) => kstDateKey(renderToday) > kstDateKey(d),
     setPrev: () => shiftDate(-1),
     setNext: () => shiftDate(1),
     setPrevWeek: () => shiftDate(-7),
     setNextWeek: () => shiftDate(7),
-    set: (d: Date) => {
-      const formatted = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      updateDateQuery(formatted);
-    },
-    setToday: () => updateDateQuery(renderToday.toISOString().slice(0, 10)),
+    set: (d: Date) => updateDateQuery(kstDateKey(d)),
+    setToday: () => updateDateQuery(kstDateKey(renderToday)),
   };
 
   const diningType = DINING_TYPES.find((t) => t === query[TYPE_KEY]) ?? new DiningTime(renderToday).getType();

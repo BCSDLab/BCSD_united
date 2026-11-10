@@ -14,7 +14,7 @@ import { useCafeteriaParams } from 'components/cafeteria/hooks/useCafeteriaParam
 import MobileCafeteriaPage from 'components/cafeteria/MobileCafeteriaPage';
 import SoldoutReportModal from 'components/cafeteria/MobileCafeteriaPage/components/SoldoutReportModal';
 import PCCafeteriaPage from 'components/cafeteria/PCCafeteriaPage';
-import { convertDateToSimpleString, kstDayOfWeek, kstTimeOn } from 'components/cafeteria/utils/time';
+import { convertDateToSimpleString } from 'components/cafeteria/utils/time';
 import showMobileToast from 'components/feedback/Toast/showMobileToast';
 import Layout from 'components/layout';
 import MobilePageHeader from 'components/layout/MobilePageHeader';
@@ -30,6 +30,7 @@ import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import useScrollToTop from 'utils/hooks/ui/useScrollToTop';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
+import { kstDayOfWeek, kstTimeOn } from 'utils/ts/calendar';
 
 import styles from 'pages/cafeteria/Cafeteria.module.scss';
 

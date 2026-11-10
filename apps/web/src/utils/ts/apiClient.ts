@@ -9,6 +9,7 @@ import { hasSessionCookie } from 'utils/auth/session';
 import { markSessionAuthenticated, markSessionExpired } from 'utils/auth/sessionControl';
 import { fetchApiRequest, getApiBaseUrl } from 'utils/ssr/apiTarget';
 import { getServerRequestHeaders } from 'utils/ssr/cookieForwarding';
+import { sampleServerClock } from 'utils/ssr/serverClock';
 import qsStringify from 'utils/ts/qsStringfy';
 
 import { getCookie } from './cookie';
@@ -188,6 +189,7 @@ export default class APIClient {
             redirect: isBrowser ? 'follow' : 'manual',
           }),
         );
+        if (isBrowser && request instanceof WebSession) sampleServerClock(response);
         const text = await response.text();
         let data: unknown = text;
         if (text) {

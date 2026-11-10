@@ -66,7 +66,9 @@ export async function loadPageData<Props extends object>(
       serverRequest,
     ),
   );
-  setResponseHeader('Cache-Control', getResponseHeader('Set-Cookie') ? PRIVATE_SSR_CACHE_CONTROL : policy);
+  const finalPolicy = getResponseHeader('Set-Cookie') ? PRIVATE_SSR_CACHE_CONTROL : policy;
+  setResponseHeader('Cache-Control', finalPolicy);
+  serverRequest.mayBeSharedCached = finalPolicy !== PRIVATE_SSR_CACHE_CONTROL;
 
   return { ...props, serverRequest, dehydratedState: dehydrate(queryClient) };
 }

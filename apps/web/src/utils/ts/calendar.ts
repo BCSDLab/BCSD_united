@@ -1,8 +1,10 @@
 import { DAYS } from 'static/day';
 
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+
 /** KST 기준 달력일 키(YYYY-MM-DD). */
 export function kstDateKey(date: Date): string {
-  return new Date(date.getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  return new Date(date.getTime() + KST_OFFSET_MS).toISOString().slice(0, 10);
 }
 
 /**
@@ -10,9 +12,24 @@ export function kstDateKey(date: Date): string {
  * 반환값은 날짜 필드·달력끼리의 비교에만 쓰며, 경과 시간이나 실제 시각 비교에는 쓰지 않는다.
  */
 export function toKoreanCalendarDate(instant: Date): Date {
-  const korean = new Date(instant.getTime() + 9 * 60 * 60 * 1000);
+  const korean = new Date(instant.getTime() + KST_OFFSET_MS);
 
   return new Date(korean.getUTCFullYear(), korean.getUTCMonth(), korean.getUTCDate());
+}
+
+/** 절대 시각의 KST 요일과 시각. */
+export function kstDayOfWeek(date: Date): number {
+  return new Date(date.getTime() + KST_OFFSET_MS).getUTCDay();
+}
+
+export function kstHour(date: Date): number {
+  return new Date(date.getTime() + KST_OFFSET_MS).getUTCHours();
+}
+
+export function kstTimeOn(base: Date, hours: number, minutes: number): Date {
+  const kst = new Date(base.getTime() + KST_OFFSET_MS);
+
+  return new Date(Date.UTC(kst.getUTCFullYear(), kst.getUTCMonth(), kst.getUTCDate(), hours, minutes) - KST_OFFSET_MS);
 }
 
 export interface CalendarCell {

@@ -1,8 +1,10 @@
 import type { DehydratedState, QueryClient } from '@tanstack/react-query';
 
-import { authQueries } from 'api/auth/queries';
-import { hasSessionCookie } from 'utils/auth/session';
+import { authQueries, SESSION_STALE_TIME } from 'api/auth/queries';
+import { ANONYMOUS_SESSION, SESSION_QUERY_KEY, type Session } from 'utils/auth/session';
+import { isConfirmedSession, prepareSessionFetch, sessionCookie } from 'utils/auth/sessionConfirmation';
 import type { ServerRequestContext } from 'utils/ssr/requestContext';
+import { getFreshServerNow, initializeServerClock } from 'utils/ssr/serverClock';
 import { getCookie } from 'utils/ts/cookie';
 import { queryClient } from 'utils/ts/queryClient';
 
@@ -64,28 +66,38 @@ export function createPageLoader<Props extends object>(
   };
 }
 
-// 하이드레이션한 SSR 시각과 그 문서 응답을 받은 시점. 이후 시각은 브라우저 벽시계가 아니라 여기서 흐른 시간으로 센다
-let serverClock: { serverTime: number; performanceTime: number } | null = null;
-
-function getServerNow(ssrNow: string): string {
-  if (!serverClock) {
-    const [navigation] = performance.getEntriesByType('navigation') as PerformanceNavigationTiming[];
-    serverClock = { serverTime: Date.parse(ssrNow), performanceTime: navigation?.responseStart ?? 0 };
-  }
-
-  return new Date(serverClock.serverTime + performance.now() - serverClock.performanceTime).toISOString();
-}
-
 /**
- * 하이드레이션 이후 화면 이동의 루트 스냅샷. 서버 함수를 부르지 않는다.
- * 기기는 SSR이 정한 값, 로그인은 세션 쿼리(브라우저가 세션 API로 확인한 값), 시각은 SSR 시각에 흐른 시간을 더한 값이다.
+ * 기기는 SSR 값, 인증은 CSRF에 결부된 세션, 시각은 서버에서 얻은 오프셋을 사용한다.
+ * 공유 캐시 문서는 새 no-store 응답의 Date를 받기 전에는 SSR 시각을 기준으로 삼지 않는다.
  */
 export async function getClientRootSnapshot(ssrServerRequest: ServerRequestContext): Promise<RootSnapshot> {
-  // 초기값·쿠키 변경·오래된 캐시를 신뢰하지 않고 진행 중인 조회를 기다리거나 세션을 다시 확인한다.
-  const cookieBefore = hasSessionCookie();
-  let session = await queryClient.fetchQuery({ ...authQueries.session(), staleTime: 0 });
-  if (cookieBefore !== hasSessionCookie()) {
-    session = await queryClient.fetchQuery({ ...authQueries.session(), staleTime: 0 });
+  initializeServerClock(ssrServerRequest.now, ssrServerRequest.mayBeSharedCached);
+  const cookie = sessionCookie();
+  prepareSessionFetch(cookie);
+  const state = queryClient.getQueryState(SESSION_QUERY_KEY);
+  let session: Session = ANONYMOUS_SESSION;
+  if (cookie) {
+    if (
+      isConfirmedSession(cookie) &&
+      state?.data &&
+      !state.isInvalidated &&
+      Date.now() - state.dataUpdatedAt < SESSION_STALE_TIME
+    ) {
+      session = state.data as Session;
+    } else {
+      try {
+        session = await queryClient.fetchQuery({ ...authQueries.session(), staleTime: 0, retry: false });
+        if (!isConfirmedSession(sessionCookie())) session = ANONYMOUS_SESSION;
+      } catch {
+        session = ANONYMOUS_SESSION;
+      }
+    }
+  }
+  const now = await getFreshServerNow();
+  const currentCookie = sessionCookie();
+  if (currentCookie !== cookie) {
+    prepareSessionFetch(currentCookie);
+    session = ANONYMOUS_SESSION;
   }
   const userType = session.status === 'authenticated' ? session.userType : null;
 
@@ -94,8 +106,9 @@ export async function getClientRootSnapshot(ssrServerRequest: ServerRequestConte
       device: ssrServerRequest.device,
       isLoggedIn: userType !== null,
       userType,
-      now: getServerNow(ssrServerRequest.now),
+      now,
+      mayBeSharedCached: false,
     },
-    hasSession: hasSessionCookie(),
+    hasSession: !!currentCookie,
   };
 }

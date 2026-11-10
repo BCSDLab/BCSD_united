@@ -1,33 +1,7 @@
 import type { DiningType } from 'api/dinings/entity';
-import { kstDateKey } from 'utils/ts/calendar';
+import { kstDateKey, kstHour, kstTimeOn } from 'utils/ts/calendar';
 
 export const convertDateToSimpleString = (date: Date) => kstDateKey(date).slice(2).replaceAll('-', '');
-
-const KST_OFFSET_MINUTES = 9 * 60;
-
-// getHours/setHours는 실행 환경 타임존을 따라 서버·클라이언트가 다른 값을 낸다.
-// 고정 +9시간 오프셋으로 직접 계산하면 실행 환경과 무관하게 항상 KST 기준이 된다(한국은 DST 없음).
-export function kstTimeOn(base: Date, hours: number, minutes: number): Date {
-  const kstNow = new Date(base.getTime() + KST_OFFSET_MINUTES * 60 * 1000);
-  const y = kstNow.getUTCFullYear();
-  const m = kstNow.getUTCMonth();
-  const d = kstNow.getUTCDate();
-
-  return new Date(Date.UTC(y, m, d, hours, minutes) - KST_OFFSET_MINUTES * 60 * 1000);
-}
-
-function kstHour(date: Date): number {
-  const kst = new Date(date.getTime() + KST_OFFSET_MINUTES * 60 * 1000);
-
-  return kst.getUTCHours();
-}
-
-/** KST 기준 요일(0=일 ~ 6=토). 실행 환경 타임존과 무관하다. */
-export function kstDayOfWeek(date: Date): number {
-  const kst = new Date(date.getTime() + KST_OFFSET_MINUTES * 60 * 1000);
-
-  return kst.getUTCDay();
-}
 
 export class DiningTime {
   private now: Date;

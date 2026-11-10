@@ -16,17 +16,15 @@ import useBooleanState from 'utils/hooks/state/useBooleanState';
 import { useEscapeKeyDown } from 'utils/hooks/ui/useEscapeKeyDown';
 import { useOutsideClick } from 'utils/hooks/ui/useOutsideClick';
 import useScrollToTop from 'utils/hooks/ui/useScrollToTop';
+import { kstDateKey, kstDayOfWeek } from 'utils/ts/calendar';
 
 import DateNavigator from './components/DateNavigator';
 import PCDiningBlocks from './components/PCDiningBlocks';
 import styles from './PCCafeteriaPage.module.scss';
 
 const getWeekAgo = (now: Date) => {
-  const twoWeeksAgoSunday = new Date(now);
-  while (twoWeeksAgoSunday.getDay() !== 0) {
-    twoWeeksAgoSunday.setDate(twoWeeksAgoSunday.getDate() - 1);
-  }
-  twoWeeksAgoSunday.setDate(twoWeeksAgoSunday.getDate() - 8);
+  const twoWeeksAgoSunday = new Date(`${kstDateKey(now)}T00:00:00Z`);
+  twoWeeksAgoSunday.setUTCDate(twoWeeksAgoSunday.getUTCDate() - kstDayOfWeek(twoWeeksAgoSunday) - 8);
 
   return twoWeeksAgoSunday;
 };
@@ -73,7 +71,7 @@ function PCCafeteriaComponent() {
       return '내일';
     }
 
-    return DAYS[date.current().getDay()];
+    return DAYS[kstDayOfWeek(date.current())];
   };
 
   useScrollToTop();
