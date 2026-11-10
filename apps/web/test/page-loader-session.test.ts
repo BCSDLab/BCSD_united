@@ -17,7 +17,10 @@ test('세션 조회 실패 시 확인된 쿠키의 캐시만 유지한다', asyn
   const hooks = registerHooks({
     resolve(specifier, context, nextResolve) {
       if (specifier === 'cloudflare:workers') {
-        return { url: 'data:text/javascript,export const env = {}', shortCircuit: true };
+        return {
+          url: 'data:text/javascript,export const env = {KOIN_ENVIRONMENT:"preview",KOIN_API_ORIGIN:"https://api.stage.koreatech.in"}',
+          shortCircuit: true,
+        };
       }
       return nextResolve(specifier, context);
     },
