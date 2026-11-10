@@ -10,12 +10,7 @@ export interface ServerRequestContext {
   isLoggedIn: boolean;
   /** `GET /v2/web/auth/session`으로 서버가 직접 확인한 값. 로그인 상태일 때만 의미 있다. */
   userType: UserType | null;
-  /**
-   * 서버 렌더 시각(ISO). 시각 파생 렌더의 공통 기준값이다.
-   *
-   * 공유 캐시로 최대 60초 낡을 수 있으나, 클라이언트가 자기 기기 시계로 다시 계산해
-   * 매번 DOM을 갈아치우는 것보다 낫다.
-   */
+  /** 서버 렌더 시각(ISO). 공유 캐시하지 않는 문서와 브라우저 경과 시간의 공통 기준값이다. */
   now: string;
 }
 

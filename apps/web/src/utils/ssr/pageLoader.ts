@@ -81,7 +81,12 @@ function getServerNow(ssrNow: string): string {
  * 기기는 SSR이 정한 값, 로그인은 세션 쿼리(브라우저가 세션 API로 확인한 값), 시각은 SSR 시각에 흐른 시간을 더한 값이다.
  */
 export async function getClientRootSnapshot(ssrServerRequest: ServerRequestContext): Promise<RootSnapshot> {
-  const session = await queryClient.ensureQueryData(authQueries.session());
+  // 초기값·쿠키 변경·오래된 캐시를 신뢰하지 않고 진행 중인 조회를 기다리거나 세션을 다시 확인한다.
+  const cookieBefore = hasSessionCookie();
+  let session = await queryClient.fetchQuery({ ...authQueries.session(), staleTime: 0 });
+  if (cookieBefore !== hasSessionCookie()) {
+    session = await queryClient.fetchQuery({ ...authQueries.session(), staleTime: 0 });
+  }
   const userType = session.status === 'authenticated' ? session.userType : null;
 
   return {

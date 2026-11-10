@@ -74,6 +74,8 @@ pnpm build
 
 stage는 검색 색인에서 뺍니다. `KOIN_ENVIRONMENT`가 `main`이 아닌 Worker는 SSR 응답에, stage 빌드는 `_headers`로 정적 자산에 `X-Robots-Tag: noindex, nofollow`를 붙입니다. 크롤러가 이 헤더를 읽어야 기존 색인이 지워지므로 stage `robots.txt`는 크롤링을 허용하고 sitemap은 만들지 않습니다. 봇은 [별도 안내](apps/b-bot/README.md)를 따릅니다.
 
+SSR HTML은 서버 시각을 브라우저 화면 이동의 기준으로 사용하므로 `private, no-store`로 제공합니다. 브라우저 이동은 세션 쿼리를 재확인하며 식단 날짜와 시간표 학기는 한국 시간 기준입니다.
+
 ### 레거시 Worker API 비활성화와 복원
 
 `koin-api` Worker는 `apps/api/wrangler.jsonc`의 `API_ENABLED`가 `"false"`라 모든 요청에 `503 API_DISABLED`로 응답합니다. 코드와 D1·R2·Queue·DO 리소스는 삭제하지 않습니다.

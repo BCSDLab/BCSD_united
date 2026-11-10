@@ -1,4 +1,5 @@
 import type { Semester, Term } from 'api/timetable/entity';
+import { kstDateKey } from 'utils/ts/calendar';
 
 type QueryValue = string | string[] | undefined;
 
@@ -30,8 +31,7 @@ export function resolveTimetableSemester(year: QueryValue, term: QueryValue, use
 
 // 기준 시각을 넘기지 않으면 실행 환경의 현재 시각을 쓴다. 페이지 load는 serverRequest.now를 넘긴다
 export function getRecentSemester(date: Date = new Date()): Semester {
-  const year = date.getFullYear();
-  const month = date.getMonth() + 1;
+  const [year, month] = kstDateKey(date).split('-').map(Number);
 
   if (month < 2) {
     return {
