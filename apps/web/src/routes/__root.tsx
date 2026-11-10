@@ -16,7 +16,9 @@ import Layout from 'components/layout';
 import { NotFoundPage } from 'routes/404.index';
 import { isDisabledOrderPath, isProtectedPath } from 'static/routeAccess';
 import ROUTES from 'static/routes';
+import { hasSessionCookie } from 'utils/auth/session';
 import { parseSearch, stringifySearch } from 'utils/routing/search';
+import type { ServerRequestContext } from 'utils/ssr/requestContext';
 import { getRootSnapshot } from 'utils/ssr/rootContext.functions';
 
 import 'pretendard/dist/web/static/pretendard-dynamic-subset.css';
@@ -26,8 +28,17 @@ import 'styles/global.scss';
 export const Route = createRootRoute({
   validateSearch: (search: Record<string, unknown>): Record<string, string | string[] | undefined> =>
     parseSearch(stringifySearch(search)),
-  beforeLoad: async ({ location }) => {
+  beforeLoad: async ({ location, matches }) => {
     if (isDisabledOrderPath(location.pathname)) throw notFound();
+    // 같은 화면 안에서 loader 입력이 그대로인 이동(search만 바뀌는 경우)은 이미 그린 화면의 서버 스냅샷을 다시 쓴다.
+    // 보호 경로 판단은 이 화면에 들어올 때 끝났으므로 서버에 다시 묻지 않는다.
+    // 루트 매치는 항상 matches[0]이고 loaderData는 아래 loader가 돌려준 값이다. 자기 참조라 타입을 직접 적는다
+    const rootLoaderData = matches[0]?.loaderData as { serverRequest?: ServerRequestContext } | undefined;
+    const previousServerRequest = rootLoaderData?.serverRequest;
+    if (previousServerRequest && matches.at(-1)?.cause === 'stay') {
+      return { serverRequest: previousServerRequest, hasSession: hasSessionCookie() };
+    }
+
     const snapshot = await getRootSnapshot();
     if (isProtectedPath(location.pathname) && !snapshot.hasSession) {
       throw redirect({ href: ROUTES.Auth() + '?redirect=' + encodeURIComponent(location.href) });
