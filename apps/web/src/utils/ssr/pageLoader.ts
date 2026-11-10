@@ -1,10 +1,12 @@
 import type { DehydratedState, QueryClient } from '@tanstack/react-query';
 
+import { WebSession } from 'api/auth/APIDetail';
 import { authQueries, SESSION_STALE_TIME } from 'api/auth/queries';
 import { ANONYMOUS_SESSION, SESSION_QUERY_KEY, type Session } from 'utils/auth/session';
 import { isConfirmedSession, prepareSessionFetch, sessionCookie } from 'utils/auth/sessionConfirmation';
 import type { ServerRequestContext } from 'utils/ssr/requestContext';
 import { getFreshServerNow, initializeServerClock } from 'utils/ssr/serverClock';
+import APIClient from 'utils/ts/apiClient';
 import { getCookie } from 'utils/ts/cookie';
 import { queryClient } from 'utils/ts/queryClient';
 
@@ -67,8 +69,8 @@ export function createPageLoader<Props extends object>(
 }
 
 /**
- * 기기는 SSR 값, 인증은 CSRF에 결부된 세션, 시각은 서버에서 얻은 오프셋을 사용한다.
- * 공유 캐시 문서는 새 no-store 응답의 Date를 받기 전에는 SSR 시각을 기준으로 삼지 않는다.
+ * 기기는 SSR 값, 인증은 CSRF에 결부된 세션을 사용한다.
+ * 공유 캐시 문서는 새 Date 표본이 없으면 이번 이동에만 SSR 시각을 사용한다.
  */
 export async function getClientRootSnapshot(ssrServerRequest: ServerRequestContext): Promise<RootSnapshot> {
   initializeServerClock(ssrServerRequest.now, ssrServerRequest.mayBeSharedCached);
@@ -89,11 +91,14 @@ export async function getClientRootSnapshot(ssrServerRequest: ServerRequestConte
         session = await queryClient.fetchQuery({ ...authQueries.session(), staleTime: 0, retry: false });
         if (!isConfirmedSession(sessionCookie())) session = ANONYMOUS_SESSION;
       } catch {
-        session = ANONYMOUS_SESSION;
+        session = isConfirmedSession(cookie) && state?.data ? (state.data as Session) : ANONYMOUS_SESSION;
       }
     }
   }
-  const now = await getFreshServerNow();
+  // 시계 표본 조회의 401이 인증 갱신을 재귀적으로 시작하지 않도록 한다.
+  const now = await getFreshServerNow(() =>
+    APIClient.request(Object.assign(new WebSession(), { skipAuthRefresh: true })),
+  );
   const currentCookie = sessionCookie();
   if (currentCookie !== cookie) {
     prepareSessionFetch(currentCookie);

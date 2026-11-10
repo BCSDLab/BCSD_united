@@ -50,6 +50,7 @@ export default function ApplicationProviders({
   const title = leaf?.staticData.title;
   const pageTitle = typeof title === 'function' ? title(pathname) : title;
 
+  // 자식의 useSessionState와 첫 클라이언트 이동이 스냅샷을 읽기 전에 동기 초기화해야 한다.
   useState(() => {
     if (typeof window !== 'undefined') {
       const initial = data?.serverRequest ?? serverRequest;
