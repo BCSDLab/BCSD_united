@@ -33,4 +33,4 @@ apps/b-bot-crawler/data/
 apps/api/scripts/source-sync-uploader.py
 apps/api/scripts/source-sync-cron.sh
 apps/api/scripts/source-sync-mysql-prep.py
-apps/api/scripts/__pycache__/
+__pycache__/
