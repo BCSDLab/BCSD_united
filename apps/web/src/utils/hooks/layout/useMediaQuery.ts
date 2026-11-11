@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react';
 
 import { useServerRequest } from 'utils/ssr/useServerRequest';
 
-const MOBILE_QUERY = '(max-width: 576px)';
+export const MOBILE_QUERY = '(max-width: 576px)';
 
 function subscribeToMediaQuery(query: string) {
   return (onStoreChange: () => void) => {
