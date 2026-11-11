@@ -146,7 +146,7 @@ async function handleTap(request: Request, env: Env): Promise<Response> {
       lastSeen: Math.max(seen?.lastSeen ?? at, at),
       count: (seen?.count ?? 0) + 1,
     };
-    // 등록 전 학번·UID는 개인정보이므로 일정 기간 뒤 자동으로 지웁니다.
+    // 등록 전 카드 UID는 개인정보이므로 일정 기간 뒤 자동으로 지웁니다.
     await kv.put(`unknown:${uid}`, '', { metadata: next, expirationTtl: UNKNOWN_TTL_SECONDS });
     return json({ status: 'unknown' }, 202);
   }

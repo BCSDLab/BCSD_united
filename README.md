@@ -9,7 +9,7 @@ apps/
   web/                 TanStack Start 프론트엔드·SSR Worker
   api/                 Hono 업무 API Worker (레거시, 기본 비활성)
   b-bot/               Slack 봇 Worker
-  attendance/          출근부: 카드 태그 기록 Worker·대시보드, Arduino/라즈베리파이 리더
+  attendance/          출근부: 카드 태그 기록 Worker·대시보드, 라즈베리파이 리더
   error-automation/    오류 웹훅 수신과 자동 수정 작업 시작
 packages/
   telemetry/           공통 민감정보 마스킹

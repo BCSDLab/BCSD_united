@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
-"""Arduino(USB 시리얼) 또는 USB HID(키보드 에뮬레이션) RFID 리더의 태그를 출근부 Worker로 전송한다.
+"""USB HID(키보드 에뮬레이션) RFID 리더의 태그를 출근부 Worker로 전송한다.
 
-HID 모드의 리더는 카드 UID를 숫자·영문 키 입력 후 Enter로 보내는 일반 USB 리더를 가정한다.
+리더는 카드 UID를 숫자·영문 키 입력 후 Enter로 보내는 일반 USB 리더를 가정한다.
 리더 장치를 독점(grab)해 UID가 콘솔 입력으로 새지 않게 한다.
 네트워크가 끊기면 태그를 QUEUE_FILE에 쌓았다가 다음 태그·유휴 주기에 순서대로 재전송한다.
 
 환경 변수:
   ATTENDANCE_URL    예: https://bcsd-attendance.<account>.workers.dev
   DEVICE_TOKEN      Worker의 DEVICE_TOKEN 시크릿과 같은 값
-  ARDUINO_SERIAL    Arduino 시리얼 포트(예: /dev/ttyACM0). 지정하면 USB HID 리더 대신 이 포트를 읽는다
-  READER_DEVICE     (ARDUINO_SERIAL 미지정 시) USB HID 입력 장치 경로. 기본값은 /dev/input/by-id/ 의 첫 *-event-kbd
+  READER_DEVICE     USB HID 입력 장치 경로. 기본값은 /dev/input/by-id/ 의 첫 *-event-kbd
   QUEUE_FILE        기본값 /var/lib/attendance/queue.jsonl
 """
 
@@ -22,18 +21,12 @@ import time
 import urllib.error
 import urllib.request
 
-# 입력 방식에 따라 필요한 패키지만 있으면 되도록 선택적으로 가져온다.
 try:
     from evdev import InputDevice, ecodes
 except ImportError:
     InputDevice = ecodes = None
-try:
-    import serial
-except ImportError:
-    serial = None
 
 FLUSH_INTERVAL_SECONDS = 30
-SERIAL_BAUD = 9600
 REQUEST_TIMEOUT_SECONDS = 10
 # 한 번 태그로 인정하는 UID 문자 범위. 서버의 UID_PATTERN과 같아야 한다.
 MIN_UID_LENGTH = 4
@@ -124,26 +117,6 @@ def record_tap(url, token, queue_file, uid):
     flush_queue(url, token, queue_file)
 
 
-def run_serial(port, url, token, queue_file):
-    """Arduino가 USB 시리얼로 한 줄에 UID 하나(예: 04A1B2C3\\n)를 보낸다."""
-    if serial is None:
-        sys.exit("pyserial이 필요합니다: sudo apt install python3-serial")
-    print("Arduino 대기 중:", port, flush=True)
-    # 장치가 뽑히거나 재부팅돼도 systemd 재시작 없이 다시 연결한다.
-    while True:
-        try:
-            with serial.Serial(port, SERIAL_BAUD, timeout=FLUSH_INTERVAL_SECONDS) as connection:
-                while True:
-                    line = connection.readline().decode("ascii", errors="ignore").strip().upper()
-                    if line:
-                        record_tap(url, token, queue_file, line)
-                    else:
-                        flush_queue(url, token, queue_file)
-        except serial.SerialException as error:
-            print("시리얼 오류, 재연결 대기:", error, flush=True)
-            time.sleep(5)
-
-
 def run_keyboard(url, token, queue_file):
     if InputDevice is None:
         sys.exit("python3-evdev가 필요합니다: sudo apt install python3-evdev")
@@ -179,11 +152,7 @@ def main():
     url = os.environ["ATTENDANCE_URL"]
     token = os.environ["DEVICE_TOKEN"]
     queue_file = os.environ.get("QUEUE_FILE", "/var/lib/attendance/queue.jsonl")
-    port = os.environ.get("ARDUINO_SERIAL")
-    if port:
-        run_serial(port, url, token, queue_file)
-    else:
-        run_keyboard(url, token, queue_file)
+    run_keyboard(url, token, queue_file)
 
 
 if __name__ == "__main__":
