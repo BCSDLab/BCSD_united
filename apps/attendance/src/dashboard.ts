@@ -52,7 +52,7 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
   <section>
     <h2>이번 주 체류 시간 (월요일 시작, KST)</h2>
     <table>
-      <thead><tr><th>이름</th><th>상태</th><th>오늘 첫 입실</th><th>오늘</th><th>이번 주</th></tr></thead>
+      <thead><tr><th>이름</th><th>상태</th><th>오늘 첫 입실</th><th>오늘</th><th>이번 주</th><th>퇴근 미기록</th></tr></thead>
       <tbody id="members"></tbody>
     </table>
   </section>
@@ -127,6 +127,7 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
       row.appendChild(el('td', '', m.firstInToday === null ? '-' : timeFormat.format(m.firstInToday)));
       row.appendChild(el('td', '', formatDuration(m.todayMs)));
       row.appendChild(el('td', '', formatDuration(m.weekMs)));
+      row.appendChild(el('td', m.unrecordedWeek > 0 ? 'warn' : 'muted', m.unrecordedWeek > 0 ? m.unrecordedWeek + '건 (시간 제외)' : '-'));
       body.appendChild(row);
     });
   }
@@ -138,11 +139,14 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
       var row = el('tr');
       row.appendChild(el('td', '', r.name));
       row.appendChild(el('td', '', dateTimeFormat.format(r.checkIn)));
-      if (r.checkOut === null) {
+      if (r.unrecorded) {
+        row.appendChild(el('td', 'warn', '퇴근 미기록'));
+        row.appendChild(el('td', 'muted', '제외'));
+      } else if (r.checkOut === null) {
         row.appendChild(el('td', 'muted', '-'));
         row.appendChild(el('td', '', formatDuration(serverNow() - r.checkIn)));
       } else {
-        row.appendChild(el('td', r.autoClosed ? 'warn' : '', dateTimeFormat.format(r.checkOut) + (r.autoClosed ? ' (자동 종료)' : '')));
+        row.appendChild(el('td', '', dateTimeFormat.format(r.checkOut)));
         row.appendChild(el('td', '', formatDuration(r.checkOut - r.checkIn)));
       }
       body.appendChild(row);

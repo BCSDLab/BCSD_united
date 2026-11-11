@@ -1,4 +1,4 @@
-import { DAY_MS, decideTap, kstDateKey, kstWeekStart, summarize, type SessionRow } from './logic';
+import { DAY_MS, decideTap, isUnrecorded, kstDateKey, kstWeekStart, summarize, type SessionRow } from './logic';
 import { DASHBOARD_HTML } from './dashboard';
 
 interface Env {
@@ -39,6 +39,7 @@ const UID_PATTERN = /^[0-9A-Z]{4,32}$/;
 const MAX_CLOCK_SKEW_MS = 60_000;
 const MAX_OFFLINE_REPLAY_MS = 7 * DAY_MS;
 const RECENT_LIMIT = 15;
+const UNKNOWN_TTL_SECONDS = 7 * 24 * 3600;
 const SECURITY_HEADERS = {
   'cache-control': 'no-store',
   'x-content-type-options': 'nosniff',
@@ -145,7 +146,8 @@ async function handleTap(request: Request, env: Env): Promise<Response> {
       lastSeen: Math.max(seen?.lastSeen ?? at, at),
       count: (seen?.count ?? 0) + 1,
     };
-    await kv.put(`unknown:${uid}`, '', { metadata: next });
+    // 등록 전 학번·UID는 개인정보이므로 일정 기간 뒤 자동으로 지웁니다.
+    await kv.put(`unknown:${uid}`, '', { metadata: next, expirationTtl: UNKNOWN_TTL_SECONDS });
     return json({ status: 'unknown' }, 202);
   }
 
@@ -178,7 +180,7 @@ async function handleTap(request: Request, env: Env): Promise<Response> {
 
 async function handleState(env: Env): Promise<Response> {
   const now = Date.now();
-  // 이번 주와, 자정을 걸쳐 주 경계 전날에 시작한 세션(최대 길이 12시간)까지 날짜별 접두사로 읽습니다.
+  // 이번 주와, 자정을 걸쳐 주 경계 전날에 시작한 세션(최대 길이 6시간)까지 날짜별 접두사로 읽습니다.
   const days: string[] = [];
   for (let day = kstWeekStart(now) - DAY_MS; day <= now; day += DAY_MS) days.push(kstDateKey(day));
   const kv = env.ATTENDANCE;
@@ -197,11 +199,12 @@ async function handleState(env: Env): Promise<Response> {
     .filter((session) => names.has(session.memberId))
     .sort((a, b) => b.checkIn - a.checkIn)
     .slice(0, RECENT_LIMIT)
-    .map(({ memberId, checkIn, checkOut, autoClosed }) => ({
-      name: names.get(memberId),
-      checkIn,
-      checkOut,
-      autoClosed,
+    .map((session) => ({
+      name: names.get(session.memberId),
+      checkIn: session.checkIn,
+      checkOut: session.checkOut,
+      // 퇴근 태그가 없어 시간 합계에서 빠진 세션(자동 종료 또는 최대 길이 초과).
+      unrecorded: isUnrecorded(session, now),
     }));
 
   return json({

@@ -3,7 +3,7 @@ export const DAY_MS = 24 * HOUR_MS;
 /** 한국 표준시는 DST가 없으므로 고정 오프셋으로 하루·주 경계를 계산합니다. */
 export const KST_OFFSET_MS = 9 * HOUR_MS;
 /** 퇴실 태그를 잊은 세션이 무한정 늘어나지 않도록 하는 세션 최대 길이입니다. */
-export const MAX_SESSION_MS = 12 * HOUR_MS;
+export const MAX_SESSION_MS = 6 * HOUR_MS;
 /** 같은 회원의 직전 이벤트 직후 재태그(카드 중복 인식)를 무시하는 시간입니다. */
 export const DEBOUNCE_MS = 10_000;
 
@@ -50,18 +50,22 @@ export function kstWeekStart(ts: number): number {
   return dayStart - daysSinceMonday * DAY_MS;
 }
 
-/** 세션이 실제로 인정되는 종료 시각입니다. 열린 세션은 현재 또는 최대 길이까지입니다. */
-export function effectiveEnd(session: SessionRow, now: number): number {
-  return session.checkOut ?? Math.min(now, session.checkIn + MAX_SESSION_MS);
-}
-
 export function isPresent(session: SessionRow, now: number): boolean {
   return session.checkOut === null && now - session.checkIn < MAX_SESSION_MS;
 }
 
+/**
+ * 퇴근 태그 없이 자동 종료됐거나 최대 길이를 넘겨 열려 있는 세션입니다.
+ * 실제 체류 시간을 알 수 없으므로 시간 합계에 넣지 않습니다.
+ */
+export function isUnrecorded(session: SessionRow, now: number): boolean {
+  return session.autoClosed || (session.checkOut === null && now - session.checkIn >= MAX_SESSION_MS);
+}
+
 function overlapMs(session: SessionRow, from: number, to: number, now: number): number {
+  if (isUnrecorded(session, now)) return 0;
   const start = Math.max(session.checkIn, from);
-  const end = Math.min(effectiveEnd(session, now), to);
+  const end = Math.min(session.checkOut ?? now, to);
   return Math.max(0, end - start);
 }
 
@@ -73,6 +77,8 @@ export interface MemberSummary {
   since: number | null;
   todayMs: number;
   weekMs: number;
+  /** 이번 주 퇴근 태그가 없어 합계에서 뺀 세션 수. */
+  unrecordedWeek: number;
   /** 오늘 처음 입실한 시각. 오늘 기록이 없으면 null. */
   firstInToday: number | null;
 }
@@ -94,17 +100,28 @@ export function summarize(
   const result = members.map((member): MemberSummary => {
     let todayMs = 0;
     let weekMs = 0;
+    let unrecordedWeek = 0;
     let since: number | null = null;
     let firstInToday: number | null = null;
     for (const session of byMember.get(member.id) ?? []) {
       todayMs += overlapMs(session, dayStart, dayStart + DAY_MS, now);
       weekMs += overlapMs(session, weekStart, weekStart + 7 * DAY_MS, now);
+      if (session.checkIn >= weekStart && isUnrecorded(session, now)) unrecordedWeek++;
       if (isPresent(session, now)) since = session.checkIn;
       if (session.checkIn >= dayStart && (firstInToday === null || session.checkIn < firstInToday)) {
         firstInToday = session.checkIn;
       }
     }
-    return { id: member.id, name: member.name, present: since !== null, since, todayMs, weekMs, firstInToday };
+    return {
+      id: member.id,
+      name: member.name,
+      present: since !== null,
+      since,
+      todayMs,
+      weekMs,
+      unrecordedWeek,
+      firstInToday,
+    };
   });
 
   return result.sort((a, b) => {

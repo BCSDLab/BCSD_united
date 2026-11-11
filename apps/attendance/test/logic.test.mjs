@@ -71,9 +71,19 @@ test('체류 시간은 오늘/이번 주 경계로 잘리고 입실 중이면 �
   assert.equal(second.weekMs, 0);
 });
 
-test('최대 길이를 넘긴 열린 세션은 입실 중으로 보지 않고 최대 길이까지만 합산한다', () => {
+test('퇴근 태그가 없는 세션은 입실 중으로 보지 않고 시간 합계에서 빼며 건수만 센다', () => {
   const now = TUE + 20 * HOUR_MS;
-  const [member] = summarize([{ id: '가', name: '가' }], [session({ checkIn: TUE })], now);
+  const sessions = [
+    // 최대 길이를 넘겨 열려 있는 세션
+    session({ checkIn: TUE }),
+    // 다음 태그로 자동 종료된 세션
+    session({ checkIn: TUE + 8 * HOUR_MS, checkOut: TUE + 8 * HOUR_MS + MAX_SESSION_MS, autoClosed: true }),
+    // 정상 세션 1시간
+    session({ checkIn: TUE + 17 * HOUR_MS, checkOut: TUE + 18 * HOUR_MS }),
+  ];
+  const [member] = summarize([{ id: '가', name: '가' }], sessions, now);
   assert.equal(member.present, false);
-  assert.equal(member.todayMs, MAX_SESSION_MS);
+  assert.equal(member.todayMs, HOUR_MS);
+  assert.equal(member.weekMs, HOUR_MS);
+  assert.equal(member.unrecordedWeek, 2);
 });
