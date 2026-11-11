@@ -1,0 +1,17 @@
+[Unit]
+Description=BCSD attendance RFID reader
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# ATTENDANCE_URL, DEVICE_TOKEN(선택: READER, READER_DEVICE, QUEUE_FILE)은 이 파일에 둔다. 권한은 600.
+EnvironmentFile=/etc/attendance-reader.env
+ExecStart=/usr/bin/python3 /opt/attendance/reader.py
+StateDirectory=attendance
+Restart=always
+RestartSec=5
+# 입력 장치(/dev/input)·SPI(/dev/spidev0.0)·GPIO 접근을 위해 root로 실행한다.
+User=root
+
+[Install]
+WantedBy=multi-user.target
