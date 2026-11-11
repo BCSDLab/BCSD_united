@@ -36,6 +36,17 @@ KV에는 트랜잭션이 없고 다른 지역에서는 쓰기가 최대 약 60�
 | `GET /api/state`    | Basic                                                     | 현재 인원, 회원별 오늘·이번 주 시간, 최근 기록                                                           |
 | `POST /api/members` | Basic, 같은 출처 JSON                                     | `{ "uid", "name" }` 회원 등록·이름 수정                                                                  |
 
+## 대시보드
+
+- 서버가 제공하는 단일 HTML 화면에 [Mobbin의 공개 업무용 대시보드 패턴](https://mobbin.com/explore/web/screens/analytics-dashboard)을 참고한 Material Design 3의 색상·서피스·타이포그래피를 적용합니다. 사이드바 없이 구성하며 외부 폰트나 UI 라이브러리를 불러오지 않습니다.
+- 현재 인원과 입실 중인 회원의 체류 시간을 크게 표시하고, 전체 회원의 오늘·이번 주 체류 시간 합계와 퇴근 미기록 건수를 보여 줍니다. 회원별 표와 이번 주 최근 세션 최대 15건을 함께 제공합니다.
+- 16:9 데스크톱 화면에서는 본문 스크롤 없이 주요 패널을 한 화면에 배치하고, 긴 목록은 각 패널의 이전·다음 버튼으로 넘깁니다. 화면 크기에 맞춰 표시 개수가 바뀌고 새로고침 후에도 선택한 페이지를 유지합니다.
+- 테마 버튼은 자동(시스템 설정) → 라이트 → 다크 순서로 전환하며 선택을 브라우저에 저장합니다. 작은 화면에서는 카드가 재배치되고 표는 가로로 스크롤할 수 있습니다.
+- 데이터는 10초마다 갱신하고 입실 중인 회원의 체류 시계는 매초 갱신합니다. 새로고침 버튼으로 즉시 갱신할 수 있습니다. 연결 실패 시 마지막 데이터임을 표시하고 체류 시계를 마지막 동기화 시각에 멈춥니다. 처음부터 불러오지 못한 경우 수치를 임의로 표시하지 않습니다.
+- 미등록 카드는 화면에서 이름을 입력해 등록합니다. 주기적 갱신에도 입력과 포커스를 유지하며 등록 중·완료·오류 상태를 카드별로 표시합니다. 등록 전 태그는 입실 기록이 아니므로 등록 후 카드를 다시 태그해야 합니다.
+- 회원 이름과 카드 정보는 `textContent`로만 출력합니다. 상태 조회와 등록은 같은 출처의 기존 인증을 사용하며 등록은 JSON 요청으로만 전송합니다.
+- 배포는 BCSDLab 조직 Gateway를 요구하는 접근 정책을 전제로 합니다. 일반 소비자 WARP 접속만 허용하는 정책은 충분하지 않습니다. Worker의 모든 도메인·미리보기 우회 경로를 보호하기 전에는 공개 경로를 활성화하지 않습니다.
+
 ## 배포
 
 ```sh
@@ -46,7 +57,7 @@ pnpm deploy:attendance
 
 KV 네임스페이스는 첫 배포 때 wrangler가 만들고 `id`를 기록합니다. 기록된 `wrangler.jsonc`를 커밋합니다. 토큰은 충분히 긴 무작위 값을 사용합니다(`openssl rand -hex 32`).
 
-벽걸이 화면은 `https://:<DASHBOARD_PASSWORD>@<worker 주소>/` 로 열면 인증 창 없이 표시됩니다.
+벽걸이 화면은 대시보드 경로(`/`)를 열고 Basic 인증 창에서 `DASHBOARD_PASSWORD`로 인증합니다. 비밀번호를 URL에 넣지 않습니다.
 
 ## 로컬 실행
 
@@ -98,12 +109,27 @@ Raspberry Pi 3B 기준입니다. `READER`로 리더 종류를 고릅니다.
 ### 설치
 
 ```sh
-sudo raspi-config nonint do_spi 0                       # rc522: SPI 활성화(/dev/spidev0.0)
-sudo apt install python3-spidev python3-rpi.gpio         # rc522. hid는 python3-evdev
-sudo install -D pi/reader.py /opt/attendance/reader.py
-sudo install -m 600 /dev/null /etc/attendance-reader.env # ATTENDANCE_URL=…, DEVICE_TOKEN=…, READER=rc522
-sudo install pi/attendance-reader.service /etc/systemd/system/
-sudo systemctl enable --now attendance-reader
+sudo raspi-config nonint do_spi 0                       # rc522: 부팅 시 SPI 활성화
+sudo dtparam spi=on                                    # rc522: 재부팅 없이 현재 부팅에도 적용
+sudo apt install python3-spidev python3-rpi-lgpio        # Raspberry Pi OS Trixie. hid는 python3-evdev
+sudo install -D -o root -g root -m 755 pi/reader.py /opt/attendance/reader.py
+sudo install -o root -g root -m 644 pi/attendance-reader.service /etc/systemd/system/
+sudo systemctl daemon-reload
+```
+
+RC522는 `/dev/spidev0.0`과 위 배선을 사용합니다. SPI 장치 파일이 있다는 것만으로 모듈 연결이 확인되지는 않습니다. 시작 시 `RC522 응답 없음`이면 3.3V 전원·GND·CE0·SCLK·MOSI·MISO·RST 배선을 확인합니다. USB HID는 `/dev/input/by-id/*-event-kbd`에 실제 리더가 있어야 합니다.
+
+실제 Worker 주소와 해당 Worker의 `DEVICE_TOKEN`을 받은 뒤에만 런타임 설정을 작성하고 서비스를 시작합니다. 진단 중이거나 모듈·카드 인식이 확인되지 않았다면 전송 루프를 켜지 않습니다. 네트워크 접근 정책이 있는 배포는 Pi에서도 허용된 경로로 Worker에 접근할 수 있어야 합니다.
+
+```sh
+sudo touch /etc/attendance-reader.env
+sudo chown root:root /etc/attendance-reader.env
+sudo chmod 600 /etc/attendance-reader.env
+sudoedit /etc/attendance-reader.env
+# ATTENDANCE_URL=<실제 Worker 기본 주소>
+# DEVICE_TOKEN=<해당 Worker의 실제 토큰>
+# READER=rc522  (USB HID는 hid; 필요하면 READER_DEVICE도 지정)
+sudo systemctl enable --now attendance-reader.service
 ```
 
 - 오프라인이면 태그를 `/var/lib/attendance/queue.jsonl`에 보관하고 30초마다 순서대로 재전송합니다. 태그 시각(`at`)은 파이 시계 기준이므로 NTP 동기화가 필요합니다.
