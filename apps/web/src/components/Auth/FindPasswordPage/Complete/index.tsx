@@ -9,8 +9,8 @@ import styles from './Complete.module.scss';
 
 const TITLE = '비밀번호 변경 완료';
 const SUB_TITLE = [
-  { key: 'line1', text: '비밀번호가 변경되었습니다.' },
-  { key: 'line2', text: '새로운 비밀번호로 로그인 부탁드립니다.' },
+  { key: 'line1', text: '비밀번호 변경이 완료되었습니다.' },
+  { key: 'line2', text: '홈페이지에서 바로 로그인이 가능합니다.' },
 ];
 
 function CompletePage() {
