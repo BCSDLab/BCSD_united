@@ -19,7 +19,7 @@ export default function FormFoundPlace({ foundPlace, setFoundPlace, isFoundPlace
   };
 
   const placeLabel = type === 'FOUND' ? '습득 장소' : '분실 장소';
-  const placeholderText = type === 'FOUND' ? '습득 장소를 선택해주세요.' : '예상되는 분실 장소가 있다면 입력해주세요.';
+  const placeholderText = type === 'FOUND' ? '습득 장소를 입력해주세요.' : '예상되는 분실 장소가 있다면 입력해주세요.';
 
   return (
     <div className={styles['found-place']}>

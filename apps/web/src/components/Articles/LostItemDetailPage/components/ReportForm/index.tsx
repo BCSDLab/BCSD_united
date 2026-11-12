@@ -10,7 +10,7 @@ import showToast from 'utils/ts/showToast';
 import styles from './ReportForm.module.scss';
 
 const options = [
-  { value: '1', label: '주제와 맞지 않음', subtitle: '분실물과 관련 없는 내용입니다.' },
+  { value: '1', label: '주제에 맞지 않음', subtitle: '분실물과 관련 없는 글입니다.' },
   { value: '2', label: '스팸', subtitle: '홍보성 글입니다.' },
   { value: '3', label: '욕설', subtitle: '비방, 모욕 등이 포함된 글입니다.' },
   { value: '4', label: '개인정보', subtitle: '개인정보가 포함된 글입니다.' },

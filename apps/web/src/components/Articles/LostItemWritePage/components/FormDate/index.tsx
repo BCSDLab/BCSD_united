@@ -55,7 +55,7 @@ export default function FormDate({
   useEscapeKeyDown({ onEscape: closeCalendar });
 
   const dateLabel = type === 'FOUND' ? '습득 일자' : '분실 일자';
-  const placeholderText = type === 'FOUND' ? '습득 일자를 선택해주세요.' : '분실 일자를 선택해주세요.';
+  const placeholderText = type === 'FOUND' ? '습득 일자를 입력해주세요.' : '분실 일자를 입력해주세요.';
   const warningText = type === 'FOUND' ? '습득 일자가 입력되지 않았습니다.' : '분실 일자가 입력되지 않았습니다.';
 
   return (
