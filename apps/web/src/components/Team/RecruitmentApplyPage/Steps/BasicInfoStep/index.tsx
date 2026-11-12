@@ -178,7 +178,7 @@ export default function BasicInfoStep({ onNext }: BasicInfoStepProps) {
             label="보유기술 / 자격증"
             description="기술 / 자격증은 항목별로 하나씩 작성해주세요."
             addButtonLabel="기술 / 자격증 추가"
-            placeholder="기술 / 자격증을 작성해주세요."
+            placeholder="기술 또는 자격증을 입력해주세요."
             error={errors.skills?.message}
             onAppend={() =>
               actionEventClick({
