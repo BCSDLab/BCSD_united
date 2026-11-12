@@ -61,7 +61,7 @@ export default function Terms({ onNext }: TermsProps) {
             {...register('privacy_policy_agreement')}
           />
           <span className={styles.term__title}>
-            {isMobile ? '개인정보 이용약관(필수)' : '[필수] 개인정보 이용약관'}
+            {isMobile ? '개인정보 이용약관 (필수)' : '[필수] 개인정보 이용약관'}
           </span>
         </label>
         <textarea className={styles.term__content} readOnly defaultValue={privacy} />
@@ -77,7 +77,7 @@ export default function Terms({ onNext }: TermsProps) {
             checked={watch('koin_terms_agreement')}
             {...register('koin_terms_agreement')}
           />
-          <span className={styles.term__title}>{isMobile ? '코인 이용약관(필수)' : '[필수] 코인 이용약관'}</span>
+          <span className={styles.term__title}>{isMobile ? '코인 이용약관 (필수)' : '[필수] 코인 이용약관'}</span>
         </label>
         <textarea className={styles.term__content} readOnly defaultValue={koin} />
         <label
@@ -92,7 +92,9 @@ export default function Terms({ onNext }: TermsProps) {
             checked={watch('marketing_notification_agreement')}
             {...register('marketing_notification_agreement', { required: false })}
           />
-          <span className={styles.term__title}>{isMobile ? '마케팅 수신 동의(선택)' : '[선택] 마케팅 수신 동의'}</span>
+          <span className={styles.term__title}>
+            {isMobile ? '마케팅 수신 동의약관 (선택)' : '[선택] 마케팅 수신 동의'}
+          </span>
         </label>
         <textarea className={styles.term__content} readOnly defaultValue={marketing} />
       </div>

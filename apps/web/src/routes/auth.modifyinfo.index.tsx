@@ -214,7 +214,7 @@ const PasswordForm = React.forwardRef<ICustomFormInput | null, ICustomFormInputP
     }
 
     if (password !== passwordConfirmValue) {
-      valid = '입력하신 비밀번호가 일치하지 않습니다.';
+      valid = '비밀번호가 일치하지 않습니다.';
     } else if (password.length < 6 || password.length > 18) {
       valid = '비밀번호는 6자 이상 18자 이하여야 합니다.';
     } else if (password.includes(' ') || passwordConfirmValue.includes(' ')) {

@@ -28,6 +28,15 @@ type UserType = '학생' | '외부인';
 const mobileSteps: StepTitle[] = ['약관동의', '본인인증', '회원유형선택', '정보입력', '완료'];
 const desktopSteps: StepTitle[] = ['약관동의', '본인인증', '정보입력', '완료'];
 
+// 단계 이름은 단계 전환 키로도 쓰이므로 화면에 보이는 이름만 따로 둔다.
+const STEP_LABEL: Record<StepTitle, string> = {
+  약관동의: '약관 동의',
+  본인인증: '본인 인증',
+  회원유형선택: '회원 유형 선택',
+  정보입력: '정보 입력',
+  완료: '완료',
+};
+
 function SignupPage() {
   const sessionLogger = useSessionLogger();
   const isMobile = useMediaQuery();
@@ -117,7 +126,7 @@ function SignupPage() {
         )}
 
         {currentStep !== '완료' && (
-          <ProgressBar steps={activeSteps.map((title) => ({ title }))} currentIndex={currentIndex} />
+          <ProgressBar steps={activeSteps.map((step) => ({ title: STEP_LABEL[step] }))} currentIndex={currentIndex} />
         )}
         <FormProvider {...methods}>
           <Step name="약관동의">

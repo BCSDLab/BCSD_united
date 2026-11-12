@@ -26,7 +26,7 @@ export const passwordValidationReducer = (
     case 'SPACING':
       return { message: '비밀번호에 공백은 허용되지 않습니다.', isValid: false };
     case 'MISMATCH':
-      return { message: '입력하신 비밀번호가 일치하지 않습니다.', isValid: false };
+      return { message: '비밀번호가 일치하지 않습니다.', isValid: false };
     case 'CONFIRM_EMPTY':
       return { message: '비밀번호 확인을 입력해주세요.', isValid: false };
     case 'VALID':
