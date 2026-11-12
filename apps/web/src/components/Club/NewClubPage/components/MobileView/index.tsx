@@ -232,7 +232,7 @@ export default function MobileView({ formData, setFormData, openModal, isEdit, s
               [styles['form__text-input--error']]: formData.location.length === 0 && isTried,
             })}
             value={formData.location}
-            placeholder="동아리 방 위치를 입력하세요(필수)"
+            placeholder="동아리 방 위치를 입력해주세요.(필수)"
             onChange={(e) => setFormData({ ...formData, location: e.target.value })}
           />
         </div>

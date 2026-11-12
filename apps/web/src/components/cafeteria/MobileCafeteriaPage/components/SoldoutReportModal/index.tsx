@@ -134,7 +134,7 @@ export default function SoldoutReportModal({ initialPlace, variantLabel, onClose
         </div>
 
         <div className={styles.section}>
-          <span className={styles.section__label}>품절 코너 선택</span>
+          <span className={styles.section__label}>품절 코스 선택</span>
           <div className={styles.chips}>
             {SOLDOUT_REPORT_PLACES.map((place) => {
               const isSoldout = soldoutPlaces.includes(place);

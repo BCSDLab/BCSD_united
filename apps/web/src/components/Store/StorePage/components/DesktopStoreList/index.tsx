@@ -88,7 +88,7 @@ export default function DesktopStoreList(storeListProps: StoreListProps) {
                 <div className={styles['store-list__rate']}>{`${store.average_rate.toFixed(1)}`}</div>
                 <div className={styles['store-list__review--text']}>
                   &#40;&nbsp;
-                  {`총 리뷰 ${store?.review_count > 10 ? '10+' : store?.review_count}개`}
+                  {`리뷰 ${store?.review_count > 10 ? '10+' : store?.review_count}개`}
                   &nbsp;&#41;
                 </div>
               </>

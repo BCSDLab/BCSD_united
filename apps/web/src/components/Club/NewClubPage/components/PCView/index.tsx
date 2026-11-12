@@ -227,7 +227,7 @@ export default function PCView({ formData, setFormData, openModal, isEdit, setTy
               type="text"
               value={formData.location}
               onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-              placeholder="동아리 방 위치를 입력하세요(필수)"
+              placeholder="동아리 방 위치를 입력해주세요.(필수)"
               maxLength={20}
             />
             {!formData.location && isTried && <ClubInputErrorCondition />}
