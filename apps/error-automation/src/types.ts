@@ -145,6 +145,8 @@ export interface Env {
   CLOUDFLARE_SOURCES: string;
   CLOUDFLARE_DIAGNOSTICS_TOKEN?: string;
   DIAGNOSTICS_READ_TOKEN: string;
+  /** 수신 이슈 요약 전용 Bearer. 모델·실행기·진단·태그 토큰과 재사용하지 않습니다. */
+  ERROR_MONITOR_TOKEN?: string;
   ERROR_PROJECT_DOMAINS: string;
   ERROR_SOURCE_BRANCHES: string;
   /** The only model upstream: Workers VPC service binding to the Rocky omp gateway, paired with its bearer. */

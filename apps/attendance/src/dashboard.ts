@@ -144,6 +144,21 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
   #sync-status[data-state="error"] { color:var(--error); }
   .sync-note { margin:0; color:var(--muted); font-size:12px; }
   footer { display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; padding:24px 4px 0; color:var(--muted); font-size:11px; }
+  .monitor-strip { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 16px; border:1px solid var(--line); border-radius:18px; background:var(--surface); box-shadow:var(--shadow); }
+  .monitor-summary { display:flex; align-items:center; flex-wrap:wrap; gap:6px 18px; min-width:0; font-size:12px; }
+  .monitor-summary strong { font-size:13px; }
+  .monitor-summary small { color:var(--muted); }
+  #monitor-state[data-state="ok"] { background:var(--green-container); color:var(--on-green-container); }
+  #monitor-state[data-state="unknown"] { background:var(--amber-container); color:var(--amber); }
+  .monitor-dialog { width:min(650px,calc(100% - 32px)); max-height:min(80vh,700px); overflow:auto; border:1px solid var(--outline); border-radius:24px; padding:22px; background:var(--surface); color:var(--text); box-shadow:0 20px 60px #10131b44; }
+  .monitor-dialog::backdrop { background:#10131b88; }
+  .monitor-dialog header { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+  .monitor-dialog ul { list-style:none; margin:12px 0; padding:0; }
+  .monitor-dialog li { padding:8px 0; border-bottom:1px solid var(--line); font-size:13px; overflow-wrap:anywhere; }
+  @media (max-width:700px) {
+    .monitor-strip { align-items:flex-start; }
+    .monitor-summary { gap:4px 10px; }
+  }
   footer p { margin:0; }
   @media (min-width:1600px) {
     .app-shell { max-width:1600px; }
@@ -213,7 +228,12 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
     #date { font-size:10px; }
     .header-actions { gap:7px; }
     .header-actions button { min-height:36px; padding:8px 12px; font-size:11px; }
-    main { flex:1; min-height:0; display:grid; grid-template-columns:minmax(0,1.8fr) minmax(290px,1fr); grid-template-rows:auto minmax(0,.9fr) minmax(0,1.2fr) minmax(0,1fr) 18px; grid-template-areas:"error error" "hero summary" "members unknown" "recent unknown" "sync sync"; gap:10px 12px; }
+    main { flex:1; min-height:0; display:grid; grid-template-columns:minmax(0,1.8fr) minmax(290px,1fr); grid-template-rows:auto auto minmax(0,.9fr) minmax(0,1.2fr) minmax(0,1fr) 18px; grid-template-areas:"monitor monitor" "error error" "hero summary" "members unknown" "recent unknown" "sync sync"; gap:8px 12px; }
+    .monitor-strip { grid-area:monitor; padding:4px 12px; min-height:38px; border-radius:12px; overflow:hidden; }
+    .monitor-summary { gap:2px 12px; font-size:clamp(9px,1.1vh,14px); line-height:1.3; }
+    .monitor-summary strong { font-size:inherit; }
+    .monitor-summary small { font-size:inherit; }
+    .monitor-strip button { min-height:30px; padding:4px 10px; font-size:10px; }
     #error { grid-area:error; padding:8px 12px; border-radius:12px; }
     #error p { font-size:11px; }
     .hero { grid-area:hero; grid-template-columns:clamp(180px,13vw,340px) minmax(0,1fr); grid-template-rows:minmax(0,1fr); }
@@ -293,6 +313,17 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
     </div>
   </header>
   <main id="main" tabindex="-1">
+    <section class="monitor-strip" aria-label="오류 자동화 수신 현황">
+      <div class="monitor-summary">
+        <strong>오류 자동화 · 수신 전용</strong>
+        <span class="pill" id="monitor-state" data-state="unknown" role="status">확인 중</span>
+        <span id="monitor-sentry">Sentry 24시간 고유 오류 등록 — · 최근 신규 등록 시각 —</span>
+        <span id="monitor-cloudflare">Cloudflare 24시간 고유 오류 등록 — · 최근 신규 등록 시각 —</span>
+        <small id="monitor-checked">마지막 확인 —</small>
+        <small>Worker/등록 저장소만 확인 · Rocky 실행기, 모델, CPU·RAM 미측정</small>
+      </div>
+      <button class="button-tonal" id="monitor-details" type="button" disabled>최근 등록</button>
+    </section>
     <div class="error-banner" id="error" hidden>
       <p id="error-message" role="alert"></p>
       <button class="button-text" id="retry" type="button">다시 시도</button>
@@ -351,8 +382,20 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
 </div>
 </div>
 <noscript><p>출근부를 보거나 카드를 등록하려면 브라우저에서 JavaScript를 활성화해 주세요.</p></noscript>
+<dialog class="monitor-dialog" id="monitor-dialog" aria-labelledby="monitor-dialog-heading">
+  <header><h2 id="monitor-dialog-heading">오류 자동화 · 최근 등록</h2><button class="button-text" id="monitor-close" type="button">닫기</button></header>
+  <p id="monitor-dialog-note" class="muted"></p>
+  <ul id="monitor-recent"></ul>
+</dialog>
 <script>
   var POLL_MS = 10000;
+  var MONITOR_POLL_MS = 60000;
+  var MONITOR_FRESH_MS = 120000;
+  var monitorRefreshing = false;
+  var monitorSnapshot = null;
+  var monitorReceivedAt = 0;
+  var monitorState = 'unknown';
+  var monitorReason = '연결 대기 · 데이터 없음';
   var timeFormat = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hour12: false });
   var dateTimeFormat = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
   var clockFormat = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
@@ -475,6 +518,79 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
   }
 
   function serverNow() { return Date.now() + serverOffset; }
+
+  function monitorTime(value) {
+    return value === null ? '없음' : dateTimeFormat.format(value) + ' KST';
+  }
+
+  function renderMonitor() {
+    var fresh = monitorState === 'ok' && monitorSnapshot !== null &&
+      !document.hidden && navigator.onLine !== false &&
+      performance.now() - monitorReceivedAt < MONITOR_FRESH_MS &&
+      serverNow() - monitorSnapshot.checkedAt < MONITOR_FRESH_MS;
+    var status = document.getElementById('monitor-state');
+    status.dataset.state = fresh ? 'ok' : 'unknown';
+    status.textContent = fresh ? 'Worker 응답 · 저장소 조회됨' :
+      monitorState === 'ok' ? '확인 시간 초과 · 현재 상태 알 수 없음' : monitorReason;
+    var prefix = fresh ? '' : monitorSnapshot ? '마지막 확인 값 · ' : '';
+    ['sentry', 'cloudflare'].forEach(function (source) {
+      var label = source === 'sentry' ? 'Sentry' : 'Cloudflare';
+      var value = monitorSnapshot && monitorSnapshot.sources[source];
+      document.getElementById('monitor-' + source).textContent = label + ' 24시간 고유 오류 등록 ' +
+        (value ? prefix + value.count + '건' : '—') + ' · 최근 신규 등록 시각 ' +
+        (value ? prefix + monitorTime(value.latestAt) : '—');
+    });
+    document.getElementById('monitor-checked').textContent = monitorSnapshot
+      ? (fresh ? '마지막 확인 ' : '마지막 정상 확인 ') + monitorTime(monitorSnapshot.checkedAt)
+      : '마지막 확인 —';
+    document.getElementById('monitor-details').disabled = !monitorSnapshot;
+    document.getElementById('monitor-dialog-note').textContent = fresh
+      ? '최근 24시간 등록된 오류의 수신 시각과 처리 상태입니다. 실행기나 모델 상태는 포함하지 않습니다.'
+      : '마지막 정상 조회 당시의 기록입니다. 현재 Worker/저장소 상태는 알 수 없습니다.';
+  }
+
+  async function refreshMonitor() {
+    if (monitorRefreshing) return;
+    if (document.hidden || navigator.onLine === false) {
+      monitorState = 'unknown';
+      monitorReason = document.hidden ? '화면 숨김 · 현재 상태 알 수 없음' : '오프라인 · 현재 상태 알 수 없음';
+      renderMonitor();
+      return;
+    }
+    monitorRefreshing = true;
+    try {
+      var response = await fetch('/api/automation', { cache: 'no-store', credentials: 'same-origin', signal: AbortSignal.timeout(MONITOR_POLL_MS) });
+      if (!response.ok) throw new Error(String(response.status));
+      var result = await response.json();
+      if (result.state === 'ok' && result.data && result.checkedAt === result.data.checkedAt &&
+          result.data.sources && Array.isArray(result.data.recent)) {
+        monitorSnapshot = result.data;
+        monitorReceivedAt = performance.now();
+        monitorState = document.hidden || navigator.onLine === false ? 'unknown' : 'ok';
+        if (monitorState === 'unknown') monitorReason = document.hidden
+          ? '화면 숨김 · 현재 상태 알 수 없음' : '오프라인 · 현재 상태 알 수 없음';
+        var list = document.getElementById('monitor-recent');
+        list.replaceChildren();
+        result.data.recent.forEach(function (item) {
+          list.appendChild(el('li', '', item.source + ' · ' + item.app + ' · ' +
+            dateTimeFormat.format(item.registeredAt) + ' KST 등록 · ' + item.status));
+        });
+        if (result.data.recent.length === 0) list.appendChild(el('li', '', '최근 24시간 등록된 오류가 없습니다.'));
+      } else {
+        monitorState = 'unknown';
+        monitorReason = result.reason === 'not_configured' ? '모니터 미설정 · 현재 상태 알 수 없음'
+          : result.reason === 'stale' ? '오래된 응답 · 현재 상태 알 수 없음'
+          : '조회 실패 · 현재 상태 알 수 없음';
+      }
+    } catch (error) {
+      monitorState = 'unknown';
+      monitorReason = error instanceof Error && error.message === '401'
+        ? '대시보드 인증 필요 · 현재 상태 알 수 없음' : '연결 실패 · 현재 상태 알 수 없음';
+    } finally {
+      monitorRefreshing = false;
+      renderMonitor();
+    }
+  }
 
   function renderPresent(members) {
     var present = members.filter(function (m) { return m.present; });
@@ -734,12 +850,34 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
       node.textContent = formatClockDuration(elapsedNow - Number(node.dataset.since));
     });
   }
+  document.getElementById('monitor-details').addEventListener('click', function () {
+    document.getElementById('monitor-dialog').showModal();
+  });
+  document.getElementById('monitor-close').addEventListener('click', function () {
+    document.getElementById('monitor-dialog').close();
+  });
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) {
+      monitorState = 'unknown';
+      monitorReason = '화면 숨김 · 현재 상태 알 수 없음';
+      renderMonitor();
+    } else refreshMonitor();
+  });
+  window.addEventListener('offline', function () {
+    monitorState = 'unknown';
+    monitorReason = '오프라인 · 현재 상태 알 수 없음';
+    renderMonitor();
+  });
+  window.addEventListener('online', refreshMonitor);
   document.getElementById('refresh').addEventListener('click', refresh);
   document.getElementById('retry').addEventListener('click', refresh);
   tick();
-  setInterval(tick, 1000);
+  renderMonitor();
+  setInterval(function () { tick(); renderMonitor(); }, 1000);
   setInterval(refresh, POLL_MS);
+  setInterval(refreshMonitor, MONITOR_POLL_MS);
   refresh();
+  refreshMonitor();
 </script>
 </body>
 </html>

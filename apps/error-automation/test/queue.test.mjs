@@ -20,6 +20,7 @@ registerHooks({
   },
 });
 const { AutofixQueue } = await import('../src/queue.ts');
+const { parseErrorMonitorSnapshot } = await import('../../../packages/telemetry/src/monitor.ts');
 const identity = {
   source: 'sentry',
   sourceId: '123',
@@ -308,4 +309,173 @@ test('issue-free schema migration preserves prior identity tombstones and PR rec
   assert.equal(receipt.outcome, 'published');
   assert.equal(receipt.prUrl, 'https://github.com/BCSDLab/BCSD_united/pull/99');
   assert.equal(receipt.reason, null);
+});
+
+test('monitor snapshot counts registered identities in 24h without exposing job payloads or changing state', async (t) => {
+  const h = harness(t);
+  const now = Date.now();
+  const start = now - 24 * 60 * 60_000;
+  const secret = 'private-source-id-and-diagnostic';
+  const insert = h.db.prepare(
+    'INSERT INTO jobs (run_id, identity_key, identity, status, enqueued_at, reason, prepared) VALUES (?, ?, ?, ?, ?, ?, ?)',
+  );
+  const add = (digit, source, app, workerName, registeredAt, status = 'queued') => {
+    const rowIdentity = {
+      source,
+      sourceId: `${secret}-${digit}`,
+      project: workerName ?? 'koin-united-prod',
+      app,
+      scope:
+        source === 'cloudflare' ? { accountId: 'private', policyId: 'private', workerName } : { organization: 'bcsd' },
+    };
+    insert.run(
+      `autofix-${digit.toString(16).padStart(64, '0')}`,
+      `${source}/${digit}`,
+      JSON.stringify(rowIdentity),
+      status,
+      registeredAt,
+      `private-reason-${digit}`,
+      `private-prepared-${digit}`,
+    );
+  };
+  assert.equal(await h.queue.enqueue(identity, key), 'queued');
+  assert.equal(await h.queue.enqueue(identity, key), 'duplicate');
+  h.db.prepare('UPDATE jobs SET enqueued_at = ? WHERE identity_key = ?').run(start, key);
+  for (let i = 1; i <= 12; i++) add(i, 'sentry', 'web', null, now - i * 1000, i === 1 ? 'failed' : 'completed');
+  add(13, 'cloudflare', 'api', 'koin-web-api', now - 500, 'verifying');
+  add(14, 'cloudflare', 'web', 'koin-web', now - 700, 'leased');
+  add(15, 'cloudflare', 'api', 'koin-api', now - 300);
+  add(16, 'cloudflare', 'web', 'koin-api', now - 200);
+  add(17, 'sentry', 'web', null, start - 1);
+  add(18, 'cloudflare', 'web', 'koin-web', now + 1);
+  insert.run(
+    `autofix-${'f'.repeat(64)}`,
+    'github-pr/42',
+    JSON.stringify({ source: 'github-pr', pullNumber: 42 }),
+    'queued',
+    now,
+    'private-pr-reason',
+    'private-pr-payload',
+  );
+  const before = h.db.prepare('SELECT * FROM jobs ORDER BY run_id').all();
+  const changes = h.db.prepare('SELECT total_changes() AS count').get().count;
+  const snapshot = h.queue.monitorSnapshot(now);
+  assert.deepEqual(snapshot.sources, {
+    sentry: { count: 13, latestAt: now - 1000 },
+    cloudflare: { count: 2, latestAt: now - 500 },
+  });
+  assert.equal(snapshot.checkedAt, now);
+  assert.equal(snapshot.windowStart, start);
+  assert.equal(snapshot.scope, 'ingress-only');
+  assert.equal(snapshot.worker, 'responding');
+  assert.equal(snapshot.recent.length, 10);
+  assert.deepEqual(
+    snapshot.recent.slice(0, 3).map(({ source, registeredAt, status }) => [source, registeredAt, status]),
+    [
+      ['cloudflare', now - 500, 'verifying'],
+      ['cloudflare', now - 700, 'leased'],
+      ['sentry', now - 1000, 'failed'],
+    ],
+  );
+  assert.equal(
+    snapshot.recent.every(
+      (item, index) =>
+        item.registeredAt >= start && (!index || item.registeredAt <= snapshot.recent[index - 1].registeredAt),
+    ),
+    true,
+  );
+  assert.equal(
+    snapshot.recent.every(({ id }) => /^autofix-[a-f0-9]{64}$/.test(id)),
+    true,
+  );
+  assert.doesNotMatch(
+    JSON.stringify(snapshot),
+    /private|sourceId|identity_key|prepared|reason|pr_url|koin-api|github-pr/,
+  );
+  assert.deepEqual(h.db.prepare('SELECT * FROM jobs ORDER BY run_id').all(), before);
+  assert.equal(h.db.prepare('SELECT total_changes() AS count').get().count, changes);
+  assert.deepEqual(h.alarms, []);
+  assert.deepEqual(h.writes, []);
+  assert.deepEqual(new AutofixQueue(h.queue.ctx, h.queue.env).monitorSnapshot(now), snapshot);
+});
+
+test('monitor snapshot reports observed empty windows, not stale jobs or malformed identities', (t) => {
+  const h = harness(t);
+  const now = Date.now();
+  assert.deepEqual(h.queue.monitorSnapshot(now).sources, {
+    sentry: { count: 0, latestAt: null },
+    cloudflare: { count: 0, latestAt: null },
+  });
+  h.db
+    .prepare('INSERT INTO jobs (run_id, identity_key, identity, status, enqueued_at) VALUES (?, ?, ?, ?, ?)')
+    .run(`autofix-${'a'.repeat(64)}`, 'sentry/bad', '{not json', 'queued', now);
+  assert.throws(() => h.queue.monitorSnapshot(now));
+  h.db.prepare('UPDATE jobs SET identity = ?').run(
+    JSON.stringify({
+      source: 'cloudflare',
+      sourceId: 'id',
+      project: 'koin-web',
+      app: 'web',
+      scope: { accountId: 'account', policyId: 'policy' },
+    }),
+  );
+  assert.throws(() => h.queue.monitorSnapshot(now), /Invalid monitor identity/);
+  assert.throws(() => h.queue.monitorSnapshot(NaN), /Invalid monitor time/);
+});
+
+test('shared monitor parser accepts fresh ingress snapshots and rejects stale, unsafe, or inconsistent payloads', () => {
+  const now = Date.now();
+  const snapshot = {
+    version: 1,
+    scope: 'ingress-only',
+    checkedAt: now,
+    windowStart: now - 24 * 60 * 60_000,
+    worker: 'responding',
+    sources: {
+      sentry: { count: 1, latestAt: now - 10 },
+      cloudflare: { count: 0, latestAt: null },
+    },
+    recent: [
+      { id: `autofix-${'a'.repeat(64)}`, source: 'sentry', app: 'web', registeredAt: now - 10, status: 'queued' },
+    ],
+  };
+  assert.deepEqual(parseErrorMonitorSnapshot(snapshot, now), snapshot);
+  const shift = (offset) => ({
+    ...snapshot,
+    checkedAt: now + offset,
+    windowStart: now + offset - 24 * 60 * 60_000,
+    sources: { ...snapshot.sources, sentry: { count: 1, latestAt: now + offset - 10 } },
+    recent: [{ ...snapshot.recent[0], registeredAt: now + offset - 10 }],
+  });
+  assert.deepEqual(parseErrorMonitorSnapshot(shift(-120_000), now), shift(-120_000));
+  assert.deepEqual(parseErrorMonitorSnapshot(shift(60_000), now), shift(60_000));
+  assert.equal(parseErrorMonitorSnapshot(shift(-120_001), now), null);
+  assert.equal(parseErrorMonitorSnapshot(shift(60_001), now), null);
+  assert.equal(parseErrorMonitorSnapshot(snapshot, NaN), null);
+  const invalid = [
+    { ...snapshot, version: 2 },
+    { ...snapshot, scope: 'executor-healthy' },
+    { ...snapshot, worker: 'healthy' },
+    { ...snapshot, checkedAt: Infinity },
+    { ...snapshot, windowStart: snapshot.windowStart - 1 },
+    { ...snapshot, diagnostic: 'secret' },
+    { ...snapshot, sources: { ...snapshot.sources, sentry: { count: -1, latestAt: now - 10 } } },
+    { ...snapshot, sources: { ...snapshot.sources, sentry: { count: 1.5, latestAt: now - 10 } } },
+    { ...snapshot, sources: { ...snapshot.sources, sentry: { count: 1, latestAt: null } } },
+    { ...snapshot, sources: { ...snapshot.sources, sentry: { count: 1, latestAt: now + 1 } } },
+    { ...snapshot, sources: { ...snapshot.sources, cloudflare: { count: 0, latestAt: null, token: 'secret' } } },
+    { ...snapshot, sources: { ...snapshot.sources, cloudflare: { count: 1, latestAt: null } } },
+    { ...snapshot, recent: [{ ...snapshot.recent[0], status: 'unknown' }] },
+    { ...snapshot, recent: [{ ...snapshot.recent[0], sourceId: 'secret' }] },
+    { ...snapshot, recent: [{ ...snapshot.recent[0], id: 'source-id' }] },
+    { ...snapshot, recent: [{ ...snapshot.recent[0], registeredAt: snapshot.windowStart - 1 }] },
+    { ...snapshot, recent: [{ ...snapshot.recent[0], registeredAt: now + 1 }] },
+    { ...snapshot, recent: [{ ...snapshot.recent[0], app: 'api' }] },
+    { ...snapshot, recent: Array(11).fill(snapshot.recent[0]) },
+    {
+      ...snapshot,
+      recent: [snapshot.recent[0], { ...snapshot.recent[0], id: `autofix-${'b'.repeat(64)}`, registeredAt: now - 1 }],
+    },
+  ];
+  for (const candidate of invalid) assert.equal(parseErrorMonitorSnapshot(candidate, now), null);
 });

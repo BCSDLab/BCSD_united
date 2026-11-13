@@ -5,7 +5,10 @@
   "scripts": {
     "dev": "wrangler dev",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --experimental-strip-types --test test/logic.test.mjs",
+    "test": "node --experimental-strip-types --test test/*.test.mjs",
     "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "@koin/telemetry": "workspace:*"
   }
 }

@@ -1,4 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
+import { parseErrorMonitorSnapshot } from '@koin/telemetry/monitor';
 import { DiagnosticProviderError, trustedDiagnostics } from './diagnostics';
 import { SourceMapEvidenceError } from './source-maps';
 import { gatewayTransport, modelRateLimit, parseModelRequest } from './model';
@@ -444,6 +445,7 @@ export function redact(value: unknown, env: Env): string {
     env.SENTRY_READ_TOKEN,
     env.DIAGNOSTICS_READ_TOKEN,
     env.AUTOFIX_EXECUTOR_TOKEN,
+    env.ERROR_MONITOR_TOKEN,
   ]) {
     if (secret) text = text.replaceAll(secret, '[REDACTED]');
   }
@@ -603,6 +605,33 @@ async function verifySecret(value: string | null, secret: string): Promise<void>
   const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(secret));
   if (!(await crypto.subtle.verify('HMAC', key, signature, encoder.encode(value)))) {
     throw new RequestError(401, 'Missing or invalid authentication.');
+  }
+}
+
+/** Worker와 저장된 이슈만 읽으며 실행기·모델·외부 제공자 상태를 추정하지 않습니다. */
+async function monitoringHealth(request: Request, env: Env, url: URL): Promise<Response> {
+  if (!env.ERROR_MONITOR_TOKEN || env.ERROR_MONITOR_TOKEN.length < 32)
+    throw new RequestError(503, 'Read-only monitoring is not configured.');
+  const authorization = request.headers.get('Authorization');
+  await verifySecret(authorization?.startsWith('Bearer ') ? authorization.slice(7) : null, env.ERROR_MONITOR_TOKEN);
+  if (request.method !== 'GET')
+    return new Response('Use GET.', { status: 405, headers: { Allow: 'GET', 'Cache-Control': 'no-store' } });
+  if (url.search) throw new RequestError(400, 'Monitoring query parameters are not supported.');
+  const { promise: deadline, reject } = Promise.withResolvers<never>();
+  const timer = setTimeout(() => reject(new RequestError(503, 'Monitoring storage timed out.')), 3000);
+  try {
+    const result = await Promise.race([
+      env.AUTOFIX_QUEUE.getByName('bcsdlab/bcsd_united').monitorSnapshot(Date.now()),
+      deadline,
+    ]);
+    const snapshot = parseErrorMonitorSnapshot(result, Date.now());
+    if (!snapshot) throw new RequestError(503, 'Monitoring snapshot is unavailable or stale.');
+    return reply(200, { ...snapshot }, null);
+  } catch (error) {
+    if (error instanceof RequestError) throw error;
+    throw new RequestError(503, 'Monitoring snapshot is unavailable.');
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -932,6 +961,7 @@ export default {
       if (url.protocol !== 'https:') throw new RequestError(400, 'HTTPS is required.');
       if (env.ENVIRONMENT !== 'production')
         throw new RequestError(503, 'Only the fixed production installation is enabled.');
+      if (url.pathname === '/healthz') return await monitoringHealth(request, env, url);
       if (url.pathname.startsWith('/executor/')) return await executorRequest(request, env, url);
       const retrieval = url.pathname.startsWith('/diagnostics/');
       if (!retrieval && !['/webhooks/sentry', '/webhooks/cloudflare', '/webhooks/github'].includes(url.pathname))

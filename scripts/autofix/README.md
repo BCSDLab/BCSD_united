@@ -8,6 +8,16 @@
 - **Cloudflare Issues:** Worker가 공식 Notifications envelope를 인증하고 계정·정책·Worker·앱을 재검증한다. 불투명한 `data`를 예외/경로/소스 프레임으로 임의 해석하지 않고, 일치하는 Issues occurrence·Tail/Telemetry·고정 소스 버전의 안전한 GET 경로와 매핑된 앱 소스 프레임을 별도 확인한 경우에만 수정 후보를 만든다. 근거가 부족하면 `CLOUDFLARE_EVIDENCE_UNAVAILABLE`로 실패 기록을 남기며 원본 Cloudflare Issue는 변경하지 않는다. 기존 Workers 지표 알림을 Issues 대신 쓰거나 존재하지 않는 비공개 Issues 수정 API를 호출하지 않는다.
 - 외부 API, 인증된 사용자 상태, dependency/config/generated code 수정, Node 회귀로 재현할 수 없는 오류는 안전 범위 밖이다. 실패를 우회하거나 빈 PR을 만들지 않는다.
 
+## 읽기 전용 수신 상태
+
+정확한 HTTPS `GET /healthz`는 별도의 `ERROR_MONITOR_TOKEN` Bearer만 인증합니다. 쿼리 파라미터는 받지 않으며 잘못된/없는 토큰은 401, 미설정은 503, 다른 메서드는 405입니다. 이 토큰은 실행기·진단·모델·기기 토큰과 분리합니다.
+
+응답은 `version: 1`, `scope: ingress-only`, 관측 시각, 24시간 창의 Sentry/Cloudflare 고유 등록 건수·최근 신규 등록 시각·최대 10개 처리 상태뿐입니다. `enqueued_at`은 처음 등록된 시각이므로 중복 웹훅의 수신량/재전송 시각으로 해석하지 않습니다. GitHub PR 작업과 Cloudflare `koin-api` 기록은 제외합니다. 원본 provider ID, 오류 전문, 진단, 소스, 로그, 토큰, lease, PR URL은 노출하지 않습니다.
+
+이 조회는 고정 저장소 큐의 SELECT만 수행하고 알람·claim·모델·GitHub 작업을 실행하지 않습니다. VPC나 모델 자격 증명 없이도 동작하지만 기존 자동 수정 모델 경로의 `OMP_GATEWAY` VPC 바인딩은 그대로 유지합니다. 저장소 오류·오래되거나 잘못된 응답은 503이며 0건/정상으로 대체하지 않습니다. 응답은 no-store, 저장소 응답 기한은 3초입니다.
+
+출근부는 Worker service binding과 서버 secret으로 이 경로를 읽습니다. 기능 커밋의 정상 main 승격, 두 Worker 배포, 별도 secret 설정이 운영 활성화의 전제입니다. Worker 응답 가능은 Rocky 실행기·브로커·모델·CPU/RAM 정상의 증거가 아닙니다. 이 기능을 위해 공개 hostname, 사설 SSH 라우트, OpenBao 권한을 추가하지 않습니다.
+
 ## 고정 제공자 식별자
 
 웹훅은 아래 식별자만 저장하고 고정 저장소 큐에 등록한다. 추가 프롬프트·URL·저장소·호스트·브랜치·명령·파일 경로로 실행 대상을 바꿀 수 없다.

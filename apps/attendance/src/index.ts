@@ -1,7 +1,8 @@
-import { DAY_MS, decideTap, isUnrecorded, kstDateKey, kstWeekStart, summarize, type SessionRow } from './logic';
-import { DASHBOARD_HTML } from './dashboard';
+import { DAY_MS, decideTap, isUnrecorded, kstDateKey, kstWeekStart, summarize, type SessionRow } from './logic.ts';
+import { DASHBOARD_HTML } from './dashboard.ts';
+import { handleAutomation } from './automation.ts';
 
-interface Env {
+interface Env extends Cloudflare.Env {
   /**
    * 키 구성 (값은 비어 있고 데이터는 모두 메타데이터에 두어 list 한 번으로 읽습니다):
    * - `member:<uid>`                      메타 {name}
@@ -9,11 +10,12 @@ interface Env {
    * - `s:<KST 날짜>:<입실 시각 13자리>:<uid>`  메타 {checkOut, autoClosed} — 세션
    * - `latest:<uid>`                      값 JSON {checkIn, checkOut, autoClosed} — 회원의 최근 세션 포인터
    */
-  ATTENDANCE: KVNamespace;
   /** 라즈베리파이가 태그 이벤트를 보낼 때 쓰는 Bearer 토큰. */
   DEVICE_TOKEN: string;
   /** 대시보드·회원 등록용 Basic 인증 비밀번호(사용자 이름은 무시). */
   DASHBOARD_PASSWORD: string;
+  /** 서버 측에서만 사용하는 오류 자동화 모니터 토큰. */
+  ERROR_MONITOR_TOKEN?: string;
 }
 
 interface MemberMeta {
@@ -250,7 +252,11 @@ export default {
         : json({ error: 'method_not_allowed' }, 405, { allow: 'POST' });
     }
 
-    const isDashboardRoute = url.pathname === '/' || url.pathname === '/api/state' || url.pathname === '/api/members';
+    const isDashboardRoute =
+      url.pathname === '/' ||
+      url.pathname === '/api/state' ||
+      url.pathname === '/api/members' ||
+      url.pathname === '/api/automation';
     if (!isDashboardRoute) return json({ error: 'not_found' }, 404);
     if (!(await dashboardAuthorized(request, env))) return new Response('Unauthorized', UNAUTHORIZED);
 
@@ -265,6 +271,7 @@ export default {
       });
     }
     if (url.pathname === '/api/state' && request.method === 'GET') return handleState(env);
+    if (url.pathname === '/api/automation' && request.method === 'GET') return handleAutomation(env);
     if (url.pathname === '/api/members' && request.method === 'POST') return handleMember(request, url, env);
     return json({ error: 'method_not_allowed' }, 405);
   },
