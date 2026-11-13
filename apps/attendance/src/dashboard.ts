@@ -410,6 +410,8 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
     }
     var lastPage = Math.max(0, Math.ceil(items.length / limit) - 1);
     var page = Math.max(0, Math.min(pagePositions.get(id) || 0, lastPage));
+    var focusedIndex = kind === 'forms' ? items.findIndex(function (item) { return item.contains(document.activeElement); }) : -1;
+    if (focusedIndex >= 0) page = Math.floor(focusedIndex / limit);
     pagePositions.set(id, page);
     var start = page * limit;
     items.forEach(function (item, index) { item.hidden = index < start || index >= start + limit; });
@@ -640,6 +642,7 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
       var response = await fetch('/api/members', {
         method: 'POST',
         credentials: 'same-origin',
+        signal: AbortSignal.timeout(POLL_MS),
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ uid: uid, name: name }),
       });
@@ -660,10 +663,11 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
       refresh();
     } catch (error) {
       message.className = 'form-message warn';
-      message.textContent = '연결하지 못했습니다. 연결 상태를 확인한 뒤 다시 등록해 주세요.';
+      message.textContent = '등록 결과를 확인하지 못했습니다. 목록을 갱신해 등록 여부를 확인한 뒤 다시 시도해 주세요.';
       button.disabled = false;
       input.disabled = false;
       button.textContent = '다시 등록';
+      refresh();
     } finally {
       form.setAttribute('aria-busy', 'false');
     }
@@ -672,11 +676,11 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
   async function refresh() {
     if (refreshing) return;
     refreshing = true;
-    document.getElementById('refresh').disabled = true;
-    document.getElementById('retry').disabled = true;
+    document.getElementById('refresh').setAttribute('aria-busy', 'true');
+    document.getElementById('retry').setAttribute('aria-busy', 'true');
     document.getElementById('refresh').textContent = '갱신 중';
     try {
-      var response = await fetch('/api/state', { cache: 'no-store', credentials: 'same-origin' });
+      var response = await fetch('/api/state', { cache: 'no-store', credentials: 'same-origin', signal: AbortSignal.timeout(POLL_MS) });
       if (!response.ok) throw new Error(String(response.status));
       var state = await response.json();
       serverOffset = state.now - Date.now();
@@ -714,8 +718,8 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
       tick();
     } finally {
       refreshing = false;
-      document.getElementById('refresh').disabled = false;
-      document.getElementById('retry').disabled = false;
+      document.getElementById('refresh').setAttribute('aria-busy', 'false');
+      document.getElementById('retry').setAttribute('aria-busy', 'false');
       document.getElementById('refresh').textContent = '새로고침';
     }
   }

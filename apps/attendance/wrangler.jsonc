@@ -6,6 +6,6 @@
   "workers_dev": false,
   "preview_urls": false,
   "observability": { "enabled": true },
-  // id는 첫 배포 때 wrangler가 네임스페이스를 만들고 기록합니다.
-  "kv_namespaces": [{ "binding": "ATTENDANCE" }],
+  // 기존 운영 네임스페이스를 재사용합니다. 새 네임스페이스로 치환하지 않습니다.
+  "kv_namespaces": [{ "binding": "ATTENDANCE", "id": "2cc47a111f334c4ea99deb2435263e00" }],
 }
