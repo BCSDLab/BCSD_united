@@ -3,7 +3,13 @@ import test from 'node:test';
 import { createViewer } from '../src/viewer.ts';
 import { getAutomationResult, handleAutomation } from '../src/automation.ts';
 
-const worker = createViewer('<main>private viewer</main>');
+const worker = createViewer('<main>private viewer</main>', {
+  fetch: async (url, init) => {
+    assert.equal(url, 'https://bcsd-attendance-auth.koreatech.in/v1/members/attendance-session');
+    assert.equal(new Headers(init.headers).get('authorization'), 'Bearer a.b.c');
+    return Response.json({ memberId: '42', name: '홍길동', expiresAt: Date.now() + 899_000 });
+  },
+});
 const context = { access: { aud: 'test-private-audience' } };
 
 const NOW = Date.UTC(2026, 10, 13, 12);
@@ -27,6 +33,8 @@ const json = (value) => Response.json(value);
 const binding = (fetch) => ({ fetch });
 const env = (fetch) => ({
   CF_ACCESS_AUD: 'test-private-audience',
+  INTERNAL_AUTH_CLIENT_ID: 'isolated-monitor-client',
+  INTERNAL_AUTH_CLIENT_SECRET: 'isolated-monitor-secret',
   ERROR_AUTOMATION: binding(fetch),
   ERROR_MONITOR_TOKEN: TOKEN,
   DASHBOARD_PASSWORD: 'secret',
@@ -41,7 +49,9 @@ const env = (fetch) => ({
   ),
 });
 const request = (headers = {}, path = '/api/automation') =>
-  new Request('https://attendance.example' + path, { headers });
+  new Request('https://attendance.example' + path, {
+    headers: { cookie: '__Host-attendance-session=a.b.c', ...headers },
+  });
 
 test('platform Access context, not client headers, authorizes the independent monitor route', async (t) => {
   t.mock.method(Date, 'now', () => NOW);
@@ -77,8 +87,61 @@ test('platform Access context, not client headers, authorizes the independent mo
   assert.equal(response.status, 200);
   assert.equal(response.headers.get('cache-control'), 'private, no-store');
   assert.equal(response.headers.get('x-bcsd-view-mode'), 'live-automation-read-only');
-  assert.equal((await response.json()).state, 'ok');
+  const result = await response.json();
+  assert.equal(result.state, 'ok');
+  assert.equal(result.servedAt, NOW);
   assert.equal(calls, 2);
+});
+
+test('live monitor reads remain independent of absent, missing, stale, malformed, or unavailable Pi snapshots', async (t) => {
+  t.mock.method(Date, 'now', () => NOW);
+  const stale = {
+    version: 1,
+    observedAt: NOW - 300_001,
+    publishedAt: NOW,
+    payloads: Object.fromEntries(
+      ['/api/state', '/api/monitor', '/api/koin-health', '/api/worker-health', '/api/spotify', '/api/jam'].map(
+        (path) => [path, { status: 200, body: {} }],
+      ),
+    ),
+    assets: {
+      '/api/wifi-qr/2.4':
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6t8sAAAAASUVORK5CYII=',
+      '/api/wifi-qr/5': 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6t8sAAAAASUVORK5CYII=',
+    },
+  };
+  let reads = 0;
+  const namespace = (value) => ({
+    async get() {
+      reads++;
+      if (value instanceof Error) throw value;
+      return value === null ? null : new TextEncoder().encode(JSON.stringify(value)).buffer;
+    },
+  });
+  for (const VIEW_STATE of [
+    undefined,
+    namespace(null),
+    namespace(stale),
+    namespace({ ...stale, payloads: {} }),
+    namespace(new Error('private-kv-detail')),
+  ]) {
+    let calls = 0;
+    const workerEnv = {
+      ...env(async (url) => {
+        calls++;
+        return json(url.endsWith('/rocky') ? rockySnapshot() : snapshot());
+      }),
+      VIEW_STATE,
+    };
+    const response = await worker.fetch(request(), workerEnv, context);
+    assert.equal(response.status, 200);
+    const result = await response.json();
+    assert.equal(result.state, 'ok');
+    assert.equal(result.rocky.state, 'ok');
+    assert.equal(result.servedAt, NOW);
+    assert.equal(calls, 2);
+  }
+  assert.equal(reads, 0);
 });
 
 test('fixed service binding, HTTPS path, private token, and no redirect follow', async () => {
@@ -260,6 +323,7 @@ test('incoming issues and Rocky health fail independently without fabricating co
     assert.equal(response.status, 200);
     assert.equal(result.state, failed === 'ingress' ? 'unknown' : 'ok');
     assert.equal(result.rocky.state, failed === 'rocky' ? 'unknown' : 'ok');
+    assert.equal(result.servedAt, NOW);
     if (failed === 'ingress') {
       assert.equal(result.data, null);
       assert.equal(result.rocky.data.cpu.usagePercent, 12.5);

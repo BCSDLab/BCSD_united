@@ -1,6 +1,13 @@
 import { handleAutomation, type AutomationEnv } from './automation.ts';
+import {
+  createInternalAuth,
+  type InternalAuth,
+  type InternalAuthEnv,
+  type InternalAuthOptions,
+} from './internal-auth.ts';
 
 export type Env = AutomationEnv &
+  InternalAuthEnv &
   Partial<Pick<Cloudflare.Env, 'VIEW_STATE'>> & {
     CF_ACCESS_AUD?: string;
   };
@@ -41,7 +48,7 @@ const READ_PATHS: Record<string, true> = {
   '/api/jam-qr': true,
 };
 const CSP =
-  "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data: https://i.scdn.co https://mosaic.scdn.co; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+  "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data: blob: https://i.scdn.co https://mosaic.scdn.co; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
 const encoder = new TextEncoder();
 const decoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: false });
 
@@ -190,7 +197,7 @@ function failure(status: number, error: string, snapshot?: Snapshot, allow?: str
   return new Response(JSON.stringify({ error, mode: 'hosted_snapshot' }), { status, headers: responseHeaders });
 }
 
-function events(request: Request, env: Env, initial: Snapshot, deadline: number): Response {
+function events(request: Request, env: Env, initial: Snapshot, deadline: number, auth: InternalAuth): Response {
   let ended = false;
   let poll: ReturnType<typeof setTimeout>;
   let lifetime: ReturnType<typeof setTimeout>;
@@ -211,7 +218,20 @@ function events(request: Request, env: Env, initial: Snapshot, deadline: number)
   const emit = (event: string, body: unknown) =>
     output.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(body)}\n\n`));
   const check = async () => {
+    if (ended || Date.now() >= deadline) {
+      stop(true);
+      return;
+    }
+    const verification = await auth.verify(request);
     if (ended) return;
+    if (!verification.ok || Date.now() >= deadline || Date.now() >= verification.session.expiresAt) {
+      stop(true);
+      return;
+    }
+    // 갱신된 자격의 만료 시각도 기존 스트림 수명을 늘리지 못한다.
+    deadline = Math.min(deadline, verification.session.expiresAt);
+    clearTimeout(lifetime);
+    lifetime = setTimeout(() => stop(true), Math.max(0, deadline - Date.now()));
     const result = await loadSnapshot(env);
     if (ended) return;
     if (Date.now() >= deadline) {
@@ -238,7 +258,7 @@ function events(request: Request, env: Env, initial: Snapshot, deadline: number)
     start(controller) {
       output = controller;
       request.signal.addEventListener('abort', clientLeft, { once: true });
-      if (request.signal.aborted) {
+      if (request.signal.aborted || Date.now() >= deadline) {
         stop(true);
         return;
       }
@@ -258,16 +278,16 @@ function events(request: Request, env: Env, initial: Snapshot, deadline: number)
 }
 
 /** 기존 LAN 템플릿으로 빌드한 HTML이며 Worker Static Assets는 사용하지 않는다. */
-export function createViewer(html: string) {
+export function createViewer(html: string, authOptions: InternalAuthOptions = {}) {
   return {
     async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
       const deadline = Date.now() + STREAM_MS;
       const url = new URL(request.url);
-      // 카메라·관리자·인증·쓰기 경로는 원격으로 중계하지 않는다.
-      if (!Object.hasOwn(READ_PATHS, url.pathname)) return failure(404, 'not_found');
-      if (request.method !== 'GET' && !(url.pathname === '/' && request.method === 'HEAD')) {
-        return failure(405, 'method_not_allowed', undefined, url.pathname === '/' ? 'GET, HEAD' : 'GET');
-      }
+      // 원격 인증은 두 경로의 전용 브리지로만 수행하고 관리·출결 쓰기는 노출하지 않는다.
+      const authRoute = url.pathname === '/api/login' || url.pathname === '/api/me' || url.pathname === '/api/logout';
+      if (!authRoute && !Object.hasOwn(READ_PATHS, url.pathname)) return failure(404, 'not_found');
+      const allowed = url.pathname === '/' ? 'GET, HEAD' : authRoute && url.pathname !== '/api/me' ? 'POST' : 'GET';
+      if (!allowed.split(', ').includes(request.method)) return failure(405, 'method_not_allowed', undefined, allowed);
       if (request.url.includes('?') || url.hash) return failure(400, 'query_not_allowed');
       if (
         typeof env.CF_ACCESS_AUD !== 'string' ||
@@ -280,24 +300,45 @@ export function createViewer(html: string) {
       // 플랫폼 인증만 신뢰하고 클라이언트 헤더·쿠키를 권한으로 해석하지 않는다.
       if (!ctx?.access || ctx.access.aud !== env.CF_ACCESS_AUD) return failure(403, 'access_required');
       if (request.signal.aborted) return failure(499, 'client_closed');
-      if (url.pathname === '/api/automation') {
-        const response = await handleAutomation(env);
+      const auth = createInternalAuth(env, authOptions);
+      if (authRoute) {
+        const response = await (url.pathname === '/api/login'
+          ? auth.login(request)
+          : url.pathname === '/api/logout'
+            ? auth.logout(request)
+            : auth.me(request));
         for (const [name, value] of headers('application/json; charset=utf-8')) response.headers.set(name, value);
-        response.headers.set('x-bcsd-view-mode', 'live-automation-read-only');
         return response;
       }
       if (url.pathname === '/') {
         return new Response(request.method === 'HEAD' ? null : html, { headers: headers('text/html; charset=utf-8') });
       }
+      const verification = await auth.verify(request);
+      if (!verification.ok) {
+        for (const [name, value] of headers('application/json; charset=utf-8'))
+          verification.response.headers.set(name, value);
+        return verification.response;
+      }
+      if (Date.now() >= verification.session.expiresAt) return failure(401, 'authentication_required');
+      if (url.pathname === '/api/automation') {
+        const response = await handleAutomation(env);
+        if (Date.now() >= verification.session.expiresAt) return failure(401, 'authentication_required');
+        for (const [name, value] of headers('application/json; charset=utf-8')) response.headers.set(name, value);
+        response.headers.set('x-bcsd-view-mode', 'live-automation-read-only');
+        return response;
+      }
       const result = await loadSnapshot(env);
+      if (Date.now() >= verification.session.expiresAt) return failure(401, 'authentication_required');
       if (url.pathname === '/api/view-status') {
         const snapshot = result.snapshot;
+        const servedAt = Date.now();
         return new Response(
           JSON.stringify({
             available: !result.error,
             observedAt: snapshot?.observedAt ?? null,
             publishedAt: snapshot?.publishedAt ?? null,
-            ageMs: snapshot ? Date.now() - snapshot.observedAt : null,
+            servedAt,
+            ageMs: snapshot ? servedAt - snapshot.observedAt : null,
           }),
           {
             status: result.error ? 503 : 200,
@@ -309,7 +350,7 @@ export function createViewer(html: string) {
       const snapshot = result.snapshot;
       if (url.pathname === '/api/events') {
         if (Date.now() >= deadline) return failure(503, 'snapshot_unavailable');
-        return events(request, env, snapshot, deadline);
+        return events(request, env, snapshot, Math.min(deadline, verification.session.expiresAt), auth);
       }
       if (url.pathname === '/health') {
         return new Response(

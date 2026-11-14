@@ -6,10 +6,11 @@
   "workers_dev": true,
   "preview_urls": false,
   "observability": { "enabled": true },
-  // 운영 플랫폼 Access audience 등 외부 관리 vars를 보존합니다.
+  "build": { "command": "node scripts/build-viewer.mjs" },
+  // 플랫폼 Access audience 등 외부 관리 vars를 보존합니다.
   "keep_vars": true,
-  "rules": [{ "type": "Text", "globs": ["**/*.html"], "fallthrough": true }],
-  // 원본 출입 원장 KV는 삭제·치환하지 않으며 뷰어는 별도 스냅샷만 읽습니다.
+  "rules": [{ "type": "Text", "globs": ["**/*.html"], "fallthrough": false }],
+  // 출입 원장 KV는 변경·삭제하지 않으며 별도 스냅샷만 읽습니다.
   "kv_namespaces": [{ "binding": "VIEW_STATE", "id": "b519a98db46d4b088baee97a256bf0f0" }],
   "services": [{ "binding": "ERROR_AUTOMATION", "service": "bcsd-error-automation" }],
 }

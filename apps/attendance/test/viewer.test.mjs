@@ -2,7 +2,13 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createViewer } from '../src/viewer.ts';
 
-const worker = createViewer('<main>readonly snapshot viewer</main>');
+const worker = createViewer('<main>readonly snapshot viewer</main>', {
+  fetch: async (url, init) => {
+    assert.equal(url, 'https://bcsd-attendance-auth.koreatech.in/v1/members/attendance-session');
+    assert.equal(new Headers(init.headers).get('authorization'), 'Bearer a.b.c');
+    return Response.json({ memberId: '42', name: '홍길동', expiresAt: Date.now() + 899_000 });
+  },
+});
 const NOW = Date.UTC(2026, 10, 14, 1);
 const context = { access: { aud: 'private-app' } };
 const paths = ['/api/state', '/api/monitor', '/api/koin-health', '/api/worker-health', '/api/spotify', '/api/jam'];
@@ -20,6 +26,8 @@ function harness(value) {
   let reads = 0;
   const env = {
     CF_ACCESS_AUD: 'private-app',
+    INTERNAL_AUTH_CLIENT_ID: 'isolated-viewer-client',
+    INTERNAL_AUTH_CLIENT_SECRET: 'isolated-viewer-secret',
     VIEW_STATE: {
       async get(key, format) {
         reads++;
@@ -30,7 +38,14 @@ function harness(value) {
     },
   };
   const request = (path, options = {}, ctx = context) =>
-    worker.fetch(new Request('https://viewer.example' + path, options), env, ctx);
+    worker.fetch(
+      new Request('https://viewer.example' + path, {
+        ...options,
+        headers: { cookie: '__Host-attendance-session=a.b.c', ...options.headers },
+      }),
+      env,
+      ctx,
+    );
   return { env, request, reads: () => reads };
 }
 
@@ -47,7 +62,7 @@ test('the viewer rejects client-asserted authentication and mutations without re
     403,
   );
   assert.equal((await h.request('/api/state', {}, { access: { aud: 'other-app' } })).status, 403);
-  for (const path of ['/api/taps', '/api/members', '/api/login', '/api/logout', '/api/camera'])
+  for (const path of ['/api/taps', '/api/members', '/api/camera'])
     assert.equal((await h.request(path, { method: 'POST' })).status, 404);
   assert.equal((await h.request('/api/state', { method: 'POST' })).status, 405);
   assert.equal((await h.request('/api/state?url=https://attacker.example')).status, 400);
@@ -81,6 +96,7 @@ test('missing, malformed and stale Pi snapshots fail closed while independent au
     const result = await monitor.json();
     assert.equal(result.state, 'unknown');
     assert.equal(result.data, null);
+    assert.equal(result.servedAt, NOW);
     assert.equal(result.rocky.state, 'unknown');
     assert.equal(h.reads(), before);
   }
