@@ -152,18 +152,30 @@ const monitorStyles = `
  .monitor-status { font-size:20px; }
 }
 @media (min-width:1000px) and (min-aspect-ratio:3/2) {
- .monitor-view { flex:1; min-height:0; gap:clamp(8px,1vh,14px); grid-template-rows:auto auto auto auto minmax(0,1fr); overflow:hidden; }
+ .monitor-view { flex:1; min-height:0; gap:clamp(8px,1vh,14px); grid-template-rows:auto auto auto auto minmax(0,1fr); }
  .monitor-title { flex-wrap:nowrap; gap:16px; }
  .monitor-heading { gap:12px; }
  .monitor-cards { gap:clamp(12px,1.2vw,24px); }
- .monitor-node.panel { overflow:hidden; }
+ .monitor-node.panel { min-height:0; }
  .koin-service-name, .monitor-node h4 { font-size:clamp(32px,3.1vh,38px); }
  .monitor-value { font-size:clamp(58px,5.4vh,72px); }
  .monitor-health { font-size:clamp(22px,2.1vh,26px); }
  .monitor-node.panel { padding:clamp(10px,1.4vh,22px); gap:clamp(6px,.9vh,14px); }
  .monitor-node-time { padding-top:4px; }
+ .monitor-graph { height:0; min-height:0; flex:1 1 0; }
+ .monitor-graph-axis, .monitor-node-time { flex-shrink:0; }
 }
 @media (min-width:1000px) and (min-aspect-ratio:3/2) and (max-height:800px) {
+ .monitor-view { grid-template-columns:minmax(0,1fr) minmax(0,1fr); grid-template-rows:auto auto auto minmax(0,1fr); gap:6px 12px; }
+ .monitor-heading, .monitor-section-heading, .monitor-cards { grid-column:1 / -1; }
+ .monitor-paths { grid-template-columns:minmax(0,1fr); gap:4px; align-content:start; }
+ .koin-services { gap:8px; }
+ .monitor-node.panel { padding:8px 10px; gap:5px; }
+ .monitor-node-title { gap:4px 8px; }
+ .monitor-node-heading { min-height:0; }
+ .monitor-metrics { gap:8px; }
+ .monitor-value-note { margin-top:2px; font-size:14px; }
+ .monitor-node-time { line-height:1.25; }
  .monitor-heading h2 { font-size:28px; }
  .monitor-description { font-size:16px; }
  .monitor-status { padding:7px 12px; font-size:20px; }

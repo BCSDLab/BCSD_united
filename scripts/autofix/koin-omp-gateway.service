@@ -14,6 +14,8 @@ Environment=HOME=/home/user/.home-butler/koin-omp-gateway
 Environment=OMP_AUTH_BROKER_URL=http://127.0.0.1:8766
 Environment=PATH=/home/user/.local/bin:/usr/local/bin:/usr/bin:/bin
 Environment=OMP_GATEWAY_TOKEN_FILE=/home/user/.home-butler/koin-omp-gateway/omp-gateway.token
+# 선택 사항: 먼저 homebutler 소유의 0700 디렉터리에 모델 토큰과 다른 0600 모니터 토큰을 마련한다.
+# Environment=OMP_GATEWAY_MONITOR_TOKEN_FILE=/home/user/.home-butler/koin-omp-gateway/monitor.token
 Environment=OMP_GATEWAY_PORT=43129
 ExecStart=/usr/bin/node /usr/local/lib/koin-autofix/local-omp-gateway.mjs
 NoNewPrivileges=yes

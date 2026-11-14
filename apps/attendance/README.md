@@ -1,4 +1,4 @@
-# 출근부 (attendance)
+# 비공개 출근부 스냅샷·자동화 모니터
 
 Pi의 Python 리더·LAN 서버가 학번을 Internal 회원과 대조하고 SQLite에 입퇴실을 저장합니다. Worker는 별도 KV 스냅샷을 제공하는 읽기 전용 원격 화면입니다. Worker VPC binding, Basic 비밀번호, UID 수동 등록은 사용하지 않습니다.
 
@@ -26,22 +26,26 @@ flowchart LR
 
 - 해당 Worker의 모든 URL을 Cloudflare Access로 보호하고 조직 Gateway를 필수로 요구합니다. 일반 소비자 WARP나 클라이언트가 보낸 인증 헤더는 허용 근거가 아닙니다.
 - Worker는 플랫폼의 `ctx.access.aud`를 실제 `CF_ACCESS_AUD`와 비교합니다. 인증되지 않은 별도 호스트·서비스 호출은 데이터를 읽지 못합니다.
-- 회원 자격은 Access의 IdP·권한 정책에서 강제해야 합니다. 이메일 문자열 일치나 별도 Keycloak 계정 존재만으로 Internal 회원 자격을 추정하지 않습니다.
+- 회원 자격은 실제 Internal 학번·비밀번호 로그인과 매 요청의 `/v1/members/attendance-session` 검증으로 확인합니다. 이메일 일치, 회원 조회 성공, 별도 Keycloak 계정만으로 로그인 자격을 추정하지 않습니다.
+- Internal의 15분 access token은 `Secure; HttpOnly; SameSite=Strict`의 `__Host-attendance-session` 쿠키에만 보관하며 JSON·브라우저 저장소에 전달하지 않습니다. 계정 비활성화·탈퇴·비밀번호 변경·만료는 다음 검증에서 차단하고 화면의 비공개 상태를 지웁니다.
+- Worker는 고정된 `https://bcsd-attendance-auth.koreatech.in`의 로그인·세션 두 경로만 호출합니다. 전용 Cloudflare 서비스 토큰과 터널의 Access JWT 검증을 사용하며 일반 Internal API·관리자 경로는 공개하지 않습니다.
 - 원격 화면은 기본 180초 간격 스냅샷이며 KV의 지역별 반영 지연이 추가됩니다. 체류 시간·지표는 실제 관측 시각에 고정하고 스냅샷임을 표시합니다. LAN의 즉시 갱신과 다릅니다.
 - 관측 후 5분 초과, 필수 데이터 누락·손상, 인증·연결 실패 시 과거 수치를 현재처럼 연장하지 않고 사용 불가로 처리합니다.
 - `VIEW_STATE`의 `clubroom:view:v1`만 조회합니다. 기존 `ATTENDANCE` KV 데이터는 보존하며 자동으로 병합·이관·삭제하지 않습니다.
 - 서버 응답·관측 시각, 검증된 Wi-Fi PNG, 설정된 실제 Jam PNG만 게시합니다. 카메라·토큰·원본 태그 큐·원장 파일은 게시하지 않습니다.
 
-| Worker 경로                                                  | 용도                                   |
-| ------------------------------------------------------------ | -------------------------------------- |
-| `GET /`, `HEAD /`                                            | 실제 LAN 템플릿 기반 원격 화면         |
-| `GET /api/view-status`, `/health`                            | 스냅샷 가용성·관측 시각                |
-| `GET /api/state`                                             | 출근부 조회                            |
-| `GET /api/monitor`, `/api/koin-health`, `/api/worker-health` | 실제 서버·서비스 관측 응답             |
-| `GET /api/spotify`, `/api/jam`                               | 관측 당시 재생 정보·실제 Jam 설정 여부 |
-| `GET /api/wifi-qr/2.4`, `/api/wifi-qr/5`, `/api/jam-qr`      | 스냅샷에 존재하는 검증된 PNG           |
+| Worker 경로                                                  | 용도                                      |
+| ------------------------------------------------------------ | ----------------------------------------- |
+| `GET /`, `HEAD /`                                            | 실제 LAN 템플릿 기반 원격 화면            |
+| `POST /api/login`, `GET /api/me`, `POST /api/logout`         | Internal 로그인·세션 확인·자기 쿠키 종료  |
+| `GET /api/view-status`, `/health`                            | 스냅샷 가용성·관측 시각                   |
+| `GET /api/state`                                             | 출근부 조회                               |
+| `GET /api/monitor`, `/api/koin-health`, `/api/worker-health` | 실제 서버·서비스 관측 응답                |
+| `GET /api/spotify`, `/api/jam`                               | 관측 당시 재생 정보·실제 Jam 설정 여부    |
+| `GET /api/wifi-qr/2.4`, `/api/wifi-qr/5`, `/api/jam-qr`      | 스냅샷에 존재하는 검증된 PNG              |
+| `GET /api/automation`                                        | Pi 스냅샷과 독립적인 오류 수신·Rocky 상태 |
 
-Worker의 태그·등록·로그인·관리자·카메라 쓰기 경로는 제공하지 않습니다. 원격 화면에서 출입 원장을 변경할 수 없습니다.
+Worker의 태그·등록·관리자·카메라 쓰기 경로는 제공하지 않습니다. 로그인·로그아웃은 조회 세션만 변경하며 원격 화면에서 출입 원장을 변경할 수 없습니다.
 
 ## Worker 빌드·배포
 
@@ -57,9 +61,23 @@ Worker 검사는 Node.js 24에서 실행합니다. `test:runtime`은 POSIX 파�
 
 빌드는 설치된 `tsx`로 LAN 렌더러를 실행해 `.wrangler/viewer/dashboard.html`을 생성합니다. Worker는 이 파일을 Text 모듈로 가져오며 별도 Static Assets 인증 우회 경로를 만들지 않습니다.
 
-`wrangler.jsonc`에는 실제 별도 KV ID와 해당 Access 앱의 audience를 설정합니다. 조직 Gateway·회원 자격 정책이 적용되기 전에는 `workers_dev`를 활성화하지 않습니다. 미리보기 URL은 비활성 상태를 유지합니다. 리소스를 삭제하거나 기존 KV ID를 새 데이터로 덮어쓰지 않습니다.
+`wrangler.jsonc`에는 실제 별도 KV ID와 service binding을 설정합니다. 운영의 `CF_ACCESS_AUD`는 별도 환경 변수로 관리하고 `keep_vars: true`로 보존합니다. 조직 Gateway·회원 자격 정책이 적용되기 전에는 `workers_dev`를 활성화하지 않습니다. 미리보기 URL은 비활성 상태를 유지하며 원장 KV를 삭제하거나 덮어쓰지 않습니다.
+
+`INTERNAL_AUTH_CLIENT_ID`, `INTERNAL_AUTH_CLIENT_SECRET`은 인증 중계 앱 한 곳만 허용하는 전용 서비스 토큰으로 설정합니다. 기존 기기·lookup·monitor·관리자 토큰이나 Internal의 JWT 서명 키를 재사용하지 않습니다. 자격증명·비밀번호·원본 인증 응답을 Git이나 로그에 기록하지 않습니다. 인증 중계가 없거나 검증에 실패하면 데이터를 제공하지 않습니다.
 
 로컬 `wrangler dev`에서는 실제 플랫폼 인증이 없으면 실패합니다. 인증 개발 설정은 로컬 프로세스에만 적용하고 운영에서 클라이언트 헤더로 인증을 흉내 내지 않습니다.
+
+## 오류 수신·Rocky 읽기 전용 모니터
+
+- `ERROR_AUTOMATION` service binding으로 고정된 `bcsd-error-automation`의 `/healthz`와 `/healthz/rocky`를 병렬 조회합니다. Pi 스냅샷이 없어도 이 조회는 독립적으로 동작합니다.
+- `ERROR_MONITOR_TOKEN`은 두 Worker만 공유하는 신규 전용 secret입니다. 브라우저·Pi에는 전달하지 않으며 기기·대시보드·실행기·진단·모델 토큰과 재사용하지 않습니다.
+- 수신 요약은 Sentry/Cloudflare 최근 24시간의 고유 오류 등록 건수·최근 신규 등록 시각·최대 10개 처리 상태입니다. 건수는 목록 제한과 독립적으로 계산하며 중복 전달량이 아닙니다. PR 리뷰 작업과 미사용 `koin-api` 기록은 제외합니다.
+- Rocky는 error-automation이 기존 `OMP_GATEWAY` VPC와 `koin-omp-gateway-rocky` 터널의 고정 healthz를 별도 `OMP_GATEWAY_MONITOR_TOKEN`으로 읽습니다. 이 호스트 토큰은 출근부가 받지 않습니다.
+- CPU는 Linux `/proc/stat` 두 표본의 busy 비율, RAM은 `MemTotal − MemAvailable`입니다. 실행기·브로커의 서비스·프로세스 상태와 브로커 HTTP 응답·모델 정상 여부를 구분합니다. 모델 생성·작업 claim·GitHub 작업은 수행하지 않습니다.
+- 최상위 `state`/`data`는 수신 요약이고 `rocky.state`/`rocky.data`는 호스트 관측입니다. 실패는 해당 결과의 unknown/null이며 실제 빈 저장소만 0건입니다. 측정 실패 CPU/RAM도 null입니다.
+- 60초마다 조회하며 서버 조회별 5초·16 KiB·리다이렉트 거절·UTF-8·120초 신선도 검사를 적용합니다. `servedAt`과 단조 시계로 화면의 확인 기한을 계산하므로 키오스크 벽시계에 의존하지 않습니다.
+- 연결 실패·오프라인·숨김·기한 초과는 미확인으로 표시하고 마지막 관측은 과거 기록으로 구분합니다. Pi 스냅샷 표시가 중단돼도 독립 모니터는 표시합니다.
+- 오류 전문·프롬프트·소스·로그·원본 provider ID·lease·자격 증명은 반환하지 않습니다. 상세 호스트 설정은 [게이트웨이 운영 계약](../../scripts/autofix/README.md#rocky-읽기-전용-헬스-활성화)을 따릅니다.
 
 ## 스냅샷 게시기
 

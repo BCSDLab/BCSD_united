@@ -6,8 +6,11 @@
     "build": "node scripts/build-viewer.mjs",
     "dev": "wrangler dev",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --experimental-strip-types --test test/worker.test.mjs",
+    "test": "node --experimental-strip-types --test test/*.test.mjs",
     "test:runtime": "python3 -m unittest discover -s pi -p test_*.py && python3 -m unittest discover -s lan -p test_*.py && python3 -m unittest discover -s snapshot -p test_*.py",
     "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "@koin/telemetry": "workspace:*"
   }
 }

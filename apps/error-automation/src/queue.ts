@@ -1,4 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
+import { parseErrorMonitorSnapshot, type ErrorMonitorSnapshot } from '@koin/telemetry/monitor';
 import { autoMergePullRequest, type AutoMergeOutcome } from './auto-merge';
 import { prepare } from './prepare';
 import { redact } from './index';
@@ -71,7 +72,7 @@ const INPUT_OVERHEAD_TOKENS = 1024;
 const MAX_PENDING = 100;
 const encoder = new TextEncoder();
 
-type Status = 'queued' | 'preparing' | 'leased' | 'verifying' | 'reporting' | 'publishing' | 'completed' | 'failed';
+type Status = ErrorMonitorSnapshot['recent'][number]['status'];
 interface Row extends Record<string, SqlStorageValue> {
   run_id: string;
   identity_key: string;
@@ -90,6 +91,19 @@ interface Row extends Record<string, SqlStorageValue> {
   model_started_at: number | null;
   model_input_tokens: number;
   model_output_tokens: number;
+}
+
+interface MonitorRow extends Record<string, SqlStorageValue> {
+  run_id: string | null;
+  source: 'sentry' | 'cloudflare' | null;
+  app: 'web' | 'api' | null;
+  status: Status | null;
+  enqueued_at: number | null;
+  sentry_count: number;
+  sentry_latest_at: number | null;
+  cloudflare_count: number;
+  cloudflare_latest_at: number | null;
+  invalid_count: number;
 }
 export interface Claim {
   version: 1;
@@ -246,6 +260,88 @@ export class AutofixQueue extends DurableObject<Env> {
         ctx.storage.sql.exec(`ALTER TABLE jobs ADD COLUMN ${column} INTEGER NOT NULL DEFAULT 0`);
     if (!columns.has('reason')) ctx.storage.sql.exec('ALTER TABLE jobs ADD COLUMN reason TEXT');
     if (columns.has('issue_number')) ctx.storage.sql.exec('ALTER TABLE jobs DROP COLUMN issue_number');
+  }
+
+  /** 처음 등록된 오류 identity만 집계한다. 조회는 만료 처리·알람·작업 상태를 건드리지 않는다. */
+  monitorSnapshot(now: number): ErrorMonitorSnapshot {
+    if (!Number.isSafeInteger(now) || now < 24 * 60 * 60_000) throw new Error('Invalid monitor time');
+    const windowStart = now - 24 * 60 * 60_000;
+    const rows = this.ctx.storage.sql
+      .exec<MonitorRow>(
+        `WITH registered AS (
+          SELECT run_id, status, enqueued_at,
+            json_extract(identity, '$.source') AS source,
+            json_extract(identity, '$.app') AS app,
+            json_extract(identity, '$.scope.workerName') AS worker_name,
+            json_type(identity, '$.scope.workerName') AS worker_type
+          FROM jobs
+          WHERE enqueued_at BETWEEN ? AND ?
+            AND (identity_key LIKE 'sentry/%' OR identity_key LIKE 'cloudflare/%')
+        ), classified AS (
+          SELECT *,
+            CASE WHEN source = 'sentry' AND app = 'web' THEN 0
+                 WHEN source = 'cloudflare' AND app IN ('web', 'api') AND worker_type = 'text' AND worker_name != '' THEN 0
+                 ELSE 1 END AS invalid
+          FROM registered
+        ), eligible AS (
+          SELECT run_id, source, app, status, enqueued_at, invalid
+          FROM classified
+          WHERE invalid = 1 OR source = 'sentry' OR worker_name != 'koin-api'
+        ), totals AS (
+          SELECT count(CASE WHEN source = 'sentry' THEN 1 END) AS sentry_count,
+            max(CASE WHEN source = 'sentry' THEN enqueued_at END) AS sentry_latest_at,
+            count(CASE WHEN source = 'cloudflare' THEN 1 END) AS cloudflare_count,
+            max(CASE WHEN source = 'cloudflare' THEN enqueued_at END) AS cloudflare_latest_at,
+            coalesce(sum(invalid), 0) AS invalid_count
+          FROM eligible
+        ), recent AS (
+          SELECT run_id, source, app, status, enqueued_at
+          FROM eligible
+          ORDER BY enqueued_at DESC, run_id DESC
+          LIMIT 10
+        )
+        SELECT recent.*, totals.*
+        FROM totals LEFT JOIN recent ON 1 = 1
+        ORDER BY recent.enqueued_at DESC, recent.run_id DESC`,
+        windowStart,
+        now,
+      )
+      .toArray();
+    const snapshot: ErrorMonitorSnapshot = {
+      version: 1,
+      scope: 'ingress-only',
+      checkedAt: now,
+      windowStart,
+      worker: 'responding',
+      sources: {
+        sentry: { count: 0, latestAt: null },
+        cloudflare: { count: 0, latestAt: null },
+      },
+      recent: [],
+    };
+    const totals = rows[0];
+    if (totals.invalid_count !== 0) throw new Error('Invalid monitor identity');
+    snapshot.sources.sentry = { count: totals.sentry_count, latestAt: totals.sentry_latest_at };
+    snapshot.sources.cloudflare = { count: totals.cloudflare_count, latestAt: totals.cloudflare_latest_at };
+    for (const row of rows) {
+      if (row.run_id === null) continue;
+      if (
+        (row.source !== 'sentry' && row.source !== 'cloudflare') ||
+        row.app === null ||
+        row.status === null ||
+        row.enqueued_at === null
+      )
+        throw new Error('Invalid monitor identity');
+      snapshot.recent.push({
+        id: row.run_id,
+        source: row.source,
+        app: row.app,
+        registeredAt: row.enqueued_at,
+        status: row.status,
+      });
+    }
+    if (!parseErrorMonitorSnapshot(snapshot, now)) throw new Error('Invalid monitor snapshot');
+    return snapshot;
   }
 
   private async admit(

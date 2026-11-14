@@ -4,6 +4,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./monitor": "./src/monitor.ts",
     "./runtime": {
       "workerd": "./src/worker.ts",
       "browser": "./src/browser.ts",

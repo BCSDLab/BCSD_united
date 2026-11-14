@@ -8,6 +8,12 @@ import { buildViewer } from '../scripts/build-viewer.mjs';
 
 const AUD = 'isolated-viewer-test-audience';
 const ctx = { access: { aud: AUD } };
+const SESSION_TOKEN = 'a.b.c';
+const SESSION_COOKIE = `__Host-attendance-session=${SESSION_TOKEN}`;
+const AUTH_ENV = {
+  INTERNAL_AUTH_CLIENT_ID: 'isolated-viewer-client',
+  INTERNAL_AUTH_CLIENT_SECRET: 'isolated-viewer-secret',
+};
 const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aTyoAAAAASUVORK5CYII=';
 const jsonPaths = ['/api/state', '/api/monitor', '/api/koin-health', '/api/worker-health', '/api/spotify', '/api/jam'];
 const paths = [
@@ -16,6 +22,7 @@ const paths = [
   '/api/events',
   '/api/view-status',
   ...jsonPaths,
+  '/api/automation',
   '/api/wifi-qr/2.4',
   '/api/wifi-qr/5',
   '/api/jam-qr',
@@ -27,7 +34,13 @@ before(async () => {
   });
   directory = await mkdtemp(join(tmpdir(), 'attendance-viewer-'));
   html = await readFile(await buildViewer(join(directory, 'dashboard.html')), 'utf8');
-  worker = createViewer(html);
+  worker = createViewer(html, {
+    fetch: async (url, init) => {
+      assert.equal(url, 'https://bcsd-attendance-auth.koreatech.in/v1/members/attendance-session');
+      assert.equal(new Headers(init.headers).get('authorization'), `Bearer ${SESSION_TOKEN}`);
+      return Response.json({ memberId: '42', name: '홍길동', expiresAt: Date.now() + 899_000 });
+    },
+  });
 });
 after(async () => {
   mock.restoreAll();
@@ -64,10 +77,17 @@ function environment(value = snapshot()) {
         : new TextEncoder().encode(this.raw).buffer;
     },
   };
-  return { store, CF_ACCESS_AUD: AUD, VIEW_STATE: store };
+  return { store, CF_ACCESS_AUD: AUD, VIEW_STATE: store, ...AUTH_ENV };
 }
 function get(env, path = '/api/state', context = ctx, options = {}) {
-  return worker.fetch(new Request(`https://attendance.example${path}`, options), env, context);
+  return worker.fetch(
+    new Request(`https://attendance.example${path}`, {
+      ...options,
+      headers: { cookie: SESSION_COOKIE, ...options.headers },
+    }),
+    env,
+    context,
+  );
 }
 function assertPrivate(response) {
   assert.equal(response.headers.get('cache-control'), 'private, no-store');
@@ -75,7 +95,9 @@ function assertPrivate(response) {
   assert.equal(response.headers.get('x-frame-options'), 'DENY');
   assert.equal(response.headers.get('x-bcsd-view-mode'), 'eventually-consistent-snapshot');
   assert.ok(response.headers.get('content-security-policy').includes("frame-ancestors 'none'"));
-  for (const name of ['set-cookie', 'location', 'access-control-allow-origin'])
+  assert.match(response.headers.get('content-security-policy'), /img-src [^;]*\bblob:/);
+  assert.match(response.headers.get('content-security-policy'), /connect-src 'self';/);
+  for (const name of ['set-cookie', 'location', 'access-control-allow-origin', 'www-authenticate'])
     assert.equal(response.headers.get(name), null);
 }
 
@@ -123,7 +145,7 @@ test('missing dedicated namespace/audience fails closed and legacy attendance KV
     assert.equal((await get(env)).status, 503);
     assert.equal(env.store.reads, 0);
   }
-  const legacy = { ATTENDANCE: environment().store, CF_ACCESS_AUD: AUD };
+  const legacy = { ATTENDANCE: environment().store, CF_ACCESS_AUD: AUD, ...AUTH_ENV };
   assert.equal((await get(legacy)).status, 503);
   assert.equal(legacy.ATTENDANCE.reads, 0);
 });
@@ -186,6 +208,7 @@ test('view status exposes only actual snapshot availability/timestamps and fails
     observedAt: value.observedAt,
     publishedAt: value.publishedAt,
     ageMs: 1000,
+    servedAt: now,
   });
   t.mock.timers.tick(300_001);
   const stale = await get(env, '/api/view-status');
@@ -195,12 +218,19 @@ test('view status exposes only actual snapshot availability/timestamps and fails
     observedAt: value.observedAt,
     publishedAt: value.publishedAt,
     ageMs: 301001,
+    servedAt: now + 300_001,
   });
   assert.equal(stale.headers.get('x-bcsd-snapshot-observed-at'), String(value.observedAt));
   env.store.raw = null;
   const missing = await get(env, '/api/view-status');
   assert.equal(missing.status, 503);
-  assert.deepEqual(await missing.json(), { available: false, observedAt: null, publishedAt: null, ageMs: null });
+  assert.deepEqual(await missing.json(), {
+    available: false,
+    observedAt: null,
+    publishedAt: null,
+    ageMs: null,
+    servedAt: now + 300_001,
+  });
   assert.equal(missing.headers.get('x-bcsd-snapshot-observed-at'), null);
   env.VIEW_STATE = undefined;
   assert.equal((await get(env, '/')).status, 200);
@@ -210,10 +240,7 @@ test('view status exposes only actual snapshot availability/timestamps and fails
 test('camera/auth/admin/writes/arbitrary paths/queries and non-root HEAD never read KV', async () => {
   const env = environment();
   for (const path of [
-    '/api/login',
-    '/api/logout',
     '/api/taps',
-    '/api/me',
     '/api/members',
     '/api/admin',
     '/api/camera',
@@ -246,7 +273,7 @@ test('client auth/cookies/forwarding/conditional headers cannot select data or b
   const response = await get(env, '/api/state', ctx, {
     headers: {
       authorization: 'Bearer private',
-      cookie: 'private-cookie',
+      cookie: `${SESSION_COOKIE}; private-cookie=value`,
       'cf-access-jwt-assertion': 'private-assertion',
       origin: 'https://attacker.example',
       host: 'attacker.example',
@@ -440,4 +467,273 @@ test('client disconnect cancels SSE timers and prevents any subsequent KV read',
   assert.equal(env.store.reads, 1);
   assert.equal((await get(env, '/api/events', ctx, { signal: client.signal })).status, 499);
   assert.equal(env.store.reads, 1);
+});
+
+test('native platform context gates all auth endpoints before any Internal or data calls', async () => {
+  let upstream = 0;
+  const guarded = createViewer(html, {
+    fetch: async () => {
+      upstream++;
+      throw new Error('unexpected transport');
+    },
+  });
+  const env = environment();
+  for (const path of ['/api/login', '/api/me', '/api/logout']) {
+    const mutation = path !== '/api/me';
+    const response = await guarded.fetch(
+      new Request(`https://attendance.example${path}`, {
+        method: mutation ? 'POST' : 'GET',
+        headers: {
+          cookie: SESSION_COOKIE,
+          authorization: 'Basic attacker',
+          origin: 'https://attendance.example',
+          'content-type': 'application/json',
+        },
+        body: mutation ? '{}' : undefined,
+      }),
+      env,
+      {},
+    );
+    assert.equal(response.status, 403);
+    assertPrivate(response);
+  }
+  assert.equal(upstream, 0);
+  assert.equal(env.store.reads, 0);
+});
+
+test('login, live me and local logout preserve private response headers without exposing JWTs or reading KV', async () => {
+  const seen = [];
+  const expiresAt = Date.now() + 800_000;
+  const guarded = createViewer(html, {
+    fetch: async (url, init) => {
+      seen.push(url);
+      if (url.endsWith('/attendance-login')) {
+        assert.deepEqual(JSON.parse(init.body), { studentNumber: '20231234', password: 'isolated password' });
+        return Response.json({ accessToken: SESSION_TOKEN, tokenType: 'Bearer', expiresIn: 900 });
+      }
+      assert.equal(new Headers(init.headers).get('authorization'), `Bearer ${SESSION_TOKEN}`);
+      return Response.json({ memberId: '42', name: '홍길동', expiresAt });
+    },
+  });
+  const env = environment();
+  const send = (path, body) =>
+    guarded.fetch(
+      new Request(`https://attendance.example${path}`, {
+        method: body ? 'POST' : 'GET',
+        headers: { cookie: SESSION_COOKIE, origin: 'https://attendance.example', 'content-type': 'application/json' },
+        body: body ? JSON.stringify(body) : undefined,
+      }),
+      env,
+      ctx,
+    );
+  for (const response of [
+    await send('/api/login', { studentNumber: '20231234', password: 'isolated password' }),
+    await send('/api/me'),
+  ]) {
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.deepEqual(Object.keys(body).sort(), ['authenticated', 'expiresAt', 'memberId', 'name', 'servedAt']);
+    assert.equal(body.authenticated, true);
+    assert.equal(body.expiresAt, expiresAt);
+    assert.equal(body.memberId, '42');
+    assert.equal(body.name, '홍길동');
+    assert.equal(typeof body.servedAt, 'number');
+    assert.equal(response.headers.get('www-authenticate'), null);
+    assert.equal(response.headers.get('cache-control'), 'private, no-store');
+    assert.ok(response.headers.get('content-security-policy'));
+  }
+  const logout = await send('/api/logout', {});
+  assert.equal(logout.status, 200);
+  assert.match(logout.headers.get('set-cookie'), /Max-Age=0/);
+  assert.equal(seen.length, 3);
+  assert.ok(seen.every((url) => url.startsWith('https://bcsd-attendance-auth.koreatech.in/v1/')));
+  assert.equal(env.store.reads, 0);
+});
+
+test('all private Pi and automation routes require live Internal membership before KV or service reads', async () => {
+  for (const status of [401, 503]) {
+    let authReads = 0;
+    let serviceReads = 0;
+    const guarded = createViewer(html, {
+      fetch: async (url) => {
+        assert.equal(url, 'https://bcsd-attendance-auth.koreatech.in/v1/members/attendance-session');
+        authReads++;
+        return new Response(null, { status });
+      },
+    });
+    const env = environment();
+    env.ERROR_AUTOMATION = {
+      fetch: async () => {
+        serviceReads++;
+        throw new Error('must not read');
+      },
+    };
+    env.ERROR_MONITOR_TOKEN = 'm'.repeat(32);
+    for (const path of paths.filter((path) => path !== '/')) {
+      const response = await guarded.fetch(
+        new Request(`https://attendance.example${path}`, {
+          headers: { cookie: SESSION_COOKIE },
+        }),
+        env,
+        ctx,
+      );
+      assert.equal(response.status, status, path);
+      assert.equal(response.headers.get('www-authenticate'), null);
+    }
+    assert.equal(authReads, paths.length - 1);
+    assert.equal(env.store.reads, 0);
+    assert.equal(serviceReads, 0);
+  }
+  const env = environment();
+  for (const path of paths.filter((path) => path !== '/')) {
+    const response = await worker.fetch(
+      new Request(`https://attendance.example${path}`, {
+        headers: { authorization: 'Basic attacker', cookie: 'CF_Authorization=forged' },
+      }),
+      env,
+      ctx,
+    );
+    assert.equal(response.status, 401, path);
+  }
+  assert.equal(env.store.reads, 0);
+});
+
+test('static root and HEAD never validate membership or read private data, even without machine secrets', async () => {
+  const guarded = createViewer('<main>login shell</main>', {
+    fetch: async () => assert.fail('root must not call Internal'),
+  });
+  const env = environment();
+  delete env.INTERNAL_AUTH_CLIENT_ID;
+  delete env.INTERNAL_AUTH_CLIENT_SECRET;
+  for (const method of ['GET', 'HEAD']) {
+    const response = await guarded.fetch(new Request('https://attendance.example/', { method }), env, ctx);
+    assert.equal(response.status, 200);
+    assert.equal(await response.text(), method === 'GET' ? '<main>login shell</main>' : '');
+  }
+  assert.equal(env.store.reads, 0);
+});
+
+test('pending membership validation cannot race ahead into snapshot reads', async () => {
+  const entered = Promise.withResolvers();
+  const validation = Promise.withResolvers();
+  const guarded = createViewer(html, {
+    fetch: async () => {
+      entered.resolve();
+      return validation.promise;
+    },
+  });
+  const env = environment();
+  const pending = guarded.fetch(
+    new Request('https://attendance.example/api/state', { headers: { cookie: SESSION_COOKIE } }),
+    env,
+    ctx,
+  );
+  await entered.promise;
+  assert.equal(env.store.reads, 0);
+  validation.resolve(Response.json({ memberId: '42', name: '홍길동', expiresAt: Date.now() + 899_000 }));
+  assert.equal((await pending).status, 200);
+  assert.equal(env.store.reads, 1);
+});
+
+test('SSE revalidates current membership before each poll and stops revoked sessions before KV reads', async (t) => {
+  const now = 1_800_000_000_000;
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now });
+  let authReads = 0;
+  const guarded = createViewer(html, {
+    fetch: async () => {
+      authReads++;
+      return authReads === 1
+        ? Response.json({ memberId: '42', name: '홍길동', expiresAt: now + 899_000 })
+        : new Response(null, { status: 401 });
+    },
+  });
+  const env = environment(snapshot(now));
+  const response = await guarded.fetch(
+    new Request('https://attendance.example/api/events', { headers: { cookie: SESSION_COOKIE } }),
+    env,
+    ctx,
+  );
+  const reader = response.body.getReader();
+  await reader.read();
+  const closed = reader.read();
+  t.mock.timers.tick(10_000);
+  assert.equal((await closed).done, true);
+  assert.equal(authReads, 2);
+  assert.equal(env.store.reads, 1);
+  t.mock.timers.tick(120_000);
+  assert.equal(authReads, 2);
+  assert.equal(env.store.reads, 1);
+});
+
+test('SSE closes at Internal expiry even when unread and without another private read', async (t) => {
+  const now = 1_800_000_000_000;
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now });
+  let authReads = 0;
+  const guarded = createViewer(html, {
+    fetch: async () => {
+      authReads++;
+      return Response.json({ memberId: '42', name: '홍길동', expiresAt: now + 5_000 });
+    },
+  });
+  const env = environment(snapshot(now));
+  const response = await guarded.fetch(
+    new Request('https://attendance.example/api/events', { headers: { cookie: SESSION_COOKIE } }),
+    env,
+    ctx,
+  );
+  t.mock.timers.tick(5_000);
+  assert.match(await response.text(), /^event: state/);
+  t.mock.timers.tick(120_000);
+  assert.equal(authReads, 1);
+  assert.equal(env.store.reads, 1);
+});
+
+test('a snapshot finishing after session expiry never returns its private payload', async (t) => {
+  const now = 1_800_000_000_000;
+  t.mock.timers.enable({ apis: ['Date'], now });
+  const guarded = createViewer(html, {
+    fetch: async () => Response.json({ memberId: '42', name: '홍길동', expiresAt: now + 1_000 }),
+  });
+  const env = environment(snapshot(now));
+  env.store.get = async () => {
+    t.mock.timers.tick(1_000);
+    return new TextEncoder().encode(JSON.stringify(snapshot(now))).buffer;
+  };
+  const response = await guarded.fetch(
+    new Request('https://attendance.example/api/state', { headers: { cookie: SESSION_COOKIE } }),
+    env,
+    ctx,
+  );
+  assert.equal(response.status, 401);
+  assert.equal((await response.json()).error, 'authentication_required');
+});
+
+test('SSE revalidation can shorten but never extend the original expiry before the next KV read', async (t) => {
+  const now = 1_800_000_000_000;
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now });
+  let authReads = 0;
+  const guarded = createViewer(html, {
+    fetch: async () => {
+      authReads++;
+      return Response.json({ memberId: '42', name: '홍길동', expiresAt: now + (authReads === 1 ? 50_000 : 12_000) });
+    },
+  });
+  const env = environment(snapshot(now));
+  const response = await guarded.fetch(
+    new Request('https://attendance.example/api/events', { headers: { cookie: SESSION_COOKIE } }),
+    env,
+    ctx,
+  );
+  const reader = response.body.getReader();
+  await reader.read();
+  const ping = reader.read();
+  t.mock.timers.tick(10_000);
+  assert.equal(new TextDecoder().decode((await ping).value), 'event: ping\ndata: {}\n\n');
+  assert.equal(env.store.reads, 2);
+  const closed = reader.read();
+  t.mock.timers.tick(2_000);
+  assert.equal((await closed).done, true);
+  t.mock.timers.tick(120_000);
+  assert.equal(authReads, 2);
+  assert.equal(env.store.reads, 2);
 });

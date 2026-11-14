@@ -7,10 +7,10 @@
   "preview_urls": false,
   "observability": { "enabled": true },
   "build": { "command": "node scripts/build-viewer.mjs" },
+  // 플랫폼 Access audience 등 외부 관리 vars를 보존합니다.
+  "keep_vars": true,
   "rules": [{ "type": "Text", "globs": ["**/*.html"], "fallthrough": false }],
-  "vars": {
-    "CF_ACCESS_AUD": "4f972354a71d1fd312ab4081d44c59d6d698ea529672ba1c2140c49958e520e8",
-  },
-  // 원장 KV는 변경·삭제하지 않으며 이 바인딩은 별도 읽기 전용 스냅샷용입니다.
+  // 출입 원장 KV는 변경·삭제하지 않으며 별도 스냅샷만 읽습니다.
   "kv_namespaces": [{ "binding": "VIEW_STATE", "id": "b519a98db46d4b088baee97a256bf0f0" }],
+  "services": [{ "binding": "ERROR_AUTOMATION", "service": "bcsd-error-automation" }],
 }

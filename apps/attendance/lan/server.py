@@ -575,7 +575,7 @@ class Attendance:
         return result, changed
 
     def prune_guest_taps(self, now):
-        # Entries hold only (expiry, random identity, last accepted arrival).
+        # 프로세스 메모리에는 만료 시각과 무작위 식별자만 유지한다.
         while self.guest_taps and next(iter(self.guest_taps.values()))[0] <= now:
             self.guest_taps.popitem(last=False)
 
