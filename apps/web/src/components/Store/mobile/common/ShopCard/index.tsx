@@ -58,7 +58,7 @@ export default function ShopCard({
     <button type="button" onClick={handleShopCardClick} data-testid={`shopCard-${shopId}`} className={styles.card}>
       {!isOpen && (
         <div className={styles.card__closed}>
-          <div className={styles['card__closed-text']}>영업이 종료된 가게에요!</div>
+          <div className={styles['card__closed-text']}>지금은 영업시간이 아니에요</div>
         </div>
       )}
 
