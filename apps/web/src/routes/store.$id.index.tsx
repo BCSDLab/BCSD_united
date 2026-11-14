@@ -34,6 +34,7 @@ import { isomorphicSessionStorage } from 'utils/ts/env';
 import getDayOfWeek from 'utils/ts/getDayOfWeek';
 import getElapsedSeconds from 'utils/ts/getElapsedSeconds';
 import { isNotFoundKoinError } from 'utils/ts/isr';
+import { parseQueryId } from 'utils/ts/parseServerSideParams';
 import showToast from 'utils/ts/showToast';
 
 import styles from 'pages/store/StoreDetailPage.module.scss';
@@ -473,7 +474,7 @@ const loadPage = definePageLoad(async ({ params, queryClient }, cacheControl, se
   const { isLoggedIn } = serverRequest;
 
   const storeId = params.id;
-  if (!storeId) {
+  if (parseQueryId(storeId) === null) {
     throw notFound();
   }
 

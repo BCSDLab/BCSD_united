@@ -14,6 +14,7 @@ import { SSRLayout } from 'components/layout';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
 import { ARTICLE_DETAIL_ISR_REVALIDATE_SECONDS, isNotFoundKoinError, withStaticFetchRetry } from 'utils/ts/isr';
+import { parseQueryId } from 'utils/ts/parseServerSideParams';
 
 function ArticlesDetailPage({ article, hotArticles }: { article: ArticleResponseWithNew; hotArticles?: HotArticle[] }) {
   return (
@@ -35,7 +36,7 @@ function ArticlesDetailPage({ article, hotArticles }: { article: ArticleResponse
 
 const loadPage = definePageLoad(async ({ params }, cacheControl, serverRequest) => {
   const { id } = params;
-  if (!id) {
+  if (parseQueryId(id) === null) {
     cacheControl.enablePublicCache(
       `public, s-maxage=${ARTICLE_DETAIL_ISR_REVALIDATE_SECONDS}, stale-while-revalidate=300`,
     );

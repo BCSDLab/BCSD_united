@@ -26,13 +26,17 @@ function rewriteCookie(cookie: string): string {
 }
 
 async function forward({ request }: { request: Request }): Promise<Response> {
+  const url = new URL(request.url);
+  // 라우터는 경로를 디코딩해 매칭하므로 원본 API 접두사도 확인한 뒤 upstream 경로를 만든다.
+  if (url.pathname !== API_PREFIX && !url.pathname.startsWith(`${API_PREFIX}/`)) {
+    return new Response('Not found.', { status: 404 });
+  }
   let base: string;
   try {
     base = getApiBaseUrl();
   } catch {
     return new Response('API origin is not configured for this environment.', { status: 503 });
   }
-  const url = new URL(request.url);
   const suffix = `${url.pathname.slice(API_PREFIX.length)}${url.search}`;
   const headers = new Headers();
   for (const name of FORWARDED_REQUEST_HEADERS) {

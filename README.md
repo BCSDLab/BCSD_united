@@ -73,9 +73,13 @@ pnpm build
 
 웹은 `KOIN_API_ORIGIN`으로 Java API를 호출합니다. 운영은 `https://api.koreatech.in`, Preview와 로컬은 `https://api.stage.koreatech.in`입니다. stage API가 발급하는 `__Secure-koin-stage-web-*` 쿠키 이름 같은 stage 전용 값은 빌드 상수 `NEXT_PUBLIC_KOIN_ENVIRONMENT`로 고릅니다. Workers Builds의 `KOIN_PREVIEW_BRANCH` 빌드와 로컬 개발 서버는 `preview`, 나머지 빌드는 `main`입니다.
 
+운영 `koreatech.in`과 stage `stage.koreatech.in`의 HTTP 요청과 비표준 HTTPS 포트 요청은 SSR·Java API 호출 전에 경로와 쿼리를 보존한 기본 HTTPS Origin(443)의 308로 이동합니다. 로컬 개발 서버의 `http://localhost:3000`은 그대로 사용합니다. Java API의 Origin 허용 목록을 우회하거나 웹 요청의 Origin을 임의로 바꾸지 않습니다.
+
 stage는 검색 색인에서 뺍니다. `KOIN_ENVIRONMENT`가 `main`이 아닌 Worker는 SSR 응답에, stage 빌드는 `_headers`로 정적 자산에 `X-Robots-Tag: noindex, nofollow`를 붙입니다. 크롤러가 이 헤더를 읽어야 기존 색인이 지워지므로 stage `robots.txt`는 크롤링을 허용하고 sitemap은 만들지 않습니다. 봇은 [별도 안내](apps/b-bot/README.md)를 따릅니다.
 
 익명 SSR 페이지의 공개 캐시 정책은 nginx 공유 캐시에 적용됩니다. 공유 캐시된 HTML의 렌더 시각은 오래될 수 있으며, 브라우저 화면 이동은 캐시되지 않은 세션 응답의 서버 시각으로 기준을 맞춥니다.
+
+API gateway는 원문 `/api` 접두사를 검증하며 인코딩된 다른 접두사는 404로 거부합니다. 게시글·분실물·상점 상세 URL의 ID는 양의 안전한 정수여야 합니다. 없는 분실물이나 다른 게시판 글의 ID는 404로 응답하며, 회원가입·비밀번호 찾기 URL에는 등록된 진행 단계만 허용합니다.
 
 ### 레거시 Worker API 비활성화와 복원
 

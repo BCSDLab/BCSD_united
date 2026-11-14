@@ -1,5 +1,5 @@
 import { Suspense, useCallback, useEffect, useState } from 'react';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, notFound } from '@tanstack/react-router';
 import { FormProvider, useForm } from 'react-hook-form';
 
 import ChevronLeftIcon from 'assets/svg/Login/chevron-left.svg';
@@ -17,7 +17,7 @@ import Terms from 'components/Auth/SignupPage/Steps/Terms';
 import Verification from 'components/Auth/SignupPage/Steps/VerificationStep';
 import LoadingSpinner from 'components/feedback/LoadingSpinner';
 import { useSessionLogger } from 'utils/hooks/analytics/useSessionLogger';
-import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
+import useMediaQuery, { MOBILE_QUERY } from 'utils/hooks/layout/useMediaQuery';
 import showToast from 'utils/ts/showToast';
 
 import styles from 'pages/auth/signup/SignupPage.module.scss';
@@ -164,6 +164,14 @@ function SignupPage() {
 }
 
 export const Route = createFileRoute('/auth/signup/$id/')({
+  beforeLoad: ({ params, context }) => {
+    const isMobile =
+      typeof window === 'undefined'
+        ? context.serverRequest.device === 'mobile'
+        : window.matchMedia(MOBILE_QUERY).matches;
+    const steps = isMobile ? mobileSteps : desktopSteps;
+    if (!steps.includes(params.id as StepTitle)) throw notFound();
+  },
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   component: RouteComponent,
 });
