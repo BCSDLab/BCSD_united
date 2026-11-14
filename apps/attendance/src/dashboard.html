@@ -801,7 +801,9 @@
           overflow-y: auto;
           display: grid;
           grid-template-columns: minmax(0, 1.8fr) minmax(290px, 1fr);
-          grid-template-rows: auto minmax(335px, max-content) minmax(210px, max-content) minmax(260px, max-content) auto;
+          grid-template-rows:
+            auto minmax(335px, max-content) minmax(210px, max-content) minmax(260px, max-content)
+            auto;
           grid-template-areas: 'error error' 'hero hero' 'members summary' 'members wifi' 'sync sync';
           gap: 10px 12px;
         }
@@ -2293,7 +2295,10 @@
           var rowHeight = items.reduce(function (maximum, item) {
             return Math.max(maximum, item.getBoundingClientRect().height);
           }, 1);
-          limit = Math.max(1, Math.floor((viewport.clientHeight - header.getBoundingClientRect().height - 20) / rowHeight));
+          limit = Math.max(
+            1,
+            Math.floor((viewport.clientHeight - header.getBoundingClientRect().height - 20) / rowHeight),
+          );
         } else if (kind === 'cards') {
           var style = getComputedStyle(container);
           var gap = parseFloat(style.rowGap) || 0;
@@ -3913,9 +3918,7 @@
             const value = ingress.data && ingress.data.sources[name];
             text(
               'am-' + name,
-              (name === 'sentry' ? 'Sentry ' : 'Cloudflare ') +
-                prefix(ingress) +
-                (value ? value.count + '건' : '—'),
+              (name === 'sentry' ? 'Sentry ' : 'Cloudflare ') + prefix(ingress) + (value ? value.count + '건' : '—'),
             );
             text(
               'am-' + name + '-latest',
