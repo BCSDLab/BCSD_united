@@ -148,10 +148,18 @@ function harness(t) {
   // Module-level nativeFetch: several harnesses in one test must not chain or leak mocks.
   let mocked = false;
   const occurrenceHost = {};
-  const capturedEvidence = { stack: undefined, telemetryEventId: 'captured-error-event', scheme: 'https' };
+  const capturedEvidence = {
+    stack: undefined,
+    telemetryEventId: 'captured-error-event',
+    scheme: 'https',
+    mapMode: 'valid',
+    largeApiCompiled: null,
+  };
   const compiled = 'function handler() {}\n//# sourceMappingURL=handler.js.map';
   async function seedTail(workerName = 'koin-api', host = `${workerName}.bcsdlab.workers.dev`, sourceFormat = 'full') {
     occurrenceHost[workerName] = host;
+    if (sourceFormat === 'index')
+      capturedEvidence.largeApiCompiled = 'a'.repeat(4 * 1024 * 1024 + 1) + '\n//# sourceMappingURL=index.js.map';
     if (!mocked) {
       mocked = true;
       globalThis.fetch = async (input, init) => {
@@ -183,36 +191,65 @@ function harness(t) {
             ],
           });
         }
-        if (url.pathname.endsWith(`/versions/${cfVersion}`))
+        if (url.pathname.endsWith(`/versions/${cfVersion}`)) {
+          const project = url.pathname.includes('/workers/koin-api/') ? 'koin-api' : 'koin-web';
+          const bundleName =
+            project === 'koin-api' && capturedEvidence.largeApiCompiled ? 'index.js' : 'assets/handler.js';
+          const include = url.searchParams.get('include');
+          const sourceMap = JSON.stringify({
+            version: 3,
+            file: capturedEvidence.mapMode === 'wrong-bundle' ? 'other.js' : bundleName,
+            sources: [
+              capturedEvidence.mapMode === 'relative-two'
+                ? '../../src/handler.ts'
+                : capturedEvidence.mapMode === 'relative-parentheses'
+                  ? '../../../src/routes/(public)/index.tsx'
+                  : capturedEvidence.mapMode === 'relative-three'
+                    ? '../../../src/handler.ts'
+                    : capturedEvidence.mapMode === 'foreign'
+                      ? '../../../apps/api/src/handler.ts'
+                      : capturedEvidence.mapMode === 'escape'
+                        ? '../../../../src/handler.ts'
+                        : 'src/handler.ts',
+            ],
+            ...(capturedEvidence.largeApiCompiled
+              ? {
+                  sourcesContent: [
+                    'a'.repeat(
+                      capturedEvidence.mapMode === 'oversize-map' ? 16 * 1024 * 1024 + 1 : 4 * 1024 * 1024 + 1,
+                    ),
+                  ],
+                }
+              : {}),
+            names: [],
+            mappings: 'AAWE',
+          });
           return Response.json({
             success: true,
             result: {
-              id: cfVersion,
-              ...(url.searchParams.get('include') === 'modules'
+              id: capturedEvidence.mapMode === 'wrong-version' ? '22222222-2222-2222-2222-222222222222' : cfVersion,
+              ...(include === 'modules' || include === 'modules,sourcemaps'
                 ? {
-                    modules: [{ name: 'assets/handler.js', content_base64: Buffer.from(compiled).toString('base64') }],
+                    modules: [
+                      {
+                        name: bundleName,
+                        content_type: 'application/javascript+module',
+                        content_base64: Buffer.from(capturedEvidence.largeApiCompiled ?? compiled).toString('base64'),
+                      },
+                      ...(include !== 'modules,sourcemaps' || capturedEvidence.mapMode === 'missing'
+                        ? []
+                        : [
+                            {
+                              name: `${bundleName}.map`,
+                              content_type: 'application/source-map',
+                              content_base64: Buffer.from(sourceMap).toString('base64'),
+                            },
+                          ]),
+                    ],
                   }
                 : {}),
             },
           });
-        if (url.pathname.endsWith('/scripts/koin-web') && url.searchParams.get('deployment') === cfVersion) {
-          const parts = new FormData();
-          parts.set(
-            'assets/handler.js',
-            new Blob([compiled], { type: 'application/javascript+module' }),
-            'assets/handler.js',
-          );
-          parts.set(
-            'assets/handler.js.map',
-            JSON.stringify({
-              version: 3,
-              file: 'assets/handler.js',
-              sources: ['src/handler.ts'],
-              names: [],
-              mappings: 'AAWE',
-            }),
-          );
-          return new Response(parts);
         }
         if (url.pathname.endsWith('/telemetry/query')) {
           const query = JSON.parse(init.body);
@@ -261,7 +298,13 @@ function harness(t) {
           exceptions: [
             {
               name: 'TypeError',
-              stack: `TypeError: sensitive\n at handler (${sourceFormat === 'bundle' ? 'assets/handler.js:1:1' : `${sourceFormat === 'relative' ? 'src' : `apps/${app}/src`}/handler.ts:12:3`})`,
+              stack: `TypeError: sensitive\n at handler (${
+                sourceFormat === 'index'
+                  ? 'index.js:1:1'
+                  : sourceFormat === 'bundle'
+                    ? 'assets/handler.js:1:1'
+                    : `${sourceFormat === 'relative' ? 'src' : `apps/${app}/src`}/handler.ts:12:3`
+              })`,
             },
           ],
           logs: [],
@@ -276,7 +319,11 @@ function harness(t) {
     assert.equal(persisted.includes('sensitive'), false);
     assert.equal(
       JSON.parse(persisted).frames[0].path,
-      sourceFormat === 'bundle' ? 'assets/handler.js' : `apps/${app}/src/handler.ts`,
+      sourceFormat === 'index'
+        ? 'index.js'
+        : sourceFormat === 'bundle'
+          ? 'assets/handler.js'
+          : `apps/${app}/src/handler.ts`,
     );
     return true;
   }
@@ -749,6 +796,73 @@ test('bundled Tail locations require the pinned map before the production issue 
     { path: 'apps/web/src/handler.ts', line: 12, column: 3 },
   ]);
   assert.equal(h.queue.size, 1);
+});
+
+test('pinned Vite relative map paths resolve only into the approved app source', async (t) => {
+  const web = cloudflare({
+    data: { issue: { id: 'e'.repeat(32), services: [{ name: 'koin-web', type: 'worker' }] } },
+  });
+  for (const mapMode of ['relative-two', 'relative-three', 'relative-parentheses']) {
+    const h = harness(t);
+    h.capturedEvidence.mapMode = mapMode;
+    assert.equal(await h.seedTail('koin-web', 'koreatech.in', 'bundle'), true);
+    assert.equal((await h.send(cloudflareRequest(h, web))).status, 200);
+    assert.equal(h.queue.size, 1);
+    if (mapMode === 'relative-parentheses') {
+      const result = await h.send(
+        diagnosticRequest(h, {
+          id: 'e'.repeat(32),
+          query: `project=koin-web&accountId=${cfAccount}&policyId=${cfPolicy}&workerName=koin-web`,
+        }),
+      );
+      assert.deepEqual((await result.json()).details.verifiedEvidence.data.sourceFrames, [
+        { path: 'apps/web/src/routes/(public)/index.tsx', line: 12, column: 3 },
+      ]);
+    }
+  }
+  for (const mapMode of ['foreign', 'escape']) {
+    const h = harness(t);
+    h.capturedEvidence.mapMode = mapMode;
+    assert.equal(await h.seedTail('koin-web', 'koreatech.in', 'bundle'), true);
+    assert.equal((await h.send(cloudflareRequest(h, web))).status, 503);
+    assert.equal(h.queue.size, 0);
+  }
+});
+
+test('large pinned API bundle and source map admit only their mapped app frame', async (t) => {
+  const h = harness(t);
+  assert.equal(await h.seedTail('koin-api', 'koin-api.bcsdlab.workers.dev', 'index'), true);
+  assert.equal((await h.send(cloudflareRequest(h))).status, 200);
+  const result = await h.send(diagnosticRequest(h));
+  assert.deepEqual((await result.json()).details.verifiedEvidence.data.sourceFrames, [
+    { path: 'apps/api/src/handler.ts', line: 12, column: 3 },
+  ]);
+  assert.equal(h.queue.size, 1);
+});
+
+test('oversized pinned API bundle or map never admits a Cloudflare issue', async (t) => {
+  for (const mapMode of ['oversize-bundle', 'oversize-map']) {
+    const h = harness(t);
+    assert.equal(await h.seedTail('koin-api', 'koin-api.bcsdlab.workers.dev', 'index'), true);
+    h.capturedEvidence.mapMode = mapMode;
+    if (mapMode === 'oversize-bundle')
+      h.capturedEvidence.largeApiCompiled = 'a'.repeat(8 * 1024 * 1024 + 1) + '\n//# sourceMappingURL=index.js.map';
+    assert.equal((await h.send(cloudflareRequest(h))).status, 503);
+    assert.equal(h.queue.size, 0);
+  }
+});
+
+test('missing, mismatched or unrelated pinned maps reject a signed Cloudflare issue without enqueue', async (t) => {
+  const web = cloudflare({
+    data: { issue: { id: 'e'.repeat(32), services: [{ name: 'koin-web', type: 'worker' }] } },
+  });
+  for (const mapMode of ['missing', 'wrong-bundle', 'wrong-version']) {
+    const h = harness(t);
+    h.capturedEvidence.mapMode = mapMode;
+    assert.equal(await h.seedTail('koin-web', 'koreatech.in', 'bundle'), true);
+    assert.equal((await h.send(cloudflareRequest(h, web))).status, 503);
+    assert.equal(h.queue.size, 0);
+  }
 });
 
 test('historical canonical error recovers missing Tail only with the identical telemetry event and pinned source', async (t) => {

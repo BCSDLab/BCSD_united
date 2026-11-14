@@ -259,45 +259,43 @@ test('Tail resolves app-relative source-mapped frames without accepting foreign 
   }
 });
 
-function sourceMapFixture(
-  t,
-  { source = 'src/handler.ts', compiled, mapFile = 'assets/handler.js', duplicate = false } = {},
-) {
+function sourceMapFixture({ source = 'src/handler.ts', mapFile = 'assets/handler.js', duplicate = false } = {}) {
   const code = 'function handler() {}\n//# sourceMappingURL=handler.js.map';
+  const modules = [
+    {
+      name: 'assets/handler.js',
+      content_type: 'application/javascript+module',
+      content_base64: Buffer.from(code).toString('base64'),
+    },
+    {
+      name: 'assets/handler.js.map',
+      content_type: 'application/source-map',
+      content_base64: Buffer.from(
+        JSON.stringify({
+          version: 3,
+          file: mapFile,
+          sources: [source],
+          sourcesContent: ['private source content'],
+          names: [],
+          mappings: 'AAAA,GAEI',
+        }),
+      ).toString('base64'),
+    },
+  ];
+  if (duplicate) modules.push({ ...modules[1] });
   const version = {
     id: '11111111-1111-1111-1111-111111111111',
-    modules: [{ name: 'assets/handler.js', content_base64: Buffer.from(code).toString('base64') }],
+    modules,
   };
-  t.mock.method(globalThis, 'fetch', async () => {
-    const parts = new FormData();
-    parts.set(
-      'assets/handler.js',
-      new Blob([compiled ?? code], { type: 'application/javascript+module' }),
-      'assets/handler.js',
-    );
-    parts.set(
-      'assets/handler.js.map',
-      JSON.stringify({
-        version: 3,
-        file: mapFile,
-        sources: [source],
-        sourcesContent: ['private source content'],
-        names: [],
-        mappings: 'AAAA,GAEI',
-      }),
-    );
-    if (duplicate) parts.append('assets/handler.js.map', '{}');
-    return new Response(parts);
-  });
   return {
     version,
     map: (frames = [{ path: 'assets/handler.js', line: 1, column: 4 }]) =>
-      mappedTailFrames('koin-web', 'web', version.id, version, frames, 'scoped-read-token'),
+      mappedTailFrames('koin-web', 'web', version.id, version, frames),
   };
 }
 
-test('pinned bundle mapping preserves original line/column and exposes positions only', async (t) => {
-  const fixture = sourceMapFixture(t);
+test('pinned bundle mapping preserves original line/column and exposes positions only', async () => {
+  const fixture = sourceMapFixture();
   assert.deepEqual(await fixture.map(), [{ path: 'apps/web/src/handler.ts', line: 3, column: 5 }]);
   assert.deepEqual(
     await fixture.map([
@@ -311,30 +309,24 @@ test('pinned bundle mapping preserves original line/column and exposes positions
   );
 });
 
-test('source mapping never uses another version, different code, duplicate maps or foreign app sources', async (t) => {
+test('source mapping never uses another version, duplicate maps or foreign app sources', async (t) => {
   for (const options of [
-    { compiled: 'another deployment' },
     { mapFile: 'assets/other.js' },
     { duplicate: true },
     { source: 'apps/api/src/handler.ts' },
     { source: '../src/handler.ts' },
     { source: 'https://attacker.example/src/handler.ts' },
   ]) {
-    await t.test(JSON.stringify(options), async (child) => {
-      const fixture = sourceMapFixture(child, options);
+    await t.test(JSON.stringify(options), async () => {
+      const fixture = sourceMapFixture(options);
       await assert.rejects(fixture.map());
     });
   }
-  const fixture = sourceMapFixture(t);
+  const fixture = sourceMapFixture();
   await assert.rejects(
-    mappedTailFrames(
-      'koin-web',
-      'web',
-      '22222222-2222-2222-2222-222222222222',
-      fixture.version,
-      [{ path: 'assets/handler.js', line: 1, column: 4 }],
-      'scoped-read-token',
-    ),
+    mappedTailFrames('koin-web', 'web', '22222222-2222-2222-2222-222222222222', fixture.version, [
+      { path: 'assets/handler.js', line: 1, column: 4 },
+    ]),
   );
 });
 
@@ -431,14 +423,29 @@ test('trusted Sentry evidence requires browser SDK, safe host route, and real in
   assert.equal(safe.data.exceptions[0].frames[0].filename, 'src/utils/value.ts');
   assert.equal(JSON.stringify(safe.data).includes('hidden'), false);
   assert.equal(JSON.stringify(safe.data).includes('private'), false);
+  // Vite 클라이언트 엔트리·asset의 상대 소스 경로는 Sentry 기본 업로드에서도 보존된다.
+  const sourceFrame = event.entries[1].data.values[0].stacktrace.frames[0];
+  for (const filename of ['apps/web/src/utils/value.ts', '../../src/utils/value.ts', '../../../src/utils/value.ts']) {
+    sourceFrame.filename = filename;
+    const mapped = await trustedDiagnostics(env, identity, stored);
+    assert.equal(mapped.data.exceptions[0].frames[0].filename, 'src/utils/value.ts');
+  }
+  sourceFrame.filename = 'src/utils/value.ts';
   event.sdk.name = 'sentry.javascript.cloudflare';
   await assert.rejects(trustedDiagnostics(env, identity, stored), /identity mismatch/);
   event.sdk.name = 'sentry.javascript.react';
   event.entries[0].data.url = 'https://evil.example/auth';
   await assert.rejects(trustedDiagnostics(env, identity, stored), /safe route/);
   event.entries[0].data.url = 'https://koreatech.in/auth';
-  event.entries[1].data.values[0].stacktrace.frames[0].filename = 'apps/api/src/index.ts';
-  await assert.rejects(trustedDiagnostics(env, identity, stored), /source frame/);
+  for (const filename of [
+    'apps/api/src/index.ts',
+    '../../../apps/api/src/index.ts',
+    '../../../../src/utils/value.ts',
+    '../src/utils/value.ts',
+  ]) {
+    sourceFrame.filename = filename;
+    await assert.rejects(trustedDiagnostics(env, identity, stored), /source frame/);
+  }
 });
 
 test('App mints exact single-repository role-scoped installation tokens', async (t) => {
