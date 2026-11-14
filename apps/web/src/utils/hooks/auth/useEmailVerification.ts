@@ -14,6 +14,7 @@ import { isKoinError } from 'interfaces/APIError';
 import type { InputMessage } from 'interfaces/InputMessage';
 import { MESSAGES, STORAGE_KEY } from 'static/auth';
 import ROUTES from 'static/routes';
+import useResendLock from 'utils/hooks/auth/useResendLock';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
 import { useSessionStorage } from 'utils/hooks/state/useWebStorage';
 import useCountdownTimer from 'utils/hooks/ui/useCountdownTimer';
@@ -54,6 +55,8 @@ function useEmailVerification({ email, onNext }: UseEmailVerificationProps) {
     },
   });
 
+  const { isResendLocked, markSent, withResendLock, resendButtonText } = useResendLock(email, isTimer, timerValue);
+
   const resetVerificationState = () => {
     disableButton();
     disableVerified();
@@ -66,7 +69,8 @@ function useEmailVerification({ email, onNext }: UseEmailVerificationProps) {
 
   const { mutate: sendVerificationEmail, isPending: isSendingVerification } = useMutation({
     mutationFn: verificationEmailSend,
-    onSuccess: ({ total_count, remaining_count, current_count }) => {
+    onSuccess: ({ total_count, remaining_count, current_count }, { email: sentEmail }) => {
+      markSent(sentEmail);
       setEmailMessage({ type: 'success', content: MESSAGES.EMAIL.CODE_SENT });
       runTimer();
       setEmailSendCountData({ total_count, remaining_count, current_count });
@@ -151,9 +155,11 @@ function useEmailVerification({ email, onNext }: UseEmailVerificationProps) {
 
   return {
     emailMessage,
-    checkEmailExists,
+    checkEmailExists: withResendLock(checkEmailExists),
     checkVerificationEmailVerify,
     isSendingVerification,
+    isResendLocked,
+    resendButtonText,
     findEmail,
     isDisabled,
     disableButton,

@@ -8,6 +8,7 @@ import { isKoinError } from 'interfaces/APIError';
 import type { InputMessage } from 'interfaces/InputMessage';
 import { MESSAGES, STORAGE_KEY } from 'static/auth';
 import ROUTES from 'static/routes';
+import useResendLock from 'utils/hooks/auth/useResendLock';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
 import { useSessionStorage } from 'utils/hooks/state/useWebStorage';
 import useCountdownTimer from 'utils/hooks/ui/useCountdownTimer';
@@ -53,9 +54,16 @@ function usePhoneVerificationInFindId({ phoneNumber, onNext }: UsePhoneVerificat
     },
   });
 
+  const { isResendLocked, markSent, withResendLock, resendButtonText } = useResendLock(
+    phoneNumber,
+    isTimer,
+    timerValue,
+  );
+
   const { mutate: sendVerificationSms } = useMutation({
     mutationFn: smsSend,
-    onSuccess: ({ total_count, remaining_count, current_count }) => {
+    onSuccess: ({ total_count, remaining_count, current_count }, { phone_number }) => {
+      markSent(phone_number);
       setPhoneMessage({ type: 'success', content: MESSAGES.PHONE.CODE_SENT });
       runTimer();
       setSmsSendCountData({ total_count, remaining_count, current_count });
@@ -113,7 +121,8 @@ function usePhoneVerificationInFindId({ phoneNumber, onNext }: UsePhoneVerificat
 
   const { mutate: sendSMSToUser } = useMutation({
     mutationFn: smsSend,
-    onSuccess: (data: SmsSendResponse) => {
+    onSuccess: (data: SmsSendResponse, { phone_number }) => {
+      markSent(phone_number);
       setPhoneMessage({ type: 'success', content: MESSAGES.PHONE.CODE_SENT });
       runTimer();
       setSmsSendCountData({
@@ -187,8 +196,10 @@ function usePhoneVerificationInFindId({ phoneNumber, onNext }: UsePhoneVerificat
 
   return {
     phoneMessage,
-    checkPhoneExists,
+    checkPhoneExists: withResendLock(checkPhoneExists),
     checkVerificationSmsVerify,
+    isResendLocked,
+    resendButtonText,
     findId,
     isDisabled,
     disableButton,
@@ -207,7 +218,7 @@ function usePhoneVerificationInFindId({ phoneNumber, onNext }: UsePhoneVerificat
     checkIdMatchPhone,
     idMessage,
     setIdMessage,
-    checkPhoneNumber,
+    checkPhoneNumber: withResendLock(checkPhoneNumber),
   };
 }
 

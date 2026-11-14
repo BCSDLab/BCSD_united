@@ -38,6 +38,8 @@ function MobileVerifyEmail({ onNext, setContactType }: MobileFindPasswordProps) 
     checkIdMatchEmail,
     idMessage,
     setIdMessage,
+    isResendLocked,
+    resendButtonText,
   } = useEmailVerification({ email, onNext });
 
   const onClickSendVerificationButton = () => {
@@ -104,8 +106,8 @@ function MobileVerifyEmail({ onNext, setContactType }: MobileFindPasswordProps) 
                   message={emailMessage}
                   isButton
                   disabled={isVerified}
-                  buttonText="인증번호 발송"
-                  buttonDisabled={!field.value || isDisabled || isVerified}
+                  buttonText={resendButtonText('인증번호 발송')}
+                  buttonDisabled={!field.value || isDisabled || isVerified || isResendLocked}
                   onChange={(e) => {
                     field.onChange(e);
                     setEmailMessage(null);

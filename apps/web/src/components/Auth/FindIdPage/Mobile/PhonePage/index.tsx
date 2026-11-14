@@ -40,6 +40,8 @@ function MobileFindIdPhonePage() {
     isTimer,
     timerValue,
     stopTimer,
+    isResendLocked,
+    resendButtonText,
   } = usePhoneVerificationInFindId({ phoneNumber });
 
   const isFormFilled = phoneNumber && verificationCode;
@@ -81,8 +83,8 @@ function MobileFindIdPhonePage() {
                   message={phoneMessage}
                   isButton
                   disabled={isVerified}
-                  buttonText="인증번호 발송"
-                  buttonDisabled={!field.value || isDisabled || isVerified}
+                  buttonText={resendButtonText('인증번호 발송')}
+                  buttonDisabled={!field.value || isDisabled || isVerified || isResendLocked}
                   buttonOnClick={() => checkPhoneExists({ phone_number: phoneNumber })}
                 >
                   {phoneMessage?.type === 'default' && (
