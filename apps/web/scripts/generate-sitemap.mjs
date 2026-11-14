@@ -3,9 +3,22 @@ import path from 'node:path';
 import ts from 'typescript';
 import { loadEnv } from 'vite';
 import { DEPARTMENT_CONTACT_CATEGORIES } from '../src/api/departmentContact/entity.ts';
+import config from '../sitemap.config.mjs';
+import { isStageBuild } from './build-target.mjs';
 
-Object.assign(process.env, loadEnv('production', process.cwd(), 'NEXT_PUBLIC_'));
-const { default: config } = await import('../sitemap.config.mjs');
+const target = 'dist/client';
+await mkdir(target, { recursive: true });
+if (isStageBuild(loadEnv('production', process.cwd(), ''))) {
+  // stage는 검색 색인에서 뺀다. 크롤러가 noindex를 읽어야 기존 색인이 지워지므로 robots.txt로 크롤링은 막지 않는다.
+  // _headers는 Worker를 거치지 않는 정적 자산에, server.ts는 SSR 응답에 같은 헤더를 붙인다.
+  await Promise.all([
+    writeFile(path.join(target, 'robots.txt'), 'User-agent: *\nAllow: /\n'),
+    writeFile(path.join(target, '_headers'), '/*\n  X-Robots-Tag: noindex, nofollow\n'),
+  ]);
+  process.stdout.write('Stage build: skipped sitemap and marked static assets noindex.\n');
+  process.exit(0);
+}
+
 const paths = new Set(DEPARTMENT_CONTACT_CATEGORIES.map((category) => `/department/${category}`));
 const directory = path.resolve('src/routes');
 for (const file of await readdir(directory)) {
@@ -71,8 +84,6 @@ const robots =
       ].join('\n'),
     )
     .join('\n\n') + `\n\nSitemap: ${siteUrl}/sitemap.xml\n`;
-const target = 'dist/client';
-await mkdir(target, { recursive: true });
 await Promise.all([
   writeFile(path.join(target, 'sitemap.xml'), index),
   writeFile(path.join(target, 'sitemap-0.xml'), sitemap),

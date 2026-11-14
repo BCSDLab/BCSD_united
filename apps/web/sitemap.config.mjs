@@ -1,11 +1,7 @@
 /**
- * 공개 페이지 sitemap과 robots.txt 설정.
- * 빌드 뒤 scripts/generate-sitemap.mjs가 정적 파일을 생성한다.
- * stage/prod 환경 분기는 NEXT_PUBLIC_API_PATH 에 'stage' 포함 여부로 판단 (src/static/url.ts 와 동일 규칙).
+ * 운영 공개 페이지 sitemap과 robots.txt 설정.
+ * 빌드 뒤 scripts/generate-sitemap.mjs가 정적 파일을 생성한다. stage 빌드는 이 설정을 쓰지 않는다.
  */
-
-const IS_STAGE = process.env.NEXT_PUBLIC_API_PATH?.includes('stage');
-const SITE_URL = IS_STAGE ? 'https://stage.koreatech.in' : 'https://koreatech.in';
 
 const PRIVATE_PATHS = [
   '/auth',
@@ -31,7 +27,7 @@ const PRIVATE_PATHS = [
 ];
 
 export default {
-  siteUrl: SITE_URL,
+  siteUrl: 'https://koreatech.in',
   generateRobotsTxt: true,
   sitemapSize: 5000,
   changefreq: 'daily',

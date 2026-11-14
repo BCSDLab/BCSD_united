@@ -1,0 +1,70 @@
+@use "src/utils/scss/order-palette" as palette;
+
+@keyframes shimmer {
+  0% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+@mixin bone {
+  border-radius: 4px;
+  background-color: palette.$neutral-200;
+  animation: shimmer 1.5s ease-in-out infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+// ShopCard(.card)의 크기·테두리를 따른다
+.card {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  overflow: hidden;
+  border: 0.5px solid palette.$neutral-200;
+  border-radius: 8px;
+  background-color: #fff;
+
+  &__thumbnail {
+    @include bone;
+
+    flex-shrink: 0;
+    width: 128px;
+    height: 128px;
+    border-radius: 8px;
+  }
+
+  &__info {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 8px;
+    padding-right: 64px;
+  }
+
+  &__name {
+    @include bone;
+
+    width: 100%;
+    max-width: 120px;
+    height: 20px;
+  }
+
+  &__rating {
+    @include bone;
+
+    width: 100%;
+    max-width: 96px;
+    height: 16px;
+  }
+}

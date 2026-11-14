@@ -7,6 +7,7 @@ import DesktopNotice from 'components/Order/DesktopNotice';
 import OrderCancelPage from 'components/Order/OrderCancelPage';
 import StoreMobileHeader from 'components/Store/mobile/common/StoreMobileHeader';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
+import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
 
 interface Props {
   isDesktop: boolean;
@@ -30,21 +31,22 @@ function OrderCancelRoute({ isDesktop, paymentId }: Props) {
 }
 
 // 주문 취소는 사용자별 화면이라 공개 캐시를 켜지 않는다. order는 이 화면에서 조회 요청을 보내지 않는다
+const loadPage = definePageLoad(({ params }, _cacheControl, serverRequest) => {
+  const paymentId = parsePaymentId(params.paymentId);
+  if (!paymentId) throw notFound();
+
+  return { isDesktop: serverRequest.device !== 'mobile', paymentId };
+});
+
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
-  .handler(({ data }) =>
-    loadPageData(data, (context, _cacheControl, serverRequest) => {
-      const paymentId = parsePaymentId(context.params.paymentId);
-      if (!paymentId) throw notFound();
-
-      return { isDesktop: serverRequest.device !== 'mobile', paymentId };
-    }),
-  );
+  .handler(({ data }) => loadPageData(data, loadPage));
+const pageLoader = createPageLoader(getPageData, loadPage);
 
 export const Route = createFileRoute('/order/cancel/$paymentId/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   loaderDeps: ({ search }) => ({ search }),
-  loader: ({ params, deps }) => getPageData({ data: { params, search: deps.search } }),
+  loader: ({ params, deps, context }) => pageLoader({ params, search: deps.search }, context),
   component: RouteComponent,
 });
 

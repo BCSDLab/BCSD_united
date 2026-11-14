@@ -1,4 +1,3 @@
-import { dehydrate, type DehydratedState, QueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
@@ -10,10 +9,10 @@ import DesktopNotice from 'components/Order/DesktopNotice';
 import OrderDeliveryCampusPage from 'components/Order/OrderDelivery/OrderDeliveryCampusPage';
 import StoreMobileHeader from 'components/Store/mobile/common/StoreMobileHeader';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
+import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
 
 interface Props {
   isDesktop: boolean;
-  dehydratedState?: DehydratedState;
 }
 
 function OrderDeliveryCampusRoute({ isDesktop }: Props) {
@@ -27,31 +26,29 @@ function OrderDeliveryCampusRoute({ isDesktop }: Props) {
 }
 
 // 배달지 선택은 사용자별 화면이라 공개 캐시를 켜지 않는다
+const loadPage = definePageLoad(async ({ queryClient }, _cacheControl, serverRequest) => {
+  if (serverRequest.device !== 'mobile') {
+    return { isDesktop: true };
+  }
+
+  // order가 부르는 교내 배달지 분류 3개를 미리 받아 본문까지 렌더한다.
+  // 실패하면 결과를 내리지 않고 클라이언트가 다시 조회한다
+  await Promise.all(
+    CAMPUS_ADDRESS_CATEGORIES.map((filter) => queryClient.prefetchQuery(orderQueries.campusDeliveryAddresses(filter))),
+  );
+
+  return { isDesktop: false };
+});
+
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
-  .handler(({ data }) =>
-    loadPageData(data, async (_context, _cacheControl, serverRequest) => {
-      if (serverRequest.device !== 'mobile') {
-        return { isDesktop: true };
-      }
-
-      // order가 부르는 교내 배달지 분류 3개를 서버에서 받아 본문까지 렌더한다.
-      // 실패하면 결과를 내리지 않고 클라이언트가 다시 조회한다
-      const queryClient = new QueryClient();
-      await Promise.all(
-        CAMPUS_ADDRESS_CATEGORIES.map((filter) =>
-          queryClient.prefetchQuery(orderQueries.campusDeliveryAddresses(filter)),
-        ),
-      );
-
-      return { isDesktop: false, dehydratedState: dehydrate(queryClient) };
-    }),
-  );
+  .handler(({ data }) => loadPageData(data, loadPage));
+const pageLoader = createPageLoader(getPageData, loadPage);
 
 export const Route = createFileRoute('/order/delivery/campus/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   loaderDeps: ({ search }) => ({ search }),
-  loader: ({ params, deps }) => getPageData({ data: { params, search: deps.search } }),
+  loader: ({ params, deps, context }) => pageLoader({ params, search: deps.search }, context),
   component: RouteComponent,
 });
 

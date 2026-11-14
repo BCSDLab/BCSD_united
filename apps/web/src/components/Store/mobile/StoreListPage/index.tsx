@@ -1,6 +1,6 @@
-import { useCallback, useEffect } from 'react';
+import { startTransition, useCallback, useEffect, useOptimistic } from 'react';
 import { cn } from '@bcsdlab/utils';
-import { keepPreviousData, useQuery, useSuspenseQuery } from '@tanstack/react-query';
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { useRouter, useSearch } from '@tanstack/react-router';
 
 import type { ShopCategory } from 'api/storeMobile/entity';
@@ -23,6 +23,7 @@ import useLogger from 'utils/hooks/analytics/useLogger';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
 
 import SearchBar from './components/SearchBar';
+import ShopListSkeleton from './components/ShopListSkeleton';
 import useScrollLogging from './hooks/useScrollLogging';
 import {
   getListRequestParams,
@@ -39,17 +40,16 @@ import styles from './StoreListPage.module.scss';
 export default function StoreListPage() {
   const router = useRouter();
   const routeSearch = useSearch({ strict: false });
+  const [optimisticSearch, setOptimisticSearch] = useOptimistic(routeSearch);
   const logger = useLogger();
   const [isSortModalOpen, openSortModal, closeSortModal] = useBooleanState(false);
 
-  const { category: selectedCategory, sort: selectedSort, filter: selectedFilter } = parseListQuery(routeSearch);
+  const { category: selectedCategory, sort: selectedSort, filter: selectedFilter } = parseListQuery(optimisticSearch);
   const { sorter, filter } = getListRequestParams(selectedSort, selectedFilter);
 
   const { data: categories } = useSuspenseQuery(storeMobileQueries.categories());
-  const { data: shopList } = useQuery({
-    ...storeMobileQueries.list(sorter, filter),
-    placeholderData: keepPreviousData,
-  });
+  // 정렬·필터마다 요청이 다르다. 이전 조건의 목록을 남기지 않고 새 조건의 첫 응답 전까지 스켈레톤을 보인다
+  const { data: shopList, isPending: isShopListPending } = useQuery(storeMobileQueries.list(sorter, filter));
 
   const shops = (shopList?.shops ?? []).filter((shop) => {
     if (!selectedCategory || selectedCategory === 1) return true;
@@ -61,11 +61,14 @@ export default function StoreListPage() {
     categories.shop_categories.find((category) => category.id === selectedCategory)?.name || '전체보기';
 
   const replaceQuery = (key: 'category' | 'sort' | 'filter', value: string | null) => {
-    const nextQuery = { ...routeSearch };
+    const nextQuery = { ...optimisticSearch };
     if (value === null) delete nextQuery[key];
     else nextQuery[key] = value;
 
-    router.navigate({ to: ROUTES.Store(), search: nextQuery, replace: true, resetScroll: false });
+    startTransition(async () => {
+      setOptimisticSearch(nextQuery);
+      await router.navigate({ to: ROUTES.Store(), search: nextQuery, replace: true, resetScroll: false });
+    });
   };
 
   const currentSortLabel = SORT_OPTIONS.find((option) => option.id === selectedSort)?.label || '기본순';
@@ -205,8 +208,13 @@ export default function StoreListPage() {
           </div>
         </div>
 
-        <div className={styles.list}>
-          {shops.length > 0 ? (
+        <p className={styles['loading-status']} role="status">
+          {isShopListPending ? '상점 목록을 불러오는 중입니다.' : ''}
+        </p>
+
+        <div className={styles.list} aria-busy={isShopListPending}>
+          {isShopListPending && <ShopListSkeleton />}
+          {!isShopListPending &&
             shops.map((shop) => (
               <ShopCard
                 key={shop.id}
@@ -218,8 +226,8 @@ export default function StoreListPage() {
                 reviewCount={shop.review_count}
                 thumbnailUrl={shop.images[0] ?? ''}
               />
-            ))
-          ) : (
+            ))}
+          {!isShopListPending && shops.length === 0 && (
             <div className={styles.empty}>
               <PlanetIcon className={styles.empty__icon} />
               <div className={styles.empty__title}>이용 가능한 가게가 없어요</div>

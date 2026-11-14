@@ -8,6 +8,20 @@
 - **Cloudflare Issues:** Worker가 공식 Notifications envelope를 인증하고 계정·정책·Worker·앱을 재검증한다. 불투명한 `data`를 예외/경로/소스 프레임으로 임의 해석하지 않고, 일치하는 Issues occurrence·Tail/Telemetry·고정 소스 버전의 안전한 GET 경로와 매핑된 앱 소스 프레임을 별도 확인한 경우에만 수정 후보를 만든다. 근거가 부족하면 `CLOUDFLARE_EVIDENCE_UNAVAILABLE`로 실패 기록을 남기며 원본 Cloudflare Issue는 변경하지 않는다. 기존 Workers 지표 알림을 Issues 대신 쓰거나 존재하지 않는 비공개 Issues 수정 API를 호출하지 않는다.
 - 외부 API, 인증된 사용자 상태, dependency/config/generated code 수정, Node 회귀로 재현할 수 없는 오류는 안전 범위 밖이다. 실패를 우회하거나 빈 PR을 만들지 않는다.
 
+## 읽기 전용 수신 상태·Rocky 헬스
+
+정확한 HTTPS `GET /healthz`와 `GET /healthz/rocky`는 별도의 `ERROR_MONITOR_TOKEN` Bearer만 인증합니다. 쿼리 파라미터는 받지 않으며 잘못된/없는 토큰은 401, 미설정은 503, 다른 메서드는 405입니다. 이 토큰은 실행기·진단·모델·기기 토큰과 분리합니다.
+
+`GET /healthz` 응답은 `version: 1`, `scope: ingress-only`, 관측 시각, 24시간 창의 Sentry/Cloudflare 고유 등록 건수·최근 신규 등록 시각·최대 10개 처리 상태뿐입니다. 건수와 최근 시각은 제한 없는 전체 기간 집계이며 최근 목록만 10건으로 제한합니다. `enqueued_at`은 처음 등록된 시각이므로 중복 웹훅 수신량/재전송 시각으로 해석하지 않습니다. GitHub PR 작업과 Cloudflare `koin-api` 기록은 제외합니다. 원본 provider ID, 오류 전문, 진단, 소스, 로그, 토큰, lease, PR URL은 노출하지 않습니다.
+
+수신 조회는 고정 저장소 큐의 SELECT만 수행하고 알람·claim·모델·GitHub 작업을 실행하지 않습니다. VPC나 모델 자격 증명 없이 동작합니다. 저장소 오류·오래되거나 잘못된 응답은 503이며 0건/정상으로 대체하지 않습니다. 응답은 no-store, 저장소 응답 기한은 3초입니다.
+
+`GET /healthz/rocky`는 기존 `OMP_GATEWAY` VPC 바인딩으로 고정 `http://omp-gateway/healthz`만 조회합니다. 호스트 전용 `OMP_GATEWAY_MONITOR_TOKEN`을 사용하며 모델용 `OMP_GATEWAY_TOKEN`, 실행기 토큰, 수신용 `ERROR_MONITOR_TOKEN`과 같으면 503으로 닫힙니다. VPC 응답 본문까지 3초·16 KiB로 제한하고 리다이렉트·오래된/알 수 없는 필드를 거부합니다. 실패 원문을 전달하지 않습니다.
+
+Rocky 응답은 `version: 1`, `scope: rocky-read-only`, 실제 관측 시각, 게이트웨이 응답 여부, CPU 두 표본의 차이, `MemTotal − MemAvailable` RAM 사용량과 고정 실행기·브로커 서비스 상태입니다. 설치/활성/프로세스 실행과 브로커 HTTP 응답·모델 준비 상태는 다릅니다. 미측정 값은 null/unknown이며 `brokerResponse`와 `model`은 `not_probed`입니다. 모델 생성·작업 claim·GitHub 조회는 수행하지 않습니다.
+
+출근부는 Worker service binding과 서버 secret으로 두 경로를 독립적으로 읽습니다. 정상 main 승격, 두 Worker 배포, Rocky 코드·전용 파일·secret 설정이 활성화 전제입니다. 수신 Worker 응답만으로 Rocky 정상을 주장하지 않으며 호스트 연결 실패도 실제 수신 건수를 0으로 바꾸지 않습니다. 공개 hostname, 새 터널, 사설 SSH 라우트, WARP/OpenBao 권한을 추가하지 않습니다.
+
 ## 고정 제공자 식별자
 
 웹훅은 아래 식별자만 저장하고 고정 저장소 큐에 등록한다. 추가 프롬프트·URL·저장소·호스트·브랜치·명령·파일 경로로 실행 대상을 바꿀 수 없다.
@@ -111,16 +125,34 @@ cat /home/user/.home-butler/koin-omp-gateway/omp-gateway.token | pnpm --dir apps
 게이트웨이 계약:
 
 - `OMP_GATEWAY_TOKEN_FILE`은 현재 uid 소유의 **0600 일반 파일**(symlink 불가)이어야 하며 32–512자 URL-safe 토큰 한 줄을 담는다. 조건이 하나라도 어긋나면 시작하지 않는다. `OMP_GATEWAY_PORT` 기본값은 `43129`다.
-- 정확히 `POST /v1/messages`만 받는다(query 포함 다른 경로 404, 다른 메서드 405). bearer는 시간 일정 비교로 먼저 검사하며(실패 401), 인증 전에는 omp를 실행하지 않는다. broker/usage/models 등 다른 게이트웨이 경로는 노출하지 않는다.
+- 모델 경로는 정확히 `POST /v1/messages`이며 읽기 전용 관측 경로는 별도 Bearer의 `GET /healthz`다(query 포함 다른 경로 404, 다른 메서드 405). 모델 토큰으로 헬스를 읽거나 모니터 토큰으로 모델을 실행할 수 없다. bearer는 시간 일정 비교로 검사하며(실패 401), 인증 전에는 omp나 호스트 probe를 실행하지 않는다. broker/usage/models 등 다른 게이트웨이 경로는 노출하지 않는다.
 - 요청 본문은 1 MiB까지(초과 시 즉시 413 후 연결 종료, 나머지 바이트는 버퍼링하지 않음) JSON 객체여야 하고 `model`은 정확히 `claude-sonnet-5-5` 또는 `claude-opus-5-5`, `max_tokens`는 1–8,192만 허용한다. 퍼지 이름·role(`@smol`)·provider 접두사·`stream`·provider 실행 도구(`type`이 `custom`이 아닌 tool)·알 수 없는 필드는 400이다. 브리지는 도구를 실행하지 않으며 본문을 해석·수정하지 않고 `model`만 `anthropic/<같은 id>`로 바꿔 전달한다.
 - 응답은 요청한 모델이 실제로 답한 `message` envelope(`anthropic/<요청 id>` 또는 bare id)일 때만 200이며 `model`을 요청한 bare id로 정규화한다. 다른 모델·fallback chain이 답하면 502다. omp 상위 429는 `rate_limit_error`로 429를 돌려주되 `Retry-After`는 붙이지 않고(stdio는 헤더를 주지 않음), 그 밖의 상위 실패는 상위 오류 문구 없이 502 `upstream_error`다. omp의 오류 문구와 자식 stderr는 로컬 경로·계정 정보를 담을 수 있어 응답·로그 어디에도 쓰지 않는다.
-- 동시 요청은 하나만 처리한다(진행 중이면 503 + `Retry-After: 5`, Worker는 이를 종료 실패로 취급). 요청당 180초 기한은 본문 수신부터 적용되어 본문이 멈추거나 추론이 늦으면 504이며, 기한 초과·클라이언트 연결 종료·종료 신호 때 브리지가 띄운 omp 자식을 SIGKILL하고 슬롯을 즉시 비운다. 자식 stdout은 4 MiB까지만 읽고 초과 시 자식을 종료한다. shell을 거치지 않고 `omp auth-gateway stdio`를 직접 실행한다.
+- 모델 요청은 하나만 처리한다(진행 중이면 503 + `Retry-After: 5`, Worker는 이를 종료 실패로 취급). 요청당 180초 기한은 본문 수신부터 적용되어 본문이 멈추거나 추론이 늦으면 504이며, 기한 초과·클라이언트 연결 종료·종료 신호 때 브리지가 띄운 omp 자식을 SIGKILL하고 슬롯을 즉시 비운다. 자식 stdout은 4 MiB까지만 읽고 초과 시 자식을 종료한다. shell을 거치지 않고 `omp auth-gateway stdio`를 직접 실행한다. 헬스 수집·응답 생성은 모델 슬롯과 독립적이며 2초로 제한한다.
 - 로그는 경로 분류·상태·소요 시간만 남긴다.
 - **자식 환경과 재시도 차단:** omp 자식은 허용 목록 환경만 받는다(`PATH`/`HOME`/`USER`/`TMPDIR`/`LANG`/`LC_*`/`XDG_*`/`PI_CONFIG_DIR`/`PI_PROXY`/proxy 변수/`NODE_EXTRA_CA_CERTS`/`OMP_AUTH_BROKER_*`). `ANTHROPIC_API_KEY`·`ANTHROPIC_OAUTH_TOKEN`·`ANTHROPIC_BASE_URL`·`CLAUDE_CODE_*`·다른 `*_API_KEY`와 운영자의 `PI_CONFIG_FILES`는 전달되지 않으므로 브리지 환경으로 요청을 다른 endpoint나 key로 돌릴 수 없다. 브리지는 시작 시 0600 임시 overlay(`PI_CONFIG_FILES`)로 `retry.enabled=false`, `maxRetries=0`, `modelFallback=false`, `usageAwareFallback=false`, `waitForUsageReset=false`, `rateLimitWalksChain=false`, 두 모델의 `fallbackChains=[]`를 자식 프로세스에만 적용한다(사용자 전역 `config.yml`은 수정하지 않음). 따라서 Worker가 예산에 계산하는 게이트웨이 호출 한 번은 provider 시도 한 번이며, 같은 모델 재시도·다른 모델 fallback·usage reset 대기는 일어나지 않는다.
 - **시작 게이트:** 시작 시 `GET /v1/models`(quota 소비 없음)로 `anthropic/claude-sonnet-5-5`와 `anthropic/claude-opus-5-5`가 omp의 자격증명 선택에 따라 실제 서비스되는지 확인하고, 하나라도 없으면 listen하지 않고 종료한다. 로그인 만료 등은 요청 시점에 502로 드러나며 브리지가 로그인을 대신 수행하지 않는다.
 - **인증 방식 한계:** `omp auth-gateway stdio`는 다른 omp 명령과 같은 자격증명 사다리(runtime key → `models.yml` `apiKey` → 저장된 OAuth → 로그인 저장 key → env → 기타 저장 key)를 쓴다. 저장된 OAuth 로그인이 있으면 env key보다 우선하지만, 브리지가 **OAuth 전용을 강제할 수는 없다**: `apiKeys:false` 계정 풀은 broker 모드 전용이고 로컬 저장소에는 같은 스위치가 없다. 따라서 "OAuth-only"가 아니라 "운영자의 기존 omp 로그인 선택을 그대로 사용"이 정확한 표현이다. 같은 provider의 다른 계정으로의 credential 회전은 설정으로 끄는 항목이 아니며 현재 Anthropic 로그인이 하나뿐이라 발생하지 않는다; 계정을 추가하면 이 전제가 깨진다. 브리지는 로컬 자격증명을 읽거나 삭제·수정하지 않는다.
 
 제한과 해제: 게이트웨이는 공개 주소가 없고 VPC 바인딩을 가진 Worker만 도달하며, bearer가 추가로 접근을 막는다. 게이트웨이 bearer는 연결 인증용 비밀이며 provider 자격증명이 아니다. 해제할 때는 두 유닛을 내리고 토큰 파일을 삭제한 뒤 Worker의 `OMP_GATEWAY_TOKEN`과 VPC 바인딩을 제거한다. 그 시점부터 새 인증 게이트웨이를 설정할 때까지 **모델 처리는 불가능**하며(모델 호출이 설정 오류로 실패), API key를 다시 등록하는 복구 경로는 없다. 게이트웨이는 Rocky와 omp auth-broker 상태에 의존하고, 모델 호출 외의 어떤 Worker 동작(발행·검증·merge)도 바꾸지 않는다.
+
+### Rocky 읽기 전용 헬스 활성화
+
+게이트웨이는 `OMP_GATEWAY_MONITOR_TOKEN_FILE`을 설정하지 않아도 기존 모델 경로로 실행할 수 있으며 헬스만 503이다. 헬스를 활성화할 때는 다음 운영 절차를 따른다.
+
+1. 실제 `koin-omp-gateway.service`의 `User`/`Group`을 확인하고 작업·모델 요청이 진행 중이지 않은 시점에 호스트 코드를 갱신한다. 저장소 유닛의 실행 계정은 `homebutler`다.
+2. 그 uid 소유의 0700 일반 디렉터리에 모델용과 다른 32–512자 URL-safe 무작위 모니터 토큰을 0600 일반 파일로 신규 생성한다. 디렉터리와 파일은 symlink를 허용하지 않으며 기존 모델/브로커 토큰을 복사하거나 덮어쓰지 않는다.
+3. 유닛 drop-in에 아래 경로를 설정하고 승인된 작업 창에서 daemon-reload와 게이트웨이 재시작을 수행한다. 터널·브로커·실행기 유닛이나 네트워크 접근 정책은 변경하지 않는다.
+
+   ```ini
+   [Service]
+   Environment=OMP_GATEWAY_MONITOR_TOKEN_FILE=/home/user/.home-butler/koin-omp-gateway/monitor.token
+   ```
+
+4. 같은 파일의 값을 안전한 대화형 입력으로 error-automation의 `OMP_GATEWAY_MONITOR_TOKEN` secret에 등록한다. `ERROR_MONITOR_TOKEN`은 attendance와 error-automation 사이의 별도 비밀이다. secret 등록은 즉시 배포를 일으키므로 main 승격과 운영 승인 절차를 따른다.
+5. 기존 비공개 경로에서 실제 `/healthz/rocky` 응답과 관측 시각을 확인한다. Linux `/proc/stat`은 약 200ms 차이로 읽으며 guest tick을 중복 합산하지 않고 idle+iowait을 제외한다. 메모리나 고정 `systemctl show` 읽기가 실패하면 해당 값은 미확인이다. 서비스 활성은 실행 중 프로세스·브로커 응답·모델 호출 성공과 동일하지 않다.
+
+모니터만 중지할 때는 drop-in의 모니터 파일 환경 설정과 Worker의 모니터 전용 secret만 운영 절차로 해제한다. 모델 토큰·VPC·터널을 제거하지 않는다.
 
 ## 기존 PR 검토·수정 모드 (`mode: 'pull-request'`)
 

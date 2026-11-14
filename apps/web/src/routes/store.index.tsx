@@ -1,13 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { cn } from '@bcsdlab/utils';
-import {
-  dehydrate,
-  HydrationBoundary,
-  QueryClient,
-  useQuery,
-  useSuspenseQuery,
-  type DehydratedState,
-} from '@tanstack/react-query';
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate, useSearch, useParams } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
@@ -35,7 +28,8 @@ import useBooleanState from 'utils/hooks/state/useBooleanState';
 import { useLocalStorage } from 'utils/hooks/state/useLocalStorage';
 import useMount from 'utils/hooks/state/useMount';
 import useScrollToTop from 'utils/hooks/ui/useScrollToTop';
-import { loadPageData, validatePageInput, STORE_PUBLIC_SSR_CACHE_CONTROL } from 'utils/ssr/pageData';
+import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
+import { createPageLoader, definePageLoad, STORE_PUBLIC_SSR_CACHE_CONTROL } from 'utils/ssr/pageLoader';
 import { isomorphicLocalStorage, isomorphicSessionStorage } from 'utils/ts/env';
 
 import styles from 'pages/store/StorePage.module.scss';
@@ -355,11 +349,10 @@ function Store() {
 }
 
 interface StorePageProps {
-  dehydratedState: DehydratedState;
   isMobilePage?: boolean;
 }
 
-function StorePage({ dehydratedState, isMobilePage }: StorePageProps) {
+function StorePage({ isMobilePage }: StorePageProps) {
   if (isMobilePage) {
     return (
       <>
@@ -369,66 +362,55 @@ function StorePage({ dehydratedState, isMobilePage }: StorePageProps) {
     );
   }
 
-  return (
-    <HydrationBoundary state={dehydratedState}>
-      <Store />
-    </HydrationBoundary>
-  );
+  return <Store />;
 }
+
+const loadPage = definePageLoad(async ({ search, queryClient }, cacheControl, serverRequest) => {
+  // 모바일은 KOIN_ORDER_WEBVIEW 주변상점 화면을 그린다. order가 부르는 API(카테고리·v3 목록)만 미리 받아 본문까지 렌더한다
+  if (serverRequest.device === 'mobile') {
+    const { sort, filter } = parseListQuery(search);
+    const { sorter, filter: listFilter } = getListRequestParams(sort, filter);
+
+    await Promise.all([
+      queryClient.prefetchQuery(storeMobileQueries.categories()),
+      queryClient.prefetchQuery(storeMobileQueries.list(sorter, listFilter)),
+    ]);
+
+    cacheControl.enablePublicCache(STORE_PUBLIC_SSR_CACHE_CONTROL);
+
+    return { isMobilePage: true };
+  }
+
+  const { storeName } = search;
+  const selectedStoreName = storeName ? String(storeName) : undefined;
+
+  await Promise.all([
+    queryClient.prefetchQuery(storeQueries.categories()),
+    queryClient.prefetchQuery(
+      storeQueries.listV2({
+        sorter: 'NONE',
+        filter: [],
+        query: selectedStoreName,
+      }),
+    ),
+    queryClient.prefetchQuery(storeQueries.allEvents()),
+  ]);
+
+  cacheControl.enablePublicCache(STORE_PUBLIC_SSR_CACHE_CONTROL);
+
+  return { isMobilePage: false };
+});
 
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
-  .handler(({ data }) =>
-    loadPageData(data, async (context, cacheControl, serverRequest) => {
-      // 모바일은 KOIN_ORDER_WEBVIEW 주변상점 화면을 그린다. order가 부르는 API(카테고리·v3 목록)만 서버에서 받아 본문까지 렌더한다
-      if (serverRequest.device === 'mobile') {
-        const mobileQueryClient = new QueryClient();
-        const { sort, filter } = parseListQuery(context.search);
-        const { sorter, filter: listFilter } = getListRequestParams(sort, filter);
+  .handler(({ data }) => loadPageData(data, loadPage));
+const pageLoader = createPageLoader(getPageData, loadPage);
 
-        await Promise.all([
-          mobileQueryClient.prefetchQuery(storeMobileQueries.categories()),
-          mobileQueryClient.prefetchQuery(storeMobileQueries.list(sorter, listFilter)),
-        ]);
-
-        cacheControl.enablePublicCache(STORE_PUBLIC_SSR_CACHE_CONTROL);
-
-        return {
-          isMobilePage: true,
-          dehydratedState: dehydrate(mobileQueryClient),
-        };
-      }
-
-      const queryClient = new QueryClient();
-
-      const { storeName } = context.search;
-      const selectedStoreName = storeName ? String(storeName) : undefined;
-
-      await Promise.all([
-        queryClient.prefetchQuery(storeQueries.categories()),
-        queryClient.prefetchQuery(
-          storeQueries.listV2({
-            sorter: 'NONE',
-            filter: [],
-            query: selectedStoreName,
-          }),
-        ),
-        queryClient.prefetchQuery(storeQueries.allEvents()),
-      ]);
-
-      cacheControl.enablePublicCache(STORE_PUBLIC_SSR_CACHE_CONTROL);
-
-      return {
-        isMobilePage: false,
-        dehydratedState: dehydrate(queryClient),
-      };
-    }),
-  );
-
+// 정렬·필터·카테고리·검색어는 화면이 클라이언트 쿼리로 처리한다. 진입 시에만 현재 주소로 미리 받는다.
+// search만 바뀌면 loader를 다시 실행하지 않고 StoreListPage가 낙관적 상태로 선택을 즉시 반영한다.
 export const Route = createFileRoute('/store/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
-  loaderDeps: ({ search }) => ({ search }),
-  loader: ({ params, deps }) => getPageData({ data: { params, search: deps.search } }),
+  loader: ({ params, location, context }) => pageLoader({ params, search: location.search }, context),
   component: RouteComponent,
 });
 

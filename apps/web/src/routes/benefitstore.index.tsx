@@ -1,12 +1,6 @@
 import { Suspense, useEffect } from 'react';
 import { cn } from '@bcsdlab/utils';
-import {
-  dehydrate,
-  HydrationBoundary,
-  QueryClient,
-  useSuspenseQuery,
-  type DehydratedState,
-} from '@tanstack/react-query';
+import { useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, notFound } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
@@ -20,7 +14,8 @@ import { STORE_PAGE } from 'static/store';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useParamsHandler from 'utils/hooks/routing/useParamsHandler';
-import { loadPageData, validatePageInput, STORE_PUBLIC_SSR_CACHE_CONTROL } from 'utils/ssr/pageData';
+import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
+import { createPageLoader, definePageLoad, STORE_PUBLIC_SSR_CACHE_CONTROL } from 'utils/ssr/pageLoader';
 
 import styles from 'pages/benefitstore/StoreBenefitPage.module.scss';
 
@@ -117,54 +112,49 @@ function StoreBenefit() {
   );
 }
 
-function StoreBenefitPage({ dehydratedState }: { dehydratedState: DehydratedState }) {
+function StoreBenefitPage() {
+  // TODO: Loading 디자인 추가 요청
   return (
-    <HydrationBoundary state={dehydratedState}>
-      {/* TODO: Loading 디자인 추가 요청 */}
-      <Suspense fallback={null}>
-        <StoreBenefit />
-      </Suspense>
-    </HydrationBoundary>
+    <Suspense fallback={null}>
+      <StoreBenefit />
+    </Suspense>
   );
 }
 
+const loadPage = definePageLoad(async ({ search, queryClient }, cacheControl) => {
+  const { category } = search;
+  const categoryId = Array.isArray(category) ? category[0] : category;
+
+  if (!categoryId) {
+    throw notFound();
+  }
+
+  await Promise.all([
+    queryClient.prefetchQuery(storeQueries.benefitCategory()),
+    queryClient.prefetchQuery(storeQueries.benefitList(categoryId)),
+    // StoreList 페이지에서 사용하는 API
+    queryClient.prefetchQuery(storeQueries.categories()),
+  ]);
+
+  cacheControl.enablePublicCache(STORE_PUBLIC_SSR_CACHE_CONTROL);
+
+  return {};
+});
+
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
-  .handler(({ data }) =>
-    loadPageData(data, async (context, cacheControl) => {
-      const queryClient = new QueryClient();
-      const { category } = context.search;
-      const categoryId = Array.isArray(category) ? category[0] : category;
-
-      if (!categoryId) {
-        throw notFound();
-      }
-
-      await Promise.all([
-        queryClient.prefetchQuery(storeQueries.benefitCategory()),
-        queryClient.prefetchQuery(storeQueries.benefitList(categoryId)),
-        // StoreList 페이지에서 사용하는 API
-        queryClient.prefetchQuery(storeQueries.categories()),
-      ]);
-
-      cacheControl.enablePublicCache(STORE_PUBLIC_SSR_CACHE_CONTROL);
-
-      return {
-        dehydratedState: dehydrate(queryClient),
-      };
-    }),
-  );
+  .handler(({ data }) => loadPageData(data, loadPage));
+const pageLoader = createPageLoader(getPageData, loadPage);
 
 export const Route = createFileRoute('/benefitstore/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   loaderDeps: ({ search }) => ({ search }),
-  loader: ({ params, deps }) => getPageData({ data: { params, search: deps.search } }),
+  loader: ({ params, deps, context }) => pageLoader({ params, search: deps.search }, context),
   component: RouteComponent,
 });
 
 function RouteComponent() {
-  const props = Route.useLoaderData();
-  const page = <StoreBenefitPage {...props} />;
+  const page = <StoreBenefitPage />;
 
   return <PageLayout>{page}</PageLayout>;
 }

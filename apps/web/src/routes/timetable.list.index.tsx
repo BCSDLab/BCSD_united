@@ -1,5 +1,4 @@
 import React from 'react';
-import { dehydrate, QueryClient } from '@tanstack/react-query';
 import { createFileRoute, redirect } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
@@ -9,6 +8,7 @@ import MobileTimetableListPage from 'components/TimetablePage/MobileTimetableLis
 import { isKoinError } from 'interfaces/APIError';
 import ROUTES from 'static/routes';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
+import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
 import { isUnauthorizedError } from 'utils/ts/httpError';
 
 function TimetableListPage() {
@@ -19,54 +19,50 @@ function TimetableListPage() {
   );
 }
 
+const loadPage = definePageLoad(async ({ queryClient }, cacheControl, serverRequest) => {
+  // 모바일 전용 화면: 데스크탑은 시간표 페이지로 보낸다.
+  if (serverRequest.device === 'desktop') {
+    throw redirect({ href: ROUTES.Timetable(), statusCode: 302 });
+  }
+
+  const { userType } = serverRequest;
+  let isMember = false;
+
+  if (serverRequest.isLoggedIn) {
+    try {
+      const mySemester = await queryClient.fetchQuery(timetableQueries.mySemester(true, { userType }));
+      if (mySemester) {
+        isMember = true;
+        await Promise.all(
+          mySemester.semesters.map((semester) =>
+            queryClient.prefetchQuery(timetableQueries.frameList(true, semester, { fallbackOnError: true, userType })),
+          ),
+        );
+      }
+    } catch (error) {
+      // userType 가드로 학생이 아닌 사용자는 요청 자체를 건너뛰지만, 판별 실패 등으로 요청이 나간 경우의 방어선이다.
+      const isForbiddenError = isKoinError(error) && error.status === 403;
+      if (!isUnauthorizedError(error) && !isForbiddenError) throw error;
+    }
+  }
+
+  if (!isMember) {
+    await queryClient.prefetchQuery(timetableQueries.semesterInfo());
+    if (!serverRequest.isLoggedIn) cacheControl.enablePublicCache();
+  }
+
+  return {};
+});
+
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
-  .handler(({ data }) =>
-    loadPageData(data, async (_context, cacheControl, serverRequest) => {
-      // 모바일 전용 화면: 데스크탑은 시간표 페이지로 보낸다.
-      if (serverRequest.device === 'desktop') {
-        throw redirect({ href: ROUTES.Timetable(), statusCode: 302 });
-      }
-
-      const queryClient = new QueryClient();
-      const { userType } = serverRequest;
-      let isMember = false;
-
-      if (serverRequest.isLoggedIn) {
-        try {
-          const mySemester = await queryClient.fetchQuery(timetableQueries.mySemester(true, { userType }));
-          if (mySemester) {
-            isMember = true;
-            await Promise.all(
-              mySemester.semesters.map((semester) =>
-                queryClient.prefetchQuery(
-                  timetableQueries.frameList(true, semester, { fallbackOnError: true, userType }),
-                ),
-              ),
-            );
-          }
-        } catch (error) {
-          // userType 가드로 학생이 아닌 사용자는 요청 자체를 건너뛰지만, 판별 실패 등으로 요청이 나간 경우의 방어선이다.
-          const isForbiddenError = isKoinError(error) && error.status === 403;
-          if (!isUnauthorizedError(error) && !isForbiddenError) throw error;
-        }
-      }
-
-      if (!isMember) {
-        await queryClient.prefetchQuery(timetableQueries.semesterInfo());
-        if (!serverRequest.isLoggedIn) cacheControl.enablePublicCache();
-      }
-
-      return {
-        dehydratedState: dehydrate(queryClient),
-      };
-    }),
-  );
+  .handler(({ data }) => loadPageData(data, loadPage));
+const pageLoader = createPageLoader(getPageData, loadPage);
 
 export const Route = createFileRoute('/timetable/list/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   loaderDeps: ({ search }) => ({ search }),
-  loader: ({ params, deps }) => getPageData({ data: { params, search: deps.search } }),
+  loader: ({ params, deps, context }) => pageLoader({ params, search: deps.search }, context),
   component: RouteComponent,
 });
 

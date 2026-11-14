@@ -5,7 +5,8 @@ import { SSRLayout } from 'components/layout';
 import MobilePageHeader from 'components/layout/MobilePageHeader';
 import StoreSearchPage from 'components/Store/mobile/StoreSearchPage';
 import ROUTES from 'static/routes';
-import { loadPageData, validatePageInput, STORE_PUBLIC_SSR_CACHE_CONTROL } from 'utils/ssr/pageData';
+import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
+import { createPageLoader, definePageLoad, STORE_PUBLIC_SSR_CACHE_CONTROL } from 'utils/ssr/pageLoader';
 
 function StoreSearchRoute() {
   return (
@@ -16,25 +17,26 @@ function StoreSearchRoute() {
   );
 }
 
+const loadPage = definePageLoad((_context, cacheControl, serverRequest) => {
+  // 모바일 전용 화면. 데스크톱은 확정된 기기 값으로 기존 화면에 보낸다
+  if (serverRequest.device !== 'mobile') {
+    throw redirect({ href: ROUTES.Store(), statusCode: 302 });
+  }
+
+  cacheControl.enablePublicCache(STORE_PUBLIC_SSR_CACHE_CONTROL);
+
+  return {};
+});
+
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
-  .handler(({ data }) =>
-    loadPageData(data, (_context, cacheControl, serverRequest) => {
-      // 모바일 전용 화면. 데스크톱은 서버가 확정한 기기 값으로 기존 화면에 보낸다
-      if (serverRequest.device !== 'mobile') {
-        throw redirect({ href: ROUTES.Store(), statusCode: 302 });
-      }
-
-      cacheControl.enablePublicCache(STORE_PUBLIC_SSR_CACHE_CONTROL);
-
-      return {};
-    }),
-  );
+  .handler(({ data }) => loadPageData(data, loadPage));
+const pageLoader = createPageLoader(getPageData, loadPage);
 
 export const Route = createFileRoute('/store/search/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   loaderDeps: ({ search }) => ({ search }),
-  loader: ({ params, deps }) => getPageData({ data: { params, search: deps.search } }),
+  loader: ({ params, deps, context }) => pageLoader({ params, search: deps.search }, context),
   component: RouteComponent,
 });
 

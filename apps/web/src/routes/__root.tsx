@@ -17,6 +17,8 @@ import { NotFoundPage } from 'routes/404.index';
 import { isDisabledOrderPath, isProtectedPath } from 'static/routeAccess';
 import ROUTES from 'static/routes';
 import { parseSearch, stringifySearch } from 'utils/routing/search';
+import { getClientRootSnapshot, type RootSnapshot } from 'utils/ssr/pageLoader';
+import type { ServerRequestContext } from 'utils/ssr/requestContext';
 import { getRootSnapshot } from 'utils/ssr/rootContext.functions';
 
 import 'pretendard/dist/web/static/pretendard-dynamic-subset.css';
@@ -26,9 +28,15 @@ import 'styles/global.scss';
 export const Route = createRootRoute({
   validateSearch: (search: Record<string, unknown>): Record<string, string | string[] | undefined> =>
     parseSearch(stringifySearch(search)),
-  beforeLoad: async ({ location }) => {
+  beforeLoad: async ({ location, matches }): Promise<RootSnapshot> => {
     if (isDisabledOrderPath(location.pathname)) throw notFound();
-    const snapshot = await getRootSnapshot();
+    // 하이드레이션 이후 화면 이동은 서버 함수를 거치지 않고 SSR 스냅샷과 브라우저 세션으로 만든다.
+    // 루트 매치는 항상 matches[0]이고 loaderData는 아래 loader가 돌려준 값이다. 자기 참조라 타입을 직접 적는다
+    const rootLoaderData = matches[0]?.loaderData as { serverRequest?: ServerRequestContext } | undefined;
+    const snapshot =
+      typeof window !== 'undefined' && rootLoaderData?.serverRequest
+        ? await getClientRootSnapshot(rootLoaderData.serverRequest)
+        : await getRootSnapshot();
     if (isProtectedPath(location.pathname) && !snapshot.hasSession) {
       throw redirect({ href: ROUTES.Auth() + '?redirect=' + encodeURIComponent(location.href) });
     }

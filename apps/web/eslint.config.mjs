@@ -40,6 +40,10 @@ export default [
   jsxA11y.flatConfigs.recommended,
   ...tseslint.configs.recommended,
   ...tanstackQuery.configs['flat/recommended'],
+  {
+    files: ['test/**/*.{ts,tsx}'],
+    settings: { 'import/resolver': { typescript: {} } },
+  },
 
   {
     files: ['src/**/*.{ts,tsx,js,jsx}'],

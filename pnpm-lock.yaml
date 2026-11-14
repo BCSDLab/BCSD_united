@@ -269,6 +269,12 @@ importers:
         specifier: 3.24.6
         version: 3.24.6(@types/node@24.19.2)
 
+  apps/attendance:
+    dependencies:
+      '@koin/telemetry':
+        specifier: workspace:*
+        version: link:../../packages/telemetry
+
   apps/b-bot:
     dependencies:
       '@koin/b-bot-ai':
@@ -332,6 +338,9 @@ importers:
       '@jridgewell/trace-mapping':
         specifier: ^0.3.31
         version: 0.3.31
+      '@koin/telemetry':
+        specifier: workspace:*
+        version: link:../../packages/telemetry
 
   apps/web:
     dependencies:

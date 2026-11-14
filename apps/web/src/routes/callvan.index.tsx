@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { dehydrate, QueryClient, useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate, useSearch, useParams, redirect } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
@@ -9,11 +9,12 @@ import CallvanList from 'components/Callvan/components/CallvanList';
 import CallvanPageLayout from 'components/Callvan/components/CallvanPageLayout';
 import { type CallvanParams, parseCallvanQuery } from 'components/Callvan/utils/callvanQuery';
 import ROUTES from 'static/routes';
-import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
+import useMediaQuery, { MOBILE_QUERY } from 'utils/hooks/layout/useMediaQuery';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import useMount from 'utils/hooks/state/useMount';
 import useInfiniteScroll from 'utils/hooks/ui/useInfiniteScroll';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
+import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
 
 import listStyles from 'components/Callvan/components/CallvanList/CallvanList.module.scss';
 
@@ -56,14 +57,13 @@ function useCallvanParams(initialParams: CallvanParams): CallvanParams {
 function CallvanPage({ initialParams }: Awaited<ReturnType<typeof getPageData>>) {
   const routeNavigate = useNavigate();
   const isMobile = useMediaQuery();
-  const mounted = useMount();
 
-  // 서버가 이미 걸러내지만, 창 크기를 줄여 모바일 폭이 된 뒤 넓히는 경우를 위해 남긴다.
+  // 콜밴은 모바일 폭에서만 연다. 기기(UA)가 아니라 화면 폭으로 판단해 창을 좁힌 데스크톱도 허용한다.
   useEffect(() => {
-    if (mounted && !isMobile) {
+    if (!isMobile && !window.matchMedia(MOBILE_QUERY).matches) {
       routeNavigate({ href: ROUTES.Main(), replace: true });
     }
-  }, [mounted, isMobile, routeNavigate]);
+  }, [isMobile, routeNavigate]);
 
   const params = useCallvanParams(initialParams);
 
@@ -112,44 +112,42 @@ function CallvanContent({ params }: CallvanContentProps) {
   );
 }
 
+const loadPage = definePageLoad(async ({ search: query, queryClient }, _cacheControl, serverRequest) => {
+  // 화면 이동은 브라우저에서 실행되므로 실제 폭으로 바로 거른다. SSR은 폭을 모르니 화면 컴포넌트가 거른다.
+  if (typeof window !== 'undefined' && !window.matchMedia(MOBILE_QUERY).matches) {
+    throw redirect({ href: ROUTES.Main() });
+  }
+
+  const params = parseCallvanQuery(query, DEFAULT_PARAMS);
+  const apiParams = toCallvanApiParams(params);
+
+  const { isLoggedIn } = serverRequest;
+
+  try {
+    await Promise.all([
+      queryClient.prefetchInfiniteQuery(callvanQueries.infiniteList(apiParams, isLoggedIn)),
+      isLoggedIn
+        ? queryClient.prefetchQuery(callvanQueries.notifications(isLoggedIn))
+        : queryClient.setQueryData(callvanQueryKeys.notifications(isLoggedIn), []),
+    ]);
+  } catch (error) {
+    console.error('[SSR] callvan prefetch failed:', error);
+  }
+
+  return {
+    initialParams: params,
+  };
+});
+
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
-  .handler(({ data }) =>
-    loadPageData(data, async (context, _cacheControl, serverRequest) => {
-      if (serverRequest.device !== 'mobile') {
-        throw redirect({ href: ROUTES.Main(), statusCode: 302 });
-      }
-
-      const queryClient = new QueryClient();
-      const { search: query } = context;
-
-      const params = parseCallvanQuery(query, DEFAULT_PARAMS);
-      const apiParams = toCallvanApiParams(params);
-
-      const { isLoggedIn } = serverRequest;
-
-      try {
-        await Promise.all([
-          queryClient.prefetchInfiniteQuery(callvanQueries.infiniteList(apiParams, isLoggedIn)),
-          isLoggedIn
-            ? queryClient.prefetchQuery(callvanQueries.notifications(isLoggedIn))
-            : queryClient.setQueryData(callvanQueryKeys.notifications(isLoggedIn), []),
-        ]);
-      } catch (error) {
-        console.error('[SSR] callvan prefetch failed:', error);
-      }
-
-      return {
-        dehydratedState: dehydrate(queryClient),
-        initialParams: params,
-      };
-    }),
-  );
+  .handler(({ data }) => loadPageData(data, loadPage));
+const pageLoader = createPageLoader(getPageData, loadPage);
 
 export const Route = createFileRoute('/callvan/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   loaderDeps: ({ search }) => ({ search }),
-  loader: ({ params, deps }) => getPageData({ data: { params, search: deps.search } }),
+  loader: ({ params, deps, context }) => pageLoader({ params, search: deps.search }, context),
   component: RouteComponent,
 });
 

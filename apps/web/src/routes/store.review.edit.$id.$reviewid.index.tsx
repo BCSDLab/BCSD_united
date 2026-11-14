@@ -1,4 +1,4 @@
-import { dehydrate, QueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, useSearch, useParams, notFound } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
@@ -12,6 +12,7 @@ import ReviewForm from 'components/Store/StoreReviewPage/ReviewForm/ReviewForm';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import useMount from 'utils/hooks/state/useMount';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
+import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
 import { isNotFoundKoinError } from 'utils/ts/isr';
 
 interface Props {
@@ -51,38 +52,38 @@ function EditReviewPage({ id, reviewId, isMobile }: Props) {
 }
 
 // 로그인 필수 화면이라 공용 캐시를 켜지 않는다(loadPageData 기본값 private)
+const loadPage = definePageLoad(async ({ params, queryClient }, _cacheControl, serverRequest) => {
+  const { id, reviewid: reviewId } = params;
+  if (!id || !reviewId) throw notFound();
+
+  // 데스크톱은 기존처럼 브라우저에서 그린다
+  if (serverRequest.device !== 'mobile') {
+    return { id, reviewId, isMobile: false };
+  }
+
+  // 모바일은 상점명과 기존 리뷰를 미리 받아 본문까지 렌더한다
+  try {
+    await Promise.all([
+      queryClient.fetchQuery(storeMobileQueries.detail(id)),
+      queryClient.fetchQuery(storeMobileQueries.reviewDetail(id, reviewId)),
+    ]);
+  } catch (error) {
+    if (isNotFoundKoinError(error)) throw notFound();
+    throw error;
+  }
+
+  return { id, reviewId, isMobile: true };
+});
+
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
   .validator(validatePageInput)
-  .handler(({ data }) =>
-    loadPageData(data, async (context, _cacheControl, serverRequest) => {
-      const { id, reviewid: reviewId } = context.params;
-      if (!id || !reviewId) throw notFound();
-
-      // 데스크톱은 기존처럼 클라이언트에서 그린다
-      if (serverRequest.device !== 'mobile') {
-        return { id, reviewId, isMobile: false };
-      }
-
-      // 모바일은 상점명과 기존 리뷰를 서버에서 받아 본문까지 렌더한다(클라이언트는 같은 쿼리 키로 캐시를 이어받는다)
-      const queryClient = new QueryClient();
-      try {
-        await Promise.all([
-          queryClient.fetchQuery(storeMobileQueries.detail(id)),
-          queryClient.fetchQuery(storeMobileQueries.reviewDetail(id, reviewId)),
-        ]);
-      } catch (error) {
-        if (isNotFoundKoinError(error)) throw notFound();
-        throw error;
-      }
-
-      return { id, reviewId, isMobile: true, dehydratedState: dehydrate(queryClient) };
-    }),
-  );
+  .handler(({ data }) => loadPageData(data, loadPage));
+const pageLoader = createPageLoader(getPageData, loadPage);
 
 export const Route = createFileRoute('/store/review/edit/$id/$reviewid/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   loaderDeps: ({ search }) => ({ search }),
-  loader: ({ params, deps }) => getPageData({ data: { params, search: deps.search } }),
+  loader: ({ params, deps, context }) => pageLoader({ params, search: deps.search }, context),
   staticData: { requireAuth: true },
   component: RouteComponent,
 });
