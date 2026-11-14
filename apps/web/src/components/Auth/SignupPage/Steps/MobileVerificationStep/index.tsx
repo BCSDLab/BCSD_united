@@ -10,6 +10,7 @@ import type { InputMessage } from 'interfaces/InputMessage';
 import { GENDER_OPTIONS, MESSAGES, REGEX } from 'static/auth';
 import ROUTES from 'static/routes';
 import { useSessionLogger } from 'utils/hooks/analytics/useSessionLogger';
+import useResendLock from 'utils/hooks/auth/useResendLock';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
 import useCountdownTimer from 'utils/hooks/ui/useCountdownTimer';
 
@@ -67,6 +68,12 @@ function MobileVerification({ onNext }: MobileVerificationProps) {
     },
   });
 
+  const { isResendLocked, markSent, withResendLock, resendButtonText } = useResendLock(
+    phoneNumber,
+    isTimer,
+    timerValue,
+  );
+
   const clearVerificationMessageTimer = () => {
     if (verificationMessageTimerRef.current) {
       clearTimeout(verificationMessageTimerRef.current);
@@ -76,7 +83,8 @@ function MobileVerification({ onNext }: MobileVerificationProps) {
 
   const { mutate: sendSMSToUser } = useMutation({
     mutationFn: smsSend,
-    onSuccess: (data: SmsSendResponse) => {
+    onSuccess: (data: SmsSendResponse, { phone_number }) => {
+      markSent(phone_number);
       clearVerificationMessageTimer();
       setPhoneMessage({ type: 'success', content: MESSAGES.PHONE.CODE_SENT });
       runTimer();
@@ -236,9 +244,9 @@ function MobileVerification({ onNext }: MobileVerificationProps) {
                     message={phoneMessage}
                     isButton
                     disabled={isVerified}
-                    buttonText="인증번호 발송"
-                    buttonDisabled={!field.value || isDisabled || isVerified}
-                    buttonOnClick={() => checkPhoneNumber(phoneNumber)}
+                    buttonText={resendButtonText('인증번호 발송')}
+                    buttonDisabled={!field.value || isDisabled || isVerified || isResendLocked}
+                    buttonOnClick={withResendLock(() => checkPhoneNumber(phoneNumber))}
                     maxLength={11}
                   >
                     {phoneMessage?.type === 'success' && (

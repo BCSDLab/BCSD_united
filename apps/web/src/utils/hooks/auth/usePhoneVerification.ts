@@ -10,6 +10,7 @@ import type { InputMessage } from 'interfaces/InputMessage';
 import { MESSAGES, STORAGE_KEY } from 'static/auth';
 import ROUTES from 'static/routes';
 import { useSessionLogger } from 'utils/hooks/analytics/useSessionLogger';
+import useResendLock from 'utils/hooks/auth/useResendLock';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
 import { useSessionStorage } from 'utils/hooks/state/useWebStorage';
 import useCountdownTimer from 'utils/hooks/ui/useCountdownTimer';
@@ -59,6 +60,12 @@ function usePhoneVerification({ phoneNumber, onNext, step }: UsePhoneVerificatio
     },
   });
 
+  const { isResendLocked, markSent, withResendLock, resendButtonText } = useResendLock(
+    phoneNumber,
+    isTimer,
+    timerValue,
+  );
+
   const resetVerificationState = () => {
     disableButton();
     disableVerified();
@@ -71,7 +78,8 @@ function usePhoneVerification({ phoneNumber, onNext, step }: UsePhoneVerificatio
 
   const { mutate: sendVerificationSms, isPending: isSendingVerification } = useMutation({
     mutationFn: smsSend,
-    onSuccess: ({ total_count, remaining_count, current_count }) => {
+    onSuccess: ({ total_count, remaining_count, current_count }, { phone_number }) => {
+      markSent(phone_number);
       setPhoneMessage({ type: 'success', content: MESSAGES.PHONE.CODE_SENT });
       setValue('phoneMessage', { type: 'success', content: MESSAGES.PHONE.CODE_SENT });
       runTimer();
@@ -155,7 +163,8 @@ function usePhoneVerification({ phoneNumber, onNext, step }: UsePhoneVerificatio
 
   const { mutate: sendSMSToUser } = useMutation({
     mutationFn: smsSend,
-    onSuccess: (data: SmsSendResponse) => {
+    onSuccess: (data: SmsSendResponse, { phone_number }) => {
+      markSent(phone_number);
       setPhoneMessage({ type: 'success', content: MESSAGES.PHONE.CODE_SENT });
       setValue('phoneMessage', { type: 'success', content: MESSAGES.PHONE.CODE_SENT });
       runTimer();
@@ -239,9 +248,11 @@ function usePhoneVerification({ phoneNumber, onNext, step }: UsePhoneVerificatio
 
   return {
     phoneMessage,
-    checkPhoneExists,
+    checkPhoneExists: withResendLock(checkPhoneExists),
     checkVerificationSmsVerify,
     isSendingVerification,
+    isResendLocked,
+    resendButtonText,
     findId,
     isDisabled,
     disableButton,
@@ -260,7 +271,7 @@ function usePhoneVerification({ phoneNumber, onNext, step }: UsePhoneVerificatio
     checkIdMatchPhone,
     idMessage,
     setIdMessage,
-    checkPhoneNumber,
+    checkPhoneNumber: withResendLock(checkPhoneNumber),
   };
 }
 
