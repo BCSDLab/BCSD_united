@@ -90,9 +90,13 @@ URL은 `https://<운영 호스트>/webhooks/sentry`이다. 정확한 요청 바�
 
 지원 이벤트는 `issue/created`, `issue/unresolved` + `substatus: regressed`, `event_alert/triggered`이다. 나머지는 인증 후 무시한다. issue의 `project.slug`와 공식 issue URL로 조직을 확인한다. legacy `/api/0/issues/<id>/`는 `web_url` 또는 `permalink`에서 조직을 확인한다. event alert의 숫자형 project를 slug로 오인하지 않고 공식 event URL의 조직·프로젝트를 검증한다. 이 URL로 네트워크 요청을 보내지는 않는다. Sentry canonical API 조회는 Worker의 신뢰된 준비 작업에서만 수행한다.
 
+Sentry가 소스맵으로 복원한 `../../src/`·`../../../src/` 경로는 Vite 출력 위치를 기준으로 웹 앱의 `src/` 경로로 정규화한다. `inApp`·프로젝트·SDK·요청 호스트 검증은 그대로 필요하며, 다른 깊이의 상위 경로·다른 앱·외부 URL은 소스 근거로 쓰지 않는다.
+
 ## 진단 보관과 아웃바운드 실행 계약
 
 웹훅 인증·고정 account/policy/단일 Worker·canonical 이슈 ID를 검증한 뒤에만 진단을 검토한다. Cloudflare native 알림은 summary만 포함하며 route/소스 프레임을 직접 주지 않는다. 고정 BCSD account의 Issues occurrence read(GET, 현재 대시보드에서 관찰한 beta/비공개 계약), 공식 Workers Observability telemetry query, 정확한 Worker script version metadata와 두 Worker의 Tail 증거를 서로 비교한다. Tail은 `cf-ray`, Worker, 버전, GET, 고정 production hostname/path와 **Cloudflare가 source-map으로 매핑한 앱 소스 위치만** 7일간 전용 DO에 남기고 요청 헤더·본문·쿼리·원문 로그/스택을 저장하지 않는다. 올바른 route/버전/매핑된 `apps/<app>/src` 프레임이 없거나 조회 API 계약이 바뀌면 503으로 재시도를 요청하며 큐에 넣지 않는다. 기존 이슈의 삭제된 버전에 현재 버전 소스맵을 대입하지 않는다. 오류 모드에서는 GitHub 이슈를 생성·검색하거나 댓글을 게시하지 않는다.
+
+번들 복원은 공식 Worker version GET의 `include=modules,sourcemaps` 응답에서 동일 버전의 코드와 소스맵을 함께 읽는다. 버전 응답은 총 32 MiB, 디코딩한 JavaScript 모듈은 8 MiB, 소스맵은 16 MiB까지 허용한다. 번들의 `sourceMappingURL`과 맵의 `file`이 일치해야 하며, Vite의 `../../src/`·`../../../src/` 매핑 결과만 해당 앱의 소스 경로로 정규화한다. 이 정규화는 원시 Tail 스택의 상위 경로를 허용하지 않는다. 원본 코드와 `sourcesContent`는 진단이나 모델 입력에 저장하지 않는다.
 
 Tail과 canonical occurrence의 route 호스트는 Worker별 정확한 목록만 허용한다: `koin-web`은 `koin-web.bcsdlab.workers.dev`와 운영 커스텀 도메인 `koreatech.in`(정확히 이 호스트, https, 포트/userinfo 없음), `koin-api`는 `koin-api.bcsdlab.workers.dev`뿐이다. `www.`/`stage.` 같은 wildcard나 `api.koreatech.in`은 Worker 신원 호스트로 추가하지 않으며, Tail 호스트와 occurrence 호스트가 서로 다른 허용 호스트여도 route 경로는 같아야 한다. 이는 DNS/커스텀 도메인 전환 자체가 아니라 전환 이후 증거 수용 범위이다.
 
