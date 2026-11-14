@@ -6,6 +6,7 @@
 
 - 플랫폼이 검증한 `ctx.access.aud`가 운영 `CF_ACCESS_AUD`와 같아야 화면·데이터에 접근할 수 있습니다. 클라이언트가 보낸 JWT 헤더·쿠키·Basic·기기 Bearer를 인증 근거로 해석하지 않습니다.
 - `CF_ACCESS_AUD` 미설정은 503, 플랫폼 Access 컨텍스트 누락·다른 audience는 403입니다. `keep_vars: true`로 운영에서 관리하는 audience를 보존합니다.
+- Access 애플리케이션은 기존 이메일 허용 목록으로 인증하며 WARP/Gateway 장치 검사를 필수로 요구하지 않습니다.
 - 허용 목록의 GET과 `/`의 HEAD만 받습니다. 쿼리·해시·관리자·카메라·로그인·쓰기 경로를 중계하지 않습니다. `/api/taps`와 `/api/members`는 제공하지 않습니다.
 - 기존 `DEVICE_TOKEN`·`DASHBOARD_PASSWORD`를 자동 회전·삭제하지 않지만 원격 뷰어의 인증 우회 경로로 사용하지 않습니다. 신규 공개 경로나 Access 권한을 만들지 않습니다.
 
@@ -44,6 +45,8 @@
 ## 화면과 배포
 
 Pi 조회 화면·관측 시각·Wi-Fi/Spotify/모니터 화면을 유지하며 외부 UI 라이브러리나 Static Assets를 사용하지 않습니다. `src/dashboard.html`은 Worker Text 모듈입니다. 벽걸이 화면은 패널별 페이지를 사용하고 작은 화면에서는 재배치합니다. 회원 이름 등 데이터는 textContent로만 표시합니다.
+
+본문·보조 라벨·상태·차트 축·툴팁은 최소 20 CSS px로 표시합니다. 좁은 화면에서는 재배치하거나 패널 내부를 스크롤하며, 정보량에 맞추려고 글자를 축소하지 않습니다.
 
 웹·오류 자동화의 정상 main 승격 후 이 Worker를 별도 배포합니다. `VIEW_STATE` ID와 외부 관리 Access audience, 기존 secret을 유지합니다. secret 설정도 배포 작업입니다. 운영 승인 없이 원장 KV·도메인·Access 정책을 바꾸거나 별도 공개 테스트 Worker를 만들지 않습니다.
 
