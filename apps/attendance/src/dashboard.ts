@@ -33,13 +33,13 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
   }
   * { box-sizing:border-box; }
   [hidden] { display:none !important; }
-  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.6 system-ui,-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif; word-break:keep-all; -webkit-font-smoothing:antialiased; }
+  body { margin:0; background:var(--bg); color:var(--text); font:24px/1.3 system-ui,-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif; word-break:keep-all; -webkit-font-smoothing:antialiased; }
   button, input { font:inherit; }
   button { cursor:pointer; }
   button:disabled { cursor:default; opacity:.65; }
   button, input, a, [tabindex] { -webkit-tap-highlight-color:transparent; }
   :focus-visible { outline:3px solid var(--primary); outline-offset:4px; }
-  button { min-height:44px; border:0; border-radius:999px; padding:10px 18px; font-size:16px; font-weight:650; }
+  button { min-height:48px; border:0; border-radius:999px; padding:8px 14px; font-size:24px; font-weight:650; }
   button:hover:not(:disabled) { filter:brightness(.94); }
   .button-tonal { background:var(--primary-container); color:var(--on-primary-container); }
   .button-text { background:transparent; color:var(--primary); }
@@ -47,12 +47,12 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
   .button-outline { background:transparent; color:var(--text); border:1px solid var(--outline); }
   .login-panel { width:min(100%,420px); margin:auto; padding:32px; background:var(--surface); border:1px solid var(--line); border-radius:24px; box-shadow:var(--shadow); }
   .login-panel h2 { margin:0 0 8px; font-size:24px; }
-  .login-panel p { color:var(--muted); font-size:16px; }
-  .login-panel label { display:block; margin:18px 0 6px; font-size:16px; font-weight:650; }
-  .login-panel input { width:100%; min-height:48px; padding:11px 13px; border:1px solid var(--outline); border-radius:12px; background:var(--surface); color:var(--text); font:inherit; font-size:16px; }
+  .login-panel p { color:var(--muted); font-size:24px; }
+  .login-panel label { display:block; margin:18px 0 6px; font-size:24px; font-weight:650; }
+  .login-panel input { width:100%; min-height:48px; padding:11px 13px; border:1px solid var(--outline); border-radius:12px; background:var(--surface); color:var(--text); font:inherit; font-size:24px; }
   .login-panel button { width:100%; margin-top:22px; }
   .login-panel .login-error { min-height:1.5em; color:var(--error); }
-  .viewer-name { color:var(--muted); font-size:12px; }
+  .viewer-name { color:var(--muted); font-size:24px; }
   .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0; }
   .skip-link { position:fixed; top:12px; left:12px; z-index:10; transform:translateY(-180%); padding:12px 20px; border-radius:16px; background:var(--primary); color:var(--on-primary); }
   .skip-link:focus { transform:none; }
@@ -64,73 +64,73 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
   .header-actions { display:flex; align-items:center; gap:10px; }
   .clock-block { text-align:right; margin-right:14px; }
   #clock { display:block; font-size:25px; font-weight:650; font-variant-numeric:tabular-nums; letter-spacing:-.03em; line-height:1.3; }
-  #date { display:block; color:var(--muted); font-size:12px; }
+  #date { display:block; color:var(--muted); font-size:24px; }
   main { display:grid; gap:24px; }
   .section-heading { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:20px; }
-  h2 { margin:0; font-size:19px; font-weight:700; letter-spacing:-.035em; }
+  h2 { margin:0; font-size:24px; font-weight:700; letter-spacing:-.035em; }
   .panel { min-width:0; background:var(--surface); padding:26px; border:1px solid var(--line); border-radius:24px; box-shadow:var(--shadow); }
-  .pill { display:inline-flex; align-items:center; gap:7px; flex-shrink:0; padding:5px 11px; border-radius:999px; background:var(--surface-low); color:var(--muted); font-size:16px; font-weight:650; }
+  .pill { display:inline-flex; align-items:center; gap:7px; flex-shrink:0; padding:5px 11px; border-radius:999px; background:var(--surface-low); color:var(--muted); font-size:24px; font-weight:650; }
   .dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:currentColor; flex-shrink:0; }
   .pill-live { background:var(--green-container); color:var(--on-green-container); }
   .pill-warn { background:var(--amber-container); color:var(--amber); }
   .hero { padding:0; overflow:hidden; display:grid; grid-template-columns:250px minmax(0,1fr); background:var(--surface); }
   .occupancy { padding:28px; background:var(--primary-container); color:var(--on-primary-container); display:flex; flex-direction:column; justify-content:space-between; gap:22px; }
-  .occupancy h2 { font-size:17px; }
+  .occupancy h2 { font-size:24px; }
   .occupancy-number { display:flex; align-items:baseline; gap:10px; margin:5px 0 0; }
   #count { font-size:clamp(76px,7vw,112px); line-height:1; letter-spacing:-.07em; font-weight:650; font-variant-numeric:tabular-nums; }
   .occupancy-unit { font-size:24px; font-weight:550; }
-  #member-count { margin:10px 0 0; font-size:16px; }
+  #member-count { margin:10px 0 0; font-size:24px; }
   .present-content { min-width:0; padding:28px; }
   .present-content .section-heading { margin-bottom:18px; }
   .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:12px; }
   .person-card { min-width:0; background:var(--green-container); color:var(--on-green-container); border-radius:20px; padding:19px 20px; }
-  .person-name { margin:0 0 12px; overflow-wrap:anywhere; font-size:19px; font-weight:700; }
+  .person-name { margin:0 0 12px; overflow-wrap:anywhere; font-size:24px; font-weight:700; }
   .elapsed { display:block; font-size:32px; letter-spacing:-.025em; font-weight:600; line-height:1.25; font-variant-numeric:tabular-nums; }
   .empty-state { padding:26px 16px; text-align:center; color:var(--muted); }
-  .empty-state strong { display:block; color:var(--text); font-size:16px; font-weight:650; }
-  .empty-state p { margin:6px 0 0; font-size:16px; }
+  .empty-state strong { display:block; color:var(--text); font-size:24px; font-weight:650; }
+  .empty-state p { margin:6px 0 0; font-size:24px; }
   .empty-symbol { display:grid; place-items:center; width:44px; height:44px; margin:0 auto 12px; border-radius:16px; background:var(--surface-low); color:var(--primary); font-size:24px; }
-  .loading { padding:28px 8px; color:var(--muted); font-size:16px; }
+  .loading { padding:8px; color:var(--muted); font-size:24px; }
   .loading::before { content:""; display:inline-block; width:8px; height:8px; margin-right:10px; border-radius:50%; background:var(--primary); }
   .summary-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
   .summary-card { padding:22px 24px; border:1px solid var(--line); border-radius:20px; background:var(--surface); }
-  .summary-label { margin:0; font-size:16px; font-weight:600; color:var(--muted); }
+  .summary-label { margin:0; font-size:24px; font-weight:600; color:var(--muted); }
   .summary-value { margin:8px 0 4px; font-size:28px; line-height:1.3; font-weight:650; letter-spacing:-.04em; font-variant-numeric:tabular-nums; }
   .summary-card.attention { background:var(--amber-container); color:var(--amber); }
   .summary-card.attention .summary-label { color:inherit; }
   .table-scroll { overflow-x:auto; border-radius:12px; }
   table { width:100%; border-collapse:collapse; text-align:left; font-variant-numeric:tabular-nums; white-space:nowrap; }
-  .members-table { min-width:840px; }
+  .members-table { min-width:0; }
   th, td { padding:15px 14px; border-bottom:1px solid var(--line); }
-  thead th { padding-top:12px; padding-bottom:12px; background:var(--surface-low); font-size:16px; font-weight:600; color:var(--muted); }
+  thead th { padding-top:12px; padding-bottom:12px; background:var(--surface-low); font-size:24px; font-weight:600; color:var(--muted); }
   thead th:first-child { border-radius:12px 0 0 12px; }
   thead th:last-child { border-radius:0 12px 12px 0; }
   tbody th { font-weight:650; white-space:normal; min-width:110px; max-width:240px; overflow-wrap:anywhere; }
   tbody tr:last-child > * { border-bottom:0; }
-  td { font-size:16px; }
+  td { font-size:24px; }
   .duration { font-weight:650; color:var(--primary); }
   .muted { color:var(--muted); }
   .warn { color:var(--amber); }
   .wifi-codes { display:flex; justify-content:space-evenly; gap:12px; }
   .wifi-code { min-width:0; margin:0; text-align:center; }
   .wifi-code img { display:block; width:150px; height:150px; max-width:100%; margin:0 auto; object-fit:contain; background:#fff; }
-  .wifi-code figcaption { margin-top:4px; font-size:16px; font-weight:650; }
-  .wifi-status { margin:8px 0; color:var(--muted); font-size:16px; }
+  .wifi-code figcaption { margin-top:4px; font-size:24px; font-weight:650; }
+  .wifi-status { margin:8px 0; color:var(--muted); font-size:24px; }
   .error-banner { display:flex; justify-content:space-between; align-items:center; gap:16px; background:var(--error-container); color:var(--error); border-radius:20px; padding:16px 22px; }
-  .error-banner p { margin:0; font-size:16px; }
+  .error-banner p { margin:0; font-size:24px; }
   .error-banner button { color:inherit; flex-shrink:0; }
   .sync-row { display:flex; align-items:center; flex-wrap:wrap; justify-content:space-between; gap:10px; padding:0 4px; }
-  #sync-status { display:inline-flex; align-items:center; gap:8px; color:var(--muted); font-size:12px; }
+  #sync-status { display:inline-flex; align-items:center; gap:8px; color:var(--muted); font-size:24px; }
   #sync-status[data-state="ready"] { color:var(--green); }
   #sync-status[data-state="error"] { color:var(--error); }
-  .sync-note { margin:0; color:var(--muted); font-size:12px; }
-  footer { display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; padding:24px 4px 0; color:var(--muted); font-size:11px; }
+  .sync-note { margin:0; color:var(--muted); font-size:24px; }
+  footer { display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; padding:24px 4px 0; color:var(--muted); font-size:24px; }
   footer p { margin:0; }
   .sync-row, footer { display:none !important; }
   @media (min-width:1600px) {
     .app-shell { max-width:1600px; }
     .hero { grid-template-columns:300px minmax(0,1fr); }
-    .person-name { font-size:22px; }
+    .person-name { font-size:28px; }
     .elapsed { font-size:38px; }
   }
   @media (max-width:1050px) {
@@ -145,8 +145,8 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
     .app-header { flex-wrap:wrap; gap:18px; margin-bottom:20px; }
     .header-actions { width:100%; justify-content:flex-end; gap:6px; }
     .clock-block { margin-right:auto; text-align:left; }
-    #clock { font-size:21px; }
-    .header-actions button { padding:10px 13px; font-size:16px; }
+    #clock { font-size:24px; }
+    .header-actions button { padding:10px 13px; font-size:24px; }
     main { gap:18px; }
     .hero { grid-template-columns:minmax(0,1fr); }
     .occupancy { display:grid; grid-template-columns:minmax(0,1fr) auto; grid-template-areas:"heading count" "note note"; align-items:center; gap:16px; padding:24px; }
@@ -161,8 +161,8 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
     .elapsed { font-size:29px; }
     .summary-grid { gap:10px; }
     .summary-card { padding:17px 14px; border-radius:20px; }
-    .summary-value { font-size:22px; }
-    h2 { font-size:17px; }
+    .summary-value { font-size:24px; }
+    h2 { font-size:24px; }
     .section-heading { gap:10px; }
     .error-banner { padding:16px; }
     .error-banner button { padding:8px; }
@@ -174,8 +174,8 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
     .cards { grid-template-columns:minmax(0,1fr); }
     .occupancy { padding:22px 18px; }
   }
-  .pager { display:flex; align-items:center; justify-content:flex-end; gap:5px; flex-shrink:0; min-height:44px; margin-left:auto; color:var(--muted); font-size:16px; }
-  .pager button { min-width:44px; min-height:44px; padding:4px 8px; font-size:16px; }
+  .pager { display:flex; align-items:center; justify-content:flex-end; gap:5px; flex-shrink:0; min-height:44px; margin-left:auto; color:var(--muted); font-size:24px; }
+  .pager button { min-width:44px; min-height:44px; padding:4px 8px; font-size:24px; }
   @media (min-width:1000px) and (min-aspect-ratio:3/2) {
     html, body { height:100%; overflow:hidden; }
     .workspace { height:100dvh; min-height:0; max-width:none; }
@@ -184,58 +184,58 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
     h1 { font-size:clamp(32px,4vh,60px); margin-top:2px; }
     .clock-block { margin-right:6px; }
     #clock { font-size:clamp(28px,3.5vh,50px); }
-    #date { font-size:14px; }
+    #date { font-size:24px; }
     .header-actions { gap:7px; }
-    .header-actions button { min-height:44px; padding:10px 14px; font-size:16px; }
-    main { flex:1; min-height:0; display:grid; grid-template-columns:minmax(0,1.8fr) minmax(290px,1fr); grid-template-rows:auto minmax(180px,1.6fr) minmax(140px,1fr) minmax(180px,.7fr) 0; grid-template-areas:"error error" "hero hero" "members summary" "members wifi" "sync sync"; gap:10px 12px; }
+    .header-actions button { min-height:48px; padding:8px 12px; font-size:24px; }
+    main { flex:1; min-height:0; display:grid; grid-template-columns:minmax(0,1.25fr) minmax(490px,1fr); grid-template-rows:auto minmax(220px,1.35fr) minmax(150px,1fr) minmax(180px,1fr) 0; grid-template-areas:"error error" "hero hero" "members summary" "members wifi" "sync sync"; gap:8px 12px; }
     #error { grid-area:error; padding:8px 12px; border-radius:12px; }
-    #error p { font-size:16px; }
+    #error p { font-size:24px; }
     .hero { grid-area:hero; grid-template-columns:clamp(180px,13vw,340px) minmax(0,1fr); grid-template-rows:minmax(0,1fr); }
     .summary-grid { grid-area:summary; grid-template-columns:minmax(0,1fr); grid-template-rows:repeat(3,minmax(0,1fr)); gap:6px; }
     #members-overview { grid-area:members; }
-    #wifi-section { grid-area:wifi; padding:10px 14px; }
+    #wifi-section { grid-area:wifi; padding:8px 14px; }
     #wifi-section .section-heading { margin-bottom:4px; }
-    #wifi-section .section-heading h2 { font-size:18px; }
+    #wifi-section .section-heading h2 { font-size:24px; }
     .wifi-codes { flex:1; min-height:0; align-items:center; }
     .wifi-code img { width:auto; height:clamp(96px,11.5vh,128px); max-width:100%; }
-    .wifi-code figcaption { margin-top:2px; font-size:16px; line-height:1.3; }
-    .wifi-status { margin:4px 0; font-size:16px; }
+    .wifi-code figcaption { margin-top:2px; font-size:24px; line-height:1.2; }
+    .wifi-status { margin:4px 0; font-size:24px; }
     .sync-row { grid-area:sync; }
     .panel { min-height:0; border-radius:18px; padding:14px 16px; overflow:hidden; }
     .panel:not(.hero), .present-content { display:flex; flex-direction:column; min-height:0; }
     .hero.panel { padding:0; }
     .occupancy { min-height:0; padding:14px; gap:6px; }
-    .occupancy h2 { font-size:clamp(18px,1.8vh,26px); }
+    .occupancy h2 { font-size:clamp(24px,1.8vh,26px); }
     #count { font-size:clamp(64px,9vh,140px); }
     .occupancy-unit { font-size:clamp(24px,2.6vh,40px); }
     .occupancy-number { margin:0; }
-    #member-count { margin-top:4px; font-size:clamp(16px,1.6vh,20px); }
+    #member-count { margin-top:4px; font-size:24px; }
     .present-content { padding:14px 16px; overflow:hidden; }
     .section-heading, .present-content .section-heading { flex-shrink:0; gap:8px; margin-bottom:8px; }
-    h2 { font-size:clamp(22px,2.6vh,34px); }
+    h2 { font-size:clamp(24px,2.6vh,34px); }
     .present-content h2 { font-size:clamp(24px,3.2vh,42px); }
-    .pill { padding:3px 8px; gap:5px; font-size:16px; }
+    .pill { padding:3px 8px; gap:5px; font-size:24px; }
     .cards { flex:1; min-height:0; grid-template-columns:repeat(4,minmax(0,1fr)); grid-template-rows:repeat(2,minmax(0,1fr)); gap:10px; overflow:hidden; }
     .cards:empty { display:none; }
     .person-card { min-height:0; display:flex; flex-direction:column; justify-content:center; gap:clamp(2px,.4vh,4px); padding:clamp(4px,.7vh,10px) clamp(10px,1vw,18px); border-radius:18px; }
-    .person-name { margin:0; font-size:clamp(18px,2.8vh,30px); line-height:1.1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .person-name { margin:0; font-size:clamp(24px,2.8vh,30px); line-height:1.1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .elapsed { font-size:clamp(24px,3.6vh,42px); line-height:1.1; white-space:nowrap; }
     .empty-state { flex:1; display:grid; align-content:center; padding:8px; }
-    .empty-state strong { font-size:clamp(20px,2.8vh,32px); }
-    .empty-state p { margin-top:4px; font-size:clamp(16px,1.7vh,20px); }
-    .empty-symbol { width:32px; height:32px; margin-bottom:8px; border-radius:10px; font-size:20px; }
+    .empty-state strong { font-size:clamp(24px,2.8vh,32px); }
+    .empty-state p { margin-top:4px; font-size:24px; }
+    .empty-symbol { width:32px; height:32px; margin-bottom:8px; border-radius:10px; font-size:24px; }
     .summary-card { display:grid; grid-template-columns:minmax(0,1fr) auto; align-content:center; align-items:center; column-gap:8px; padding:6px 14px; border-radius:14px; }
-    .summary-label { font-size:clamp(16px,1.8vh,24px); }
+    .summary-label { font-size:24px; }
     .summary-value { grid-column:2; grid-row:1; margin:0; font-size:clamp(30px,3.8vh,56px); }
     .table-scroll { flex:1; min-height:0; overflow:hidden; }
     table { table-layout:fixed; }
     .members-table { min-width:0; }
-    th, td { padding:5px 7px; font-size:clamp(16px,2vh,26px); line-height:1.5; overflow:hidden; text-overflow:ellipsis; }
-    thead th { padding:5px 7px; font-size:clamp(16px,1.6vh,20px); }
-    tbody th { min-width:0; max-width:none; white-space:nowrap; font-size:clamp(18px,2.2vh,28px); }
+    th, td { padding:5px 7px; font-size:clamp(24px,2vh,26px); line-height:1.3; overflow:hidden; text-overflow:ellipsis; }
+    thead th { padding:5px 7px; font-size:24px; }
+    tbody th { min-width:0; max-width:none; white-space:nowrap; font-size:clamp(24px,2.2vh,28px); }
     .members-table th:first-child { width:20%; }
-    #sync-status, .sync-note { font-size:9px; }
-    footer { flex-shrink:0; padding:8px 2px 0; font-size:8px; }
+    #sync-status, .sync-note { font-size:24px; }
+    footer { flex-shrink:0; padding:8px 2px 0; font-size:24px; }
   }
   @media (prefers-reduced-motion:no-preference) {
     button { transition:background-color .15s, filter .15s; }
@@ -260,7 +260,6 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
   </header>
   <section class="login-panel" id="login-panel" aria-labelledby="login-heading">
     <h2 id="login-heading">Internal 계정 로그인</h2>
-    <p>BCSDLab 구성원 계정으로 출근부에 로그인하세요.</p>
     <form id="login-form">
       <label for="login-student">학번</label>
       <input id="login-student" name="studentNumber" inputmode="numeric" pattern="[0-9]{8,10}" autocomplete="username" required>
@@ -284,36 +283,36 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
         <div class="section-heading"><h2 id="present-heading">지금 있는 사람</h2></div>
         <p class="loading" id="present-loading">동아리방 현황을 불러오고 있습니다.</p>
         <div class="cards" id="present" role="list" aria-labelledby="present-heading"></div>
-        <div class="empty-state" id="present-empty" hidden><span class="empty-symbol" aria-hidden="true">↗</span><strong>첫 입실을 기다리고 있어요</strong><p>모바일 학생증을 리더에 태그해 주세요.</p></div>
+        <div class="empty-state" id="present-empty" hidden><strong>첫 입실을 기다리고 있어요</strong></div>
       </div>
     </section>
     <section class="summary-grid" aria-label="체류 시간 요약">
-      <div class="summary-card"><h2 class="summary-label">오늘 체류 시간 중앙값</h2><p class="summary-value" id="today-total">—</p></div>
-      <div class="summary-card"><h2 class="summary-label">이번 주 체류 시간 중앙값</h2><p class="summary-value" id="week-total">—</p></div>
+      <div class="summary-card"><h2 class="summary-label">오늘 중앙값</h2><p class="summary-value" id="today-total">—</p></div>
+      <div class="summary-card"><h2 class="summary-label">이번 주 중앙값</h2><p class="summary-value" id="week-total">—</p></div>
       <div class="summary-card" id="unrecorded-summary"><h2 class="summary-label">이번 주 퇴근 미기록</h2><p class="summary-value" id="unrecorded-total">—</p></div>
     </section>
     <section class="panel" id="members-overview" aria-labelledby="members-heading">
-      <div class="section-heading"><div><h2 id="members-heading">이번 주의 발자취</h2></div><span class="pill" id="members-badge">확인 중</span></div>
+      <div class="section-heading"><div><h2 id="members-heading">체류 시간</h2></div><span class="pill" id="members-badge">확인 중</span></div>
       <p class="loading" id="members-loading">회원별 기록을 불러오고 있습니다.</p>
-      <div class="table-scroll" id="members-table" role="region" aria-label="회원별 체류 시간, 가로 스크롤 가능" tabindex="0" hidden>
-        <table class="members-table"><caption class="sr-only">회원별 현재 상태, 오늘 첫 입실 시각, 오늘 마지막 퇴실 시각, 오늘과 이번 주 체류 시간, 퇴근 미기록 건수</caption>
-          <thead><tr><th scope="col">이름</th><th scope="col">현재 상태</th><th scope="col">오늘 첫 입실</th><th scope="col">오늘 마지막 퇴실</th><th scope="col">오늘</th><th scope="col">이번 주</th><th scope="col">퇴근 미기록</th></tr></thead>
+      <div class="table-scroll" id="members-table" role="region" aria-label="회원별 오늘과 이번 주 체류 시간" tabindex="0" hidden>
+        <table class="members-table"><caption class="sr-only">회원별 이름, 오늘 체류 시간, 이번 주 체류 시간</caption>
+          <thead><tr><th scope="col">이름</th><th scope="col">오늘</th><th scope="col">이번 주</th></tr></thead>
           <tbody id="members"></tbody>
         </table>
       </div>
-      <div class="empty-state" id="members-empty" hidden><strong>아직 기록이 없어요</strong><p>Internal에 등록된 회원이 모바일 학생증을 태그하면 표시됩니다.</p></div>
+      <div class="empty-state" id="members-empty" hidden><strong>아직 기록이 없어요</strong></div>
     </section>
     <section class="panel" id="wifi-section" aria-labelledby="wifi-heading">
       <div class="section-heading"><h2 id="wifi-heading">Wi-Fi 연결</h2></div>
       <div class="wifi-codes">
         <figure class="wifi-code">
           <img id="wifi-5" alt="BCSD_5G Wi-Fi 연결 QR 코드" hidden>
-          <p class="wifi-status" id="wifi-5-status" role="status">QR 코드를 불러오는 중</p>
+          <p class="wifi-status" id="wifi-5-status" role="status">QR 불러오는 중</p>
           <figcaption>BCSD_5G</figcaption>
         </figure>
         <figure class="wifi-code">
           <img id="wifi-24" alt="BCSD_2.4G Wi-Fi 연결 QR 코드" hidden>
-          <p class="wifi-status" id="wifi-24-status" role="status">QR 코드를 불러오는 중</p>
+          <p class="wifi-status" id="wifi-24-status" role="status">QR 불러오는 중</p>
           <figcaption>BCSD_2.4G</figcaption>
         </figure>
       </div>
@@ -346,10 +345,10 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
       var image = document.getElementById(entry[0]);
       var status = document.getElementById(entry[0] + '-status');
       image.onload = function () { image.hidden = false; status.hidden = true; };
-      image.onerror = function () { image.hidden = true; status.textContent = 'Wi-Fi QR 코드를 사용할 수 없습니다.'; status.hidden = false; };
+      image.onerror = function () { image.hidden = true; status.textContent = 'QR 연결 실패'; status.hidden = false; };
       image.hidden = true;
       status.hidden = false;
-      status.textContent = 'QR 코드를 불러오는 중';
+      status.textContent = 'QR 불러오는 중';
       if (enabled) image.src = entry[1];
       else image.removeAttribute('src');
     });
@@ -516,14 +515,9 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
       var row = el('tr');
       var name = el('th', '', m.name);
       name.scope = 'row';
-      var status = el('td');
-      status.appendChild(el('span', m.present ? 'pill pill-live' : 'pill', m.present ? '입실 중' : '퇴실'));
-      row.append(name, status);
-      row.appendChild(el('td', 'muted', m.firstInToday === null ? '—' : timeFormat.format(m.firstInToday)));
-      row.appendChild(el('td', 'muted', m.lastCheckOut === null ? '—' : timeFormat.format(m.lastCheckOut)));
+      row.appendChild(name);
       row.appendChild(el('td', '', formatDuration(m.todayMs)));
       row.appendChild(el('td', 'duration', formatDuration(m.weekMs)));
-      row.appendChild(el('td', m.unrecordedWeek > 0 ? 'warn' : 'muted', m.unrecordedWeek > 0 ? m.unrecordedWeek + '건 · 시간 제외' : '—'));
       body.appendChild(row);
     });
     document.getElementById('members-table').hidden = members.length === 0;

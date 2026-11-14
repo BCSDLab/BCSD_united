@@ -11,10 +11,10 @@ body:not([data-internal-auth="authenticated"]) #viewer-name,
 body:not([data-internal-auth="authenticated"]) #refresh,
 body:not([data-internal-auth="authenticated"]) #logout:not([data-internal-logout-retry]) { display:none !important; }
 body:not([data-internal-auth="authenticated"]) #login-panel { display:block !important; }
-#login-panel { width:min(100%,520px); padding:clamp(24px,4vw,40px); border-radius:28px; }
+#login-panel { width:min(100%,620px); padding:24px; border-radius:28px; font-size:24px; }
 #login-panel h2 { font-size:clamp(28px,3vw,36px); line-height:1.25; }
-#login-panel p { font-size:18px; line-height:1.6; }
-#login-panel label, #login-panel input, #login-panel button, #viewer-name { font-size:18px; }
+#login-panel p { font-size:24px; line-height:1.3; }
+#login-panel label, #login-panel input, #login-panel button, #viewer-name, #logout { font-size:24px; }
 body[data-internal-auth="authenticated"] #viewer-name { display:inline; }
 #login-panel input, #login-panel button { min-height:52px; }
 #login-panel .internal-session-check { margin-top:12px; }
@@ -53,10 +53,7 @@ export function createInternalLogin({ onAuthorized, onUnauthorized, clearPrivate
   form.appendChild(retry);
   node('login-heading').textContent = 'Internal 계정 로그인';
   const description = panel.querySelector('p');
-  if (description && description !== message) {
-    description.textContent =
-      'BCSDLab Internal 계정으로 원격 현황을 확인하세요. 로그인과 로그아웃은 출퇴근 기록을 변경하지 않습니다.';
-  }
+  if (description && description !== message) description.remove();
   student.setAttribute('inputmode', 'numeric');
   student.setAttribute('pattern', '[0-9]{8,10}');
   student.setAttribute('autocomplete', 'username');
@@ -122,6 +119,8 @@ export function createInternalLogin({ onAuthorized, onUnauthorized, clearPrivate
       'am-rocky-time',
       'am-sentry',
       'am-cloudflare',
+      'am-sentry-count',
+      'am-cloudflare-count',
       'am-cpu',
       'am-memory',
       'am-executor',

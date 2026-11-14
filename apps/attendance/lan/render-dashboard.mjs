@@ -36,17 +36,17 @@ const spotifyStyles = `
 .app-header > .brand, .app-header > .header-actions { flex-shrink:0; }
 .app-header > .header-actions { min-width:0; }
 .app-header .viewer-name { display:none; }
-.spotify-now { flex:1 1 320px; min-width:0; max-width:480px; height:56px; padding:4px 10px; display:flex; align-items:center; gap:10px; border:1px solid var(--line); border-radius:16px; background:var(--surface-low); overflow:hidden; }
-.spotify-copy { display:grid; grid-template-rows:22px 20px; align-content:center; flex:1; min-width:0; }
-.spotify-cover { flex:0 0 44px; width:44px; height:44px; object-fit:cover; border-radius:7px; }
+.spotify-now { flex:1 1 320px; min-width:0; max-width:480px; height:68px; padding:4px 10px; display:flex; align-items:center; gap:10px; border:1px solid var(--line); border-radius:16px; background:var(--surface-low); overflow:hidden; }
+.spotify-copy { display:grid; grid-template-rows:29px 29px; align-content:center; flex:1; min-width:0; }
+.spotify-cover { flex:0 0 56px; width:56px; height:56px; object-fit:cover; border-radius:7px; }
 .spotify-title, .spotify-artists { display:block; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.spotify-title { color:var(--text); font-size:clamp(16px,1.8vh,20px); font-weight:650; line-height:20px; }
-.spotify-artists { color:var(--muted); font-size:16px; line-height:20px; }
+.spotify-title { color:var(--text); font-size:24px; font-weight:650; line-height:29px; }
+.spotify-artists { color:var(--muted); font-size:24px; line-height:29px; }
 @media (min-width:1000px) and (min-aspect-ratio:3/2) {
- .app-header > .brand, .app-header > .header-actions { height:56px; }
+.app-header > .brand, .app-header > .header-actions { min-height:68px; }
  .app-header h1 { margin-top:2px; font-size:clamp(26px,3vh,32px); line-height:1.2; }
  .app-header #clock { font-size:clamp(26px,3vh,32px); line-height:1.2; }
- .app-header #date { font-size:16px; line-height:1.2; }
+.app-header #date { font-size:24px; line-height:1.2; }
 }
 @media (max-width:999px) {
  .app-header { flex-wrap:wrap; }
@@ -67,29 +67,29 @@ const spotifyMarkup = `
 `;
 const jamStyles = `
 .wifi-codes.has-jam { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); align-items:center; gap:6px; }
-.wifi-codes.has-jam .wifi-code img { width:clamp(104px,15vh,128px); height:auto; aspect-ratio:1; max-width:100%; }
-.wifi-codes.has-jam .wifi-code figcaption { margin-top:2px; font-size:16px; line-height:1.3; white-space:nowrap; }
+.wifi-codes.has-jam .wifi-code img { width:clamp(96px,13vh,128px); height:auto; aspect-ratio:1; max-width:100%; }
+.wifi-codes.has-jam .wifi-code figcaption { margin-top:2px; font-size:24px; line-height:1.2; white-space:nowrap; }
 `;
 const monitorStyles = `
 .monitor-view { --monitor-cpu:var(--primary); --monitor-ram:var(--amber); display:grid; align-content:start; gap:16px; min-width:0; }
 .monitor-heading, .monitor-title, .monitor-section-heading { display:flex; align-items:center; justify-content:space-between; gap:12px 20px; }
 .monitor-title { justify-content:flex-start; flex-wrap:wrap; }
 .monitor-heading h2 { margin:0; font-size:clamp(28px,3.4vh,40px); line-height:1.2; }
-.monitor-description { margin:0; color:var(--muted); font-size:clamp(16px,1.8vh,21px); line-height:1.35; }
-.monitor-status { display:flex; align-items:center; gap:12px; flex-shrink:0; margin:0; padding:10px 18px; border-radius:999px; background:var(--amber-container); color:var(--amber); font-size:clamp(20px,2.2vh,28px); line-height:1.3; font-weight:750; }
+.monitor-description { margin:0; color:var(--muted); font-size:24px; line-height:1.2; }
+.monitor-status { display:inline-flex; align-items:center; gap:10px; flex-shrink:0; margin:0; padding:8px 16px; border-radius:999px; background:var(--amber-container); color:var(--amber); font-size:clamp(24px,2.2vh,28px); line-height:1.2; font-weight:750; }
 .monitor-status::before { content:""; width:13px; height:13px; flex-shrink:0; border-radius:50%; background:currentColor; }
 .monitor-status[data-state="up"] { color:var(--on-green-container); background:var(--green-container); }
 .monitor-status[data-state="down"] { color:var(--error); background:var(--error-container); }
 .monitor-paths { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
 .monitor-path { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0; padding:8px 16px; border:1px solid var(--line); border-radius:999px; color:var(--amber); background:var(--amber-container); line-height:1.2; }
 .monitor-path strong { color:var(--text); font-size:clamp(24px,2.5vh,30px); font-weight:750; }
-.monitor-path span { display:inline-flex; align-items:center; gap:8px; font-size:clamp(22px,2.2vh,28px); font-weight:750; white-space:nowrap; }
+.monitor-path span { display:inline-flex; align-items:center; gap:8px; font-size:clamp(24px,2.2vh,28px); font-weight:750; white-space:nowrap; }
 .monitor-path span::before { content:""; width:10px; height:10px; flex-shrink:0; border-radius:50%; background:currentColor; }
 .monitor-path[data-health="up"] { color:var(--on-green-container); background:var(--green-container); }
 .monitor-path[data-health="down"] { color:var(--error); background:var(--error-container); }
 .worker-health { display:flex; align-items:center; justify-content:space-between; gap:8px 12px; min-width:0; margin:0; padding:8px 16px; border:1px solid var(--line); border-radius:24px; background:var(--surface-low); }
-.worker-health > strong { color:var(--text); font-size:clamp(22px,2.3vh,28px); line-height:1.2; white-space:nowrap; }
-.worker-status { display:inline-flex; align-items:center; gap:6px; color:var(--amber); font-size:clamp(18px,1.9vh,23px); font-weight:750; line-height:1.3; white-space:nowrap; }
+.worker-health > strong { color:var(--text); font-size:clamp(24px,2.3vh,28px); line-height:1.2; white-space:nowrap; }
+.worker-status { display:inline-flex; align-items:center; gap:6px; color:var(--amber); font-size:24px; font-weight:750; line-height:1.2; white-space:nowrap; }
 .worker-status[data-health="up"] { color:var(--on-green-container); }
 .worker-status[data-health="down"] { color:var(--error); }
 @media (max-width:1100px) { .worker-health { flex-wrap:wrap; } .worker-health > strong { flex-basis:100%; } }
@@ -97,32 +97,31 @@ const monitorStyles = `
 .koin-service { display:grid; gap:8px; padding:clamp(10px,1.8vh,22px) clamp(16px,2vw,30px); border:1px solid var(--line); border-left:6px solid var(--amber); border-radius:20px; background:var(--surface); }
 .koin-service[data-health="up"] { border-left-color:var(--green); }
 .koin-service[data-health="down"] { border-left-color:var(--error); }
-.koin-service-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.koin-service-heading { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:4px 12px; }
 .koin-service-name { margin:0; font-size:clamp(26px,3.1vh,38px); font-weight:750; line-height:1.2; }
-.koin-service-detail { display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:2px 14px; color:var(--muted); font-size:clamp(16px,1.85vh,22px); line-height:1.3; }
+.koin-service-detail { display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:2px 14px; color:var(--muted); font-size:24px; line-height:1.2; }
 .koin-service-reason, .koin-service-time { margin:0; }
-.monitor-health { display:inline-flex; align-items:center; gap:8px; width:fit-content; flex-shrink:0; padding:5px 12px; border-radius:999px; color:var(--amber); background:var(--amber-container); font-size:clamp(18px,2.1vh,26px); font-weight:750; line-height:1.2; white-space:nowrap; }
+.monitor-health { display:inline-flex; align-items:center; gap:8px; width:fit-content; flex-shrink:0; padding:4px 10px; border-radius:999px; color:var(--amber); background:var(--amber-container); font-size:clamp(24px,2.1vh,26px); font-weight:750; line-height:1.2; white-space:nowrap; }
 .monitor-health::before { content:""; width:9px; height:9px; flex-shrink:0; border-radius:50%; background:currentColor; }
 .monitor-health[data-health="up"] { color:var(--on-green-container); background:var(--green-container); }
 .monitor-health[data-health="down"] { color:var(--error); background:var(--error-container); }
-.monitor-section-heading h3 { margin:0; font-size:clamp(23px,2.5vh,30px); line-height:1.2; }
-.monitor-timestamp { margin:0; color:var(--muted); font-size:clamp(16px,1.8vh,21px); line-height:1.3; text-align:right; }
+.monitor-section-heading h3 { margin:0; font-size:clamp(24px,2.5vh,30px); line-height:1.2; }
+.monitor-timestamp { margin:0; color:var(--muted); font-size:24px; line-height:1.2; text-align:right; }
 .monitor-timestamp, .monitor-node-time, .koin-service-time { font-variant-numeric:tabular-nums; }
 .monitor-cards { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; min-width:0; min-height:0; }
 .monitor-node.panel { display:grid; grid-template-rows:auto auto minmax(0,1fr) auto; align-content:start; gap:clamp(8px,1.1vh,16px); padding:clamp(12px,1.8vh,24px); border-radius:22px; min-width:0; }
 .monitor-node-heading { min-width:0; }
 .monitor-node-title { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px 10px; }
 .monitor-node h4 { margin:0; font-size:clamp(24px,3vh,36px); line-height:1.2; font-weight:750; overflow-wrap:anywhere; }
-.monitor-node-time { margin:0; padding-top:8px; border-top:1px solid var(--line); color:var(--muted); font-size:clamp(16px,1.85vh,22px); line-height:1.3; }
-.monitor-value-note { margin:5px 0 0; color:var(--amber); font-size:clamp(14px,1.7vh,20px); line-height:1.3; }
+.monitor-node-time { margin:0; padding-top:8px; border-top:1px solid var(--line); color:var(--muted); font-size:24px; line-height:1.2; }
+.monitor-value-note { margin:5px 0 0; color:var(--amber); font-size:24px; line-height:1.2; }
 .monitor-metrics { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
 .monitor-metric { min-width:0; }
-.monitor-metric-label { display:flex; align-items:center; gap:9px; color:var(--monitor-cpu); font-size:clamp(18px,2.2vh,26px); line-height:1.2; font-weight:750; }
+.monitor-metric-label { display:flex; align-items:center; gap:9px; color:var(--monitor-cpu); font-size:clamp(24px,2.2vh,26px); line-height:1.2; font-weight:750; }
 .monitor-metric-label::before { content:""; width:27px; border-top:5px solid currentColor; }
 .monitor-metric[data-metric="ram"] .monitor-metric-label { color:var(--monitor-ram); }
 .monitor-metric[data-metric="ram"] .monitor-metric-label::before { border-top-style:dashed; }
 .monitor-value { display:block; margin-top:3px; font-size:clamp(44px,5.4vh,72px); font-weight:750; letter-spacing:-.055em; line-height:1.05; font-variant-numeric:tabular-nums; }
-.monitor-metric-detail { display:block; margin-top:4px; color:var(--muted); font-size:clamp(13px,1.5vh,18px); line-height:1.3; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
 .monitor-plot { display:flex; flex-direction:column; min-height:0; }
 .monitor-graph { display:block; flex:1; width:100%; height:clamp(100px,15vh,180px); min-height:100px; overflow:hidden; }
 .monitor-graph-grid { fill:none; stroke:var(--outline); stroke-width:1; vector-effect:non-scaling-stroke; }
@@ -130,8 +129,8 @@ const monitorStyles = `
 .monitor-graph-line[data-series="ram"] { stroke:var(--monitor-ram); stroke-dasharray:10 7; }
 .monitor-graph-dot { fill:var(--monitor-cpu); }
 .monitor-graph-dot[data-series="ram"] { fill:var(--monitor-ram); }
-.monitor-graph-axis { display:flex; align-items:center; justify-content:space-between; gap:8px; color:var(--muted); font-size:clamp(14px,1.65vh,19px); line-height:1.25; }
-.monitor-waiting { grid-column:1 / -1; margin:0; padding:24px; color:var(--muted); font-size:clamp(22px,2.5vh,30px); border:2px dashed var(--outline); border-radius:20px; }
+.monitor-graph-axis { display:flex; align-items:center; justify-content:space-between; gap:8px; color:var(--muted); font-size:24px; line-height:1.2; }
+.monitor-waiting { grid-column:1 / -1; margin:0; padding:16px; color:var(--muted); font-size:clamp(24px,2.5vh,30px); border:2px dashed var(--outline); border-radius:20px; }
 @media (max-width:999px) {
  .monitor-heading { align-items:start; flex-direction:column; }
  .monitor-cards { grid-template-columns:minmax(0,1fr); }
@@ -139,7 +138,7 @@ const monitorStyles = `
  .monitor-graph { flex:none; height:170px; }
  .monitor-value { font-size:52px; }
  .monitor-node h4 { font-size:30px; }
- .monitor-health { font-size:20px; }
+.monitor-health { font-size:24px; }
 }
 @media (max-width:650px) {
  .monitor-paths { grid-template-columns:minmax(0,1fr); }
@@ -147,9 +146,9 @@ const monitorStyles = `
  .monitor-section-heading { align-items:start; flex-direction:column; gap:6px; }
  .monitor-timestamp { text-align:left; }
  .koin-service-name { font-size:26px; }
- .monitor-description { font-size:16px; }
+.monitor-description { font-size:24px; }
  .monitor-title { gap:8px; }
- .monitor-status { font-size:20px; }
+.monitor-status { font-size:24px; }
 }
 @media (min-width:1000px) and (min-aspect-ratio:3/2) {
  .monitor-view { flex:1; min-height:0; gap:clamp(8px,1vh,14px); grid-template-rows:auto auto auto auto minmax(0,1fr); }
@@ -159,7 +158,7 @@ const monitorStyles = `
  .monitor-node.panel { min-height:0; }
  .koin-service-name, .monitor-node h4 { font-size:clamp(32px,3.1vh,38px); }
  .monitor-value { font-size:clamp(58px,5.4vh,72px); }
- .monitor-health { font-size:clamp(22px,2.1vh,26px); }
+.monitor-health { font-size:clamp(24px,2.1vh,26px); }
  .monitor-node.panel { padding:clamp(10px,1.4vh,22px); gap:clamp(6px,.9vh,14px); }
  .monitor-node-time { padding-top:4px; }
  .monitor-graph { height:0; min-height:0; flex:1 1 0; }
@@ -174,23 +173,22 @@ const monitorStyles = `
  .monitor-node-title { gap:4px 8px; }
  .monitor-node-heading { min-height:0; }
  .monitor-metrics { gap:8px; }
- .monitor-value-note { margin-top:2px; font-size:14px; }
- .monitor-node-time { line-height:1.25; }
- .monitor-heading h2 { font-size:28px; }
- .monitor-description { font-size:16px; }
- .monitor-status { padding:7px 12px; font-size:20px; }
- .monitor-path { padding:6px 12px; }
- .monitor-path strong, .monitor-path span { font-size:22px; }
- .koin-service { padding:10px 16px; gap:4px; }
- .koin-service-name { font-size:26px; }
- .koin-service-detail, .monitor-timestamp, .monitor-node-time { font-size:16px; }
- .monitor-section-heading h3 { font-size:23px; }
- .monitor-health { font-size:18px; }
- .monitor-node h4 { font-size:30px; }
- .monitor-metric-label { font-size:20px; }
- .monitor-value { font-size:54px; }
- .monitor-metric-detail { font-size:16px; }
- .monitor-graph-axis { font-size:16px; }
+.monitor-value-note { margin-top:2px; font-size:24px; }
+.monitor-node-time { line-height:1.2; }
+.monitor-heading h2 { font-size:28px; }
+.monitor-description { font-size:24px; }
+.monitor-status { padding:6px 12px; font-size:24px; }
+.monitor-path { padding:6px 12px; }
+.monitor-path strong, .monitor-path span { font-size:24px; }
+.koin-service { padding:8px 12px; gap:4px; }
+.koin-service-name { font-size:26px; }
+.koin-service-detail, .monitor-timestamp, .monitor-node-time { font-size:24px; }
+.monitor-section-heading h3 { font-size:24px; }
+.monitor-health { font-size:24px; }
+.monitor-node h4 { font-size:30px; }
+.monitor-metric-label { font-size:24px; }
+.monitor-value { font-size:48px; }
+.monitor-graph-axis { font-size:24px; }
 }
 `;
 const monitorMarkup = `
@@ -223,12 +221,12 @@ const greetingStyles = `
   .greeting-dialog.is-entering { animation:greeting-enter 220ms cubic-bezier(.2,.8,.2,1) both; }
   .greeting-dialog.is-closing { animation:greeting-exit 160ms ease-in both; }
   @keyframes greeting-enter {
-    from { opacity:0; transform:translateY(12px) scale(.97); }
-    to { opacity:1; transform:translateY(0) scale(1); }
+    from { opacity:0; transform:translateY(12px); }
+    to { opacity:1; transform:translateY(0); }
   }
   @keyframes greeting-exit {
-    from { opacity:1; transform:translateY(0) scale(1); }
-    to { opacity:0; transform:translateY(8px) scale(.98); }
+    from { opacity:1; transform:translateY(0); }
+    to { opacity:0; transform:translateY(8px); }
   }
   @media (prefers-reduced-motion:reduce) {
     .greeting-dialog.is-entering, .greeting-dialog.is-closing { animation:none; }
@@ -237,20 +235,18 @@ const greetingStyles = `
   .greeting-brand {
     display:inline-block; margin:0 0 20px; padding:6px 14px; border-radius:999px;
     background:var(--primary-container); color:var(--on-primary-container);
-    font-size:16px; font-weight:750; letter-spacing:.12em;
+    font-size:24px; font-weight:750; letter-spacing:.12em;
   }
   .greeting-message {
     margin:0; font-size:clamp(24px,3vw,36px); font-weight:700;
     line-height:1.5; letter-spacing:-.04em; overflow-wrap:anywhere;
   }
-  .greeting-description { margin:16px 0 24px; color:var(--muted); font-size:16px; }
   .greeting-close { min-width:96px; }
 `;
 const greetingMarkup = `
-<dialog id="greeting-dialog" class="greeting-dialog" aria-labelledby="greeting-message" aria-describedby="greeting-description">
+<dialog id="greeting-dialog" class="greeting-dialog" aria-labelledby="greeting-message">
   <p class="greeting-brand" aria-hidden="true">BCSD LAB</p>
   <h2 id="greeting-message" class="greeting-message" aria-live="polite" aria-atomic="true"></h2>
-  <p id="greeting-description" class="greeting-description">5초 후 자동으로 닫힙니다.</p>
   <button id="greeting-close" class="button-filled greeting-close" type="button" autofocus>닫기</button>
 </dialog>
 `;
@@ -570,10 +566,8 @@ if (view === 'monitor' && lanGreetingDialog.open) return;
     var block = el('div', 'monitor-metric');
     block.dataset.metric = key;
     var value = el('strong', 'monitor-value', '—');
-    var detail = key === 'ram' ? el('span', 'monitor-metric-detail') : null;
     block.append(el('span', 'monitor-metric-label', label), value);
-    if (detail) block.appendChild(detail);
-    return { block: block, value: value, detail: detail };
+    return { block: block, value: value };
   }
   function renderLanMonitor() {
     var container = document.getElementById('monitor-cards');
@@ -683,18 +677,14 @@ if (view === 'monitor' && lanGreetingDialog.open) return;
       states.push(state);
       entry.health.dataset.health = state;
       entry.health.textContent = state === 'up' ? '수집 정상' : state === 'down' ? '수집 실패' : '확인 불가';
-      var ageSeconds = node.collectedAt === null ? null : Math.max(0, Math.floor((now - node.collectedAt) / 1000));
-      entry.timestamp.textContent = '수집 ' + lanTimestamp(node.collectedAt)
-        + (ageSeconds === null ? '' : ' · ' + ageSeconds + '초 전')
-        + (fresh ? '' : ' · 최신 아님');
+      entry.timestamp.textContent = '수집 ' + lanTimestamp(node.collectedAt);
       entry.note.textContent = !fresh ? '최신 수치 확인 불가'
-        : cpu === null || ram === null ? '일부 미수집 · —는 확인 불가' : '';
+        : cpu === null || ram === null ? '일부 미수집' : '';
       entry.note.hidden = !entry.note.textContent;
       entry.cpu.value.textContent = lanPercent(cpu);
       entry.ram.value.textContent = lanPercent(ram);
-      entry.ram.detail.textContent = ram === null ? '사용 / 전체 확인 불가'
+      entry.ram.value.title = ram === null ? '사용 / 전체 확인 불가'
         : lanBytes(node.memoryUsedBytes) + ' / ' + lanBytes(node.memoryTotalBytes);
-      entry.ram.value.title = entry.ram.detail.textContent;
       var history = lanHistoryFor(node.id);
       if (!fresh) history.breakNext = true;
       lanPruneHistory(history, now);
