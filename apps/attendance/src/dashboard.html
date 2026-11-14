@@ -1,0 +1,4032 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="color-scheme" content="light dark" />
+    <title>BCSD 출근부</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f7f8fc;
+        --surface: #fff;
+        --surface-low: #f0f2f8;
+        --surface-high: #e7eaf4;
+        --text: #1c2436;
+        --muted: #626c80;
+        --outline: #d7ddeb;
+        --line: #e6eaf2;
+        --primary: #4c5dcc;
+        --on-primary: #fff;
+        --primary-container: #e8ecff;
+        --on-primary-container: #28366f;
+        --green: #22664e;
+        --green-container: #d9f3e7;
+        --on-green-container: #174a38;
+        --amber: #775414;
+        --amber-container: #fff0ce;
+        --error: #a72c39;
+        --error-container: #ffebed;
+        --shadow: 0 4px 20px #1b233306;
+      }
+      :root[data-theme='dark'] {
+        color-scheme: dark;
+        --bg: #10131b;
+        --surface: #1b202c;
+        --surface-low: #222837;
+        --surface-high: #2b3243;
+        --text: #e4e8f6;
+        --muted: #b2bbd0;
+        --outline: #505b73;
+        --line: #323b4e;
+        --primary: #bac5ff;
+        --on-primary: #1e2d64;
+        --primary-container: #28365f;
+        --on-primary-container: #e0e6ff;
+        --green: #a0dfc2;
+        --green-container: #1c4036;
+        --on-green-container: #b4f1d5;
+        --amber: #f0cc86;
+        --amber-container: #45391f;
+        --error: #ffb2bc;
+        --error-container: #482630;
+        --shadow: none;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      [hidden] {
+        display: none !important;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          16px/1.6 system-ui,
+          -apple-system,
+          'Apple SD Gothic Neo',
+          'Noto Sans KR',
+          sans-serif;
+        word-break: keep-all;
+        -webkit-font-smoothing: antialiased;
+      }
+      button,
+      input {
+        font: inherit;
+      }
+      button {
+        cursor: pointer;
+      }
+      button:disabled {
+        cursor: default;
+        opacity: 0.65;
+      }
+      button,
+      input,
+      a,
+      [tabindex] {
+        -webkit-tap-highlight-color: transparent;
+      }
+      :focus-visible {
+        outline: 3px solid var(--primary);
+        outline-offset: 4px;
+      }
+      button {
+        min-height: 44px;
+        border: 0;
+        border-radius: 999px;
+        padding: 10px 18px;
+        font-size: 16px;
+        font-weight: 650;
+      }
+      button:hover:not(:disabled) {
+        filter: brightness(0.94);
+      }
+      .button-tonal {
+        background: var(--primary-container);
+        color: var(--on-primary-container);
+      }
+      .button-text {
+        background: transparent;
+        color: var(--primary);
+      }
+      .button-filled {
+        background: var(--primary);
+        color: var(--on-primary);
+      }
+      .button-outline {
+        background: transparent;
+        color: var(--text);
+        border: 1px solid var(--outline);
+      }
+      .login-panel {
+        width: min(100%, 420px);
+        margin: auto;
+        padding: 32px;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        box-shadow: var(--shadow);
+      }
+      .login-panel h2 {
+        margin: 0 0 8px;
+        font-size: 24px;
+      }
+      .login-panel p {
+        color: var(--muted);
+        font-size: 16px;
+      }
+      .login-panel label {
+        display: block;
+        margin: 18px 0 6px;
+        font-size: 16px;
+        font-weight: 650;
+      }
+      .login-panel input {
+        width: 100%;
+        min-height: 48px;
+        padding: 11px 13px;
+        border: 1px solid var(--outline);
+        border-radius: 12px;
+        background: var(--surface);
+        color: var(--text);
+        font: inherit;
+        font-size: 16px;
+      }
+      .login-panel button {
+        width: 100%;
+        margin-top: 22px;
+      }
+      .login-panel .login-error {
+        min-height: 1.5em;
+        color: var(--error);
+      }
+      .viewer-name {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+        border: 0;
+      }
+      .skip-link {
+        position: fixed;
+        top: 12px;
+        left: 12px;
+        z-index: 10;
+        transform: translateY(-180%);
+        padding: 12px 20px;
+        border-radius: 16px;
+        background: var(--primary);
+        color: var(--on-primary);
+      }
+      .skip-link:focus {
+        transform: none;
+      }
+      .workspace {
+        max-width: 1800px;
+        min-height: 100vh;
+        margin: 0 auto;
+      }
+      .app-shell {
+        min-width: 0;
+        padding: 32px 36px 24px;
+      }
+      .app-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+        margin-bottom: 26px;
+        padding-bottom: 22px;
+        border-bottom: 1px solid var(--line);
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      h1 {
+        margin: 5px 0 0;
+        font-size: 29px;
+        font-weight: 750;
+        letter-spacing: -0.055em;
+        line-height: 1.3;
+      }
+      .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .clock-block {
+        text-align: right;
+        margin-right: 14px;
+      }
+      #clock {
+        display: block;
+        font-size: 25px;
+        font-weight: 650;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.03em;
+        line-height: 1.3;
+      }
+      #date {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      main {
+        display: grid;
+        gap: 24px;
+      }
+      .section-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 20px;
+      }
+      h2 {
+        margin: 0;
+        font-size: 19px;
+        font-weight: 700;
+        letter-spacing: -0.035em;
+      }
+      .panel {
+        min-width: 0;
+        background: var(--surface);
+        padding: 26px;
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        box-shadow: var(--shadow);
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        flex-shrink: 0;
+        padding: 5px 11px;
+        border-radius: 999px;
+        background: var(--surface-low);
+        color: var(--muted);
+        font-size: 16px;
+        font-weight: 650;
+      }
+      .dot {
+        display: inline-block;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: currentColor;
+        flex-shrink: 0;
+      }
+      .pill-live {
+        background: var(--green-container);
+        color: var(--on-green-container);
+      }
+      .pill-warn {
+        background: var(--amber-container);
+        color: var(--amber);
+      }
+      .hero {
+        padding: 0;
+        overflow: hidden;
+        display: grid;
+        grid-template-columns: 250px minmax(0, 1fr);
+        background: var(--surface);
+      }
+      .occupancy {
+        padding: 28px;
+        background: var(--primary-container);
+        color: var(--on-primary-container);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 22px;
+      }
+      .occupancy h2 {
+        font-size: 17px;
+      }
+      .occupancy-number {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        margin: 5px 0 0;
+      }
+      #count {
+        font-size: clamp(76px, 7vw, 112px);
+        line-height: 1;
+        letter-spacing: -0.07em;
+        font-weight: 650;
+        font-variant-numeric: tabular-nums;
+      }
+      .occupancy-unit {
+        font-size: 24px;
+        font-weight: 550;
+      }
+      #member-count {
+        margin: 10px 0 0;
+        font-size: 16px;
+      }
+      .present-content {
+        min-width: 0;
+        padding: 28px;
+      }
+      .present-content .section-heading {
+        margin-bottom: 18px;
+      }
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+        gap: 12px;
+      }
+      .person-card {
+        min-width: 0;
+        background: var(--green-container);
+        color: var(--on-green-container);
+        border-radius: 20px;
+        padding: 19px 20px;
+      }
+      .person-name {
+        margin: 0 0 12px;
+        overflow-wrap: anywhere;
+        font-size: 19px;
+        font-weight: 700;
+      }
+      .elapsed {
+        display: block;
+        font-size: 32px;
+        letter-spacing: -0.025em;
+        font-weight: 600;
+        line-height: 1.25;
+        font-variant-numeric: tabular-nums;
+      }
+      .empty-state {
+        padding: 26px 16px;
+        text-align: center;
+        color: var(--muted);
+      }
+      .empty-state strong {
+        display: block;
+        color: var(--text);
+        font-size: 16px;
+        font-weight: 650;
+      }
+      .empty-state p {
+        margin: 6px 0 0;
+        font-size: 16px;
+      }
+      .empty-symbol {
+        display: grid;
+        place-items: center;
+        width: 44px;
+        height: 44px;
+        margin: 0 auto 12px;
+        border-radius: 16px;
+        background: var(--surface-low);
+        color: var(--primary);
+        font-size: 24px;
+      }
+      .loading {
+        padding: 28px 8px;
+        color: var(--muted);
+        font-size: 16px;
+      }
+      .loading::before {
+        content: '';
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        margin-right: 10px;
+        border-radius: 50%;
+        background: var(--primary);
+      }
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+      }
+      .summary-card {
+        padding: 22px 24px;
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        background: var(--surface);
+      }
+      .summary-label {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--muted);
+      }
+      .summary-value {
+        margin: 8px 0 4px;
+        font-size: 28px;
+        line-height: 1.3;
+        font-weight: 650;
+        letter-spacing: -0.04em;
+        font-variant-numeric: tabular-nums;
+      }
+      .summary-card.attention {
+        background: var(--amber-container);
+        color: var(--amber);
+      }
+      .summary-card.attention .summary-label {
+        color: inherit;
+      }
+      .table-scroll {
+        overflow-x: auto;
+        border-radius: 12px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      .members-table {
+        min-width: 840px;
+      }
+      th,
+      td {
+        padding: 15px 14px;
+        border-bottom: 1px solid var(--line);
+      }
+      thead th {
+        padding-top: 12px;
+        padding-bottom: 12px;
+        background: var(--surface-low);
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--muted);
+      }
+      thead th:first-child {
+        border-radius: 12px 0 0 12px;
+      }
+      thead th:last-child {
+        border-radius: 0 12px 12px 0;
+      }
+      tbody th {
+        font-weight: 650;
+        white-space: normal;
+        min-width: 110px;
+        max-width: 240px;
+        overflow-wrap: anywhere;
+      }
+      tbody tr:last-child > * {
+        border-bottom: 0;
+      }
+      td {
+        font-size: 16px;
+      }
+      .duration {
+        font-weight: 650;
+        color: var(--primary);
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .warn {
+        color: var(--amber);
+      }
+      .wifi-codes {
+        display: flex;
+        justify-content: space-evenly;
+        gap: 12px;
+      }
+      .wifi-code {
+        min-width: 0;
+        margin: 0;
+        text-align: center;
+      }
+      .wifi-code img {
+        display: block;
+        width: 150px;
+        height: 150px;
+        max-width: 100%;
+        margin: 0 auto;
+        object-fit: contain;
+        background: #fff;
+      }
+      .wifi-code figcaption {
+        margin-top: 4px;
+        font-size: 16px;
+        font-weight: 650;
+      }
+      .wifi-status {
+        margin: 8px 0;
+        color: var(--muted);
+        font-size: 16px;
+      }
+      .error-banner {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        background: var(--error-container);
+        color: var(--error);
+        border-radius: 20px;
+        padding: 16px 22px;
+      }
+      .error-banner p {
+        margin: 0;
+        font-size: 16px;
+      }
+      .error-banner button {
+        color: inherit;
+        flex-shrink: 0;
+      }
+      .sync-row {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 0 4px;
+      }
+      #sync-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      #sync-status[data-state='ready'] {
+        color: var(--green);
+      }
+      #sync-status[data-state='error'] {
+        color: var(--error);
+      }
+      .sync-note {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      footer {
+        display: flex;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 24px 4px 0;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      footer p {
+        margin: 0;
+      }
+      .sync-row,
+      footer {
+        display: none !important;
+      }
+      @media (min-width: 1600px) {
+        .app-shell {
+          max-width: 1600px;
+        }
+        .hero {
+          grid-template-columns: 300px minmax(0, 1fr);
+        }
+        .person-name {
+          font-size: 22px;
+        }
+        .elapsed {
+          font-size: 38px;
+        }
+      }
+      @media (max-width: 1050px) {
+        .app-shell {
+          padding: 24px;
+        }
+        .hero {
+          grid-template-columns: 220px minmax(0, 1fr);
+        }
+        .occupancy,
+        .present-content {
+          padding: 24px;
+        }
+        .clock-block {
+          margin-right: 0;
+        }
+      }
+      @media (max-width: 700px) {
+        h1 {
+          font-size: 26px;
+        }
+        .app-shell {
+          padding: 20px 16px;
+        }
+        .app-header {
+          flex-wrap: wrap;
+          gap: 18px;
+          margin-bottom: 20px;
+        }
+        .header-actions {
+          width: 100%;
+          justify-content: flex-end;
+          gap: 6px;
+        }
+        .clock-block {
+          margin-right: auto;
+          text-align: left;
+        }
+        #clock {
+          font-size: 21px;
+        }
+        .header-actions button {
+          padding: 10px 13px;
+          font-size: 16px;
+        }
+        main {
+          gap: 18px;
+        }
+        .hero {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .occupancy {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          grid-template-areas: 'heading count' 'note note';
+          align-items: center;
+          gap: 16px;
+          padding: 24px;
+        }
+        .occupancy > div:first-child {
+          grid-area: heading;
+        }
+        .occupancy-number {
+          grid-area: count;
+          margin: 0;
+        }
+        #count {
+          font-size: 76px;
+        }
+        #member-count {
+          margin: 6px 0 0;
+        }
+        .present-content,
+        .panel {
+          padding: 22px 18px;
+        }
+        .hero.panel {
+          padding: 0;
+        }
+        .cards {
+          grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        }
+        .person-card {
+          padding: 16px;
+        }
+        .elapsed {
+          font-size: 29px;
+        }
+        .summary-grid {
+          gap: 10px;
+        }
+        .summary-card {
+          padding: 17px 14px;
+          border-radius: 20px;
+        }
+        .summary-value {
+          font-size: 22px;
+        }
+        h2 {
+          font-size: 17px;
+        }
+        .section-heading {
+          gap: 10px;
+        }
+        .error-banner {
+          padding: 16px;
+        }
+        .error-banner button {
+          padding: 8px;
+        }
+      }
+      @media (max-width: 420px) {
+        .summary-grid {
+          grid-template-columns: minmax(0, 1fr);
+          gap: 8px;
+        }
+        .summary-card {
+          display: grid;
+          grid-template-columns: 1fr auto;
+          align-items: center;
+          column-gap: 12px;
+        }
+        .summary-value {
+          grid-column: 2;
+          grid-row: 1;
+          margin: 0;
+        }
+        .cards {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .occupancy {
+          padding: 22px 18px;
+        }
+      }
+      .pager {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 5px;
+        flex-shrink: 0;
+        min-height: 44px;
+        margin-left: auto;
+        color: var(--muted);
+        font-size: 16px;
+      }
+      .pager button {
+        min-width: 44px;
+        min-height: 44px;
+        padding: 4px 8px;
+        font-size: 16px;
+      }
+      @media (min-width: 1000px) and (min-aspect-ratio: 3/2) {
+        html,
+        body {
+          height: 100%;
+          overflow: hidden;
+        }
+        .workspace {
+          height: 100dvh;
+          min-height: 0;
+          max-width: none;
+        }
+        .app-shell {
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+          width: 100%;
+          max-width: none;
+          padding: 20px 24px 12px;
+          overflow: hidden;
+        }
+        .app-header {
+          flex-shrink: 0;
+          padding-bottom: 12px;
+          margin-bottom: 12px;
+          gap: 16px;
+        }
+        h1 {
+          font-size: clamp(32px, 4vh, 60px);
+          margin-top: 2px;
+        }
+        .clock-block {
+          margin-right: 6px;
+        }
+        #clock {
+          font-size: clamp(28px, 3.5vh, 50px);
+        }
+        #date {
+          font-size: 14px;
+        }
+        .header-actions {
+          gap: 7px;
+        }
+        .header-actions button {
+          min-height: 44px;
+          padding: 10px 14px;
+          font-size: 16px;
+        }
+        main {
+          flex: 1;
+          min-height: 0;
+          display: grid;
+          grid-template-columns: minmax(0, 1.8fr) minmax(290px, 1fr);
+          grid-template-rows: auto minmax(180px, 1.6fr) minmax(140px, 1fr) minmax(180px, 0.7fr) 0;
+          grid-template-areas: 'error error' 'hero hero' 'members summary' 'members wifi' 'sync sync';
+          gap: 10px 12px;
+        }
+        #error {
+          grid-area: error;
+          padding: 8px 12px;
+          border-radius: 12px;
+        }
+        #error p {
+          font-size: 16px;
+        }
+        .hero {
+          grid-area: hero;
+          grid-template-columns: clamp(180px, 13vw, 340px) minmax(0, 1fr);
+          grid-template-rows: minmax(0, 1fr);
+        }
+        .summary-grid {
+          grid-area: summary;
+          grid-template-columns: minmax(0, 1fr);
+          grid-template-rows: repeat(3, minmax(0, 1fr));
+          gap: 6px;
+        }
+        #members-overview {
+          grid-area: members;
+        }
+        #wifi-section {
+          grid-area: wifi;
+          padding: 10px 14px;
+        }
+        #wifi-section .section-heading {
+          margin-bottom: 4px;
+        }
+        #wifi-section .section-heading h2 {
+          font-size: 18px;
+        }
+        .wifi-codes {
+          flex: 1;
+          min-height: 0;
+          align-items: center;
+        }
+        .wifi-code img {
+          width: auto;
+          height: clamp(96px, 11.5vh, 128px);
+          max-width: 100%;
+        }
+        .wifi-code figcaption {
+          margin-top: 2px;
+          font-size: 16px;
+          line-height: 1.3;
+        }
+        .wifi-status {
+          margin: 4px 0;
+          font-size: 16px;
+        }
+        .sync-row {
+          grid-area: sync;
+        }
+        .panel {
+          min-height: 0;
+          border-radius: 18px;
+          padding: 14px 16px;
+          overflow: hidden;
+        }
+        .panel:not(.hero),
+        .present-content {
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
+        }
+        .hero.panel {
+          padding: 0;
+        }
+        .occupancy {
+          min-height: 0;
+          padding: 14px;
+          gap: 6px;
+        }
+        .occupancy h2 {
+          font-size: clamp(18px, 1.8vh, 26px);
+        }
+        #count {
+          font-size: clamp(64px, 9vh, 140px);
+        }
+        .occupancy-unit {
+          font-size: clamp(24px, 2.6vh, 40px);
+        }
+        .occupancy-number {
+          margin: 0;
+        }
+        #member-count {
+          margin-top: 4px;
+          font-size: clamp(16px, 1.6vh, 20px);
+        }
+        .present-content {
+          padding: 14px 16px;
+          overflow: hidden;
+        }
+        .section-heading,
+        .present-content .section-heading {
+          flex-shrink: 0;
+          gap: 8px;
+          margin-bottom: 8px;
+        }
+        h2 {
+          font-size: clamp(22px, 2.6vh, 34px);
+        }
+        .present-content h2 {
+          font-size: clamp(24px, 3.2vh, 42px);
+        }
+        .pill {
+          padding: 3px 8px;
+          gap: 5px;
+          font-size: 16px;
+        }
+        .cards {
+          flex: 1;
+          min-height: 0;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          grid-template-rows: repeat(2, minmax(0, 1fr));
+          gap: 10px;
+          overflow: hidden;
+        }
+        .cards:empty {
+          display: none;
+        }
+        .person-card {
+          min-height: 0;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          gap: clamp(2px, 0.4vh, 4px);
+          padding: clamp(4px, 0.7vh, 10px) clamp(10px, 1vw, 18px);
+          border-radius: 18px;
+        }
+        .person-name {
+          margin: 0;
+          font-size: clamp(18px, 2.8vh, 30px);
+          line-height: 1.1;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .elapsed {
+          font-size: clamp(24px, 3.6vh, 42px);
+          line-height: 1.1;
+          white-space: nowrap;
+        }
+        .empty-state {
+          flex: 1;
+          display: grid;
+          align-content: center;
+          padding: 8px;
+        }
+        .empty-state strong {
+          font-size: clamp(20px, 2.8vh, 32px);
+        }
+        .empty-state p {
+          margin-top: 4px;
+          font-size: clamp(16px, 1.7vh, 20px);
+        }
+        .empty-symbol {
+          width: 32px;
+          height: 32px;
+          margin-bottom: 8px;
+          border-radius: 10px;
+          font-size: 20px;
+        }
+        .summary-card {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          align-content: center;
+          align-items: center;
+          column-gap: 8px;
+          padding: 6px 14px;
+          border-radius: 14px;
+        }
+        .summary-label {
+          font-size: clamp(16px, 1.8vh, 24px);
+        }
+        .summary-value {
+          grid-column: 2;
+          grid-row: 1;
+          margin: 0;
+          font-size: clamp(30px, 3.8vh, 56px);
+        }
+        .table-scroll {
+          flex: 1;
+          min-height: 0;
+          overflow: hidden;
+        }
+        table {
+          table-layout: fixed;
+        }
+        .members-table {
+          min-width: 0;
+        }
+        th,
+        td {
+          padding: 5px 7px;
+          font-size: clamp(16px, 2vh, 26px);
+          line-height: 1.5;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        thead th {
+          padding: 5px 7px;
+          font-size: clamp(16px, 1.6vh, 20px);
+        }
+        tbody th {
+          min-width: 0;
+          max-width: none;
+          white-space: nowrap;
+          font-size: clamp(18px, 2.2vh, 28px);
+        }
+        .members-table th:first-child {
+          width: 20%;
+        }
+        #sync-status,
+        .sync-note {
+          font-size: 9px;
+        }
+        footer {
+          flex-shrink: 0;
+          padding: 8px 2px 0;
+          font-size: 8px;
+        }
+      }
+      @media (prefers-reduced-motion: no-preference) {
+        button {
+          transition:
+            background-color 0.15s,
+            filter 0.15s;
+        }
+      }
+
+      .greeting-dialog {
+        width: min(560px, calc(100vw - 32px));
+        max-width: calc(100vw - 32px);
+        max-height: calc(100vh - 32px);
+        max-height: calc(100dvh - 32px);
+        margin: auto;
+        padding: clamp(24px, 4vw, 40px);
+        overflow: auto;
+        border: 1px solid var(--line);
+        border-radius: 28px;
+        background: var(--surface-high);
+        color: var(--text);
+        box-shadow: 0 24px 80px #0004;
+        text-align: center;
+      }
+      .greeting-dialog.is-entering {
+        animation: greeting-enter 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+      }
+      .greeting-dialog.is-closing {
+        animation: greeting-exit 160ms ease-in both;
+      }
+      @keyframes greeting-enter {
+        from {
+          opacity: 0;
+          transform: translateY(12px) scale(0.97);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+      @keyframes greeting-exit {
+        from {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+        to {
+          opacity: 0;
+          transform: translateY(8px) scale(0.98);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .greeting-dialog.is-entering,
+        .greeting-dialog.is-closing {
+          animation: none;
+        }
+      }
+      .greeting-dialog::backdrop {
+        background: #0006;
+      }
+      .greeting-brand {
+        display: inline-block;
+        margin: 0 0 20px;
+        padding: 6px 14px;
+        border-radius: 999px;
+        background: var(--primary-container);
+        color: var(--on-primary-container);
+        font-size: 16px;
+        font-weight: 750;
+        letter-spacing: 0.12em;
+      }
+      .greeting-message {
+        margin: 0;
+        font-size: clamp(24px, 3vw, 36px);
+        font-weight: 700;
+        line-height: 1.5;
+        letter-spacing: -0.04em;
+        overflow-wrap: anywhere;
+      }
+      .greeting-description {
+        margin: 16px 0 24px;
+        color: var(--muted);
+        font-size: 16px;
+      }
+      .greeting-close {
+        min-width: 96px;
+      }
+
+      .monitor-view {
+        --monitor-cpu: var(--primary);
+        --monitor-ram: var(--amber);
+        display: grid;
+        align-content: start;
+        gap: 16px;
+        min-width: 0;
+      }
+      .monitor-heading,
+      .monitor-title,
+      .monitor-section-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px 20px;
+      }
+      .monitor-title {
+        justify-content: flex-start;
+        flex-wrap: wrap;
+      }
+      .monitor-heading h2 {
+        margin: 0;
+        font-size: clamp(28px, 3.4vh, 40px);
+        line-height: 1.2;
+      }
+      .monitor-description {
+        margin: 0;
+        color: var(--muted);
+        font-size: clamp(16px, 1.8vh, 21px);
+        line-height: 1.35;
+      }
+      .monitor-status {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-shrink: 0;
+        margin: 0;
+        padding: 10px 18px;
+        border-radius: 999px;
+        background: var(--amber-container);
+        color: var(--amber);
+        font-size: clamp(20px, 2.2vh, 28px);
+        line-height: 1.3;
+        font-weight: 750;
+      }
+      .monitor-status::before {
+        content: '';
+        width: 13px;
+        height: 13px;
+        flex-shrink: 0;
+        border-radius: 50%;
+        background: currentColor;
+      }
+      .monitor-status[data-state='up'] {
+        color: var(--on-green-container);
+        background: var(--green-container);
+      }
+      .monitor-status[data-state='down'] {
+        color: var(--error);
+        background: var(--error-container);
+      }
+      .monitor-paths {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .monitor-path {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin: 0;
+        padding: 8px 16px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: var(--amber);
+        background: var(--amber-container);
+        line-height: 1.2;
+      }
+      .monitor-path strong {
+        color: var(--text);
+        font-size: clamp(24px, 2.5vh, 30px);
+        font-weight: 750;
+      }
+      .monitor-path span {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: clamp(22px, 2.2vh, 28px);
+        font-weight: 750;
+        white-space: nowrap;
+      }
+      .monitor-path span::before {
+        content: '';
+        width: 10px;
+        height: 10px;
+        flex-shrink: 0;
+        border-radius: 50%;
+        background: currentColor;
+      }
+      .monitor-path[data-health='up'] {
+        color: var(--on-green-container);
+        background: var(--green-container);
+      }
+      .monitor-path[data-health='down'] {
+        color: var(--error);
+        background: var(--error-container);
+      }
+      .worker-health {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px 12px;
+        min-width: 0;
+        margin: 0;
+        padding: 8px 16px;
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        background: var(--surface-low);
+      }
+      .worker-health > strong {
+        color: var(--text);
+        font-size: clamp(22px, 2.3vh, 28px);
+        line-height: 1.2;
+        white-space: nowrap;
+      }
+      .worker-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--amber);
+        font-size: clamp(18px, 1.9vh, 23px);
+        font-weight: 750;
+        line-height: 1.3;
+        white-space: nowrap;
+      }
+      .worker-status[data-health='up'] {
+        color: var(--on-green-container);
+      }
+      .worker-status[data-health='down'] {
+        color: var(--error);
+      }
+      @media (max-width: 1100px) {
+        .worker-health {
+          flex-wrap: wrap;
+        }
+        .worker-health > strong {
+          flex-basis: 100%;
+        }
+      }
+      .koin-services {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+      .koin-service {
+        display: grid;
+        gap: 8px;
+        padding: clamp(10px, 1.8vh, 22px) clamp(16px, 2vw, 30px);
+        border: 1px solid var(--line);
+        border-left: 6px solid var(--amber);
+        border-radius: 20px;
+        background: var(--surface);
+      }
+      .koin-service[data-health='up'] {
+        border-left-color: var(--green);
+      }
+      .koin-service[data-health='down'] {
+        border-left-color: var(--error);
+      }
+      .koin-service-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .koin-service-name {
+        margin: 0;
+        font-size: clamp(26px, 3.1vh, 38px);
+        font-weight: 750;
+        line-height: 1.2;
+      }
+      .koin-service-detail {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 2px 14px;
+        color: var(--muted);
+        font-size: clamp(16px, 1.85vh, 22px);
+        line-height: 1.3;
+      }
+      .koin-service-reason,
+      .koin-service-time {
+        margin: 0;
+      }
+      .monitor-health {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        width: fit-content;
+        flex-shrink: 0;
+        padding: 5px 12px;
+        border-radius: 999px;
+        color: var(--amber);
+        background: var(--amber-container);
+        font-size: clamp(18px, 2.1vh, 26px);
+        font-weight: 750;
+        line-height: 1.2;
+        white-space: nowrap;
+      }
+      .monitor-health::before {
+        content: '';
+        width: 9px;
+        height: 9px;
+        flex-shrink: 0;
+        border-radius: 50%;
+        background: currentColor;
+      }
+      .monitor-health[data-health='up'] {
+        color: var(--on-green-container);
+        background: var(--green-container);
+      }
+      .monitor-health[data-health='down'] {
+        color: var(--error);
+        background: var(--error-container);
+      }
+      .monitor-section-heading h3 {
+        margin: 0;
+        font-size: clamp(23px, 2.5vh, 30px);
+        line-height: 1.2;
+      }
+      .monitor-timestamp {
+        margin: 0;
+        color: var(--muted);
+        font-size: clamp(16px, 1.8vh, 21px);
+        line-height: 1.3;
+        text-align: right;
+      }
+      .monitor-timestamp,
+      .monitor-node-time,
+      .koin-service-time {
+        font-variant-numeric: tabular-nums;
+      }
+      .monitor-cards {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+        min-width: 0;
+        min-height: 0;
+      }
+      .monitor-node.panel {
+        display: grid;
+        grid-template-rows: auto auto minmax(0, 1fr) auto;
+        align-content: start;
+        gap: clamp(8px, 1.1vh, 16px);
+        padding: clamp(12px, 1.8vh, 24px);
+        border-radius: 22px;
+        min-width: 0;
+      }
+      .monitor-node-heading {
+        min-width: 0;
+      }
+      .monitor-node-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 6px 10px;
+      }
+      .monitor-node h4 {
+        margin: 0;
+        font-size: clamp(24px, 3vh, 36px);
+        line-height: 1.2;
+        font-weight: 750;
+        overflow-wrap: anywhere;
+      }
+      .monitor-node-time {
+        margin: 0;
+        padding-top: 8px;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: clamp(16px, 1.85vh, 22px);
+        line-height: 1.3;
+      }
+      .monitor-value-note {
+        margin: 5px 0 0;
+        color: var(--amber);
+        font-size: clamp(14px, 1.7vh, 20px);
+        line-height: 1.3;
+      }
+      .monitor-metrics {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+      .monitor-metric {
+        min-width: 0;
+      }
+      .monitor-metric-label {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        color: var(--monitor-cpu);
+        font-size: clamp(18px, 2.2vh, 26px);
+        line-height: 1.2;
+        font-weight: 750;
+      }
+      .monitor-metric-label::before {
+        content: '';
+        width: 27px;
+        border-top: 5px solid currentColor;
+      }
+      .monitor-metric[data-metric='ram'] .monitor-metric-label {
+        color: var(--monitor-ram);
+      }
+      .monitor-metric[data-metric='ram'] .monitor-metric-label::before {
+        border-top-style: dashed;
+      }
+      .monitor-value {
+        display: block;
+        margin-top: 3px;
+        font-size: clamp(44px, 5.4vh, 72px);
+        font-weight: 750;
+        letter-spacing: -0.055em;
+        line-height: 1.05;
+        font-variant-numeric: tabular-nums;
+      }
+      .monitor-metric-detail {
+        display: block;
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: clamp(13px, 1.5vh, 18px);
+        line-height: 1.3;
+        font-variant-numeric: tabular-nums;
+        overflow-wrap: anywhere;
+      }
+      .monitor-plot {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+      .monitor-graph {
+        display: block;
+        flex: 1;
+        width: 100%;
+        height: clamp(100px, 15vh, 180px);
+        min-height: 100px;
+        overflow: hidden;
+      }
+      .monitor-graph-grid {
+        fill: none;
+        stroke: var(--outline);
+        stroke-width: 1;
+        vector-effect: non-scaling-stroke;
+      }
+      .monitor-graph-line {
+        fill: none;
+        stroke: var(--monitor-cpu);
+        stroke-width: 5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        vector-effect: non-scaling-stroke;
+      }
+      .monitor-graph-line[data-series='ram'] {
+        stroke: var(--monitor-ram);
+        stroke-dasharray: 10 7;
+      }
+      .monitor-graph-dot {
+        fill: var(--monitor-cpu);
+      }
+      .monitor-graph-dot[data-series='ram'] {
+        fill: var(--monitor-ram);
+      }
+      .monitor-graph-axis {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        color: var(--muted);
+        font-size: clamp(14px, 1.65vh, 19px);
+        line-height: 1.25;
+      }
+      .monitor-waiting {
+        grid-column: 1 / -1;
+        margin: 0;
+        padding: 24px;
+        color: var(--muted);
+        font-size: clamp(22px, 2.5vh, 30px);
+        border: 2px dashed var(--outline);
+        border-radius: 20px;
+      }
+      @media (max-width: 999px) {
+        .monitor-heading {
+          align-items: start;
+          flex-direction: column;
+        }
+        .monitor-cards {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .monitor-node.panel {
+          grid-template-rows: auto auto auto auto;
+          padding: 22px;
+        }
+        .monitor-graph {
+          flex: none;
+          height: 170px;
+        }
+        .monitor-value {
+          font-size: 52px;
+        }
+        .monitor-node h4 {
+          font-size: 30px;
+        }
+        .monitor-health {
+          font-size: 20px;
+        }
+      }
+      @media (max-width: 650px) {
+        .monitor-paths {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .koin-services {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .monitor-section-heading {
+          align-items: start;
+          flex-direction: column;
+          gap: 6px;
+        }
+        .monitor-timestamp {
+          text-align: left;
+        }
+        .koin-service-name {
+          font-size: 26px;
+        }
+        .monitor-description {
+          font-size: 16px;
+        }
+        .monitor-title {
+          gap: 8px;
+        }
+        .monitor-status {
+          font-size: 20px;
+        }
+      }
+      @media (min-width: 1000px) and (min-aspect-ratio: 3/2) {
+        .monitor-view {
+          flex: 1;
+          min-height: 0;
+          gap: clamp(8px, 1vh, 14px);
+          grid-template-rows: auto auto auto auto minmax(0, 1fr);
+          overflow: hidden;
+        }
+        .monitor-title {
+          flex-wrap: nowrap;
+          gap: 16px;
+        }
+        .monitor-heading {
+          gap: 12px;
+        }
+        .monitor-cards {
+          gap: clamp(12px, 1.2vw, 24px);
+        }
+        .monitor-node.panel {
+          overflow: hidden;
+        }
+        .koin-service-name,
+        .monitor-node h4 {
+          font-size: clamp(32px, 3.1vh, 38px);
+        }
+        .monitor-value {
+          font-size: clamp(58px, 5.4vh, 72px);
+        }
+        .monitor-health {
+          font-size: clamp(22px, 2.1vh, 26px);
+        }
+        .monitor-node.panel {
+          padding: clamp(10px, 1.4vh, 22px);
+          gap: clamp(6px, 0.9vh, 14px);
+        }
+        .monitor-node-time {
+          padding-top: 4px;
+        }
+      }
+      @media (min-width: 1000px) and (min-aspect-ratio: 3/2) and (max-height: 800px) {
+        .monitor-heading h2 {
+          font-size: 28px;
+        }
+        .monitor-description {
+          font-size: 16px;
+        }
+        .monitor-status {
+          padding: 7px 12px;
+          font-size: 20px;
+        }
+        .monitor-path {
+          padding: 6px 12px;
+        }
+        .monitor-path strong,
+        .monitor-path span {
+          font-size: 22px;
+        }
+        .koin-service {
+          padding: 10px 16px;
+          gap: 4px;
+        }
+        .koin-service-name {
+          font-size: 26px;
+        }
+        .koin-service-detail,
+        .monitor-timestamp,
+        .monitor-node-time {
+          font-size: 16px;
+        }
+        .monitor-section-heading h3 {
+          font-size: 23px;
+        }
+        .monitor-health {
+          font-size: 18px;
+        }
+        .monitor-node h4 {
+          font-size: 30px;
+        }
+        .monitor-metric-label {
+          font-size: 20px;
+        }
+        .monitor-value {
+          font-size: 54px;
+        }
+        .monitor-metric-detail {
+          font-size: 16px;
+        }
+        .monitor-graph-axis {
+          font-size: 16px;
+        }
+      }
+
+      .app-header > .brand,
+      .app-header > .header-actions {
+        flex-shrink: 0;
+      }
+      .app-header > .header-actions {
+        min-width: 0;
+      }
+      .app-header .viewer-name {
+        display: none;
+      }
+      .spotify-now {
+        flex: 1 1 320px;
+        min-width: 0;
+        max-width: 480px;
+        height: 56px;
+        padding: 4px 10px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: var(--surface-low);
+        overflow: hidden;
+      }
+      .spotify-copy {
+        display: grid;
+        grid-template-rows: 22px 20px;
+        align-content: center;
+        flex: 1;
+        min-width: 0;
+      }
+      .spotify-cover {
+        flex: 0 0 44px;
+        width: 44px;
+        height: 44px;
+        object-fit: cover;
+        border-radius: 7px;
+      }
+      .spotify-title,
+      .spotify-artists {
+        display: block;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .spotify-title {
+        color: var(--text);
+        font-size: clamp(16px, 1.8vh, 20px);
+        font-weight: 650;
+        line-height: 20px;
+      }
+      .spotify-artists {
+        color: var(--muted);
+        font-size: 16px;
+        line-height: 20px;
+      }
+      @media (min-width: 1000px) and (min-aspect-ratio: 3/2) {
+        .app-header > .brand,
+        .app-header > .header-actions {
+          height: 56px;
+        }
+        .app-header h1 {
+          margin-top: 2px;
+          font-size: clamp(26px, 3vh, 32px);
+          line-height: 1.2;
+        }
+        .app-header #clock {
+          font-size: clamp(26px, 3vh, 32px);
+          line-height: 1.2;
+        }
+        .app-header #date {
+          font-size: 16px;
+          line-height: 1.2;
+        }
+      }
+      @media (max-width: 999px) {
+        .app-header {
+          flex-wrap: wrap;
+        }
+        .spotify-now {
+          order: 3;
+          flex-basis: 100%;
+          max-width: none;
+        }
+      }
+      @media (max-width: 700px) {
+        .app-header > .brand,
+        .app-header > .header-actions {
+          flex-shrink: 1;
+        }
+      }
+
+      .wifi-codes.has-jam {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        align-items: center;
+        gap: 6px;
+      }
+      .wifi-codes.has-jam .wifi-code img {
+        width: clamp(104px, 15vh, 128px);
+        height: auto;
+        aspect-ratio: 1;
+        max-width: 100%;
+      }
+      .wifi-codes.has-jam .wifi-code figcaption {
+        margin-top: 2px;
+        font-size: 16px;
+        line-height: 1.3;
+        white-space: nowrap;
+      }
+
+      #cloud-snapshot {
+        flex-shrink: 0;
+        margin: 0 0 8px;
+        padding: 4px 10px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        color: var(--amber);
+        background: var(--surface-low);
+        font:
+          500 16px/1.35 system-ui,
+          sans-serif;
+        font-variant-numeric: tabular-nums;
+        overflow-wrap: anywhere;
+      }
+      #cloud-snapshot[data-state='unavailable'] {
+        color: var(--error);
+        background: var(--error-container);
+      }
+      body[data-cloud-state='unavailable'] #main,
+      body[data-cloud-state='unavailable'] #monitor-view,
+      body[data-cloud-state='unavailable'] #spotify-now {
+        visibility: hidden;
+      }
+      body[data-cloud-core='pending'] #main {
+        visibility: hidden;
+      }
+      .automation-monitor {
+        flex-shrink: 0;
+        display: grid;
+        gap: 6px;
+        margin: 0 0 12px;
+        padding: 10px 14px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: var(--surface);
+      }
+      .automation-row {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 4px 14px;
+        min-width: 0;
+        font-size: 12px;
+        line-height: 1.4;
+      }
+      .automation-row strong {
+        font-size: 13px;
+      }
+      .automation-row small {
+        color: var(--muted);
+      }
+      .automation-state {
+        padding: 2px 8px;
+        border-radius: 999px;
+        color: var(--amber);
+        background: var(--amber-container);
+      }
+      .automation-state[data-state='ok'] {
+        color: var(--on-green-container);
+        background: var(--green-container);
+      }
+      .automation-dialog {
+        width: min(700px, calc(100% - 32px));
+        max-height: 80vh;
+        overflow: auto;
+        padding: 22px;
+        border: 1px solid var(--outline);
+        border-radius: 24px;
+        background: var(--surface);
+        color: var(--text);
+      }
+      .automation-dialog::backdrop {
+        background: #10131b88;
+      }
+      .automation-dialog header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+      }
+      .automation-dialog ul {
+        padding-left: 20px;
+      }
+      @media (min-width: 1000px) and (min-aspect-ratio: 3/2) {
+        .automation-monitor {
+          padding: 4px 12px;
+          margin-bottom: 8px;
+          gap: 3px;
+        }
+        .automation-row {
+          font-size: clamp(10px, 1.2vh, 14px);
+          gap: 2px 12px;
+        }
+        .automation-row strong {
+          font-size: inherit;
+        }
+        .automation-row button {
+          min-height: 24px;
+          padding: 2px 10px;
+          font-size: inherit;
+          margin-left: auto;
+        }
+        #present .person-name,
+        #present .elapsed {
+          flex-shrink: 0;
+        }
+      }
+    </style>
+  </head>
+  <body data-cloud-state="unavailable">
+    <a class="skip-link" href="#main">본문으로 건너뛰기</a>
+    <div class="workspace">
+      <div class="app-shell">
+        <header class="app-header">
+          <div class="brand">
+            <div><h1>출입 현황</h1></div>
+          </div>
+
+          <div
+            id="spotify-now"
+            class="spotify-now"
+            data-state="unknown"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            <img
+              id="spotify-cover"
+              class="spotify-cover"
+              width="44"
+              height="44"
+              alt=""
+              referrerpolicy="no-referrer"
+              decoding="async"
+              hidden
+            />
+            <div class="spotify-copy">
+              <span id="spotify-title" class="spotify-title">재생 상태를 확인하고 있습니다</span>
+              <span id="spotify-artists" class="spotify-artists">Spotify Connect</span>
+            </div>
+          </div>
+          <div class="header-actions">
+            <div class="clock-block"><time id="clock"></time><span id="date">한국 표준시 · KST</span></div>
+            <button class="button-outline" id="theme" type="button" aria-label="화면 테마 변경, 현재 자동">
+              테마 · 자동
+            </button>
+            <span class="viewer-name" id="viewer-name" hidden></span>
+            <button class="button-outline" id="logout" type="button" hidden>로그아웃</button>
+            <button class="button-tonal" id="refresh" type="button" hidden>새로고침</button>
+          </div>
+        </header>
+        <aside id="cloud-snapshot" role="status" aria-live="polite" aria-atomic="true" data-state="unavailable">
+          원격 스냅샷 · 관측 시각 확인 중 · 표시 중단
+        </aside>
+        <section class="automation-monitor" aria-label="오류 수신과 Rocky 실시간 읽기 전용 관측">
+          <div class="automation-row">
+            <strong>오류 수신 · 24시간</strong>
+            <span class="automation-state" id="am-ingress-state" data-state="unknown" role="status">확인 중</span>
+            <span id="am-sentry">Sentry —</span><span id="am-cloudflare">Cloudflare —</span>
+            <small id="am-ingress-time">수신 확인 —</small>
+            <button class="button-tonal" id="am-details" type="button">상세</button>
+          </div>
+          <div class="automation-row">
+            <strong>Rocky</strong>
+            <span class="automation-state" id="am-rocky-state" data-state="unknown" role="status">확인 중</span>
+            <span id="am-cpu">CPU —</span><span id="am-memory">RAM —</span> <span id="am-executor">실행기 —</span
+            ><span id="am-broker">브로커 —</span>
+            <small id="am-rocky-time">호스트 확인 —</small>
+            <small>브로커 HTTP·모델 실행 미확인</small>
+          </div>
+        </section>
+        <section class="login-panel" id="login-panel" aria-labelledby="login-heading">
+          <h2 id="login-heading">Internal 계정 로그인</h2>
+          <p>BCSDLab 구성원 계정으로 출근부에 로그인하세요.</p>
+          <form id="login-form">
+            <label for="login-student">학번</label>
+            <input
+              id="login-student"
+              name="studentNumber"
+              inputmode="numeric"
+              pattern="[0-9]{8,10}"
+              autocomplete="username"
+              required
+            />
+            <label for="login-password">비밀번호</label>
+            <input id="login-password" name="password" type="password" autocomplete="current-password" required />
+            <p class="login-error" id="login-error" role="alert"></p>
+            <button class="button-filled" id="login-submit" type="submit" disabled>로그인</button>
+          </form>
+        </section>
+        <main id="main" tabindex="-1" hidden>
+          <div class="error-banner" id="error" hidden>
+            <p id="error-message" role="alert"></p>
+            <button class="button-text" id="retry" type="button">다시 시도</button>
+          </div>
+          <section class="hero panel" aria-labelledby="occupancy-heading">
+            <div class="occupancy">
+              <div>
+                <h2 id="occupancy-heading">관측 시 동아리방에는</h2>
+                <p id="member-count">등록 회원 확인 중</p>
+              </div>
+              <div class="occupancy-number"><span id="count">—</span><span class="occupancy-unit">명</span></div>
+            </div>
+            <div class="present-content" id="present-region" aria-busy="true">
+              <div class="section-heading"><h2 id="present-heading">관측 시 입실한 사람</h2></div>
+              <p class="loading" id="present-loading">동아리방 현황을 불러오고 있습니다.</p>
+              <div class="cards" id="present" role="list" aria-labelledby="present-heading"></div>
+              <div class="empty-state" id="present-empty" hidden>
+                <span class="empty-symbol" aria-hidden="true">↗</span><strong>첫 입실을 기다리고 있어요</strong>
+                <p>모바일 학생증을 리더에 태그해 주세요.</p>
+              </div>
+            </div>
+          </section>
+          <section class="summary-grid" aria-label="체류 시간 요약">
+            <div class="summary-card">
+              <h2 class="summary-label">오늘 체류 시간 중앙값</h2>
+              <p class="summary-value" id="today-total">—</p>
+            </div>
+            <div class="summary-card">
+              <h2 class="summary-label">이번 주 체류 시간 중앙값</h2>
+              <p class="summary-value" id="week-total">—</p>
+            </div>
+            <div class="summary-card" id="unrecorded-summary">
+              <h2 class="summary-label">이번 주 퇴근 미기록</h2>
+              <p class="summary-value" id="unrecorded-total">—</p>
+            </div>
+          </section>
+          <section class="panel" id="members-overview" aria-labelledby="members-heading">
+            <div class="section-heading">
+              <div><h2 id="members-heading">이번 주의 발자취</h2></div>
+              <span class="pill" id="members-badge">확인 중</span>
+            </div>
+            <p class="loading" id="members-loading">회원별 기록을 불러오고 있습니다.</p>
+            <div
+              class="table-scroll"
+              id="members-table"
+              role="region"
+              aria-label="회원별 체류 시간, 가로 스크롤 가능"
+              tabindex="0"
+              hidden
+            >
+              <table class="members-table">
+                <caption class="sr-only">
+                  회원별 현재 상태, 오늘 첫 입실 시각, 오늘 마지막 퇴실 시각, 오늘과 이번 주 체류 시간, 퇴근 미기록 건수
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">이름</th>
+                    <th scope="col">현재 상태</th>
+                    <th scope="col">오늘 첫 입실</th>
+                    <th scope="col">오늘 마지막 퇴실</th>
+                    <th scope="col">오늘</th>
+                    <th scope="col">이번 주</th>
+                    <th scope="col">퇴근 미기록</th>
+                  </tr>
+                </thead>
+                <tbody id="members"></tbody>
+              </table>
+            </div>
+            <div class="empty-state" id="members-empty" hidden>
+              <strong>아직 기록이 없어요</strong>
+              <p>Internal에 등록된 회원이 모바일 학생증을 태그하면 표시됩니다.</p>
+            </div>
+          </section>
+          <section class="panel" id="wifi-section" aria-labelledby="wifi-heading">
+            <div class="section-heading"><h2 id="wifi-heading">Wi-Fi 연결</h2></div>
+            <div class="wifi-codes">
+              <figure class="wifi-code">
+                <img id="wifi-5" alt="BCSD_5G Wi-Fi 연결 QR 코드" hidden />
+                <p class="wifi-status" id="wifi-5-status" role="status">QR 코드를 불러오는 중</p>
+                <figcaption>BCSD_5G</figcaption>
+              </figure>
+              <figure class="wifi-code">
+                <img id="wifi-24" alt="BCSD_2.4G Wi-Fi 연결 QR 코드" hidden />
+                <p class="wifi-status" id="wifi-24-status" role="status">QR 코드를 불러오는 중</p>
+                <figcaption>BCSD_2.4G</figcaption>
+              </figure>
+            </div>
+          </section>
+          <div class="sync-row">
+            <span id="sync-status" role="status" data-state="loading"
+              ><span class="dot" aria-hidden="true"></span><span id="sync-label">첫 데이터를 불러오는 중</span></span
+            >
+            <p class="sync-note">
+              <span id="last-updated">아직 동기화되지 않음</span> · KV 반영 지연 있음 · 관측 시점 기준
+            </p>
+          </div>
+        </main>
+        <section id="monitor-view" class="monitor-view" tabindex="-1" aria-labelledby="monitor-heading" hidden>
+          <div class="monitor-heading">
+            <div class="monitor-title"><h2 id="monitor-heading">KOIN 관측 시점 상태</h2></div>
+            <p id="monitor-status" class="monitor-status" role="status" data-state="unknown">상태 확인 중</p>
+          </div>
+          <div class="monitor-paths" aria-label="독립 상태 확인">
+            <div
+              id="worker-health"
+              class="worker-health"
+              data-health="unknown"
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+            >
+              <strong>KOIN Workers</strong>
+              <span id="worker-web-status" class="worker-status" data-health="unknown"
+                ><b>WEB</b><span>확인 불가</span></span
+              >
+            </div>
+            <p id="internal-path-status" class="monitor-path" data-health="unknown" role="status">
+              <strong>Internal 수집 경로</strong><span>연결·인증 확인</span>
+            </p>
+          </div>
+          <div id="koin-services" class="koin-services" aria-label="KOIN API 상태">
+            <p class="monitor-waiting">상태 확인 중</p>
+          </div>
+          <div class="monitor-section-heading">
+            <h3>서버 사용량</h3>
+            <p id="monitor-timestamp" class="monitor-timestamp">서버 관측 대기</p>
+          </div>
+          <div id="monitor-cards" class="monitor-cards">
+            <p class="monitor-waiting">서버 수집 데이터 대기 · 아직 노드 관측 없음</p>
+          </div>
+        </section>
+
+        <footer>
+          <p>BCSD LAB · 작은 태그 하나로 이어지는 우리의 하루</p>
+          <p>모든 시각은 KST · 관측 시점 데이터 · NFC는 LAN에서 즉시 반영</p>
+        </footer>
+      </div>
+    </div>
+    <noscript><p>출근부를 보려면 브라우저에서 JavaScript를 활성화해 주세요.</p></noscript>
+
+    <dialog
+      id="greeting-dialog"
+      class="greeting-dialog"
+      aria-labelledby="greeting-message"
+      aria-describedby="greeting-description"
+    >
+      <p class="greeting-brand" aria-hidden="true">BCSD LAB</p>
+      <h2 id="greeting-message" class="greeting-message" aria-live="polite" aria-atomic="true"></h2>
+      <p id="greeting-description" class="greeting-description">5초 후 자동으로 닫힙니다.</p>
+      <button id="greeting-close" class="button-filled greeting-close" type="button" autofocus>닫기</button>
+    </dialog>
+    <dialog class="automation-dialog" id="am-dialog" aria-labelledby="am-heading">
+      <header>
+        <h2 id="am-heading">오류 수신 · Rocky 관측</h2>
+        <button class="button-text" id="am-close" type="button">닫기</button>
+      </header>
+      <p>
+        Pi 스냅샷과 독립적인 읽기 전용 관측입니다. CPU는 두 Linux 표본의 차이, RAM은 MemTotal − MemAvailable입니다.
+        서비스·프로세스 상태는 브로커 HTTP 응답·모델 인증·작업 완료의 증거가 아닙니다.
+      </p>
+      <p id="am-note">최근 정상 조회 기록이 없습니다.</p>
+      <ul id="am-recent"></ul>
+    </dialog>
+    <script>
+      function isByeongcheonDay(now) {
+        const latitude = 36.76;
+        const longitude = 127.3;
+        const radians = Math.PI / 180;
+        const degrees = 180 / Math.PI;
+        const dayMs = 86400000;
+
+        // Get the Korean calendar date without depending on the viewer's timezone.
+        const koreanDate = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+        const midnightUtc = Date.UTC(koreanDate.getUTCFullYear(), koreanDate.getUTCMonth(), koreanDate.getUTCDate());
+        const julianDay = midnightUtc / dayMs + 2440587.5;
+
+        function solarPosition(jd) {
+          const t = (jd - 2451545) / 36525;
+          const meanLongitude = (((280.46646 + t * (36000.76983 + t * 0.0003032)) % 360) + 360) % 360;
+          const meanAnomaly = 357.52911 + t * (35999.05029 - 0.0001537 * t);
+          const eccentricity = 0.016708634 - t * (0.000042037 + 0.0000001267 * t);
+          const center =
+            Math.sin(meanAnomaly * radians) * (1.914602 - t * (0.004817 + 0.000014 * t)) +
+            Math.sin(2 * meanAnomaly * radians) * (0.019993 - 0.000101 * t) +
+            Math.sin(3 * meanAnomaly * radians) * 0.000289;
+          const omega = 125.04 - 1934.136 * t;
+          const apparentLongitude = meanLongitude + center - 0.00569 - 0.00478 * Math.sin(omega * radians);
+          const obliquity =
+            23 +
+            (26 + (21.448 - t * (46.815 + t * (0.00059 - t * 0.001813))) / 60) / 60 +
+            0.00256 * Math.cos(omega * radians);
+          const declination = Math.asin(Math.sin(obliquity * radians) * Math.sin(apparentLongitude * radians));
+          const y = Math.tan((obliquity * radians) / 2) ** 2;
+          const equationOfTime =
+            4 *
+            degrees *
+            (y * Math.sin(2 * meanLongitude * radians) -
+              2 * eccentricity * Math.sin(meanAnomaly * radians) +
+              4 * eccentricity * y * Math.sin(meanAnomaly * radians) * Math.cos(2 * meanLongitude * radians) -
+              0.5 * y * y * Math.sin(4 * meanLongitude * radians) -
+              1.25 * eccentricity * eccentricity * Math.sin(2 * meanAnomaly * radians));
+          return { declination, equationOfTime };
+        }
+
+        // The 90.833-degree zenith accounts for atmospheric refraction and the solar disc.
+        function solarEvent(isSunrise) {
+          let minutes = 720 - 4 * longitude;
+          for (let i = 0; i < 3; i++) {
+            const position = solarPosition(julianDay + minutes / 1440);
+            const cosineHourAngle =
+              (Math.cos(90.833 * radians) - Math.sin(latitude * radians) * Math.sin(position.declination)) /
+              (Math.cos(latitude * radians) * Math.cos(position.declination));
+            // These cases cannot occur at Byeongcheon, but avoid an invalid acos at the limits.
+            if (cosineHourAngle > 1) return null;
+            if (cosineHourAngle < -1) return null;
+            const hourAngle = Math.acos(cosineHourAngle) * degrees;
+            minutes = 720 - 4 * (longitude + (isSunrise ? hourAngle : -hourAngle)) - position.equationOfTime;
+          }
+          return midnightUtc + minutes * 60000;
+        }
+
+        const sunrise = solarEvent(true);
+        const sunset = solarEvent(false);
+        return sunrise !== null && sunset !== null && now.getTime() >= sunrise && now.getTime() < sunset;
+      }
+
+      var POLL_MS = 10000;
+      var timeFormat = new Intl.DateTimeFormat('ko-KR', {
+        timeZone: 'Asia/Seoul',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      });
+      var clockFormat = new Intl.DateTimeFormat('ko-KR', {
+        timeZone: 'Asia/Seoul',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      });
+      var dateFormat = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', dateStyle: 'full' });
+      var serverOffset = 0;
+      var hasState = false;
+      var lastStateAt = 0;
+      var refreshing = false;
+      var theme = 'auto';
+      var authActive = false;
+      var authRevision = 0;
+      var authDeadline = 0;
+      var authExpiresAt = 0;
+      var authClockOffset = 0;
+
+      function loadWifiImages(enabled) {
+        [
+          ['wifi-5', '/api/wifi-qr/5'],
+          ['wifi-24', '/api/wifi-qr/2.4'],
+        ].forEach(function (entry) {
+          var image = document.getElementById(entry[0]);
+          var status = document.getElementById(entry[0] + '-status');
+          image.onload = function () {
+            image.hidden = false;
+            status.hidden = true;
+          };
+          image.onerror = function () {
+            image.hidden = true;
+            status.textContent = 'Wi-Fi QR 코드를 사용할 수 없습니다.';
+            status.hidden = false;
+          };
+          image.hidden = true;
+          status.hidden = false;
+          status.textContent = 'QR 코드를 불러오는 중';
+          if (enabled) image.src = entry[1];
+          else image.removeAttribute('src');
+        });
+      }
+
+      var wallQuery = window.matchMedia('(min-width:1000px) and (min-aspect-ratio:3/2)');
+      var pagePositions = new Map();
+      var fitFrame = 0;
+
+      function fitSection(id, kind) {
+        var container = document.getElementById(id);
+        var items = Array.from(container.children);
+        var viewport = kind === 'table' ? container.closest('.table-scroll') : container;
+        var pager = document.getElementById(id + '-pager');
+        items.forEach(function (item) {
+          item.hidden = false;
+        });
+        if (!wallQuery.matches || items.length === 0) {
+          if (pager) pager.hidden = true;
+          if (kind === 'cards') container.style.gridTemplateRows = '';
+          return;
+        }
+        if (!pager) {
+          pager = el('div', 'pager');
+          pager.id = id + '-pager';
+          pager.setAttribute('role', 'group');
+          var names = { present: '현재 입실자', members: '회원 기록' };
+          pager.setAttribute('aria-label', names[id] + ' 페이지');
+          var previous = el('button', 'button-tonal', '‹');
+          var range = el('span');
+          var next = el('button', 'button-tonal', '›');
+          previous.type = next.type = 'button';
+          previous.setAttribute('aria-label', names[id] + ' 이전 페이지');
+          next.setAttribute('aria-label', names[id] + ' 다음 페이지');
+          previous.addEventListener('click', function () {
+            pagePositions.set(id, (pagePositions.get(id) || 0) - 1);
+            fitSection(id, kind);
+          });
+          next.addEventListener('click', function () {
+            pagePositions.set(id, (pagePositions.get(id) || 0) + 1);
+            fitSection(id, kind);
+          });
+          pager.append(previous, range, next);
+          var panel = viewport.closest('.present-content') || viewport.closest('section');
+          panel.querySelector('.section-heading').appendChild(pager);
+        }
+        var limit = 1;
+        if (kind === 'table') {
+          var header = viewport.querySelector('thead');
+          var rowHeight = items[0].getBoundingClientRect().height || 28;
+          limit = Math.max(1, Math.floor((viewport.clientHeight - header.getBoundingClientRect().height) / rowHeight));
+        } else if (kind === 'cards') {
+          var style = getComputedStyle(container);
+          var gap = parseFloat(style.rowGap) || 0;
+          var columns = style.gridTemplateColumns.split(' ').length;
+          var cardStyle = getComputedStyle(items[0]);
+          var childHeight = Array.from(items[0].children).reduce(function (height, child) {
+            return height + Math.max(child.scrollHeight, child.getBoundingClientRect().height);
+          }, 0);
+          var minimum =
+            childHeight +
+            parseFloat(cardStyle.paddingTop) +
+            parseFloat(cardStyle.paddingBottom) +
+            (parseFloat(cardStyle.rowGap) || 0) * Math.max(0, items[0].children.length - 1);
+          var rows = Math.max(1, Math.min(2, Math.floor((viewport.clientHeight + gap) / (minimum + gap))));
+          container.style.gridTemplateRows = 'repeat(' + rows + ', minmax(0, 1fr))';
+          limit = columns * rows;
+        }
+        var lastPage = Math.max(0, Math.ceil(items.length / limit) - 1);
+        var page = Math.max(0, Math.min(pagePositions.get(id) || 0, lastPage));
+        pagePositions.set(id, page);
+        var start = page * limit;
+        items.forEach(function (item, index) {
+          item.hidden = index < start || index >= start + limit;
+        });
+        pager.hidden = lastPage === 0;
+        pager.children[0].disabled = page === 0;
+        pager.children[1].textContent = start + 1 + '–' + Math.min(start + limit, items.length) + ' / ' + items.length;
+        pager.children[2].disabled = page === lastPage;
+      }
+
+      function fitWall() {
+        if (typeof lanView !== 'undefined' && (lanView !== 'attendance' || document.hidden || lanPageHidden)) return;
+        fitSection('present', 'cards');
+        fitSection('members', 'table');
+      }
+
+      function scheduleFit() {
+        if (!fitFrame)
+          fitFrame = requestAnimationFrame(function () {
+            fitFrame = 0;
+            fitWall();
+          });
+      }
+      window.addEventListener('resize', scheduleFit);
+      wallQuery.addEventListener('change', scheduleFit);
+      if (typeof ResizeObserver !== 'undefined') {
+        var wallResizeObserver = new ResizeObserver(scheduleFit);
+        ['present', 'members-table'].forEach(function (id) {
+          wallResizeObserver.observe(document.getElementById(id));
+        });
+      }
+      function el(tag, className, text) {
+        var node = document.createElement(tag);
+        if (className) node.className = className;
+        if (text !== undefined) node.textContent = text;
+        return node;
+      }
+
+      function applyTheme() {
+        var activeTheme = theme === 'auto' ? (isByeongcheonDay(new Date()) ? 'light' : 'dark') : theme;
+        document.documentElement.dataset.theme = activeTheme;
+        var label =
+          theme === 'auto'
+            ? '자동 (' + (activeTheme === 'light' ? '라이트' : '다크') + ')'
+            : theme === 'light'
+              ? '라이트'
+              : '다크';
+        document.getElementById('theme').textContent = '테마 · ' + label;
+        document
+          .getElementById('theme')
+          .setAttribute('aria-label', '화면 테마 변경, 현재 ' + label + '. 자동, 라이트, 다크 순으로 전환');
+      }
+      try {
+        var savedTheme = localStorage.getItem('attendance-theme');
+        if (savedTheme === 'light' || savedTheme === 'dark') theme = savedTheme;
+      } catch (error) {
+        /* 저장소가 차단되어도 테마 전환은 동작합니다. */
+      }
+      applyTheme();
+      document.getElementById('theme').addEventListener('click', function () {
+        theme = theme === 'auto' ? 'light' : theme === 'light' ? 'dark' : 'auto';
+        applyTheme();
+        try {
+          localStorage.setItem('attendance-theme', theme);
+        } catch (error) {
+          /* 현재 화면에만 적용합니다. */
+        }
+      });
+      function updateAutoTheme() {
+        if (theme !== 'auto') return;
+        var activeTheme = isByeongcheonDay(new Date()) ? 'light' : 'dark';
+        if (document.documentElement.dataset.theme !== activeTheme) applyTheme();
+      }
+      setInterval(updateAutoTheme, 1000);
+      document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) updateAutoTheme();
+      });
+
+      function formatDuration(ms) {
+        var minutes = Math.floor(Math.max(0, ms) / 60000);
+        var hours = Math.floor(minutes / 60);
+        return hours > 0 ? hours + '시간 ' + (minutes % 60) + '분' : minutes + '분';
+      }
+
+      function formatClockDuration(ms) {
+        var seconds = Math.max(0, ms) / 1000;
+        if (seconds < 60) return Math.floor(seconds) + '초';
+        if (seconds < 3600) return Math.floor(seconds / 60) + '분';
+        return (seconds / 3600).toFixed(1) + '시간';
+      }
+
+      function serverNow() {
+        return cloud.stateNow();
+      }
+
+      function renderPresent(members) {
+        var present = members.filter(function (m) {
+          return m.present;
+        });
+        var container = document.getElementById('present');
+        container.replaceChildren();
+        present.forEach(function (m) {
+          var card = el('div', 'person-card');
+          card.setAttribute('role', 'listitem');
+          var name = el('h3', 'person-name', m.name);
+          var elapsed = el('span', 'elapsed', formatClockDuration(serverNow() - m.since));
+          elapsed.dataset.since = String(m.since);
+          card.append(name, elapsed);
+          container.appendChild(card);
+        });
+        document.getElementById('present-empty').hidden = present.length > 0;
+        document.getElementById('count').textContent = String(present.length);
+        document.getElementById('member-count').textContent = '전체 등록 회원 ' + members.length + '명';
+      }
+
+      function formatMedianDuration(values) {
+        if (values.length === 0) return '—';
+        values.sort(function (a, b) {
+          return a - b;
+        });
+        var middle = Math.floor(values.length / 2);
+        return formatClockDuration(values.length % 2 ? values[middle] : (values[middle - 1] + values[middle]) / 2);
+      }
+
+      function renderSummary(members) {
+        var today = [];
+        var week = [];
+        var unrecorded = 0;
+        members.forEach(function (m) {
+          if (Number.isFinite(m.todayMs) && m.todayMs > 0) today.push(m.todayMs);
+          if (Number.isFinite(m.weekMs) && m.weekMs > 0) week.push(m.weekMs);
+          unrecorded += m.unrecordedWeek;
+        });
+        document.getElementById('today-total').textContent = formatMedianDuration(today);
+        document.getElementById('week-total').textContent = formatMedianDuration(week);
+        document.getElementById('unrecorded-total').textContent = unrecorded + '건';
+        document.getElementById('unrecorded-summary').classList.toggle('attention', unrecorded > 0);
+      }
+
+      function renderMembers(members) {
+        var body = document.getElementById('members');
+        body.replaceChildren();
+        members.forEach(function (m) {
+          var row = el('tr');
+          var name = el('th', '', m.name);
+          name.scope = 'row';
+          var status = el('td');
+          status.appendChild(
+            el('span', m.present ? 'pill pill-live' : 'pill', m.present ? '관측 시 입실' : '관측 시 퇴실'),
+          );
+          row.append(name, status);
+          row.appendChild(el('td', 'muted', m.firstInToday === null ? '—' : timeFormat.format(m.firstInToday)));
+          row.appendChild(el('td', 'muted', m.lastCheckOut === null ? '—' : timeFormat.format(m.lastCheckOut)));
+          row.appendChild(el('td', '', formatDuration(m.todayMs)));
+          row.appendChild(el('td', 'duration', formatDuration(m.weekMs)));
+          row.appendChild(
+            el(
+              'td',
+              m.unrecordedWeek > 0 ? 'warn' : 'muted',
+              m.unrecordedWeek > 0 ? m.unrecordedWeek + '건 · 시간 제외' : '—',
+            ),
+          );
+          body.appendChild(row);
+        });
+        document.getElementById('members-table').hidden = members.length === 0;
+        document.getElementById('members-empty').hidden = members.length > 0;
+        document.getElementById('members-badge').textContent = members.length + '명';
+      }
+
+      function showError(message) {
+        document.getElementById('error').hidden = message === null;
+        var node = document.getElementById('error-message');
+        var text = message === null ? '' : message;
+        if (node.textContent !== text) node.textContent = text;
+        scheduleFit();
+      }
+
+      function setSync(state, label) {
+        document.getElementById('sync-status').dataset.state = state;
+        var node = document.getElementById('sync-label');
+        if (node.textContent !== label) node.textContent = label;
+      }
+
+      async function refresh() {
+        if (refreshing || !authActive) return;
+        var revision = authRevision;
+        refreshing = true;
+        document.getElementById('refresh').setAttribute('aria-busy', 'true');
+        document.getElementById('retry').setAttribute('aria-busy', 'true');
+        document.getElementById('refresh').textContent = '갱신 중';
+        try {
+          var response = await cloud.fetch('/api/state', {
+            cache: 'no-store',
+            credentials: 'same-origin',
+            signal: AbortSignal.timeout(POLL_MS),
+          });
+          if (!response.ok) throw new Error(String(response.status));
+          var state = await cloud.json(response);
+          if (!authActive || revision !== authRevision) return;
+          cloud.captureState(state.now);
+          renderPresent(state.members);
+          renderSummary(state.members);
+          renderMembers(state.members);
+          hasState = true;
+          lastStateAt = state.now;
+          document.querySelectorAll('.loading').forEach(function (node) {
+            node.hidden = true;
+          });
+          document.getElementById('present-region').setAttribute('aria-busy', 'false');
+          document.getElementById('last-updated').textContent = '출입 관측 ' + clockFormat.format(state.now);
+          showError(null);
+          setSync('ready', '스냅샷 표시 · 실시간 아님');
+          scheduleFit();
+          tick();
+        } catch (error) {
+          if (!authActive || revision !== authRevision) return;
+          if (error instanceof Error && error.message === '401') {
+            setSignedOut('세션이 만료됐어. 다시 로그인해 주세요.');
+            return;
+          }
+          document.querySelectorAll('.loading').forEach(function (node) {
+            node.hidden = true;
+          });
+          document.getElementById('present-region').setAttribute('aria-busy', 'false');
+          showError(
+            hasState
+              ? '갱신하지 못했습니다. 마지막으로 받은 데이터를 표시하고 있습니다. 10초마다 다시 시도합니다.'
+              : '데이터를 불러오지 못했습니다. 연결 상태를 확인해 주세요. 10초마다 다시 시도합니다.',
+          );
+          setSync('error', hasState ? '연결 끊김 · 이전 데이터' : '연결 대기 · 데이터 없음');
+          if (!hasState) {
+            document.getElementById('member-count').textContent = '등록 회원 정보 없음';
+            document.getElementById('members-badge').textContent = '데이터 없음';
+          }
+          tick();
+        } finally {
+          refreshing = false;
+          document.getElementById('refresh').setAttribute('aria-busy', 'false');
+          document.getElementById('retry').setAttribute('aria-busy', 'false');
+          document.getElementById('refresh').textContent = '새로고침';
+        }
+      }
+
+      function tick() {
+        if (authActive && (performance.now() >= authDeadline || Date.now() + authClockOffset >= authExpiresAt)) {
+          setSignedOut('세션이 만료됐습니다. 다시 로그인해 주세요.');
+        }
+        var now = Date.now();
+        var elapsedNow = cloud.stateNow();
+        document.getElementById('clock').textContent = clockFormat.format(now);
+        document.getElementById('clock').dateTime = new Date(now).toISOString();
+        document.getElementById('date').textContent = dateFormat.format(now) + ' · KST';
+        document.querySelectorAll('.elapsed').forEach(function (node) {
+          node.textContent = formatClockDuration(elapsedNow - Number(node.dataset.since));
+        });
+      }
+      function setSignedOut(message) {
+        authActive = false;
+        authRevision += 1;
+        hasState = false;
+        lastStateAt = 0;
+        authDeadline = 0;
+        authExpiresAt = 0;
+        authClockOffset = 0;
+        pagePositions.clear();
+        document.getElementById('main').hidden = true;
+        document.getElementById('login-panel').hidden = false;
+        document.getElementById('logout').hidden = true;
+        document.getElementById('viewer-name').hidden = true;
+        document.getElementById('viewer-name').textContent = '';
+        document.getElementById('refresh').hidden = true;
+        document.getElementById('login-password').value = '';
+        document.getElementById('login-error').textContent = message || '';
+        ['present', 'members'].forEach(function (id) {
+          document.getElementById(id).replaceChildren();
+        });
+        ['count', 'today-total', 'week-total', 'unrecorded-total'].forEach(function (id) {
+          document.getElementById(id).textContent = '—';
+        });
+        document.querySelectorAll('.loading').forEach(function (node) {
+          node.hidden = false;
+        });
+        loadWifiImages(false);
+      }
+
+      var cloud = (function createCloudMode() {
+        var metadata = null;
+        var available = false;
+        var stateAt = null;
+        var statusTimer = null;
+        var ageTimer = null;
+        var request = null;
+        var requestTimer = null;
+        var problem = '관측 시각 확인 중';
+        var badge = document.getElementById('cloud-snapshot');
+        var timestamp = new Intl.DateTimeFormat('ko-KR', {
+          timeZone: 'Asia/Seoul',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false,
+        });
+
+        function fresh(value) {
+          return (
+            value &&
+            Number.isSafeInteger(value.observedAt) &&
+            value.observedAt > 0 &&
+            Number.isSafeInteger(value.publishedAt) &&
+            value.publishedAt >= value.observedAt &&
+            Date.now() - value.observedAt >= -5000 &&
+            Date.now() - value.observedAt <= 300000
+          );
+        }
+        function drawBadge() {
+          var age = metadata ? Math.max(0, Math.floor((Date.now() - metadata.observedAt) / 1000)) : null;
+          var text =
+            '원격 스냅샷 · ' +
+            (metadata ? timestamp.format(metadata.observedAt) + ' KST · ' + age + '초 전' : '관측 시각 없음');
+          text += available ? ' · 관측 시점 기준' : ' · ' + problem + ' · 표시 중단';
+          if (badge.textContent !== text) badge.textContent = text;
+          badge.dataset.state = available ? 'snapshot' : 'unavailable';
+          document.body.dataset.cloudState = available ? 'snapshot' : 'unavailable';
+        }
+        function suspend(reason) {
+          available = false;
+          problem = reason;
+          stopLanSnapshotActivity();
+          setSync('error', '스냅샷 확인 불가');
+          drawBadge();
+        }
+        function updateAge() {
+          if (available && !fresh(metadata)) suspend('5분 초과 또는 시계 불일치');
+          else drawBadge();
+        }
+        async function refreshStatus() {
+          if (!lanIsVisible() || request) return;
+          var controller = new AbortController();
+          request = controller;
+          requestTimer = setTimeout(function () {
+            controller.abort();
+          }, 8000);
+          try {
+            var response = await fetch('/api/view-status', {
+              method: 'GET',
+              credentials: 'same-origin',
+              cache: 'no-store',
+              redirect: 'error',
+              signal: controller.signal,
+            });
+            var status = await response.json();
+            if (request !== controller || !lanIsVisible()) return;
+            if (
+              status &&
+              Number.isSafeInteger(status.observedAt) &&
+              status.observedAt > 0 &&
+              Number.isSafeInteger(status.publishedAt) &&
+              status.publishedAt >= status.observedAt
+            ) {
+              if (
+                !metadata ||
+                metadata.observedAt !== status.observedAt ||
+                metadata.publishedAt !== status.publishedAt
+              ) {
+                // 이전 선택 요청을 중단하고 진행 중인 요청의 스냅샷 버전도 대조한다.
+                stopLanSnapshotActivity();
+                available = false;
+                metadata = { observedAt: status.observedAt, publishedAt: status.publishedAt };
+                document.body.dataset.cloudCore = 'pending';
+                lanMonitorFailed = true;
+                lanKoinFailed = true;
+                lanWorkerFailed = true;
+                updateLanMonitorStatus();
+              }
+            }
+            if (response.status !== 200 || !status || status.available !== true || !fresh(status)) {
+              suspend(status && status.available === false ? '유효한 스냅샷 없음' : '관측 시각 확인 불가');
+              return;
+            }
+            available = true;
+            drawBadge();
+            startLanSnapshotActivity();
+          } catch {
+            if (request === controller && lanIsVisible()) suspend('연결 또는 인증 확인 불가');
+          } finally {
+            if (request === controller) {
+              clearTimeout(requestTimer);
+              requestTimer = null;
+              request = null;
+            }
+          }
+        }
+        async function fetchSnapshot(path, options) {
+          if (!available || !fresh(metadata)) throw new Error('Snapshot unavailable');
+          var expected = metadata;
+          var response = await fetch(
+            path,
+            Object.assign({}, options, {
+              credentials: 'same-origin',
+              redirect: 'error',
+            }),
+          );
+          if (
+            !available ||
+            metadata !== expected ||
+            !fresh(expected) ||
+            Number(response.headers.get('x-bcsd-snapshot-observed-at')) !== expected.observedAt ||
+            Number(response.headers.get('x-bcsd-snapshot-published-at')) !== expected.publishedAt ||
+            response.status === 401 ||
+            response.status === 403
+          ) {
+            throw new Error('Snapshot identity unavailable');
+          }
+          return response;
+        }
+        async function snapshotJson(response) {
+          var data = await response.json();
+          if (
+            !available ||
+            !fresh(metadata) ||
+            Number(response.headers.get('x-bcsd-snapshot-observed-at')) !== metadata.observedAt ||
+            Number(response.headers.get('x-bcsd-snapshot-published-at')) !== metadata.publishedAt
+          ) {
+            throw new Error('Snapshot changed while reading');
+          }
+          return data;
+        }
+        function start() {
+          if (!lanIsVisible() || statusTimer !== null) return;
+          refreshStatus();
+          statusTimer = setInterval(refreshStatus, POLL_MS);
+          ageTimer = setInterval(updateAge, 1000);
+        }
+        function stop() {
+          clearInterval(statusTimer);
+          clearInterval(ageTimer);
+          clearTimeout(requestTimer);
+          statusTimer = null;
+          ageTimer = null;
+          requestTimer = null;
+          if (request) {
+            var pending = request;
+            request = null;
+            pending.abort();
+          }
+          available = false;
+          problem = '관측 시각 재확인 필요';
+          stopLanSnapshotActivity();
+          drawBadge();
+        }
+        return {
+          start: start,
+          stop: stop,
+          fetch: fetchSnapshot,
+          json: snapshotJson,
+          stateNow: function () {
+            return stateAt === null ? Date.now() : stateAt;
+          },
+          captureState: function (value) {
+            if (!Number.isSafeInteger(value) || value <= 0) throw new Error('Invalid state clock');
+            stateAt = value;
+            document.body.dataset.cloudCore = 'ready';
+          },
+          observedNow: function () {
+            return metadata ? metadata.observedAt : Date.now();
+          },
+        };
+      })();
+      var lanEvents = null;
+      var lanLastEventAt = 0;
+      var lanPageHidden = false;
+      var lanRefreshPending = false;
+      var lanGreetingTimer = null;
+      var lanGreetingAnimationTimer = null;
+      var lanGreetingDialog = document.getElementById('greeting-dialog');
+      var lanGreetingMessage = document.getElementById('greeting-message');
+      var lanView = 'attendance';
+      var lanRotationTimer = null;
+      var lanMonitorInterval = null;
+      var lanMonitorAgeInterval = null;
+      var lanRecoveryInterval = null;
+      var lanMonitorRequest = null;
+      var lanMonitorData = null;
+      var lanMonitorFailed = false;
+      var lanMonitorSucceededAt = null;
+      var lanWorkerData = null;
+      var lanWorkerFailed = false;
+      var lanWorkerRequest = null;
+      var lanWorkerRequestTimer = null;
+      var lanWorkerInterval = null;
+      var lanSpotifyInterval = null;
+      var lanSpotifyRequest = null;
+      var lanSpotifyRequestTimer = null;
+      var lanSpotifySignature = null;
+      var lanSpotifyCover = document.getElementById('spotify-cover');
+      var lanSpotifyCoverKey = null;
+      var LAN_SPOTIFY_POLL_MS = 2500;
+      var lanSpotifyNode = document.getElementById('spotify-now');
+      var lanSpotifyTitle = document.getElementById('spotify-title');
+      var lanSpotifyArtists = document.getElementById('spotify-artists');
+      var lanJamInterval = null;
+      var lanJamRequest = null;
+      var lanJamRequestTimer = null;
+      var lanJamImage = null;
+      var lanJamImageTimer = null;
+      var lanJamFigure = null;
+      var lanJamAvailable = false;
+      var lanJamCodes = document.querySelector('#wifi-section .wifi-codes');
+      var LAN_JAM_POLL_MS = 60000;
+      var LAN_WORKER_POLL_MS = 60000;
+      var LAN_WORKER_STALE_MS = 150000;
+      var lanMonitorCards = [];
+      var lanKoinData = null;
+      var lanKoinFailed = false;
+      var lanKoinRows = [];
+      var lanMonitorHistory = Object.create(null);
+      var LAN_HISTORY_LIMIT = 60;
+      var LAN_HISTORY_MS = 15 * 60 * 1000;
+      var LAN_GRAPH_GAP_MS = 22500;
+      var LAN_VIEW_MS = 15000;
+      var LAN_STALE_MS = 45000;
+      var lanTimestampFormat = new Intl.DateTimeFormat('ko-KR', {
+        timeZone: 'Asia/Seoul',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      });
+
+      function lanIsVisible() {
+        return authActive && !lanPageHidden && !document.hidden;
+      }
+      function showLanView(view) {
+        if (view === 'monitor' && lanGreetingDialog.open) return;
+        lanView = view;
+        var attendance = document.getElementById('main');
+        var monitor = document.getElementById('monitor-view');
+        var previous = view === 'attendance' ? monitor : attendance;
+        var moveFocus = previous.contains(document.activeElement);
+        attendance.hidden = view !== 'attendance';
+        monitor.hidden = view !== 'monitor';
+        if (view === 'attendance') scheduleFit();
+        else updateLanMonitorStatus();
+        if (moveFocus) (view === 'attendance' ? attendance : monitor).focus({ preventScroll: true });
+      }
+      function resetLanRotation() {
+        clearTimeout(lanRotationTimer);
+        lanRotationTimer = null;
+        if (!lanIsVisible()) return;
+        lanRotationTimer = setTimeout(function () {
+          lanRotationTimer = null;
+          if (!lanIsVisible()) return;
+          if (!lanGreetingDialog.open) showLanView(lanView === 'attendance' ? 'monitor' : 'attendance');
+          resetLanRotation();
+        }, LAN_VIEW_MS);
+      }
+      function attendLanScreen() {
+        showLanView('attendance');
+        resetLanRotation();
+      }
+      function clearLanGreeting() {
+        clearTimeout(lanGreetingTimer);
+        clearTimeout(lanGreetingAnimationTimer);
+        lanGreetingTimer = null;
+        lanGreetingAnimationTimer = null;
+        lanGreetingDialog.classList.remove('is-entering', 'is-closing');
+        lanGreetingMessage.textContent = '';
+      }
+      function closeLanGreeting(immediate) {
+        clearTimeout(lanGreetingTimer);
+        clearTimeout(lanGreetingAnimationTimer);
+        lanGreetingTimer = null;
+        lanGreetingAnimationTimer = null;
+        if (!lanGreetingDialog.open) {
+          clearLanGreeting();
+          return;
+        }
+        if (immediate === true || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          lanGreetingDialog.close();
+          clearLanGreeting();
+          return;
+        }
+        lanGreetingDialog.classList.remove('is-entering');
+        lanGreetingDialog.classList.add('is-closing');
+        lanGreetingAnimationTimer = setTimeout(function () {
+          lanGreetingAnimationTimer = null;
+          if (lanGreetingDialog.open) lanGreetingDialog.close();
+        }, 160);
+      }
+      function showLanGreeting(data) {
+        if (
+          !lanIsVisible() ||
+          !data ||
+          (data.name !== null && typeof data.name !== 'string') ||
+          (data.action !== 'check-in' && data.action !== 'check-out')
+        )
+          return;
+        attendLanScreen();
+        clearTimeout(lanGreetingTimer);
+        clearTimeout(lanGreetingAnimationTimer);
+        lanGreetingAnimationTimer = null;
+        lanGreetingMessage.textContent =
+          data.action === 'check-out'
+            ? (data.name === null ? '' : data.name + '님, ') + '안녕히 가세요'
+            : data.name === null
+              ? '안녕하세요 BCSDLab에 처음이신것 같아요'
+              : data.name + '님 안녕하세요';
+        if (!lanGreetingDialog.open) lanGreetingDialog.showModal();
+        lanGreetingDialog.classList.remove('is-entering', 'is-closing');
+        if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          void lanGreetingDialog.offsetWidth;
+          lanGreetingDialog.classList.add('is-entering');
+          lanGreetingAnimationTimer = setTimeout(function () {
+            lanGreetingAnimationTimer = null;
+            lanGreetingDialog.classList.remove('is-entering');
+          }, 240);
+        }
+        lanGreetingTimer = setTimeout(closeLanGreeting, 5000);
+      }
+      document.getElementById('greeting-close').addEventListener('click', function () {
+        closeLanGreeting();
+      });
+      lanGreetingDialog.addEventListener('close', function () {
+        if (!lanGreetingDialog.open) clearLanGreeting();
+      });
+
+      function validLanTimestamp(value) {
+        return Number.isSafeInteger(value) && value >= 0 && value <= 8640000000000000;
+      }
+      function validLanMonitor(data) {
+        if (!data || !validLanTimestamp(data.observedAt) || !Array.isArray(data.nodes) || data.nodes.length !== 3)
+          return false;
+        var ids = new Set();
+        return data.nodes.every(function (node) {
+          if (
+            !node ||
+            ['prod', 'stage', 'db'].indexOf(node.id) < 0 ||
+            ids.has(node.id) ||
+            typeof node.label !== 'string' ||
+            !node.label.trim() ||
+            ['up', 'down', 'unknown'].indexOf(node.health) < 0 ||
+            (node.collectedAt !== null && !validLanTimestamp(node.collectedAt)) ||
+            (node.cpuPercent !== null &&
+              (!Number.isFinite(node.cpuPercent) || node.cpuPercent < 0 || node.cpuPercent > 100)) ||
+            (node.memoryUsedBytes !== null &&
+              (!Number.isSafeInteger(node.memoryUsedBytes) || node.memoryUsedBytes < 0)) ||
+            (node.memoryTotalBytes !== null &&
+              (!Number.isSafeInteger(node.memoryTotalBytes) || node.memoryTotalBytes <= 0)) ||
+            (node.memoryUsedBytes !== null &&
+              node.memoryTotalBytes !== null &&
+              node.memoryUsedBytes > node.memoryTotalBytes)
+          )
+            return false;
+          ids.add(node.id);
+          return true;
+        });
+      }
+      function validLanKoin(data) {
+        if (!data || !validLanTimestamp(data.observedAt) || !Array.isArray(data.services) || data.services.length !== 2)
+          return false;
+        var labels = { 'prod-api': 'KOIN API 운영', 'stage-api': 'KOIN API 개발' };
+        var ids = new Set();
+        return data.services.every(function (service) {
+          if (
+            !service ||
+            !Object.prototype.hasOwnProperty.call(labels, service.id) ||
+            ids.has(service.id) ||
+            service.label !== labels[service.id] ||
+            !validLanTimestamp(service.checkedAt) ||
+            ['up', 'down', 'unknown'].indexOf(service.status) < 0 ||
+            ['ready', 'not-ready', 'http', 'tls', 'timeout', 'invalid-response', 'unavailable'].indexOf(
+              service.reason,
+            ) < 0 ||
+            (service.httpStatus !== null &&
+              (!Number.isInteger(service.httpStatus) || service.httpStatus < 100 || service.httpStatus > 599)) ||
+            (service.status === 'up' && (service.reason !== 'ready' || service.httpStatus !== 200)) ||
+            (service.status === 'down' &&
+              service.reason !== 'not-ready' &&
+              !(service.reason === 'http' && service.httpStatus >= 500)) ||
+            (service.status === 'unknown' && service.reason === 'ready')
+          )
+            return false;
+          ids.add(service.id);
+          return true;
+        });
+      }
+      function lanPublicUrl(value, host, prefix) {
+        if (typeof value !== 'string' || value.length > 512 || !value.startsWith('https://' + host + prefix))
+          return null;
+        try {
+          var url = new URL(value);
+          var id = url.pathname.slice(prefix.length);
+          if (
+            url.protocol !== 'https:' ||
+            url.hostname !== host ||
+            url.username ||
+            url.password ||
+            url.port ||
+            url.search ||
+            url.hash ||
+            !url.pathname.startsWith(prefix) ||
+            !/^[a-zA-Z0-9]{1,128}$/.test(id)
+          )
+            return null;
+          return url.href;
+        } catch (_error) {
+          return null;
+        }
+      }
+      function validLanWorkers(data) {
+        if (!data || !validLanTimestamp(data.checkedAt) || !Array.isArray(data.workers) || data.workers.length !== 1)
+          return false;
+        var ids = new Set();
+        return data.workers.every(function (worker) {
+          if (
+            !worker ||
+            worker.id !== 'koin-web' ||
+            ids.has(worker.id) ||
+            typeof worker.label !== 'string' ||
+            !worker.label.trim() ||
+            worker.label.length > 80 ||
+            ['up', 'down', 'unknown'].indexOf(worker.status) < 0 ||
+            ['http', 'restricted', 'redirect', 'tls', 'timeout', 'unavailable'].indexOf(worker.reason) < 0 ||
+            (worker.httpStatus !== null &&
+              (!Number.isInteger(worker.httpStatus) || worker.httpStatus < 100 || worker.httpStatus > 599))
+          )
+            return false;
+          ids.add(worker.id);
+          var code = worker.httpStatus;
+          if (code === null)
+            return worker.status === 'unknown' && ['tls', 'timeout', 'unavailable'].indexOf(worker.reason) >= 0;
+          if (code >= 200 && code < 300) return worker.status === 'up' && worker.reason === 'http';
+          if (code >= 500) return worker.status === 'down' && worker.reason === 'http';
+          if (worker.status !== 'unknown') return false;
+          return (
+            worker.reason ===
+            (code >= 300 && code < 400 ? 'redirect' : code === 401 || code === 403 ? 'restricted' : 'http')
+          );
+        });
+      }
+      function lanTimestamp(value) {
+        return value === null ? '시각 없음' : lanTimestampFormat.format(value) + ' KST';
+      }
+      function lanIsFresh(value, now) {
+        return value !== null && now - value <= LAN_STALE_MS && now - value >= -5000;
+      }
+      function lanPercent(value) {
+        return value === null ? '—' : value.toLocaleString('ko-KR', { maximumFractionDigits: 1 }) + '%';
+      }
+      function lanMemoryPercent(node) {
+        return node.memoryUsedBytes === null || node.memoryTotalBytes === null
+          ? null
+          : (node.memoryUsedBytes / node.memoryTotalBytes) * 100;
+      }
+      function lanBytes(value) {
+        if (value === null) return '—';
+        var gib = value >= 10737418240;
+        return (
+          (value / (gib ? 1073741824 : 1048576)).toLocaleString('ko-KR', { maximumFractionDigits: gib ? 1 : 0 }) +
+          (gib ? ' GiB' : ' MiB')
+        );
+      }
+      function lanHistoryFor(id) {
+        if (!lanMonitorHistory[id]) lanMonitorHistory[id] = { samples: [], lastAt: null, breakNext: false };
+        return lanMonitorHistory[id];
+      }
+      function lanBreakHistory() {
+        Object.keys(lanMonitorHistory).forEach(function (id) {
+          lanMonitorHistory[id].breakNext = true;
+        });
+      }
+      function lanPruneHistory(history, now) {
+        while (
+          history.samples.length &&
+          (history.samples.length > LAN_HISTORY_LIMIT || history.samples[0].at < now - LAN_HISTORY_MS)
+        )
+          history.samples.shift();
+      }
+      function rememberLanMonitor() {
+        var now = cloud.observedNow();
+        lanMonitorData.nodes.forEach(function (node) {
+          var history = lanHistoryFor(node.id);
+          lanPruneHistory(history, now);
+          if (!lanIsFresh(lanMonitorData.observedAt, now) || !lanIsFresh(node.collectedAt, now)) {
+            history.breakNext = true;
+            return;
+          }
+          var cpu = node.health === 'up' ? node.cpuPercent : null;
+          var ram = node.health === 'up' ? lanMemoryPercent(node) : null;
+          if (history.lastAt !== null && node.collectedAt <= history.lastAt) {
+            if (cpu === null || ram === null) history.breakNext = true;
+            return;
+          }
+          if (history.samples.length === LAN_HISTORY_LIMIT) history.samples.shift();
+          history.samples.push({
+            at: node.collectedAt,
+            cpu: cpu,
+            ram: ram,
+            gapBefore:
+              history.breakNext || (history.lastAt !== null && node.collectedAt - history.lastAt > LAN_GRAPH_GAP_MS),
+          });
+          history.lastAt = node.collectedAt;
+          history.breakNext = false;
+          lanPruneHistory(history, now);
+        });
+      }
+      function lanSvg(tag, attributes) {
+        var element = document.createElementNS('http://www.w3.org/2000/svg', tag);
+        Object.keys(attributes).forEach(function (name) {
+          element.setAttribute(name, attributes[name]);
+        });
+        return element;
+      }
+      function lanDrawGraph(plot, history, now) {
+        if (
+          plot.drawAt !== undefined &&
+          now >= plot.drawAt &&
+          now - plot.drawAt < LAN_VIEW_MS &&
+          plot.drawLastAt === history.lastAt &&
+          plot.drawCount === history.samples.length
+        )
+          return;
+        plot.drawAt = now;
+        plot.drawLastAt = history.lastAt;
+        plot.drawCount = history.samples.length;
+        var svg = plot.graph;
+        svg.replaceChildren();
+        svg.appendChild(lanSvg('path', { d: 'M8 12H592 M8 88H592 M8 164H592', class: 'monitor-graph-grid' }));
+        var firstAt = history.samples.length ? history.samples[0].at : now;
+        var lastAt = history.samples.length ? history.samples[history.samples.length - 1].at : now;
+        var span = Math.max(0, lastAt - firstAt);
+        plot.range.textContent =
+          span >= 60000
+            ? Math.ceil(span / 60000) + '분 구간'
+            : span > 0
+              ? Math.ceil(span / 1000) + '초 구간'
+              : '관측 시작';
+        var counts = { cpu: 0, ram: 0 };
+        ['cpu', 'ram'].forEach(function (key) {
+          var path = '';
+          var connected = false;
+          history.samples.forEach(function (sample) {
+            var value = sample[key];
+            if (value === null) {
+              connected = false;
+              return;
+            }
+            var x = span > 0 ? 8 + Math.max(0, Math.min(1, (sample.at - firstAt) / span)) * 584 : 300;
+            var y = 164 - (value / 100) * 152;
+            path += (connected && !sample.gapBefore ? 'L' : 'M') + x.toFixed(2) + ' ' + y.toFixed(2) + ' ';
+            svg.appendChild(
+              lanSvg('circle', {
+                cx: x.toFixed(2),
+                cy: y.toFixed(2),
+                r: '4',
+                class: 'monitor-graph-dot',
+                'data-series': key,
+              }),
+            );
+            connected = true;
+            counts[key] += 1;
+          });
+          if (path) svg.appendChild(lanSvg('path', { d: path, class: 'monitor-graph-line', 'data-series': key }));
+        });
+        svg.setAttribute(
+          'aria-label',
+          '실제 관측 구간, 최대 15분, 0에서 100퍼센트. CPU 실측 ' +
+            counts.cpu +
+            '개, RAM 실측 ' +
+            counts.ram +
+            '개. 빈 구간은 미관측.',
+        );
+      }
+      function lanMetric(key, label) {
+        var block = el('div', 'monitor-metric');
+        block.dataset.metric = key;
+        var value = el('strong', 'monitor-value', '—');
+        var detail = key === 'ram' ? el('span', 'monitor-metric-detail') : null;
+        block.append(el('span', 'monitor-metric-label', label), value);
+        if (detail) block.appendChild(detail);
+        return { block: block, value: value, detail: detail };
+      }
+      function renderLanMonitor() {
+        var container = document.getElementById('monitor-cards');
+        container.replaceChildren();
+        lanMonitorCards = [];
+        ['prod', 'stage', 'db'].forEach(function (id) {
+          var node = lanMonitorData.nodes.find(function (entry) {
+            return entry.id === id;
+          });
+          var card = el('article', 'panel monitor-node');
+          card.dataset.node = id;
+          var heading = el('div', 'monitor-node-heading');
+          var title = el('div', 'monitor-node-title');
+          var health = el('span', 'monitor-health');
+          title.append(el('h4', '', node.label), health);
+          var note = el('p', 'monitor-value-note');
+          heading.append(title, note);
+          var metrics = el('div', 'monitor-metrics');
+          var cpu = lanMetric('cpu', 'CPU');
+          var ram = lanMetric('ram', 'RAM');
+          metrics.append(cpu.block, ram.block);
+          var plotBlock = el('div', 'monitor-plot');
+          var graph = lanSvg('svg', {
+            viewBox: '0 0 600 180',
+            preserveAspectRatio: 'none',
+            class: 'monitor-graph',
+            role: 'img',
+          });
+          var graphAxis = el('div', 'monitor-graph-axis');
+          var graphRange = el('span', '', '관측 시작');
+          graphAxis.append(graphRange, el('span', '', '최근 수집'));
+          plotBlock.append(graph, graphAxis);
+          var timestamp = el('p', 'monitor-node-time');
+          card.append(heading, metrics, plotBlock, timestamp);
+          container.appendChild(card);
+          lanMonitorCards.push({
+            node: node,
+            health: health,
+            note: note,
+            timestamp: timestamp,
+            cpu: cpu,
+            ram: ram,
+            plot: { graph: graph, range: graphRange },
+          });
+        });
+      }
+      function renderLanKoin() {
+        var container = document.getElementById('koin-services');
+        container.replaceChildren();
+        lanKoinRows = [];
+        ['prod-api', 'stage-api'].forEach(function (id) {
+          var service = lanKoinData.services.find(function (entry) {
+            return entry.id === id;
+          });
+          var row = el('div', 'koin-service');
+          row.dataset.service = id;
+          var health = el('span', 'monitor-health');
+          var detail = el('div', 'koin-service-detail');
+          var reason = el('p', 'koin-service-reason');
+          var timestamp = el('p', 'koin-service-time');
+          detail.append(reason, timestamp);
+          var heading = el('div', 'koin-service-heading');
+          heading.append(el('h3', 'koin-service-name', service.label), health);
+          row.append(heading, detail);
+          container.appendChild(row);
+          lanKoinRows.push({ row: row, service: service, health: health, reason: reason, timestamp: timestamp });
+        });
+      }
+      function updateLanPaths(now) {
+        var internal = document.getElementById('internal-path-status');
+        var internalUp = !lanMonitorFailed && lanIsFresh(lanMonitorSucceededAt, now);
+        internal.dataset.health = internalUp ? 'up' : 'unknown';
+        internal.querySelector('span').textContent = internalUp ? '관측 시 연결 정상' : '관측 시 확인 불가';
+        internal.title =
+          '스냅샷의 /api/monitor 수집 성공 기준 · 현재 연결 상태 아님' +
+          (lanMonitorSucceededAt === null ? '' : ' · 수신 ' + lanTimestamp(lanMonitorSucceededAt));
+        var data = lanWorkerData;
+        var age = data ? now - data.checkedAt : Infinity;
+        var fresh = !lanWorkerFailed && data && age >= -5000 && age <= LAN_WORKER_STALE_MS;
+        var states = ['koin-web'].map(function (id) {
+          var worker = fresh
+            ? data.workers.find(function (entry) {
+                return entry.id === id;
+              })
+            : null;
+          var state = worker ? worker.status : 'unknown';
+          var node = document.getElementById('worker-web-status');
+          node.dataset.health = state;
+          node.querySelector('span').textContent =
+            '관측 시 ' +
+            (state === 'up' ? '정상' : state === 'down' ? '장애' : '확인 불가') +
+            (worker && worker.httpStatus !== null ? ' · ' + worker.httpStatus : '');
+          return state;
+        });
+        document.getElementById('worker-health').dataset.health =
+          states.indexOf('down') >= 0
+            ? 'down'
+            : states.every(function (state) {
+                  return state === 'up';
+                })
+              ? 'up'
+              : 'unknown';
+      }
+      function updateLanMonitorStatus() {
+        var now = cloud.observedNow();
+        updateLanPaths(now);
+        var states = [];
+        var reasons = {
+          ready: 'readiness UP',
+          'not-ready': 'readiness 준비 안 됨',
+          http: 'HTTP 응답',
+          tls: 'TLS 확인 실패',
+          timeout: '응답 시간 초과',
+          'invalid-response': '응답 형식 확인 불가',
+          unavailable: '연결 확인 불가',
+        };
+        lanKoinRows.forEach(function (entry) {
+          var service = entry.service;
+          var fresh = !lanKoinFailed && lanIsFresh(lanKoinData.observedAt, now) && lanIsFresh(service.checkedAt, now);
+          var state = fresh ? service.status : 'unknown';
+          states.push(state);
+          entry.row.dataset.health = state;
+          entry.health.dataset.health = state;
+          entry.health.textContent =
+            '관측 시 ' + (state === 'up' ? '준비됨' : state === 'down' ? '준비 안 됨' : '확인 불가');
+          entry.reason.textContent = !fresh
+            ? '최신 상태 확인 불가'
+            : reasons[service.reason] + (service.httpStatus === null ? '' : ' · HTTP ' + service.httpStatus);
+          entry.reason.hidden = fresh && service.reason === 'ready';
+          entry.timestamp.textContent = '확인 ' + lanTimestamp(service.checkedAt);
+        });
+        if (!lanKoinData) states.push('unknown');
+        lanMonitorCards.forEach(function (entry) {
+          var node = entry.node;
+          var fresh =
+            !lanMonitorFailed && lanIsFresh(lanMonitorData.observedAt, now) && lanIsFresh(node.collectedAt, now);
+          var snapshotFresh = !lanMonitorFailed && lanIsFresh(lanMonitorData.observedAt, now);
+          var cpu = fresh && node.health === 'up' ? node.cpuPercent : null;
+          var ram = fresh && node.health === 'up' ? lanMemoryPercent(node) : null;
+          var state =
+            snapshotFresh && node.health === 'down'
+              ? 'down'
+              : !fresh
+                ? 'unknown'
+                : node.health === 'up' && cpu !== null && ram !== null
+                  ? 'up'
+                  : 'unknown';
+          states.push(state);
+          entry.health.dataset.health = state;
+          entry.health.textContent =
+            '관측 시 ' + (state === 'up' ? '수집 정상' : state === 'down' ? '수집 실패' : '확인 불가');
+          var ageSeconds = node.collectedAt === null ? null : Math.max(0, Math.floor((now - node.collectedAt) / 1000));
+          entry.timestamp.textContent =
+            '수집 ' +
+            lanTimestamp(node.collectedAt) +
+            (ageSeconds === null ? '' : ' · ' + ageSeconds + '초 전 수집(관측 기준)') +
+            (fresh ? '' : ' · 최신 아님');
+          entry.note.textContent = !fresh
+            ? '최신 수치 확인 불가'
+            : cpu === null || ram === null
+              ? '일부 미수집 · —는 확인 불가'
+              : '';
+          entry.note.hidden = !entry.note.textContent;
+          entry.cpu.value.textContent = lanPercent(cpu);
+          entry.ram.value.textContent = lanPercent(ram);
+          entry.ram.detail.textContent =
+            ram === null
+              ? '사용 / 전체 확인 불가'
+              : lanBytes(node.memoryUsedBytes) + ' / ' + lanBytes(node.memoryTotalBytes);
+          entry.ram.value.title = entry.ram.detail.textContent;
+          var history = lanHistoryFor(node.id);
+          if (!fresh) history.breakNext = true;
+          lanPruneHistory(history, now);
+          lanDrawGraph(entry.plot, history, now);
+        });
+        if (!lanMonitorData) states.push('unknown');
+        var state = states.indexOf('down') >= 0 ? 'down' : states.indexOf('unknown') >= 0 ? 'unknown' : 'up';
+        var status = document.getElementById('monitor-status');
+        status.dataset.state = state;
+        status.textContent =
+          state === 'up' ? '관측 정상' : state === 'down' ? '일부 장애 / 수집 실패' : '일부 상태 확인 불가';
+        document.getElementById('monitor-timestamp').textContent = lanMonitorData
+          ? '서버 관측 ' + lanTimestamp(lanMonitorData.observedAt)
+          : '서버 관측 대기';
+        if (!lanKoinData)
+          document.querySelector('#koin-services .monitor-waiting').textContent = lanKoinFailed
+            ? '상태 확인 불가'
+            : '상태 확인 중';
+        if (!lanMonitorData)
+          document.querySelector('#monitor-cards .monitor-waiting').textContent = lanMonitorFailed
+            ? '서버 조회 실패 · 노드 관측 없음'
+            : '서버 수집 데이터 대기 · 아직 노드 관측 없음';
+      }
+      async function refreshLanMonitor() {
+        if (!lanIsVisible() || lanMonitorRequest) return;
+        var controller = new AbortController();
+        lanMonitorRequest = controller;
+        var timeout = setTimeout(function () {
+          controller.abort();
+        }, 8000);
+        async function collect(path, validate, accept, fail) {
+          try {
+            var response = await cloud.fetch(path, {
+              cache: 'no-store',
+              credentials: 'same-origin',
+              signal: controller.signal,
+            });
+            if (response.status !== 200) throw new Error('Snapshot unavailable');
+            var data = await cloud.json(response);
+            if (!validate(data)) throw new Error('Invalid snapshot');
+            if (lanMonitorRequest !== controller || !lanIsVisible()) return;
+            accept(data);
+          } catch (_error) {
+            if (lanMonitorRequest !== controller || !lanIsVisible()) return;
+            fail();
+          }
+          if (lanMonitorRequest === controller && lanIsVisible()) updateLanMonitorStatus();
+        }
+        try {
+          await Promise.all([
+            collect(
+              '/api/monitor',
+              validLanMonitor,
+              function (data) {
+                lanMonitorData = data;
+                lanMonitorFailed = false;
+                lanMonitorSucceededAt = cloud.observedNow();
+                rememberLanMonitor();
+                renderLanMonitor();
+              },
+              function () {
+                lanMonitorFailed = true;
+                lanBreakHistory();
+              },
+            ),
+            collect(
+              '/api/koin-health',
+              validLanKoin,
+              function (data) {
+                lanKoinData = data;
+                lanKoinFailed = false;
+                renderLanKoin();
+              },
+              function () {
+                lanKoinFailed = true;
+              },
+            ),
+          ]);
+        } finally {
+          clearTimeout(timeout);
+          if (lanMonitorRequest === controller) lanMonitorRequest = null;
+        }
+      }
+      async function refreshLanWorkers() {
+        if (!lanIsVisible() || lanWorkerRequest) return;
+        var controller = new AbortController();
+        lanWorkerRequest = controller;
+        lanWorkerRequestTimer = setTimeout(function () {
+          controller.abort();
+        }, 8000);
+        try {
+          var response = await cloud.fetch('/api/worker-health', {
+            method: 'GET',
+            cache: 'no-store',
+            credentials: 'omit',
+            signal: controller.signal,
+          });
+          if (response.status !== 200) throw new Error('Worker status unavailable');
+          var data = await cloud.json(response);
+          if (!validLanWorkers(data)) throw new Error('Invalid Worker status');
+          if (lanWorkerRequest !== controller || !lanIsVisible()) return;
+          lanWorkerData = data;
+          lanWorkerFailed = false;
+        } catch (_error) {
+          if (lanWorkerRequest !== controller || !lanIsVisible()) return;
+          lanWorkerData = null;
+          lanWorkerFailed = true;
+        } finally {
+          if (lanWorkerRequest === controller) {
+            clearTimeout(lanWorkerRequestTimer);
+            lanWorkerRequestTimer = null;
+            lanWorkerRequest = null;
+            if (lanIsVisible()) updateLanPaths(cloud.observedNow());
+          }
+        }
+      }
+      function renderLanSpotifyCover(key, url) {
+        if (key === lanSpotifyCoverKey) return;
+        lanSpotifyCoverKey = key;
+        lanSpotifyCover.hidden = true;
+        lanSpotifyCover.onload = null;
+        lanSpotifyCover.onerror = null;
+        lanSpotifyCover.removeAttribute('src');
+        if (!url) return;
+        // A new element isolates stale load/error events when tracks change rapidly.
+        var image = new Image(44, 44);
+        image.id = 'spotify-cover';
+        image.className = 'spotify-cover';
+        image.alt = '';
+        image.referrerPolicy = 'no-referrer';
+        image.decoding = 'async';
+        image.hidden = true;
+        image.onload = function () {
+          if (lanSpotifyCover === image && lanSpotifyCoverKey === key) image.hidden = false;
+        };
+        image.onerror = function () {
+          if (lanSpotifyCover !== image || lanSpotifyCoverKey !== key) return;
+          image.hidden = true;
+          image.removeAttribute('src');
+        };
+        lanSpotifyCover.replaceWith(image);
+        lanSpotifyCover = image;
+        image.src = url;
+      }
+      function renderLanSpotify(data) {
+        var labels = {
+          idle: '대기 중',
+          loading: '불러오는 중',
+          playing: '재생 중',
+          paused: '일시 정지',
+          error: '연결 오류',
+          unknown: '상태 확인 불가',
+        };
+        var state = data && Object.prototype.hasOwnProperty.call(labels, data.state) ? data.state : 'unknown';
+        var title = '';
+        var artists = '';
+        if (state === 'playing' || state === 'paused' || state === 'loading') {
+          title =
+            typeof data.title === 'string' && data.title.trim()
+              ? data.title
+              : state === 'loading'
+                ? '곡 정보를 불러오고 있습니다'
+                : '제목 정보 없음';
+          artists = Array.isArray(data.artists)
+            ? data.artists
+                .filter(function (artist) {
+                  return typeof artist === 'string' && artist.trim();
+                })
+                .join(', ')
+            : '';
+          if (!artists) artists = '아티스트 정보 없음';
+        } else if (state === 'idle') {
+          title = '재생 중인 항목 없음';
+          artists = '';
+        } else if (state === 'error') {
+          title = '재생 정보를 가져올 수 없습니다';
+          artists = '';
+        } else {
+          title = '재생 상태를 확인할 수 없습니다';
+          artists = '';
+        }
+        var active = state === 'playing' || state === 'paused' || state === 'loading';
+        var cover = active ? lanPublicUrl(data.coverUrl, 'i.scdn.co', '/image/') : null;
+        // Timestamps alone must not mutate the live region or repeat announcements.
+        var signature = JSON.stringify([state, title, artists, cover]);
+        if (signature === lanSpotifySignature) return;
+        lanSpotifySignature = signature;
+        lanSpotifyNode.dataset.state = state;
+        lanSpotifyNode.setAttribute('aria-label', '관측 시점 · ' + labels[state]);
+        lanSpotifyTitle.textContent = '관측 시 · ' + title;
+        lanSpotifyArtists.textContent = artists;
+        renderLanSpotifyCover(active ? JSON.stringify([title, artists, cover]) : null, cover);
+      }
+      async function refreshLanSpotify() {
+        if (!lanIsVisible() || lanSpotifyRequest) return;
+        var controller = new AbortController();
+        lanSpotifyRequest = controller;
+        lanSpotifyRequestTimer = setTimeout(function () {
+          if (lanSpotifyRequest === controller) controller.abort();
+        }, 5000);
+        try {
+          var response = await cloud.fetch('/api/spotify', {
+            cache: 'no-store',
+            credentials: 'same-origin',
+            signal: controller.signal,
+          });
+          if (!response.ok) throw new Error('Spotify status unavailable');
+          var data = await cloud.json(response);
+          if (lanSpotifyRequest !== controller || !lanIsVisible()) return;
+          renderLanSpotify(data);
+        } catch (_error) {
+          if (lanSpotifyRequest !== controller || !lanIsVisible()) return;
+          renderLanSpotify({ state: 'error' });
+        } finally {
+          if (lanSpotifyRequest === controller) {
+            clearTimeout(lanSpotifyRequestTimer);
+            lanSpotifyRequestTimer = null;
+            lanSpotifyRequest = null;
+          }
+        }
+      }
+      function clearLanJamImage() {
+        clearTimeout(lanJamImageTimer);
+        lanJamImageTimer = null;
+        if (lanJamImage) {
+          var image = lanJamImage;
+          lanJamImage = null;
+          image.onload = null;
+          image.onerror = null;
+          image.removeAttribute('src');
+        }
+        if (lanJamFigure) lanJamFigure.remove();
+        lanJamFigure = null;
+        lanJamCodes.classList.remove('has-jam');
+      }
+      function renderLanJam(available) {
+        lanJamAvailable = available;
+        if (!available) {
+          clearLanJamImage();
+          return;
+        }
+        if (lanJamImage) return;
+        var figure = document.createElement('figure');
+        figure.id = 'spotify-jam';
+        figure.className = 'wifi-code';
+        var image = new Image();
+        image.id = 'spotify-jam-qr';
+        image.alt = 'Spotify Jam 참여 QR 코드';
+        image.decoding = 'async';
+        var caption = document.createElement('figcaption');
+        caption.textContent = 'Spotify Jam';
+        figure.append(image, caption);
+        lanJamFigure = figure;
+        lanJamImage = image;
+        image.onload = function () {
+          if (lanJamImage !== image || !lanJamAvailable || !lanIsVisible()) return;
+          clearTimeout(lanJamImageTimer);
+          lanJamImageTimer = null;
+          lanJamCodes.appendChild(figure);
+          lanJamCodes.classList.add('has-jam');
+        };
+        image.onerror = function () {
+          if (lanJamImage !== image) return;
+          clearLanJamImage();
+        };
+        lanJamImageTimer = setTimeout(function () {
+          if (lanJamImage !== image) return;
+          clearLanJamImage();
+        }, 8000);
+        image.src = '/api/jam-qr';
+      }
+      async function refreshLanJam() {
+        if (!lanIsVisible() || lanJamRequest) return;
+        var controller = new AbortController();
+        lanJamRequest = controller;
+        lanJamRequestTimer = setTimeout(function () {
+          if (lanJamRequest === controller) controller.abort();
+        }, 5000);
+        try {
+          var response = await cloud.fetch('/api/jam', {
+            cache: 'no-store',
+            credentials: 'same-origin',
+            signal: controller.signal,
+          });
+          if (response.status !== 200) throw new Error('Jam status unavailable');
+          var data = await cloud.json(response);
+          if (!data || typeof data.available !== 'boolean') throw new Error('Invalid Jam status');
+          if (lanJamRequest !== controller || !lanIsVisible()) return;
+          renderLanJam(data.available);
+        } catch (_error) {
+          if (lanJamRequest !== controller || !lanIsVisible()) return;
+          renderLanJam(false);
+        } finally {
+          if (lanJamRequest === controller) {
+            clearTimeout(lanJamRequestTimer);
+            lanJamRequestTimer = null;
+            lanJamRequest = null;
+          }
+        }
+      }
+      function refreshLanActiveView() {
+        refreshLanSpotify();
+        refreshLanJam();
+        if (lanView === 'monitor') refreshLanMonitor();
+        else refresh();
+      }
+      var lanOriginalRefresh = refresh;
+      refresh = async function () {
+        if (!lanIsVisible()) return;
+        if (refreshing) {
+          lanRefreshPending = true;
+          return;
+        }
+        do {
+          lanRefreshPending = false;
+          await lanOriginalRefresh();
+        } while (lanRefreshPending && lanIsVisible());
+      };
+      function recoverLanState() {
+        if (lanIsVisible()) refresh();
+      }
+      function stopLanSnapshotActivity() {
+        lanBreakHistory();
+        clearInterval(lanJamInterval);
+        clearTimeout(lanJamRequestTimer);
+        lanJamInterval = null;
+        lanJamRequestTimer = null;
+        if (lanJamRequest) {
+          var jamRequest = lanJamRequest;
+          lanJamRequest = null;
+          jamRequest.abort();
+        }
+        renderLanJam(false);
+        clearInterval(lanSpotifyInterval);
+        clearTimeout(lanSpotifyRequestTimer);
+        lanSpotifyInterval = null;
+        lanSpotifyRequestTimer = null;
+        if (lanSpotifyRequest) {
+          var spotifyRequest = lanSpotifyRequest;
+          lanSpotifyRequest = null;
+          spotifyRequest.abort();
+        }
+        renderLanSpotify({ state: 'unknown' });
+        clearTimeout(lanRotationTimer);
+        clearInterval(lanMonitorInterval);
+        clearInterval(lanMonitorAgeInterval);
+        clearInterval(lanRecoveryInterval);
+        clearInterval(lanWorkerInterval);
+        clearTimeout(lanWorkerRequestTimer);
+        lanWorkerInterval = null;
+        lanWorkerRequestTimer = null;
+        if (lanWorkerRequest) {
+          var workerRequest = lanWorkerRequest;
+          lanWorkerRequest = null;
+          workerRequest.abort();
+        }
+        lanWorkerData = null;
+        lanWorkerFailed = true;
+        updateLanPaths(cloud.observedNow());
+        lanRotationTimer = null;
+        lanMonitorInterval = null;
+        lanMonitorAgeInterval = null;
+        lanRecoveryInterval = null;
+        if (lanMonitorRequest) {
+          var request = lanMonitorRequest;
+          lanMonitorRequest = null;
+          request.abort();
+        }
+        lanRefreshPending = false;
+        closeLanGreeting(true);
+        if (fitFrame) {
+          cancelAnimationFrame(fitFrame);
+          fitFrame = 0;
+        }
+      }
+      function startLanSnapshotActivity() {
+        if (!lanIsVisible() || lanMonitorInterval !== null) return;
+        attendLanScreen();
+        refresh();
+        refreshLanMonitor();
+        refreshLanWorkers();
+        refreshLanSpotify();
+        lanSpotifyInterval = setInterval(refreshLanSpotify, LAN_SPOTIFY_POLL_MS);
+        refreshLanJam();
+        lanJamInterval = setInterval(refreshLanJam, LAN_JAM_POLL_MS);
+        lanWorkerInterval = setInterval(refreshLanWorkers, LAN_WORKER_POLL_MS);
+        lanMonitorInterval = setInterval(refreshLanMonitor, LAN_VIEW_MS);
+        lanMonitorAgeInterval = setInterval(updateLanMonitorStatus, 1000);
+        lanRecoveryInterval = setInterval(recoverLanState, POLL_MS);
+      }
+      function startLanActivity() {
+        cloud.start();
+      }
+      function stopLanActivity() {
+        cloud.stop();
+      }
+      document.addEventListener('visibilitychange', function () {
+        if (document.hidden) stopLanActivity();
+        else startLanActivity();
+      });
+      window.addEventListener('pagehide', function () {
+        lanPageHidden = true;
+        stopLanActivity();
+      });
+      window.addEventListener('pageshow', function () {
+        lanPageHidden = false;
+        startLanActivity();
+      });
+      async function checkSession() {
+        authActive = true;
+        authRevision += 1;
+        authDeadline = Infinity;
+        authExpiresAt = Infinity;
+        authClockOffset = 0;
+        document.getElementById('login-panel').hidden = true;
+        document.getElementById('main').hidden = false;
+        document.getElementById('logout').hidden = true;
+        document.getElementById('refresh').hidden = false;
+        document.getElementById('viewer-name').textContent = '보호된 원격 스냅샷';
+        document.getElementById('viewer-name').hidden = false;
+        loadWifiImages(true);
+        startLanActivity();
+        return true;
+      }
+      document.getElementById('login-form').addEventListener('submit', async function (event) {
+        event.preventDefault();
+        var button = document.getElementById('login-submit');
+        var error = document.getElementById('login-error');
+        button.disabled = true;
+        error.textContent = '';
+        try {
+          var response = await fetch('/api/login', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              studentNumber: document.getElementById('login-student').value.trim(),
+              password: document.getElementById('login-password').value,
+            }),
+          });
+          document.getElementById('login-password').value = '';
+          if (response.status === 401) {
+            error.textContent = '학번 또는 비밀번호를 확인해 주세요.';
+            return;
+          }
+          if (!response.ok) {
+            error.textContent = '로그인 서비스를 사용할 수 없습니다. 잠시 뒤 다시 시도해 주세요.';
+            return;
+          }
+          await checkSession();
+        } catch (errorValue) {
+          document.getElementById('login-password').value = '';
+          error.textContent = '연결하지 못했습니다. 네트워크를 확인해 주세요.';
+        } finally {
+          button.disabled = false;
+        }
+      });
+
+      document.getElementById('logout').addEventListener('click', async function () {
+        var button = document.getElementById('logout');
+        button.disabled = true;
+        try {
+          var response = await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
+          if (!response.ok) {
+            showError('로그아웃하지 못했습니다. 다시 시도해 주세요.');
+            return;
+          }
+          setSignedOut('');
+        } catch (error) {
+          showError('로그아웃하지 못했습니다. 연결 상태를 확인해 주세요.');
+        } finally {
+          button.disabled = false;
+        }
+      });
+      document.getElementById('refresh').addEventListener('click', refreshLanActiveView);
+      document.getElementById('retry').addEventListener('click', refresh);
+      tick();
+      setInterval(tick, 1000);
+
+      checkSession()
+        .catch(function () {
+          setSignedOut('계정 확인에 실패했습니다. 네트워크를 확인해 주세요.');
+        })
+        .finally(function () {
+          document.getElementById('login-submit').disabled = false;
+        });
+    </script>
+    <script>
+      (() => {
+        const POLL = 60000,
+          FRESH = 120000;
+        const parts = {
+          ingress: { data: null, ok: false, age: 0, received: 0, reason: '확인 중' },
+          rocky: { data: null, ok: false, age: 0, received: 0, reason: '확인 중' },
+        };
+        const time = new Intl.DateTimeFormat('ko-KR', {
+          timeZone: 'Asia/Seoul',
+          month: 'numeric',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        });
+        const text = (id, value) => {
+          document.getElementById(id).textContent = value;
+        };
+        let refreshing = false;
+        function fresh(part) {
+          return (
+            part.ok &&
+            part.data !== null &&
+            !document.hidden &&
+            navigator.onLine !== false &&
+            part.age + performance.now() - part.received < FRESH
+          );
+        }
+        function render() {
+          for (const [name, part] of Object.entries(parts)) {
+            const current = fresh(part);
+            const node = document.getElementById('am-' + name + '-state');
+            node.dataset.state = current ? 'ok' : 'unknown';
+            node.textContent = current
+              ? name === 'ingress'
+                ? 'Worker 응답 · 저장소 조회됨'
+                : '게이트웨이 응답'
+              : part.ok
+                ? '확인 시간 초과 · 현재 상태 알 수 없음'
+                : part.reason;
+            text(
+              'am-' + name + '-time',
+              part.data ? (current ? '확인 ' : '마지막 확인 ') + time.format(part.data.checkedAt) + ' KST' : '확인 —',
+            );
+          }
+          const ingress = parts.ingress,
+            rocky = parts.rocky;
+          const prefix = (part) => (fresh(part) ? '' : part.data ? '마지막 확인 값 · ' : '');
+          for (const name of ['sentry', 'cloudflare']) {
+            const value = ingress.data && ingress.data.sources[name];
+            text(
+              'am-' + name,
+              (name === 'sentry' ? 'Sentry ' : 'Cloudflare ') +
+                prefix(ingress) +
+                (value
+                  ? value.count +
+                    '건 · 신규 ' +
+                    (value.latestAt === null ? '없음' : time.format(value.latestAt) + ' KST')
+                  : '—'),
+            );
+          }
+          text(
+            'am-cpu',
+            'CPU ' +
+              prefix(rocky) +
+              (rocky.data && rocky.data.cpu !== null ? rocky.data.cpu.usagePercent.toFixed(1) + '%' : '미측정'),
+          );
+          const memory = rocky.data && rocky.data.memory;
+          text(
+            'am-memory',
+            'RAM ' +
+              prefix(rocky) +
+              (memory
+                ? (memory.usedBytes / 1073741824).toFixed(1) +
+                  ' / ' +
+                  (memory.totalBytes / 1073741824).toFixed(1) +
+                  ' GiB 사용'
+                : '미측정'),
+          );
+          for (const name of ['executor', 'broker']) {
+            const unit = rocky.data && rocky.data[name];
+            const value =
+              !unit || unit.checkedAt === null
+                ? '미확인'
+                : unit.configured === false
+                  ? '미설치'
+                  : unit.state === 'failed'
+                    ? '서비스 실패'
+                    : unit.process === 'running'
+                      ? '프로세스 실행'
+                      : unit.process === 'stopped'
+                        ? '프로세스 중지'
+                        : '프로세스 미확인';
+            text('am-' + name, (name === 'executor' ? '실행기 ' : '브로커 ') + prefix(rocky) + value);
+          }
+          text(
+            'am-note',
+            fresh(ingress)
+              ? '최근 24시간 고유 오류 등록 기록입니다.'
+              : ingress.data
+                ? '마지막 정상 조회 당시의 등록 기록입니다. 현재 수신 상태는 미확인입니다.'
+                : '최근 정상 조회 기록이 없습니다.',
+          );
+        }
+        async function refresh() {
+          if (refreshing) return;
+          if (document.hidden || navigator.onLine === false) {
+            for (const part of Object.values(parts)) {
+              part.ok = false;
+              part.reason = document.hidden ? '화면 숨김 · 미확인' : '오프라인 · 미확인';
+            }
+            render();
+            return;
+          }
+          refreshing = true;
+          try {
+            const response = await fetch('/api/automation', {
+              cache: 'no-store',
+              credentials: 'same-origin',
+              redirect: 'error',
+              signal: AbortSignal.timeout(6000),
+            });
+            if (!response.ok) throw new Error('조회 실패');
+            const result = await response.json();
+            if (!Number.isSafeInteger(result.servedAt)) throw new Error('응답 불일치');
+            for (const [name, value] of [
+              ['ingress', result],
+              ['rocky', result.rocky],
+            ]) {
+              const part = parts[name];
+              if (value && value.state === 'ok' && value.data && value.checkedAt === value.data.checkedAt) {
+                part.data = value.data;
+                part.received = performance.now();
+                part.age = Math.max(0, result.servedAt - value.checkedAt);
+                part.ok = true;
+                if (name === 'ingress') {
+                  const list = document.getElementById('am-recent');
+                  list.replaceChildren();
+                  for (const entry of value.data.recent) {
+                    const row = document.createElement('li');
+                    row.textContent =
+                      entry.source +
+                      ' · ' +
+                      entry.app +
+                      ' · ' +
+                      time.format(entry.registeredAt) +
+                      ' KST 등록 · ' +
+                      entry.status;
+                    list.appendChild(row);
+                  }
+                  if (!value.data.recent.length) text('am-recent', '최근 24시간 등록된 오류가 없습니다.');
+                }
+              } else {
+                part.ok = false;
+                part.reason =
+                  value && value.reason === 'not_configured'
+                    ? '모니터 미설정'
+                    : value && value.reason === 'stale'
+                      ? '오래된 응답 · 미확인'
+                      : '조회 실패 · 미확인';
+              }
+            }
+          } catch {
+            for (const part of Object.values(parts)) {
+              part.ok = false;
+              part.reason = '연결 실패 · 미확인';
+            }
+          } finally {
+            refreshing = false;
+            render();
+          }
+        }
+        document
+          .getElementById('am-details')
+          .addEventListener('click', () => document.getElementById('am-dialog').showModal());
+        document
+          .getElementById('am-close')
+          .addEventListener('click', () => document.getElementById('am-dialog').close());
+        document.addEventListener('visibilitychange', refresh);
+        window.addEventListener('offline', refresh);
+        window.addEventListener('online', refresh);
+        setInterval(render, 1000);
+        setInterval(refresh, POLL);
+        refresh();
+      })();
+    </script>
+  </body>
+</html>

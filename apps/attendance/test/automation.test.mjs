@@ -1,16 +1,10 @@
 import assert from 'node:assert/strict';
-import { timingSafeEqual } from 'node:crypto';
 import test from 'node:test';
-import worker from '../src/index.ts';
+import { createViewer } from '../src/viewer.ts';
 import { getAutomationResult, handleAutomation } from '../src/automation.ts';
 
-// Workers expose crypto.subtle.timingSafeEqual; Node's Web Crypto does not.
-if (!globalThis.crypto.subtle.timingSafeEqual) {
-  Object.defineProperty(globalThis.crypto.subtle, 'timingSafeEqual', {
-    value: (left, right) => timingSafeEqual(Buffer.from(left), Buffer.from(right)),
-    configurable: true,
-  });
-}
+const worker = createViewer('<main>private viewer</main>');
+const context = { access: { aud: 'test-private-audience' } };
 
 const NOW = Date.UTC(2026, 10, 13, 12);
 const TOKEN = 'm'.repeat(32);
@@ -32,15 +26,16 @@ const snapshot = (overrides = {}) => ({
 const json = (value) => Response.json(value);
 const binding = (fetch) => ({ fetch });
 const env = (fetch) => ({
+  CF_ACCESS_AUD: 'test-private-audience',
   ERROR_AUTOMATION: binding(fetch),
   ERROR_MONITOR_TOKEN: TOKEN,
   DASHBOARD_PASSWORD: 'secret',
   DEVICE_TOKEN: 'device-secret',
-  ATTENDANCE: new Proxy(
+  VIEW_STATE: new Proxy(
     {},
     {
       get: () => {
-        throw new Error('monitor must never touch attendance KV');
+        throw new Error('monitor must never touch Pi snapshot KV');
       },
     },
   ),
@@ -48,8 +43,7 @@ const env = (fetch) => ({
 const request = (headers = {}, path = '/api/automation') =>
   new Request('https://attendance.example' + path, { headers });
 
-// The route, not a test-only wrapper, must enforce dashboard Basic before any binding call.
-test('automation route rejects unauthenticated and RFID Bearer callers before upstream access', async (t) => {
+test('platform Access context, not client headers, authorizes the independent monitor route', async (t) => {
   t.mock.method(Date, 'now', () => NOW);
   let calls = 0;
   const workerEnv = env(async (url) => {
@@ -59,20 +53,32 @@ test('automation route rejects unauthenticated and RFID Bearer callers before up
     );
     return json(snapshot());
   });
-  for (const headers of [{}, { authorization: 'Bearer device-secret' }, { authorization: 'Basic !!!' }]) {
-    const response = await worker.fetch(request(headers), workerEnv);
-    assert.equal(response.status, 401);
-    assert.match(response.headers.get('www-authenticate'), /Basic/);
+  for (const headers of [
+    {},
+    { authorization: 'Bearer device-secret' },
+    { authorization: AUTH },
+    { 'cf-access-jwt-assertion': 'forged', cookie: 'CF_Authorization=forged' },
+  ]) {
+    assert.equal((await worker.fetch(request(headers), workerEnv, {})).status, 403);
   }
-  assert.equal(calls, 0);
-  const response = await worker.fetch(
-    request({ authorization: AUTH }, '/api/automation?url=https%3A%2F%2Fattacker.example%2Fhealthz'),
-    workerEnv,
+  assert.equal((await worker.fetch(request(), workerEnv, { access: { aud: 'wrong-app' } })).status, 403);
+  assert.equal(
+    (
+      await worker.fetch(
+        request({}, '/api/automation?url=https%3A%2F%2Fattacker.example%2Fhealthz'),
+        workerEnv,
+        context,
+      )
+    ).status,
+    400,
   );
+  assert.equal(calls, 0);
+  const response = await worker.fetch(request(), workerEnv, context);
   assert.equal(response.status, 200);
-  assert.equal(calls, 2);
-  assert.equal(response.headers.get('cache-control'), 'no-store');
+  assert.equal(response.headers.get('cache-control'), 'private, no-store');
+  assert.equal(response.headers.get('x-bcsd-view-mode'), 'live-automation-read-only');
   assert.equal((await response.json()).state, 'ok');
+  assert.equal(calls, 2);
 });
 
 test('fixed service binding, HTTPS path, private token, and no redirect follow', async () => {

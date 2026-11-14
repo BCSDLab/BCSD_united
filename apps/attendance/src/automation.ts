@@ -19,6 +19,7 @@ interface MonitorResult<TSnapshot> {
 
 export type AutomationResult = MonitorResult<ErrorMonitorSnapshot>;
 export interface AutomationDashboardResult extends AutomationResult {
+  servedAt: number;
   rocky: MonitorResult<RockyMonitorSnapshot>;
 }
 
@@ -93,6 +94,6 @@ export async function handleAutomation(env: AutomationEnv): Promise<Response> {
     getAutomationResult(env),
     getMonitorResult(env, ROCKY_HEALTH_URL, parseRockyMonitorSnapshot, Date.now),
   ]);
-  const result: AutomationDashboardResult = { ...ingress, rocky };
+  const result: AutomationDashboardResult = { ...ingress, rocky, servedAt: Date.now() };
   return Response.json(result, { headers: UNKNOWN_HEADERS });
 }
