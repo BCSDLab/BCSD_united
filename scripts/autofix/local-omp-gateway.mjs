@@ -1,23 +1,20 @@
 #!/usr/bin/env node
 /**
- * Loopback bridge that lets the error-automation Worker reach this machine's
- * omp credentials for the fixed model request only. It accepts exactly
- * `POST /v1/messages` with the dedicated bearer, forwards the body as one
- * `omp auth-gateway stdio` request (official credential path, nothing exported)
- * and returns the Anthropic Messages envelope back. The bridge never executes
- * tools, never logs bodies, upstream errors or the child's stderr, serves one
- * request at a time, and kills its own omp child when the client disconnects or
- * the deadline passes.
+ * Rocky의 고정 모델 요청을 로컬 omp 자격 증명으로 전달하는 루프백 브리지.
+ * `POST /v1/messages`는 모델 토큰으로, 선택적 `GET /healthz`는 별도 모니터 토큰으로 인증한다.
+ * 상태 조회는 로컬 커널과 systemd 정보만 읽으며 omp, 브로커, 모델을 호출하지 않는다.
  *
- *   OMP_GATEWAY_TOKEN_FILE  regular 0600 file owned by this uid holding the bearer
- *   OMP_GATEWAY_PORT        loopback port (default 43129)
+ *   OMP_GATEWAY_TOKEN_FILE          현재 사용자 소유의 0600 모델 토큰 파일
+ *   OMP_GATEWAY_MONITOR_TOKEN_FILE  선택 사항: 소유자 전용 0700 디렉터리 내의 별도 0600 토큰 파일
+ *   OMP_GATEWAY_PORT                루프백 포트(기본값 43129)
  */
 import { spawn } from 'node:child_process';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
-import { constants, mkdtemp, open, rm, writeFile } from 'node:fs/promises';
+import { constants, lstat, mkdtemp, open, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { createServer } from 'node:http';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { pathToFileURL } from 'node:url';
 
 export const MODELS = ['claude-sonnet-5-5', 'claude-opus-5-5'];
@@ -27,6 +24,11 @@ export const MAX_INPUT_BYTES = 1024 * 1024;
 export const MAX_OUTPUT_BYTES = 4 * 1024 * 1024;
 export const REQUEST_TIMEOUT_MS = 180_000;
 const PATH = '/v1/messages';
+const HEALTH_PATH = '/healthz';
+const HEALTH_TIMEOUT_MS = 2_000;
+const CPU_SAMPLE_MS = 200;
+const SYSTEMCTL_OUTPUT_BYTES = 4096;
+const UNITS = ['koin-autofix-executor.service', 'homebutler-auth-broker.service'];
 const TOKEN = /^[A-Za-z0-9_-]{32,512}$/;
 const ERROR_TYPE = /^[a-z_]{1,64}$/;
 const MAX_TOKENS = 8192;
@@ -76,6 +78,24 @@ export function authorized(header, token) {
   const a = createHash('sha256').update(presented).digest();
   const b = createHash('sha256').update(token).digest();
   return timingSafeEqual(a, b);
+}
+
+/** 모니터 토큰은 파일뿐 아니라 부모 디렉터리도 현재 사용자 소유의 비심볼릭 링크 0700이어야 한다. */
+export async function loadMonitorToken(path) {
+  if (typeof path !== 'string' || !path) throw new Error('OMP_GATEWAY_MONITOR_TOKEN_FILE is required');
+  const parent = await lstat(dirname(path));
+  if (!parent.isDirectory() || parent.isSymbolicLink()) throw new Error('Monitor token parent must be a directory');
+  if ((parent.mode & 0o777) !== 0o700) throw new Error('Monitor token parent mode must be 0700');
+  if (typeof process.getuid === 'function' && parent.uid !== process.getuid())
+    throw new Error('Monitor token parent must be owned by the current user');
+  return loadToken(path);
+}
+
+/** 길이나 접두사에 따른 조기 반환 없이 두 토큰을 비교한다. */
+export function distinctTokens(modelToken, monitorToken) {
+  const modelHash = createHash('sha256').update(modelToken).digest();
+  const monitorHash = createHash('sha256').update(monitorToken).digest();
+  return !timingSafeEqual(modelHash, monitorHash);
 }
 
 function isRecord(value) {
@@ -364,6 +384,166 @@ function readBody(req, max, signal) {
   });
 }
 
+function cpuCounters(text) {
+  const line = text.match(/^cpu\s+([^\n]+)/m)?.[1];
+  if (!line) return null;
+  const fields = line.trim().split(/\s+/);
+  if (fields.length < 8 || fields.slice(0, 8).some((field) => !/^\d+$/.test(field))) return null;
+  const counters = fields.slice(0, 8).map(Number);
+  if (counters.some((value) => !Number.isSafeInteger(value))) return null;
+  return { counters, total: counters.reduce((sum, value) => sum + value, 0), idle: counters[3] + counters[4] };
+}
+
+/** Linux /proc/stat 집계값에서 guest 시간은 이미 user/nice에 포함되므로 중복 합산하지 않는다. */
+export function cpuDelta(first, second, sampleStart, sampleEnd) {
+  if (
+    !Number.isSafeInteger(sampleStart) ||
+    sampleStart < 0 ||
+    !Number.isSafeInteger(sampleEnd) ||
+    sampleEnd <= sampleStart ||
+    sampleEnd - sampleStart > 10_000
+  )
+    return null;
+  const start = cpuCounters(first);
+  const end = cpuCounters(second);
+  if (
+    !start ||
+    !end ||
+    !Number.isSafeInteger(start.total) ||
+    !Number.isSafeInteger(end.total) ||
+    end.counters.some((value, index) => value < start.counters[index])
+  )
+    return null;
+  const total = end.total - start.total;
+  const idle = end.idle - start.idle;
+  if (total <= 0 || idle < 0 || idle > total) return null;
+  return { usagePercent: ((total - idle) / total) * 100, sampleStart, sampleEnd };
+}
+
+/** 회수 가능한 캐시를 반영하는 MemAvailable을 사용하며, 읽지 못한 메모리는 null로 둔다. */
+export function memoryReading(text, checkedAt) {
+  const values = new Map();
+  for (const line of text.split('\n')) {
+    const match = /^(MemTotal|MemAvailable):\s+(\d+)\s+kB\s*$/.exec(line);
+    if (match) values.set(match[1], Number(match[2]) * 1024);
+  }
+  const totalBytes = values.get('MemTotal');
+  const availableBytes = values.get('MemAvailable');
+  if (
+    !Number.isSafeInteger(totalBytes) ||
+    totalBytes <= 0 ||
+    !Number.isSafeInteger(availableBytes) ||
+    availableBytes < 0 ||
+    availableBytes > totalBytes
+  )
+    return null;
+  return { totalBytes, availableBytes, usedBytes: totalBytes - availableBytes, checkedAt };
+}
+
+function unknownUnit() {
+  return { configured: null, state: 'unknown', process: 'unknown', checkedAt: null };
+}
+
+/** systemctl show의 메타데이터만 읽는다. ActiveState만으로 프로세스 실행을 단정하지 않는다. */
+export function unitReading(text, checkedAt) {
+  const values = new Map();
+  for (const line of text.split('\n')) {
+    const match = /^(LoadState|ActiveState|SubState|MainPID)=(.*)$/.exec(line);
+    if (match && !values.has(match[1])) values.set(match[1], match[2]);
+  }
+  if (['LoadState', 'ActiveState', 'SubState', 'MainPID'].some((key) => !values.has(key))) return unknownUnit();
+  const configured =
+    values.get('LoadState') === 'loaded' ? true : values.get('LoadState') === 'not-found' ? false : null;
+  const rawState = values.get('ActiveState');
+  const state = ['active', 'inactive', 'failed', 'activating', 'deactivating'].includes(rawState)
+    ? rawState
+    : 'unknown';
+  const pid = values.get('MainPID');
+  const substate = values.get('SubState');
+  let processState = 'unknown';
+  if (/^\d+$/.test(pid) && Number.isSafeInteger(Number(pid))) {
+    if (Number(pid) > 0 && substate === 'running') processState = 'running';
+    else if (Number(pid) === 0 && ['dead', 'exited', 'failed'].includes(substate)) processState = 'stopped';
+    else if (Number(pid) === 0 && state === 'inactive') processState = 'stopped';
+  }
+  return { configured, state, process: processState, checkedAt };
+}
+
+/** 고정 인수와 출력 상한을 사용하고, 중단 시 프로브를 종료한 뒤 close를 기다린다. */
+function showUnit(unit, { signal }) {
+  return new Promise((resolve, reject) => {
+    signal.throwIfAborted();
+    const child = spawn(
+      'systemctl',
+      ['show', '--no-pager', '--property=LoadState,ActiveState,SubState,MainPID', unit],
+      {
+        shell: false,
+        stdio: ['ignore', 'pipe', 'ignore'],
+        signal,
+      },
+    );
+    const onAbort = () => child.kill('SIGKILL');
+    signal.addEventListener('abort', onAbort, { once: true });
+    if (signal.aborted) onAbort();
+    let output = '';
+    let length = 0;
+    let failed = false;
+    child.stdout.on('data', (chunk) => {
+      length += chunk.length;
+      if (length > SYSTEMCTL_OUTPUT_BYTES) {
+        failed = true;
+        child.kill('SIGKILL');
+      } else if (!failed) output += chunk.toString('utf8');
+    });
+    child.once('error', () => {
+      failed = true;
+    });
+    child.once('close', (code) => {
+      signal.removeEventListener('abort', onAbort);
+      if (failed || code !== 0) reject(new Error('Unit probe unavailable'));
+      else resolve(output);
+    });
+  });
+}
+
+/** 각 프로브는 읽기 전용이며 중단 가능하다. 실패한 항목만 독립적으로 미확인 처리한다. */
+export async function collectRockyHealth({
+  signal,
+  now = Date.now,
+  readProc = readFile,
+  runSystemctl = showUnit,
+  sampleMs = CPU_SAMPLE_MS,
+  platform = process.platform,
+} = {}) {
+  if (!signal) throw new Error('Health collection needs an abort signal');
+  signal.throwIfAborted();
+  const cpu = async () => {
+    const sampleStart = now();
+    const first = await readProc('/proc/stat', { encoding: 'utf8', signal });
+    await sleep(sampleMs, undefined, { signal });
+    const second = await readProc('/proc/stat', { encoding: 'utf8', signal });
+    return cpuDelta(first, second, sampleStart, now());
+  };
+  const memory = async () => memoryReading(await readProc('/proc/meminfo', { encoding: 'utf8', signal }), now());
+  const unit = async (name) => unitReading(await runSystemctl(name, { signal }), now());
+  const results =
+    platform === 'linux' ? await Promise.allSettled([cpu(), memory(), unit(UNITS[0]), unit(UNITS[1])]) : [];
+  signal.throwIfAborted();
+  const value = (index, fallback) => (results[index]?.status === 'fulfilled' ? results[index].value : fallback);
+  return {
+    version: 1,
+    scope: 'rocky-read-only',
+    checkedAt: now(),
+    gateway: 'responding',
+    cpu: value(0, null),
+    memory: value(1, null),
+    executor: value(2, unknownUnit()),
+    broker: value(3, unknownUnit()),
+    brokerResponse: 'not_probed',
+    model: 'not_probed',
+  };
+}
+
 function send(res, { status, headers, body }) {
   if (res.destroyed || res.headersSent) return;
   const bytes = Buffer.from(JSON.stringify(body));
@@ -378,22 +558,31 @@ function send(res, { status, headers, body }) {
 }
 
 /**
- * Builds the loopback server. `runRequest` is the stdio runner and `timeoutMs`
- * the per-request deadline; tests inject a fake child and a short deadline.
- * Logging is limited to path class, status and timing.
+ * 모델 요청은 기존 단일 자식 프로세스 슬롯을 사용한다. 인증된 상태 조회는
+ * 별도의 짧은 제한 시간 내에 실행하며 모델 슬롯을 점유하지 않는다.
  */
 export function createGateway({
   token,
+  monitorToken = null,
   runRequest = runStdioRequest,
+  collectHealth = collectRockyHealth,
   timeoutMs = REQUEST_TIMEOUT_MS,
+  healthTimeoutMs = HEALTH_TIMEOUT_MS,
   log = console.error,
 }) {
+  if (monitorToken !== null && !distinctTokens(token, monitorToken))
+    throw new Error('Monitor and model bearer tokens must differ');
   let busy = false;
   const server = createServer(async (req, res) => {
     const startedAt = Date.now();
-    const route = req.url === PATH;
+    const modelRoute = req.url === PATH;
+    const healthRoute = req.url === HEALTH_PATH;
     const report = (status) =>
-      log('[local-omp-gateway]', { route: route ? PATH : 'other', status, ms: Date.now() - startedAt });
+      log('[local-omp-gateway]', {
+        route: modelRoute ? PATH : healthRoute ? HEALTH_PATH : 'other',
+        status,
+        ms: Date.now() - startedAt,
+      });
     // A request whose body was not consumed closes once the answer is flushed, so
     // the remainder of an oversized or stalled body is dropped rather than drained.
     const done = (reply) => {
@@ -408,7 +597,42 @@ export function createGateway({
       req.destroy();
       report('disconnected');
     };
-    if (!route) return done(error(404, 'not_found_error', 'Not found'));
+    if (!modelRoute && !healthRoute) return done(error(404, 'not_found_error', 'Not found'));
+    if (healthRoute) {
+      if (req.method !== 'GET') return done(error(405, 'not_found_error', 'Method not allowed', { Allow: 'GET' }));
+      if (!monitorToken) return done(error(503, 'api_error', 'Health monitoring unavailable'));
+      if (!authorized(req.headers.authorization, monitorToken))
+        return done(error(401, 'authentication_error', 'Invalid bearer token', { 'WWW-Authenticate': 'Bearer' }));
+      const controller = new AbortController();
+      const deadline = Promise.withResolvers();
+      const abort = (reason) => {
+        controller.abort(reason);
+        deadline.reject(reason);
+      };
+      const timer = setTimeout(() => abort(new Error('timeout')), healthTimeoutMs);
+      const onClose = () => {
+        if (!res.writableFinished) abort(new Error('client disconnected'));
+      };
+      res.on('close', onClose);
+      try {
+        // 수집기는 중단 신호를 따르지만, 따르지 않는 구현에도 제한 시간을 강제한다.
+        const body = await Promise.race([collectHealth({ signal: controller.signal }), deadline.promise]);
+        if (controller.signal.aborted) {
+          if (controller.signal.reason?.message === 'timeout')
+            return done(error(504, 'api_error', 'Health probe timed out'));
+          return dropped();
+        }
+        return done({ status: 200, body });
+      } catch {
+        if (controller.signal.reason?.message === 'timeout')
+          return done(error(504, 'api_error', 'Health probe timed out'));
+        if (controller.signal.aborted) return dropped();
+        return done(error(503, 'api_error', 'Health probe unavailable'));
+      } finally {
+        clearTimeout(timer);
+        res.off('close', onClose);
+      }
+    }
     if (req.method !== 'POST') return done(error(405, 'not_found_error', 'Method not allowed', { Allow: 'POST' }));
     if (!authorized(req.headers.authorization, token))
       return done(error(401, 'authentication_error', 'Invalid bearer token', { 'WWW-Authenticate': 'Bearer' }));
@@ -463,11 +687,16 @@ export function createGateway({
 
 async function main() {
   const token = await loadToken(process.env.OMP_GATEWAY_TOKEN_FILE);
+  const monitorToken = process.env.OMP_GATEWAY_MONITOR_TOKEN_FILE
+    ? await loadMonitorToken(process.env.OMP_GATEWAY_MONITOR_TOKEN_FILE)
+    : null;
+  if (monitorToken !== null && !distinctTokens(token, monitorToken))
+    throw new Error('Monitor and model bearer tokens must differ');
   const port = process.env.OMP_GATEWAY_PORT === undefined ? DEFAULT_PORT : Number(process.env.OMP_GATEWAY_PORT);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('OMP_GATEWAY_PORT must be a TCP port');
   await installOverlay();
   await checkReadiness();
-  const server = createGateway({ token });
+  const server = createGateway({ token, monitorToken });
   // Closing live connections aborts the in-flight request, which kills its omp child.
   const stop = () => {
     server.close(() => removeOverlay().finally(() => process.exit(0)));

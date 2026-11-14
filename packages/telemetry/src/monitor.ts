@@ -121,3 +121,152 @@ function isErrorMonitorSnapshot(value: unknown, now: number): value is ErrorMoni
 export function parseErrorMonitorSnapshot(value: unknown, now: number): ErrorMonitorSnapshot | null {
   return isErrorMonitorSnapshot(value, now) ? value : null;
 }
+
+export interface RockyUnitSnapshot {
+  configured: boolean | null;
+  state: 'active' | 'inactive' | 'failed' | 'activating' | 'deactivating' | 'unknown';
+  process: 'running' | 'stopped' | 'unknown';
+  checkedAt: number | null;
+}
+
+export interface RockyMonitorSnapshot {
+  version: 1;
+  scope: 'rocky-read-only';
+  checkedAt: number;
+  gateway: 'responding';
+  cpu: { usagePercent: number; sampleStart: number; sampleEnd: number } | null;
+  memory: { totalBytes: number; availableBytes: number; usedBytes: number; checkedAt: number } | null;
+  executor: RockyUnitSnapshot;
+  broker: RockyUnitSnapshot;
+  brokerResponse: 'not_probed';
+  model: 'not_probed';
+}
+
+function freshTimestamp(value: unknown, now: number): value is number {
+  return timestamp(value) && value >= now - 120_000 && value <= now + 60_000;
+}
+
+function unitSnapshot(value: unknown, now: number): value is RockyUnitSnapshot {
+  if (!record(value, ['configured', 'state', 'process', 'checkedAt'])) return false;
+  if (
+    (value.configured !== null && typeof value.configured !== 'boolean') ||
+    typeof value.state !== 'string' ||
+    !['active', 'inactive', 'failed', 'activating', 'deactivating', 'unknown'].includes(value.state) ||
+    typeof value.process !== 'string' ||
+    !['running', 'stopped', 'unknown'].includes(value.process)
+  )
+    return false;
+  if (value.configured === false && (value.state === 'active' || value.process === 'running')) return false;
+  if (value.checkedAt === null)
+    return value.configured === null && value.state === 'unknown' && value.process === 'unknown';
+  return freshTimestamp(value.checkedAt, now);
+}
+
+function nonnegativeInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+}
+
+function isRockyMonitorSnapshot(value: unknown, now: number): value is RockyMonitorSnapshot {
+  if (
+    !timestamp(now) ||
+    !record(value, [
+      'version',
+      'scope',
+      'checkedAt',
+      'gateway',
+      'cpu',
+      'memory',
+      'executor',
+      'broker',
+      'brokerResponse',
+      'model',
+    ]) ||
+    value.version !== 1 ||
+    value.scope !== 'rocky-read-only' ||
+    value.gateway !== 'responding' ||
+    value.brokerResponse !== 'not_probed' ||
+    value.model !== 'not_probed' ||
+    !freshTimestamp(value.checkedAt, now) ||
+    !unitSnapshot(value.executor, now) ||
+    !unitSnapshot(value.broker, now)
+  )
+    return false;
+  if (
+    (value.executor.checkedAt !== null && value.executor.checkedAt > value.checkedAt) ||
+    (value.broker.checkedAt !== null && value.broker.checkedAt > value.checkedAt)
+  )
+    return false;
+  const { cpu, memory, checkedAt } = value;
+  if (
+    cpu !== null &&
+    (!record(cpu, ['usagePercent', 'sampleStart', 'sampleEnd']) ||
+      typeof cpu.usagePercent !== 'number' ||
+      !Number.isFinite(cpu.usagePercent) ||
+      cpu.usagePercent < 0 ||
+      cpu.usagePercent > 100 ||
+      !freshTimestamp(cpu.sampleStart, now) ||
+      !freshTimestamp(cpu.sampleEnd, now) ||
+      cpu.sampleEnd <= cpu.sampleStart ||
+      cpu.sampleEnd - cpu.sampleStart > 10_000 ||
+      cpu.sampleEnd > checkedAt)
+  )
+    return false;
+  if (
+    memory !== null &&
+    (!record(memory, ['totalBytes', 'availableBytes', 'usedBytes', 'checkedAt']) ||
+      !nonnegativeInteger(memory.totalBytes) ||
+      memory.totalBytes === 0 ||
+      !nonnegativeInteger(memory.availableBytes) ||
+      !nonnegativeInteger(memory.usedBytes) ||
+      memory.availableBytes > memory.totalBytes ||
+      memory.usedBytes !== memory.totalBytes - memory.availableBytes ||
+      !freshTimestamp(memory.checkedAt, now) ||
+      memory.checkedAt > checkedAt)
+  )
+    return false;
+  return true;
+}
+
+/** 서비스 활성 상태를 브로커 응답이나 모델 실행 가능 상태로 승격하지 않습니다. */
+export function parseRockyMonitorSnapshot(value: unknown, now: number): RockyMonitorSnapshot | null {
+  return isRockyMonitorSnapshot(value, now) ? value : null;
+}
+
+/** 바인딩 응답도 헤더·스트림·UTF-8·전체 본문 크기를 검증합니다. */
+export async function readMonitorJson(response: Response, signal: AbortSignal): Promise<unknown> {
+  const maxBytes = 16 * 1024;
+  const length = response.headers.get('content-length');
+  if (
+    (length !== null && (!/^\d+$/.test(length) || Number(length) > maxBytes)) ||
+    !/^application\/json(?:\s*;|\s*$)/i.test(response.headers.get('content-type') ?? '')
+  ) {
+    void response.body?.cancel().catch(() => {});
+    throw new Error('Invalid monitoring response');
+  }
+  if (!response.body) throw new Error('Missing monitoring response');
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: false });
+  let bytes = 0;
+  let text = '';
+  let complete = false;
+  const cancel = () => {
+    void reader.cancel().catch(() => {});
+  };
+  signal.addEventListener('abort', cancel, { once: true });
+  try {
+    if (signal.aborted) throw new Error('Monitoring deadline exceeded');
+    for (;;) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      bytes += chunk.value.byteLength;
+      if (bytes > maxBytes) throw new Error('Oversized monitoring response');
+      text += decoder.decode(chunk.value, { stream: true });
+    }
+    complete = true;
+    return JSON.parse(text + decoder.decode());
+  } finally {
+    signal.removeEventListener('abort', cancel);
+    if (!complete) cancel();
+    reader.releaseLock();
+  }
+}

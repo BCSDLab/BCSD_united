@@ -145,11 +145,12 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
   .sync-note { margin:0; color:var(--muted); font-size:12px; }
   footer { display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; padding:24px 4px 0; color:var(--muted); font-size:11px; }
   .monitor-strip { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 16px; border:1px solid var(--line); border-radius:18px; background:var(--surface); box-shadow:var(--shadow); }
+  .monitor-panels { flex:1; min-width:0; display:grid; gap:6px; }
   .monitor-summary { display:flex; align-items:center; flex-wrap:wrap; gap:6px 18px; min-width:0; font-size:12px; }
   .monitor-summary strong { font-size:13px; }
   .monitor-summary small { color:var(--muted); }
-  #monitor-state[data-state="ok"] { background:var(--green-container); color:var(--on-green-container); }
-  #monitor-state[data-state="unknown"] { background:var(--amber-container); color:var(--amber); }
+  #monitor-state[data-state="ok"], #rocky-state[data-state="ok"] { background:var(--green-container); color:var(--on-green-container); }
+  #monitor-state[data-state="unknown"], #rocky-state[data-state="unknown"] { background:var(--amber-container); color:var(--amber); }
   .monitor-dialog { width:min(650px,calc(100% - 32px)); max-height:min(80vh,700px); overflow:auto; border:1px solid var(--outline); border-radius:24px; padding:22px; background:var(--surface); color:var(--text); box-shadow:0 20px 60px #10131b44; }
   .monitor-dialog::backdrop { background:#10131b88; }
   .monitor-dialog header { display:flex; justify-content:space-between; align-items:center; gap:12px; }
@@ -313,16 +314,27 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
     </div>
   </header>
   <main id="main" tabindex="-1">
-    <section class="monitor-strip" aria-label="오류 자동화 수신 현황">
-      <div class="monitor-summary">
-        <strong>오류 자동화 · 수신 전용</strong>
-        <span class="pill" id="monitor-state" data-state="unknown" role="status">확인 중</span>
-        <span id="monitor-sentry">Sentry 24시간 고유 오류 등록 — · 최근 신규 등록 시각 —</span>
-        <span id="monitor-cloudflare">Cloudflare 24시간 고유 오류 등록 — · 최근 신규 등록 시각 —</span>
-        <small id="monitor-checked">마지막 확인 —</small>
-        <small>Worker/등록 저장소만 확인 · Rocky 실행기, 모델, CPU·RAM 미측정</small>
+    <section class="monitor-strip" aria-label="오류 수신과 Rocky 읽기 전용 관측">
+      <div class="monitor-panels">
+        <div class="monitor-summary">
+          <strong>오류 수신 · 24시간</strong>
+          <span class="pill" id="monitor-state" data-state="unknown" role="status">확인 중</span>
+          <span id="monitor-sentry">Sentry 고유 등록 — · 최근 신규 —</span>
+          <span id="monitor-cloudflare">Cloudflare 고유 등록 — · 최근 신규 —</span>
+          <small id="monitor-checked">수신 확인 —</small>
+        </div>
+        <div class="monitor-summary">
+          <strong>Rocky</strong>
+          <span class="pill" id="rocky-state" data-state="unknown" role="status">확인 중</span>
+          <span id="rocky-cpu">CPU —</span>
+          <span id="rocky-memory">RAM —</span>
+          <span id="rocky-executor">실행기 —</span>
+          <span id="rocky-broker">브로커 —</span>
+          <small id="rocky-checked">호스트 확인 —</small>
+          <small>브로커 HTTP·모델 실행 미확인</small>
+        </div>
       </div>
-      <button class="button-tonal" id="monitor-details" type="button" disabled>최근 등록</button>
+      <button class="button-tonal" id="monitor-details" type="button" disabled>상세</button>
     </section>
     <div class="error-banner" id="error" hidden>
       <p id="error-message" role="alert"></p>
@@ -383,9 +395,11 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
 </div>
 <noscript><p>출근부를 보거나 카드를 등록하려면 브라우저에서 JavaScript를 활성화해 주세요.</p></noscript>
 <dialog class="monitor-dialog" id="monitor-dialog" aria-labelledby="monitor-dialog-heading">
-  <header><h2 id="monitor-dialog-heading">오류 자동화 · 최근 등록</h2><button class="button-text" id="monitor-close" type="button">닫기</button></header>
+  <header><h2 id="monitor-dialog-heading">오류 수신 · Rocky 관측</h2><button class="button-text" id="monitor-close" type="button">닫기</button></header>
   <p id="monitor-dialog-note" class="muted"></p>
   <ul id="monitor-recent"></ul>
+  <h3>Rocky 읽기 전용 헬스</h3>
+  <p id="rocky-detail" class="muted">아직 조회된 호스트 정보가 없습니다.</p>
 </dialog>
 <script>
   var POLL_MS = 10000;
@@ -396,6 +410,10 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
   var monitorReceivedAt = 0;
   var monitorState = 'unknown';
   var monitorReason = '연결 대기 · 데이터 없음';
+  var rockySnapshot = null;
+  var rockyReceivedAt = 0;
+  var rockyState = 'unknown';
+  var rockyReason = '연결 대기 · 데이터 없음';
   var timeFormat = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hour12: false });
   var dateTimeFormat = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
   var clockFormat = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
@@ -536,17 +554,52 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
     ['sentry', 'cloudflare'].forEach(function (source) {
       var label = source === 'sentry' ? 'Sentry' : 'Cloudflare';
       var value = monitorSnapshot && monitorSnapshot.sources[source];
-      document.getElementById('monitor-' + source).textContent = label + ' 24시간 고유 오류 등록 ' +
-        (value ? prefix + value.count + '건' : '—') + ' · 최근 신규 등록 시각 ' +
+      document.getElementById('monitor-' + source).textContent = label + ' 고유 등록 ' +
+        (value ? prefix + value.count + '건' : '—') + ' · 최근 신규 ' +
         (value ? prefix + monitorTime(value.latestAt) : '—');
     });
     document.getElementById('monitor-checked').textContent = monitorSnapshot
-      ? (fresh ? '마지막 확인 ' : '마지막 정상 확인 ') + monitorTime(monitorSnapshot.checkedAt)
-      : '마지막 확인 —';
-    document.getElementById('monitor-details').disabled = !monitorSnapshot;
+      ? (fresh ? '수신 확인 ' : '마지막 수신 확인 ') + monitorTime(monitorSnapshot.checkedAt)
+      : '수신 확인 —';
+    document.getElementById('monitor-details').disabled = !monitorSnapshot && !rockySnapshot;
     document.getElementById('monitor-dialog-note').textContent = fresh
       ? '최근 24시간 등록된 오류의 수신 시각과 처리 상태입니다. 실행기나 모델 상태는 포함하지 않습니다.'
       : '마지막 정상 조회 당시의 기록입니다. 현재 Worker/저장소 상태는 알 수 없습니다.';
+    var rockyFresh = rockyState === 'ok' && rockySnapshot !== null &&
+      !document.hidden && navigator.onLine !== false &&
+      performance.now() - rockyReceivedAt < MONITOR_FRESH_MS &&
+      serverNow() - rockySnapshot.checkedAt < MONITOR_FRESH_MS;
+    var rockyStatus = document.getElementById('rocky-state');
+    rockyStatus.dataset.state = rockyFresh ? 'ok' : 'unknown';
+    rockyStatus.textContent = rockyFresh ? '게이트웨이 응답' :
+      rockyState === 'ok' ? '확인 시간 초과 · 현재 상태 알 수 없음' : rockyReason;
+    var rockyPrefix = rockyFresh ? '' : rockySnapshot ? '마지막 확인 값 · ' : '';
+    document.getElementById('rocky-cpu').textContent = 'CPU ' + rockyPrefix +
+      (rockySnapshot && rockySnapshot.cpu !== null ? rockySnapshot.cpu.usagePercent.toFixed(1) + '%' : '미측정');
+    var memory = rockySnapshot && rockySnapshot.memory;
+    document.getElementById('rocky-memory').textContent = 'RAM ' + rockyPrefix +
+      (memory ? (memory.usedBytes / 1073741824).toFixed(1) + ' / ' +
+        (memory.totalBytes / 1073741824).toFixed(1) + ' GiB 사용' : '미측정');
+    ['executor', 'broker'].forEach(function (name) {
+      var unit = rockySnapshot && rockySnapshot[name];
+      var label = name === 'executor' ? '실행기' : '브로커';
+      var text = !unit || unit.checkedAt === null ? '확인 불가'
+        : unit.configured === false ? '서비스 미설치'
+        : unit.state === 'failed' ? '서비스 실패'
+        : unit.process === 'running' ? '프로세스 실행'
+        : unit.process === 'stopped' ? '프로세스 중지' : '프로세스 미확인';
+      document.getElementById('rocky-' + name).textContent = label + ' ' + rockyPrefix + text;
+    });
+    document.getElementById('rocky-checked').textContent = rockySnapshot
+      ? (rockyFresh ? '호스트 확인 ' : '마지막 호스트 확인 ') + monitorTime(rockySnapshot.checkedAt)
+      : '호스트 확인 —';
+    document.getElementById('rocky-detail').textContent = rockySnapshot
+      ? (rockyFresh ? '현재 조회: ' : '마지막 조회 기록: ') +
+        'CPU는 /proc/stat 두 표본의 차이, RAM은 MemTotal − MemAvailable입니다. ' +
+        '실행기·브로커는 고정 systemd 서비스와 프로세스 상태만 관측합니다. ' +
+        '서비스 활성이나 프로세스 실행은 브로커 HTTP 응답·모델 인증·작업 완료의 증거가 아닙니다. ' +
+        '헬스 조회는 모델 생성이나 작업 claim을 실행하지 않습니다.'
+      : '호스트 연결 또는 전용 모니터 자격 증명이 확인되지 않았습니다. CPU·RAM과 서비스 상태를 추정하지 않습니다.';
   }
 
   async function refreshMonitor() {
@@ -554,6 +607,8 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
     if (document.hidden || navigator.onLine === false) {
       monitorState = 'unknown';
       monitorReason = document.hidden ? '화면 숨김 · 현재 상태 알 수 없음' : '오프라인 · 현재 상태 알 수 없음';
+      rockyState = 'unknown';
+      rockyReason = monitorReason;
       renderMonitor();
       return;
     }
@@ -582,10 +637,26 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
           : result.reason === 'stale' ? '오래된 응답 · 현재 상태 알 수 없음'
           : '조회 실패 · 현재 상태 알 수 없음';
       }
+      var rocky = result.rocky;
+      if (rocky && rocky.state === 'ok' && rocky.data && rocky.checkedAt === rocky.data.checkedAt &&
+          rocky.data.gateway === 'responding' && rocky.data.executor && rocky.data.broker) {
+        rockySnapshot = rocky.data;
+        rockyReceivedAt = performance.now();
+        rockyState = document.hidden || navigator.onLine === false ? 'unknown' : 'ok';
+        if (rockyState === 'unknown') rockyReason = document.hidden
+          ? '화면 숨김 · 현재 상태 알 수 없음' : '오프라인 · 현재 상태 알 수 없음';
+      } else {
+        rockyState = 'unknown';
+        rockyReason = rocky && rocky.reason === 'not_configured' ? 'Rocky 모니터 미설정'
+          : rocky && rocky.reason === 'stale' ? '오래된 Rocky 응답 · 현재 상태 알 수 없음'
+          : 'Rocky 조회 실패 · 현재 상태 알 수 없음';
+      }
     } catch (error) {
       monitorState = 'unknown';
       monitorReason = error instanceof Error && error.message === '401'
         ? '대시보드 인증 필요 · 현재 상태 알 수 없음' : '연결 실패 · 현재 상태 알 수 없음';
+      rockyState = 'unknown';
+      rockyReason = monitorReason;
     } finally {
       monitorRefreshing = false;
       renderMonitor();
@@ -860,12 +931,16 @@ export const DASHBOARD_HTML = /* html */ `<!doctype html>
     if (document.hidden) {
       monitorState = 'unknown';
       monitorReason = '화면 숨김 · 현재 상태 알 수 없음';
+      rockyState = 'unknown';
+      rockyReason = monitorReason;
       renderMonitor();
     } else refreshMonitor();
   });
   window.addEventListener('offline', function () {
     monitorState = 'unknown';
     monitorReason = '오프라인 · 현재 상태 알 수 없음';
+    rockyState = 'unknown';
+    rockyReason = monitorReason;
     renderMonitor();
   });
   window.addEventListener('online', refreshMonitor);

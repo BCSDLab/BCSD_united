@@ -54,7 +54,9 @@ test('automation route rejects unauthenticated and RFID Bearer callers before up
   let calls = 0;
   const workerEnv = env(async (url) => {
     calls++;
-    assert.equal(url, 'https://error-automation.internal/healthz');
+    assert.ok(
+      ['https://error-automation.internal/healthz', 'https://error-automation.internal/healthz/rocky'].includes(url),
+    );
     return json(snapshot());
   });
   for (const headers of [{}, { authorization: 'Bearer device-secret' }, { authorization: 'Basic !!!' }]) {
@@ -68,7 +70,7 @@ test('automation route rejects unauthenticated and RFID Bearer callers before up
     workerEnv,
   );
   assert.equal(response.status, 200);
-  assert.equal(calls, 1);
+  assert.equal(calls, 2);
   assert.equal(response.headers.get('cache-control'), 'no-store');
   assert.equal((await response.json()).state, 'ok');
 });
@@ -220,4 +222,67 @@ test('API response does not expose monitor token, upstream diagnostic fields, or
   assert.ok(!body.includes('diagnostic'));
   assert.ok(!body.includes('sourceId'));
   assert.ok(!body.includes('pr_url'));
+});
+
+function rockySnapshot() {
+  const unknownUnit = { configured: null, state: 'unknown', process: 'unknown', checkedAt: null };
+  return {
+    version: 1,
+    scope: 'rocky-read-only',
+    checkedAt: NOW,
+    gateway: 'responding',
+    cpu: { usagePercent: 12.5, sampleStart: NOW - 200, sampleEnd: NOW },
+    memory: { totalBytes: 8192, availableBytes: 6144, usedBytes: 2048, checkedAt: NOW },
+    executor: { configured: true, state: 'active', process: 'running', checkedAt: NOW },
+    broker: unknownUnit,
+    brokerResponse: 'not_probed',
+    model: 'not_probed',
+  };
+}
+
+test('incoming issues and Rocky health fail independently without fabricating counts or measurements', async (t) => {
+  t.mock.method(Date, 'now', () => NOW);
+  for (const failed of ['ingress', 'rocky']) {
+    const response = await handleAutomation(
+      env(async (url) => {
+        const host = url.endsWith('/rocky');
+        if ((failed === 'rocky') === host) throw new Error('private-upstream-detail');
+        return json(host ? rockySnapshot() : snapshot());
+      }),
+    );
+    const result = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(result.state, failed === 'ingress' ? 'unknown' : 'ok');
+    assert.equal(result.rocky.state, failed === 'rocky' ? 'unknown' : 'ok');
+    if (failed === 'ingress') {
+      assert.equal(result.data, null);
+      assert.equal(result.rocky.data.cpu.usagePercent, 12.5);
+      assert.equal(result.rocky.data.broker.process, 'unknown');
+      assert.equal(result.rocky.data.brokerResponse, 'not_probed');
+      assert.equal(result.rocky.data.model, 'not_probed');
+    } else {
+      assert.equal(result.data.sources.sentry.count, 1);
+      assert.equal(result.rocky.data, null);
+      assert.equal(result.rocky.checkedAt, null);
+    }
+    assert.doesNotMatch(JSON.stringify(result), /private-upstream|Bearer/);
+  }
+});
+
+test('invalid or stale Rocky measurements cannot overwrite a valid ingress summary', async (t) => {
+  t.mock.method(Date, 'now', () => NOW);
+  for (const payload of [
+    { ...rockySnapshot(), checkedAt: NOW - 121_000 },
+    { ...rockySnapshot(), memory: { ...rockySnapshot().memory, usedBytes: 0 } },
+    { ...rockySnapshot(), broker: { ...rockySnapshot().broker, credentials: 'private-broker-token' } },
+    { ...rockySnapshot(), model: 'healthy' },
+  ]) {
+    const response = await handleAutomation(env(async (url) => json(url.endsWith('/rocky') ? payload : snapshot())));
+    const result = await response.json();
+    assert.equal(result.state, 'ok');
+    assert.equal(result.data.sources.sentry.count, 1);
+    assert.equal(result.rocky.state, 'unknown');
+    assert.equal(result.rocky.data, null);
+    assert.doesNotMatch(JSON.stringify(result), /private-broker/);
+  }
 });

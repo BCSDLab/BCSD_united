@@ -35,7 +35,7 @@ KV에는 트랜잭션이 없고 다른 지역에서는 쓰기가 최대 약 60�
 | `GET /`               | Basic (비밀번호 = `DASHBOARD_PASSWORD`, 사용자 이름 무시) | 대시보드                                                                                                 |
 | `GET /api/state`      | Basic                                                     | 현재 인원, 회원별 오늘·이번 주 시간, 최근 기록                                                           |
 | `POST /api/members`   | Basic, 같은 출처 JSON                                     | `{ "uid", "name" }` 회원 등록·이름 수정                                                                  |
-| `GET /api/automation` | Basic                                                     | error-automation Worker의 24시간 고유 오류 등록 요약. RFID Bearer로 접근 불가                            |
+| `GET /api/automation` | Basic                                                     | 독립적인 오류 수신 요약과 Rocky 읽기 전용 헬스. RFID Bearer로 접근 불가                                  |
 
 ## 대시보드
 
@@ -48,15 +48,17 @@ KV에는 트랜잭션이 없고 다른 지역에서는 쓰기가 최대 약 60�
 - 회원 이름과 카드 정보는 `textContent`로만 출력합니다. 상태 조회와 등록은 같은 출처의 기존 인증을 사용하며 등록은 JSON 요청으로만 전송합니다.
 - 배포는 BCSDLab 조직 Gateway를 요구하는 접근 정책을 전제로 합니다. 일반 소비자 WARP 접속만 허용하는 정책은 충분하지 않습니다. Worker의 모든 도메인·미리보기 우회 경로를 보호하기 전에는 공개 경로를 활성화하지 않습니다.
 
-## 오류 수신 전용 모니터
+## 오류 수신·Rocky 읽기 전용 모니터
 
-- 서버의 `ERROR_AUTOMATION` Worker service binding이 고정된 `bcsd-error-automation`의 `GET /healthz`만 읽습니다. 브라우저·Pi에는 관리/모델/진단 토큰을 주지 않으며 VPC·Rocky SSH는 모니터링에 필요하지 않습니다.
+- 서버의 `ERROR_AUTOMATION` Worker service binding이 고정된 `bcsd-error-automation`의 `GET /healthz`와 `GET /healthz/rocky`를 병렬로 읽습니다. 브라우저·Pi에는 관리/모델/진단/호스트 모니터 토큰을 주지 않습니다.
 - 두 Worker에 별도의 동일한 `ERROR_MONITOR_TOKEN`을 secret으로 설정해야 합니다(32자 이상 무작위 값). `DEVICE_TOKEN`, `DASHBOARD_PASSWORD`, 실행기·진단·모델 토큰을 재사용하지 않습니다. secret 설정은 배포 작업이므로 정상 운영 승인 절차를 따릅니다.
-- Sentry/Cloudflare의 최근 24시간 **고유 오류 등록 건수**, 그 기간의 최근 신규 등록 시각과 최대 10개의 처리 상태를 보여 줍니다. 중복 웹훅 전달 횟수나 마지막 재전송 시각이 아니며 GitHub PR 리뷰 작업과 미사용 `koin-api` Worker 기록은 제외합니다.
+- 수신 요약은 Sentry/Cloudflare의 최근 24시간 **고유 오류 등록 건수**, 최근 신규 등록 시각과 최대 10개의 처리 상태입니다. 건수와 최근 시각은 목록 제한과 독립적으로 전체 기간에서 계산합니다. 중복 웹훅 전달 횟수나 마지막 재전송 시각이 아니며 GitHub PR 리뷰와 미사용 `koin-api` 기록은 제외합니다.
+- Rocky는 기존 `OMP_GATEWAY` VPC와 `koin-omp-gateway-rocky` 터널을 통해 게이트웨이의 고정 `GET /healthz`만 조회합니다. `OMP_GATEWAY_MONITOR_TOKEN`은 error-automation과 호스트만 공유하는 별도 secret이며 모델·실행기·수신 요약 토큰과 같으면 거부합니다. 호스트 설정은 [게이트웨이 운영 계약](../../scripts/autofix/README.md#rocky-읽기-전용-헬스-활성화)을 따릅니다.
+- CPU는 Linux `/proc/stat` 두 표본의 busy 비율, RAM 사용량은 `MemTotal − MemAvailable`입니다. 실행기·브로커는 고정 systemd 서비스의 설치/활성/프로세스 상태를 구분합니다. 서비스 활성이나 프로세스 실행은 브로커 HTTP 응답·모델 인증·작업 완료의 증거가 아니며 모델 상태는 미확인으로 표시합니다.
 - 오류 전문·프롬프트·소스·로그·원본 provider ID·자격 증명을 반환하지 않습니다. 조회가 작업 claim, 모델 생성, GitHub 작업을 시작하지 않습니다.
-- 모니터는 출근부 조회와 별개로 60초마다 갱신합니다. 5초 본문 수신 기한·16 KiB JSON 한도·리다이렉트 거절을 적용하고 120초보다 오래된 스냅샷은 unknown으로 처리합니다.
-- 자격 증명 미설정·연결 실패·응답 불일치는 `state: unknown`, `data: null`입니다. 실제로 조회한 빈 저장소만 0건으로 표시합니다. 조용한 수신량을 장애로 판단하지 않습니다.
-- 이 패널은 Worker 응답과 등록 저장소만 확인합니다. Rocky 실행기·모델·CPU/RAM의 정상 여부를 측정하거나 추정하지 않습니다. 조직 Gateway 보호와 기존 비공개 노출 경계는 그대로 유지합니다.
+- 출근부 조회와 별개로 60초마다 갱신합니다. 조회별 5초 본문 수신 기한·16 KiB JSON 한도·리다이렉트 거절을 적용하고 120초보다 오래된 스냅샷은 unknown으로 처리합니다.
+- `/api/automation`의 최상위 `state`/`data`는 수신 요약이고 `rocky.state`/`rocky.data`는 호스트 관측입니다. 한쪽 실패가 다른 쪽의 관측을 지우지 않습니다. 미설정·연결 실패·응답 불일치는 해당 결과의 `state: unknown`, `data: null`이며 측정 실패 CPU/RAM도 null입니다. 실제 조회한 빈 저장소만 0건으로 표시하고 조용한 수신량을 장애로 판단하지 않습니다.
+- 연결 실패·오프라인·숨긴 화면·확인 기한 초과 시 마지막 관측은 과거 기록임을 표시합니다. 조직 Gateway 보호와 기존 비공개 노출 경계는 유지하며 새 터널·공개 SSH·WARP/OpenBao 권한은 추가하지 않습니다.
 
 ## 배포
 

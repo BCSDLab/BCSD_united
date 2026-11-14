@@ -399,6 +399,58 @@ test('monitor snapshot counts registered identities in 24h without exposing job 
   assert.deepEqual(new AutofixQueue(h.queue.ctx, h.queue.env).monitorSnapshot(now), snapshot);
 });
 
+test('monitor snapshot aggregates a source absent from recent ten and rejects invalid older rows', (t) => {
+  const h = harness(t);
+  const now = Date.now();
+  const insert = h.db.prepare(
+    'INSERT INTO jobs (run_id, identity_key, identity, status, enqueued_at) VALUES (?, ?, ?, ?, ?)',
+  );
+  for (let i = 1; i <= 12; i++) {
+    insert.run(
+      `autofix-${i.toString(16).padStart(64, '0')}`,
+      `sentry/${i}`,
+      JSON.stringify({ ...identity, sourceId: String(i) }),
+      'queued',
+      now - i * 1000,
+    );
+  }
+  const cloudflareIdentity = {
+    source: 'cloudflare',
+    sourceId: 'older',
+    project: 'koin-web',
+    app: 'web',
+    scope: { accountId: 'account', policyId: 'policy', workerName: 'koin-web' },
+  };
+  insert.run(
+    `autofix-${'d'.repeat(64)}`,
+    'cloudflare/older',
+    JSON.stringify(cloudflareIdentity),
+    'failed',
+    now - 20_000,
+  );
+  const snapshot = h.queue.monitorSnapshot(now);
+  assert.deepEqual(snapshot.sources, {
+    sentry: { count: 12, latestAt: now - 1000 },
+    cloudflare: { count: 1, latestAt: now - 20_000 },
+  });
+  assert.equal(snapshot.recent.length, 10);
+  assert.equal(
+    snapshot.recent.every((entry) => entry.source === 'sentry'),
+    true,
+  );
+
+  insert.run(
+    `autofix-${'e'.repeat(64)}`,
+    'cloudflare/invalid',
+    JSON.stringify({ ...cloudflareIdentity, scope: { accountId: 'account', policyId: 'policy' } }),
+    'queued',
+    now - 30_000,
+  );
+  assert.throws(() => h.queue.monitorSnapshot(now), /Invalid monitor identity/);
+  h.db.prepare('UPDATE jobs SET identity = ? WHERE identity_key = ?').run('{not json', 'cloudflare/invalid');
+  assert.throws(() => h.queue.monitorSnapshot(now));
+});
+
 test('monitor snapshot reports observed empty windows, not stale jobs or malformed identities', (t) => {
   const h = harness(t);
   const now = Date.now();

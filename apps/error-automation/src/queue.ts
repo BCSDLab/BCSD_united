@@ -94,13 +94,15 @@ interface Row extends Record<string, SqlStorageValue> {
 }
 
 interface MonitorRow extends Record<string, SqlStorageValue> {
-  run_id: string;
-  source: 'sentry' | 'cloudflare';
-  app: 'web' | 'api';
-  status: Status;
-  enqueued_at: number;
-  source_count: number;
-  latest_at: number;
+  run_id: string | null;
+  source: 'sentry' | 'cloudflare' | null;
+  app: 'web' | 'api' | null;
+  status: Status | null;
+  enqueued_at: number | null;
+  sentry_count: number;
+  sentry_latest_at: number | null;
+  cloudflare_count: number;
+  cloudflare_latest_at: number | null;
   invalid_count: number;
 }
 export interface Claim {
@@ -285,14 +287,22 @@ export class AutofixQueue extends DurableObject<Env> {
           SELECT run_id, source, app, status, enqueued_at, invalid
           FROM classified
           WHERE invalid = 1 OR source = 'sentry' OR worker_name != 'koin-api'
+        ), totals AS (
+          SELECT count(CASE WHEN source = 'sentry' THEN 1 END) AS sentry_count,
+            max(CASE WHEN source = 'sentry' THEN enqueued_at END) AS sentry_latest_at,
+            count(CASE WHEN source = 'cloudflare' THEN 1 END) AS cloudflare_count,
+            max(CASE WHEN source = 'cloudflare' THEN enqueued_at END) AS cloudflare_latest_at,
+            coalesce(sum(invalid), 0) AS invalid_count
+          FROM eligible
+        ), recent AS (
+          SELECT run_id, source, app, status, enqueued_at
+          FROM eligible
+          ORDER BY enqueued_at DESC, run_id DESC
+          LIMIT 10
         )
-        SELECT run_id, source, app, status, enqueued_at,
-          count(*) OVER (PARTITION BY source) AS source_count,
-          max(enqueued_at) OVER (PARTITION BY source) AS latest_at,
-          sum(invalid) OVER () AS invalid_count
-        FROM eligible
-        ORDER BY enqueued_at DESC, run_id DESC
-        LIMIT 10`,
+        SELECT recent.*, totals.*
+        FROM totals LEFT JOIN recent ON 1 = 1
+        ORDER BY recent.enqueued_at DESC, recent.run_id DESC`,
         windowStart,
         now,
       )
@@ -309,10 +319,19 @@ export class AutofixQueue extends DurableObject<Env> {
       },
       recent: [],
     };
+    const totals = rows[0];
+    if (totals.invalid_count !== 0) throw new Error('Invalid monitor identity');
+    snapshot.sources.sentry = { count: totals.sentry_count, latestAt: totals.sentry_latest_at };
+    snapshot.sources.cloudflare = { count: totals.cloudflare_count, latestAt: totals.cloudflare_latest_at };
     for (const row of rows) {
-      if (row.invalid_count !== 0 || (row.source !== 'sentry' && row.source !== 'cloudflare'))
+      if (row.run_id === null) continue;
+      if (
+        (row.source !== 'sentry' && row.source !== 'cloudflare') ||
+        row.app === null ||
+        row.status === null ||
+        row.enqueued_at === null
+      )
         throw new Error('Invalid monitor identity');
-      snapshot.sources[row.source] = { count: row.source_count, latestAt: row.latest_at };
       snapshot.recent.push({
         id: row.run_id,
         source: row.source,
