@@ -3,9 +3,14 @@
   "name": "bcsd-attendance",
   "main": "src/index.ts",
   "compatibility_date": "2026-10-29",
-  "workers_dev": false,
+  "workers_dev": true,
   "preview_urls": false,
   "observability": { "enabled": true },
-  // 기존 운영 네임스페이스를 재사용합니다. 새 네임스페이스로 치환하지 않습니다.
-  "kv_namespaces": [{ "binding": "ATTENDANCE", "id": "2cc47a111f334c4ea99deb2435263e00" }],
+  "build": { "command": "node scripts/build-viewer.mjs" },
+  "rules": [{ "type": "Text", "globs": ["**/*.html"], "fallthrough": false }],
+  "vars": {
+    "CF_ACCESS_AUD": "4f972354a71d1fd312ab4081d44c59d6d698ea529672ba1c2140c49958e520e8",
+  },
+  // 원장 KV는 변경·삭제하지 않으며 이 바인딩은 별도 읽기 전용 스냅샷용입니다.
+  "kv_namespaces": [{ "binding": "VIEW_STATE", "id": "b519a98db46d4b088baee97a256bf0f0" }],
 }

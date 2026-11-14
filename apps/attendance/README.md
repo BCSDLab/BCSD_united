@@ -1,80 +1,89 @@
 # 출근부 (attendance)
 
-인터널 출입 카드를 리더로 태그하면 입실/퇴실을 기록하고, 대시보드에 현재 인원과 체류 시간을 보여 주는 Worker입니다. 저장소는 Workers KV입니다.
+Pi의 Python 리더·LAN 서버가 학번을 Internal 회원과 대조하고 SQLite에 입퇴실을 저장합니다. Worker는 별도 KV 스냅샷을 제공하는 읽기 전용 원격 화면입니다. Worker VPC binding, Basic 비밀번호, UID 수동 등록은 사용하지 않습니다.
 
-```text
-RC522(SPI) 또는 USB HID 리더 ──▶ 라즈베리파이 3B(pi/reader.py) ──POST /api/taps──▶ Worker + KV ──▶ 대시보드(/)
+```mermaid
+flowchart LR
+  Card["학생증 HCE"] --> Reader["Pi reader.py"]
+  Reader --> LAN["loopback LAN API · SQLite"]
+  LAN --> Publisher["운영자 PC 또는 전용 게시기"]
+  Publisher --> KV["별도 VIEW_STATE KV"]
+  KV --> Viewer["Access · 조직 Gateway로 보호한 원격 화면"]
 ```
 
-## 동작 규칙
+## 출입 원장과 회원 식별
 
-- 태그는 토글입니다. 열린 세션이 없으면 입실, 있으면 퇴실입니다.
-- 같은 회원의 직전 이벤트 후 10초 안의 태그(카드 중복 인식)와, 직전 이벤트보다 이른 재전송은 무시합니다.
-- 퇴근 태그가 없는 세션은 입실 후 6시간(`MAX_SESSION_MS`)이 지나면 입실 중으로 보지 않습니다. 같은 회원의 다음 태그가 6시간 시점에 그 세션을 자동 종료(`autoClosed`)하고 새 입실을 만듭니다. 이런 세션은 실제 체류 시간을 알 수 없으므로 오늘·이번 주 시간 합계에 넣지 않고, 대시보드에 "퇴근 미기록"으로 건수를 표시합니다.
-- 오늘·이번 주(월요일 시작) 경계는 KST입니다. 자정을 걸친 세션은 날짜별로 나눠 합산합니다.
-- 등록되지 않은 카드를 태그하면 `unknown:<uid>`에 쌓이고, 대시보드의 "미등록 카드"에서 이름을 입력해 등록합니다. 같은 카드로 다시 등록하면 이름만 바뀝니다. 등록하지 않은 카드는 7일 뒤 자동 삭제됩니다.
+- 출입 판정은 Pi의 SQLite에서만 수행합니다. 원격 KV의 지연된 읽기로 입퇴실을 판정하지 않습니다.
+- 태그는 입실·퇴실을 번갈아 기록합니다. 중복·오래된 재전송은 새 출입으로 처리하지 않습니다. 최대 6시간을 넘긴 열린 세션은 다음 태그에서 미퇴실 세션으로 닫으며 유효 체류 시간에 합산하지 않습니다.
+- 날짜·이번 주 경계는 KST입니다. 오늘·이번 주 요약은 양수인 유효 체류 시간이 있는 회원의 중앙값입니다.
+- 학번 조회 404는 LAN의 익명 방문자 정책을 따릅니다. 원장에 학번이나 카드 UID를 저장하거나 UID를 학번으로 추측해 연결하지 않습니다.
+- 현재 입실자는 이름·체류 시간만 4열×2행으로 표시하고 넘치는 인원은 페이지를 넘깁니다. 최근 기록·사이드바·수동 카드 등록 패널은 제공하지 않습니다.
+- 자동 테마는 병천면의 일출·일몰을 브라우저에서 계산합니다. 외부 위치·폰트 서비스를 호출하지 않습니다.
+- LAN은 저장 이벤트로 즉시 갱신하고 KOIN 모니터와 15초 간격으로 교대합니다. 유효 태그는 출근부로 복귀시키고 입실·퇴실 인사 모달을 표시합니다.
+- 실물 학생증의 비금융 학번 읽기 규격이 없으면 지원으로 간주하지 않습니다. 보호 키·금융 앱을 탐색하거나 UID로 사람을 임의 등록하지 않습니다.
 
-## 저장 구조 (KV)
+## 원격 조회·접근 정책
 
-데이터는 모두 키 메타데이터에 두어 대시보드가 `list` 호출만으로 읽습니다.
+- 해당 Worker의 모든 URL을 Cloudflare Access로 보호하고 조직 Gateway를 필수로 요구합니다. 일반 소비자 WARP나 클라이언트가 보낸 인증 헤더는 허용 근거가 아닙니다.
+- Worker는 플랫폼의 `ctx.access.aud`를 실제 `CF_ACCESS_AUD`와 비교합니다. 인증되지 않은 별도 호스트·서비스 호출은 데이터를 읽지 못합니다.
+- 회원 자격은 Access의 IdP·권한 정책에서 강제해야 합니다. 이메일 문자열 일치나 별도 Keycloak 계정 존재만으로 Internal 회원 자격을 추정하지 않습니다.
+- 원격 화면은 기본 180초 간격 스냅샷이며 KV의 지역별 반영 지연이 추가됩니다. 체류 시간·지표는 실제 관측 시각에 고정하고 스냅샷임을 표시합니다. LAN의 즉시 갱신과 다릅니다.
+- 관측 후 5분 초과, 필수 데이터 누락·손상, 인증·연결 실패 시 과거 수치를 현재처럼 연장하지 않고 사용 불가로 처리합니다.
+- `VIEW_STATE`의 `clubroom:view:v1`만 조회합니다. 기존 `ATTENDANCE` KV 데이터는 보존하며 자동으로 병합·이관·삭제하지 않습니다.
+- 서버 응답·관측 시각, 검증된 Wi-Fi PNG, 설정된 실제 Jam PNG만 게시합니다. 카메라·토큰·원본 태그 큐·원장 파일은 게시하지 않습니다.
 
-| 키                                      | 내용                                                    |
-| --------------------------------------- | ------------------------------------------------------- |
-| `member:<uid>`                          | 메타 `{ name }`                                         |
-| `unknown:<uid>`                         | 메타 `{ firstSeen, lastSeen, count }`                   |
-| `s:<KST 날짜>:<입실 시각 13자리>:<uid>` | 세션. 메타 `{ checkOut, autoClosed }`                   |
-| `latest:<uid>`                          | 값 `{ checkIn, checkOut, autoClosed }` 최근 세션 포인터 |
+| Worker 경로                                                  | 용도                                   |
+| ------------------------------------------------------------ | -------------------------------------- |
+| `GET /`, `HEAD /`                                            | 실제 LAN 템플릿 기반 원격 화면         |
+| `GET /api/view-status`, `/health`                            | 스냅샷 가용성·관측 시각                |
+| `GET /api/state`                                             | 출근부 조회                            |
+| `GET /api/monitor`, `/api/koin-health`, `/api/worker-health` | 실제 서버·서비스 관측 응답             |
+| `GET /api/spotify`, `/api/jam`                               | 관측 당시 재생 정보·실제 Jam 설정 여부 |
+| `GET /api/wifi-qr/2.4`, `/api/wifi-qr/5`, `/api/jam-qr`      | 스냅샷에 존재하는 검증된 PNG           |
 
-KV에는 트랜잭션이 없고 다른 지역에서는 쓰기가 최대 약 60초 늦게 보입니다. 리더 한 곳에서 태그하는 용도라 태그 판정은 같은 지역의 읽기-쓰기에 의존하며, 대시보드 수치는 그만큼 지연될 수 있습니다. 같은 카드의 거의 동시 태그는 10초 디바운스가 막습니다.
+Worker의 태그·등록·로그인·관리자·카메라 쓰기 경로는 제공하지 않습니다. 원격 화면에서 출입 원장을 변경할 수 없습니다.
 
-## API
-
-| 경로                | 인증                                                      | 용도                                                                                                     |
-| ------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `POST /api/taps`    | `Authorization: Bearer <DEVICE_TOKEN>`                    | `{ "uid": "04A1B2C3", "at": 1760000000000 }` (`at` 생략 시 서버 시각. 미래 60초·과거 7일을 벗어나면 400) |
-| `GET /`             | Basic (비밀번호 = `DASHBOARD_PASSWORD`, 사용자 이름 무시) | 대시보드                                                                                                 |
-| `GET /api/state`    | Basic                                                     | 현재 인원, 회원별 오늘·이번 주 시간, 최근 기록                                                           |
-| `POST /api/members` | Basic, 같은 출처 JSON                                     | `{ "uid", "name" }` 회원 등록·이름 수정                                                                  |
-
-## 대시보드
-
-- 서버가 제공하는 단일 HTML 화면에 [Mobbin의 공개 업무용 대시보드 패턴](https://mobbin.com/explore/web/screens/analytics-dashboard)을 참고한 Material Design 3의 색상·서피스·타이포그래피를 적용합니다. 사이드바 없이 구성하며 외부 폰트나 UI 라이브러리를 불러오지 않습니다.
-- 현재 인원과 입실 중인 회원의 체류 시간을 크게 표시하고, 전체 회원의 오늘·이번 주 체류 시간 합계와 퇴근 미기록 건수를 보여 줍니다. 회원별 표와 이번 주 최근 세션 최대 15건을 함께 제공합니다.
-- 16:9 데스크톱 화면에서는 본문 스크롤 없이 주요 패널을 한 화면에 배치하고, 긴 목록은 각 패널의 이전·다음 버튼으로 넘깁니다. 화면 크기에 맞춰 표시 개수가 바뀌고 새로고침 후에도 선택한 페이지를 유지합니다.
-- 테마 버튼은 자동(시스템 설정) → 라이트 → 다크 순서로 전환하며 선택을 브라우저에 저장합니다. 작은 화면에서는 카드가 재배치되고 표는 가로로 스크롤할 수 있습니다.
-- 데이터는 10초마다 갱신하고 입실 중인 회원의 체류 시계는 매초 갱신합니다. 상태 조회·등록 요청은 응답 본문 수신까지 10초로 제한하며, 새로고침 버튼으로 즉시 갱신할 수 있습니다. 연결 실패 시 마지막 데이터임을 표시하고 체류 시계를 마지막 동기화 시각에 멈춥니다. 처음부터 불러오지 못한 경우 수치를 임의로 표시하지 않습니다.
-- 미등록 카드는 화면에서 이름을 입력해 등록합니다. 주기적 갱신에도 입력과 포커스를 유지하며 등록 중·완료·오류 상태를 카드별로 표시합니다. 등록 전 태그는 입실 기록이 아니므로 등록 후 카드를 다시 태그해야 합니다.
-- 회원 이름과 카드 정보는 `textContent`로만 출력합니다. 상태 조회와 등록은 같은 출처의 기존 인증을 사용하며 등록은 JSON 요청으로만 전송합니다.
-- 배포는 BCSDLab 조직 Gateway를 요구하는 접근 정책을 전제로 합니다. 일반 소비자 WARP 접속만 허용하는 정책은 충분하지 않습니다. Worker의 모든 도메인·미리보기 우회 경로를 보호하기 전에는 공개 경로를 활성화하지 않습니다.
-
-## 배포
+## Worker 빌드·배포
 
 ```sh
-# 기존 DEVICE_TOKEN·DASHBOARD_PASSWORD는 유지합니다. 비밀값 설정·회전은 별도 운영 절차입니다.
+pnpm --filter @koin/attendance build
+pnpm --filter @koin/attendance typecheck
+pnpm --filter @koin/attendance test
+pnpm --filter @koin/attendance test:runtime
 pnpm deploy:attendance
 ```
 
-`wrangler.jsonc`의 `ATTENDANCE`는 기존 운영 KV 네임스페이스를 고정합니다. 새 네임스페이스를 만들거나 id를 바꾸면 기존 데이터와 분리되므로 배포 중 치환하지 않습니다. 새 토큰이 필요할 때만 충분히 긴 무작위 값으로 별도 설정합니다(`openssl rand -hex 32`).
+Worker 검사는 Node.js 24에서 실행합니다. `test:runtime`은 POSIX 파일 권한을 사용하는 Pi·LAN 코드 때문에 Linux와 Python 3.11 이상이 필요합니다. Windows에서는 Worker 검사와 게시기 검사를 실행하고 리더·LAN 검사는 격리된 Pi/Linux에서 실행합니다. 런타임 검사는 실제 GPIO·회원 API·운영 원장을 사용하지 않습니다.
 
-벽걸이 화면은 대시보드 경로(`/`)를 열고 Basic 인증 창에서 `DASHBOARD_PASSWORD`로 인증합니다. 비밀번호를 URL에 넣지 않습니다.
+빌드는 설치된 `tsx`로 LAN 렌더러를 실행해 `.wrangler/viewer/dashboard.html`을 생성합니다. Worker는 이 파일을 Text 모듈로 가져오며 별도 Static Assets 인증 우회 경로를 만들지 않습니다.
 
-## 로컬 실행
+`wrangler.jsonc`에는 실제 별도 KV ID와 해당 Access 앱의 audience를 설정합니다. 조직 Gateway·회원 자격 정책이 적용되기 전에는 `workers_dev`를 활성화하지 않습니다. 미리보기 URL은 비활성 상태를 유지합니다. 리소스를 삭제하거나 기존 KV ID를 새 데이터로 덮어쓰지 않습니다.
 
-```sh
-printf 'DEVICE_TOKEN=dev-device-token\nDASHBOARD_PASSWORD=dev-password\n' > apps/attendance/.dev.vars
-pnpm dev:attendance   # http://localhost:8787
-curl -X POST localhost:8787/api/taps -H 'authorization: Bearer dev-device-token' \
-  -H 'content-type: application/json' -d '{"uid":"04A1B2C3"}'
-```
+로컬 `wrangler dev`에서는 실제 플랫폼 인증이 없으면 실패합니다. 인증 개발 설정은 로컬 프로세스에만 적용하고 운영에서 클라이언트 헤더로 인증을 흉내 내지 않습니다.
 
-## 라즈베리파이
+## 스냅샷 게시기
 
-Raspberry Pi 3B 기준입니다. `READER`로 리더 종류를 고릅니다.
+`snapshot/publish.py`는 고정된 Pi5의 허용된 GET 경로만 수집합니다. 기본 실행은 I/O 없는 계획 출력입니다. 실제 account·namespace, 인증 출처, 영구 private checkpoint 디렉터리를 지정하고 `--once` 또는 `--loop`로 게시합니다.
 
-- `rc522`: GPIO(SPI)에 직접 연결한 RC522 모듈. 카드 UID를 16진수 대문자(예: `04A1B2C3`)로 보내고, 결과를 LED 두 개로 알립니다.
-- `hid`(기본값): 카드 UID를 키 입력 + Enter로 보내는 USB HID 리더. 장치를 독점해 UID가 콘솔에 입력되지 않으며, 장치가 여러 개면 `READER_DEVICE`로 경로를 지정합니다.
+- 게시 간격은 최소 180초, 일일 시도 예산은 600회입니다. 실패한 쓰기도 예산에 포함하며 공유 계정 한도 때문에 무과금을 보장하지 않습니다.
+- 전용 기기 토큰의 KV Storage Write는 계정 범위입니다. 다른 KV에 대한 쓰기 위험을 검토한 뒤 사용합니다.
+- 운영자 PC의 기존 Wrangler 세션은 명시적 `--operator-wrangler-auth-file`로만 사용합니다. 광범위한 OAuth 세션을 Pi로 복사하지 않습니다. 만료 시 인증된 `wrangler kv namespace list`로 정상 갱신하며 `whoami`만으로 갱신됐다고 간주하지 않습니다.
+- 관리자 WARP 경로가 SSH만 허용하면 먼저 고정 호스트 키를 검증하는 `ssh -N -L 127.0.0.1:8080:127.0.0.1:8080 bcsd-pi`를 연결하고 게시기에 `--ssh-forward`를 지정합니다. 연결 대상만 localhost로 바꾸며 원래 Host와 허용 경로를 유지합니다.
+- 게시기·인증·사설 조회 경로가 중단되면 원격 화면도 신선도 제한 후 사용할 수 없습니다. cloudflared 설치 자체는 게시기나 Internal 송신 인증을 대신하지 않습니다.
 
-같은 카드라도 리더 종류에 따라 UID 문자열이 다를 수 있으므로, 리더를 바꾸면 회원을 다시 등록합니다.
+## LAN 서버
+
+`lan/server.py`는 IPv4 `0.0.0.0:8080`에 바인딩하지만 읽기 출발지는 loopback·`192.168.1.0/24`로 제한합니다. 이 LAN 읽기에는 로그인이 없고 실제 이름·Wi-Fi 비밀번호를 볼 수 있습니다. 인터넷에 직접 게시하지 않습니다.
+
+태그 POST는 loopback 출발지, 올바른 Host·Origin, 별도 `DEVICE_TOKEN`을 모두 요구합니다. 서비스는 root 소유 `0600` 파일의 토큰을 systemd credential로 전달받습니다. `/etc/attendance-lan/config`의 `INTERNAL_LOOKUP_URL`은 고정된 HTTPS `api.internal.bcsdlab.com/v1/service/attendance/member-lookup`이며, lookup·device·monitor 자격증명은 목적별로 분리합니다. HTTPS 전달은 실제 Internal 호스트의 SNI·인증서를 검증하고 TLS 검증을 끄지 않습니다.
+
+`lan/attendance-lan.service`와 `pi/attendance-reader.service`를 활성화하면 부팅 시 실행됩니다. 실제 사설 회원 조회 경로·토큰을 준비한 뒤 시작합니다. SQLite와 원본 큐는 private 디렉터리·파일 권한을 유지합니다.
+
+Wi-Fi QR은 실제 비밀번호로 생성한 작은 PNG를 로컬에 설치하고 `WIFI_QR_24_FILE`, `WIFI_QR_5_FILE`로 지정합니다. 화면을 볼 수 있는 사람은 QR에서 비밀번호를 알 수 있으므로 표시 범위를 제한합니다. Jam은 실제 휴대폰 초대 링크로 만든 root 소유 PNG를 `JAM_QR_FILE`로 지정하며 미설정이면 숨깁니다. 곡·기기 URL로 Jam 초대를 만들어 대체하지 않습니다.
+
+## 라즈베리파이 리더
+
+리더는 Android 학생증 HCE에서 읽은 학번·태그 시각을 loopback LAN 서버에만 전송합니다. 서버가 조회한 회원 정보로 입퇴실을 처리하며, 클라우드 UID API·HID 수동 등록은 사용하지 않습니다. 칩 초기화·RF 복구 후에는 카드가 제거된 간격을 확인한 뒤 새 태그를 받으므로 계속 올려 둔 카드를 재시작만으로 새 출입으로 처리하지 않습니다.
 
 ### RC522 배선
 
@@ -94,42 +103,10 @@ Raspberry Pi 3B 기준입니다. `READER`로 리더 종류를 고릅니다.
 | 빨강 LED     | GPIO → 330 Ω → 애노드, 캐소드 → GND | 18 (GPIO24)     |
 | LED 공통 GND | GND                                 | 20              |
 
-| 결과                        | LED           |
-| --------------------------- | ------------- |
-| 입실                        | 초록 1초      |
-| 퇴실                        | 초록 2번 깜빡 |
-| 10초 안 중복(무시)          | 초록 짧게 1번 |
-| 미등록 카드                 | 빨강 1초      |
-| 오프라인·서버 오류(큐 보관) | 빨강 2번 깜빡 |
-| 거절(잘못된 UID 등)         | 빨강 3번 깜빡 |
-
-시작할 때 초록·빨강이 차례로 한 번 켜집니다. 카드는 읽은 뒤 HALT시키므로 떼었다 다시 대야 다시 읽힙니다.
-
 ### 설치
 
-```sh
-sudo raspi-config nonint do_spi 0                       # rc522: 부팅 시 SPI 활성화
-sudo dtparam spi=on                                    # rc522: 재부팅 없이 현재 부팅에도 적용
-sudo apt install python3-spidev python3-rpi-lgpio        # Raspberry Pi OS Trixie. hid는 python3-evdev
-sudo install -D -o root -g root -m 755 pi/reader.py /opt/attendance/reader.py
-sudo install -o root -g root -m 644 pi/attendance-reader.service /etc/systemd/system/
-sudo systemctl daemon-reload
-```
+`reader.py`와 `hce.py`를 함께 `/opt/attendance`에 설치하고 SPI·GPIO 의존성을 준비합니다. APT를 사용할 때는 먼저 해당 Raspberry Pi OS에 맞는 한국 미러를 설정합니다. `/dev/spidev0.0` 존재만으로 카드 통신을 보장하지 않습니다.
 
-RC522는 `/dev/spidev0.0`과 위 배선을 사용합니다. SPI 장치 파일이 있다는 것만으로 모듈 연결이 확인되지는 않습니다. 시작 시 `RC522 응답 없음`이면 3.3V 전원·GND·CE0·SCLK·MOSI·MISO·RST 배선을 확인합니다. USB HID는 `/dev/input/by-id/*-event-kbd`에 실제 리더가 있어야 합니다.
+리더 환경 파일은 root 소유 `0600`으로 관리하고 `ATTENDANCE_URL=http://127.0.0.1:8080`, LAN 서버와 일치하는 `DEVICE_TOKEN`을 지정합니다. 원본 큐 기본 경로는 `/var/lib/attendance/queue.jsonl`이며 `QUEUE_FILE`로 private 경로를 지정할 수 있습니다. 학번·토큰·큐 원문을 Git·로그·공유 문서에 넣지 않습니다.
 
-실제 Worker 주소와 해당 Worker의 `DEVICE_TOKEN`을 받은 뒤에만 런타임 설정을 작성하고 서비스를 시작합니다. 진단 중이거나 모듈·카드 인식이 확인되지 않았다면 전송 루프를 켜지 않습니다. 네트워크 접근 정책이 있는 배포는 Pi에서도 허용된 경로로 Worker에 접근할 수 있어야 합니다.
-
-```sh
-sudo touch /etc/attendance-reader.env
-sudo chown root:root /etc/attendance-reader.env
-sudo chmod 600 /etc/attendance-reader.env
-sudoedit /etc/attendance-reader.env
-# ATTENDANCE_URL=<실제 Worker 기본 주소>
-# DEVICE_TOKEN=<해당 Worker의 실제 토큰>
-# READER=rc522  (USB HID는 hid; 필요하면 READER_DEVICE도 지정)
-sudo systemctl enable --now attendance-reader.service
-```
-
-- 오프라인이면 태그를 `/var/lib/attendance/queue.jsonl`에 보관하고 30초마다 순서대로 재전송합니다. 태그 시각(`at`)은 파이 시계 기준이므로 NTP 동기화가 필요합니다.
-- 인증 오류(401/403)·408·429·5xx는 큐에 남겨 재시도하고, 그 외 4xx(잘못된 UID 등)는 버립니다.
+서비스는 제한된 private 상태 디렉터리를 사용합니다. 전송 실패는 원래 태그 시각으로 순서대로 재전송하므로 NTP 동기화가 필요합니다. 인증·연결 실패를 성공이나 임의 회원 등록으로 바꾸지 않습니다.
