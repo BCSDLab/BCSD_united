@@ -924,6 +924,7 @@
           justify-content: safe center;
           padding: clamp(4px, 0.7vh, 10px) clamp(10px, 1vw, 18px);
           border-radius: 18px;
+          overflow-y: auto;
         }
         .person-name {
           margin: 0;
@@ -1864,58 +1865,215 @@
         }
       }
       @media (min-width: 1000px) and (min-aspect-ratio: 3/2) {
-        .cards { overflow: visible; }
-        .monitor-plot { min-height: 0; }
-        .monitor-graph { flex: 1; height: 0; min-height: 0; }
-        .monitor-node.panel { grid-template-rows: auto auto minmax(0, 1fr) auto; }
+        .cards {
+          overflow: visible;
+        }
+        .monitor-plot {
+          min-height: 0;
+        }
+        .monitor-graph {
+          flex: 1;
+          height: 0;
+          min-height: 0;
+        }
+        .monitor-node.panel {
+          grid-template-rows: auto auto minmax(0, 1fr) auto;
+        }
       }
       @media (min-width: 1000px) and (min-aspect-ratio: 3/2) and (max-height: 800px) {
-        .app-shell { padding: 10px 18px; }
-        .app-header { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; padding-bottom: 6px; margin-bottom: 6px; }
-        .app-header .header-actions { flex-wrap: nowrap; gap: 6px; }
-        .app-header .header-actions button { padding: 6px 10px; }
-        .app-header .clock-block { margin-right: 0; }
-        .spotify-now { max-width: none; padding: 2px 6px; gap: 6px; }
-        #cloud-snapshot { margin-bottom: 4px; padding: 2px 8px; }
-        .automation-monitor { margin-bottom: 6px; padding: 3px 10px; gap: 2px; }
-        .automation-row { line-height: 1.2; gap: 2px 8px; }
-        .automation-row button { min-height: 36px; padding: 2px 8px; }
-        main { grid-template-columns: minmax(0, 2fr) minmax(350px, 1fr); grid-template-rows: auto minmax(188px, 1fr) minmax(212px, 1fr) 0; grid-template-areas: 'error error' 'hero summary' 'members wifi' 'sync sync'; gap: 6px 10px; }
-        .hero { grid-template-columns: 140px minmax(0, 1fr); }
-        .panel, .occupancy, .present-content { padding: 8px; }
-        .hero.panel { padding: 0; }
-        .occupancy { gap: 2px; }
-        #member-count { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-        .section-heading, .present-content .section-heading { margin-bottom: 4px; }
-        .present-content h2, h2 { font-size: 24px; line-height: 1.2; }
-        .cards { gap: 4px; }
-        .person-card { padding: 4px; }
-        .person-name { font-size: 24px; line-height: 1.1; }
-        .elapsed { font-size: 28px; line-height: 1.1; }
-        .summary-grid { gap: 4px; }
-        .summary-card { padding: 4px 8px; gap: 4px; }
-        .summary-label { font-size: 24px; line-height: 1.2; }
-        .summary-value { font-size: 28px; }
-        th, td, thead th { padding: 2px 7px; font-size: 24px; line-height: 1.15; }
-        #wifi-section { padding: 6px 8px; }
-        #wifi-section .section-heading h2 { font-size: 24px; }
-        .wifi-codes.has-jam { gap: 4px; }
-        .wifi-codes.has-jam .wifi-code img { width: 104px; }
-        .wifi-code figcaption, .wifi-codes.has-jam .wifi-code figcaption { line-height: 1.1; }
-        .wifi-status { margin: 2px 0; line-height: 1.1; }
-        .monitor-view { gap: 4px; }
-        .monitor-status { padding: 3px 10px; }
-        .monitor-path, .worker-health { padding: 4px 8px; }
-        .koin-service { padding: 4px 8px; gap: 2px; }
-        .koin-service-name, .monitor-node h4, .monitor-section-heading h3 { font-size: 24px; }
-        .monitor-node.panel { padding: 6px; gap: 4px; grid-template-rows: auto auto minmax(0, 1fr); }
-        .monitor-node-title { gap: 4px; }
-        .monitor-health { padding: 2px 6px; }
-        .monitor-metrics { gap: 8px; }
-        .monitor-value { font-size: 40px; }
-        .monitor-metric-detail { margin-top: 0; line-height: 1.1; }
-        .monitor-graph-axis { gap: 4px; line-height: 1.1; }
-        .monitor-timestamp, .monitor-node-time, .monitor-value-note, .koin-service-time { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+        .app-shell {
+          padding: 10px 18px;
+        }
+        .app-header {
+          display: grid;
+          grid-template-columns: auto minmax(0, 1fr) auto;
+          gap: 10px;
+          padding-bottom: 6px;
+          margin-bottom: 6px;
+        }
+        .app-header .header-actions {
+          flex-wrap: nowrap;
+          gap: 6px;
+        }
+        .app-header .header-actions button {
+          padding: 6px 10px;
+        }
+        .app-header .clock-block {
+          margin-right: 0;
+        }
+        .spotify-now {
+          max-width: none;
+          padding: 2px 6px;
+          gap: 6px;
+        }
+        #cloud-snapshot {
+          margin-bottom: 4px;
+          padding: 2px 8px;
+        }
+        .automation-monitor {
+          margin-bottom: 6px;
+          padding: 3px 10px;
+          gap: 2px;
+        }
+        .automation-row {
+          line-height: 1.2;
+          gap: 2px 8px;
+        }
+        .automation-row button {
+          min-height: 36px;
+          padding: 2px 8px;
+        }
+        main {
+          grid-template-columns: minmax(0, 2fr) minmax(350px, 1fr);
+          grid-template-rows: auto minmax(188px, 1fr) minmax(212px, 1fr) 0;
+          grid-template-areas: 'error error' 'hero summary' 'members wifi' 'sync sync';
+          gap: 6px 10px;
+        }
+        .hero {
+          grid-template-columns: 140px minmax(0, 1fr);
+        }
+        .panel,
+        .occupancy,
+        .present-content {
+          padding: 8px;
+        }
+        .hero.panel {
+          padding: 0;
+        }
+        .occupancy {
+          gap: 2px;
+        }
+        #member-count {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          margin: -1px;
+          padding: 0;
+          overflow: hidden;
+          clip-path: inset(50%);
+          white-space: nowrap;
+        }
+        .section-heading,
+        .present-content .section-heading {
+          margin-bottom: 4px;
+        }
+        .present-content h2,
+        h2 {
+          font-size: 24px;
+          line-height: 1.2;
+        }
+        .cards {
+          gap: 4px;
+        }
+        .person-card {
+          padding: 4px;
+        }
+        .person-name {
+          font-size: 24px;
+          line-height: 1.1;
+        }
+        .elapsed {
+          font-size: 28px;
+          line-height: 1.1;
+        }
+        .summary-grid {
+          gap: 4px;
+        }
+        .summary-card {
+          padding: 4px 8px;
+          gap: 4px;
+        }
+        .summary-label {
+          font-size: 24px;
+          line-height: 1.2;
+        }
+        .summary-value {
+          font-size: 28px;
+        }
+        th,
+        td,
+        thead th {
+          padding: 2px 7px;
+          font-size: 24px;
+          line-height: 1.15;
+        }
+        #wifi-section {
+          padding: 6px 8px;
+        }
+        #wifi-section .section-heading h2 {
+          font-size: 24px;
+        }
+        .wifi-codes.has-jam {
+          gap: 4px;
+        }
+        .wifi-codes.has-jam .wifi-code img {
+          width: 104px;
+        }
+        .wifi-code figcaption,
+        .wifi-codes.has-jam .wifi-code figcaption {
+          line-height: 1.1;
+        }
+        .wifi-status {
+          margin: 2px 0;
+          line-height: 1.1;
+        }
+        .monitor-view {
+          gap: 4px;
+        }
+        .monitor-status {
+          padding: 3px 10px;
+        }
+        .monitor-path,
+        .worker-health {
+          padding: 4px 8px;
+        }
+        .koin-service {
+          padding: 4px 8px;
+          gap: 2px;
+        }
+        .koin-service-name,
+        .monitor-node h4,
+        .monitor-section-heading h3 {
+          font-size: 24px;
+        }
+        .monitor-node.panel {
+          padding: 6px;
+          gap: 4px;
+          grid-template-rows: auto auto minmax(0, 1fr);
+        }
+        .monitor-node-title {
+          gap: 4px;
+        }
+        .monitor-health {
+          padding: 2px 6px;
+        }
+        .monitor-metrics {
+          gap: 8px;
+        }
+        .monitor-value {
+          font-size: 40px;
+        }
+        .monitor-metric-detail {
+          margin-top: 0;
+          line-height: 1.1;
+        }
+        .monitor-graph-axis {
+          gap: 4px;
+          line-height: 1.1;
+        }
+        .monitor-timestamp,
+        .monitor-node-time,
+        .monitor-value-note,
+        .koin-service-time {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          margin: -1px;
+          padding: 0;
+          overflow: hidden;
+          clip-path: inset(50%);
+          white-space: nowrap;
+        }
       }
     </style>
   </head>
@@ -1969,7 +2127,7 @@
             <strong>오류 수신 · 24시간</strong>
             <span class="automation-state" id="am-ingress-state" data-state="unknown" role="status">확인 중</span>
             <span id="am-sentry">Sentry —</span><span id="am-cloudflare">Cloudflare —</span>
-            <button class="button-tonal" id="am-details" type="button">상세</button>
+            <button class="button-tonal" id="am-details" type="button" aria-label="상세 · 시각과 프로세스">상세</button>
           </div>
           <div class="automation-row">
             <strong>Rocky</strong>
@@ -2122,7 +2280,6 @@
             <p class="monitor-waiting">서버 수집 데이터 대기 · 아직 노드 관측 없음</p>
           </div>
         </section>
-
       </div>
     </div>
     <noscript><p>출근부를 보려면 브라우저에서 JavaScript를 활성화해 주세요.</p></noscript>
