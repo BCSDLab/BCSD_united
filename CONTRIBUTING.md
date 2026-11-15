@@ -17,6 +17,8 @@ pnpm dev
 
 ## 코드 규칙
 
+- 포맷터는 Oxfmt(`pnpm format`), 공통 JS/TS 린터는 Oxlint(`pnpm lint:oxlint`)입니다. 웹 ESLint·Stylelint는 추가 규칙을 검사합니다.
+- `eslint-config-prettier`는 포맷터가 아니라 Oxfmt와 충돌하는 ESLint 규칙을 끄는 호환 설정으로 유지합니다.
 - 웹은 기존 절대 경로, API는 `@api/*`를 사용합니다.
 - 내부 화면 이동은 TanStack Router와 `ROUTES`를 사용합니다.
 - 웹 mutation 오류는 `interfaces/APIError`의 `isKoinError()`로 좁힌 뒤 `showToast()`로 표시합니다. 업무 오류가 아닌 HTTP·네트워크 오류는 같은 모듈의 `HttpError`를 사용하며, 상태 코드는 `utils/ts/httpError`의 `getErrorStatus()`로 읽습니다.
