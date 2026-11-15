@@ -19,6 +19,12 @@
   }
 }
 
+.sections {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
 .section {
   display: flex;
   flex-direction: column;
