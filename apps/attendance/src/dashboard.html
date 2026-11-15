@@ -64,13 +64,16 @@
         background: var(--bg);
         color: var(--text);
         font:
-          20px/1.5 system-ui,
+          24px/1.3 system-ui,
           -apple-system,
           'Apple SD Gothic Neo',
           'Noto Sans KR',
           sans-serif;
         word-break: keep-all;
         -webkit-font-smoothing: antialiased;
+      }
+      small {
+        font-size: inherit;
       }
       button,
       input {
@@ -98,7 +101,7 @@
         border: 0;
         border-radius: 999px;
         padding: 10px 18px;
-        font-size: 20px;
+        font-size: 24px;
         font-weight: 650;
       }
       button:hover:not(:disabled) {
@@ -136,12 +139,12 @@
       }
       .login-panel p {
         color: var(--muted);
-        font-size: 20px;
+        font-size: 24px;
       }
       .login-panel label {
         display: block;
         margin: 18px 0 6px;
-        font-size: 20px;
+        font-size: 24px;
         font-weight: 650;
       }
       .login-panel input {
@@ -153,7 +156,7 @@
         background: var(--surface);
         color: var(--text);
         font: inherit;
-        font-size: 20px;
+        font-size: 24px;
       }
       .login-panel button {
         width: 100%;
@@ -165,7 +168,7 @@
       }
       .viewer-name {
         color: var(--muted);
-        font-size: 20px;
+        font-size: 24px;
       }
       .sr-only {
         position: absolute;
@@ -244,7 +247,7 @@
       #date {
         display: block;
         color: var(--muted);
-        font-size: 20px;
+        font-size: 24px;
       }
       main {
         display: grid;
@@ -280,7 +283,7 @@
         border-radius: 999px;
         background: var(--surface-low);
         color: var(--muted);
-        font-size: 20px;
+        font-size: 24px;
         font-weight: 650;
       }
       .dot {
@@ -337,7 +340,7 @@
       }
       #member-count {
         margin: 10px 0 0;
-        font-size: 20px;
+        font-size: 24px;
       }
       .present-content {
         min-width: 0;
@@ -380,12 +383,12 @@
       .empty-state strong {
         display: block;
         color: var(--text);
-        font-size: 22px;
+        font-size: 24px;
         font-weight: 650;
       }
       .empty-state p {
         margin: 6px 0 0;
-        font-size: 20px;
+        font-size: 24px;
       }
       .empty-symbol {
         display: grid;
@@ -401,7 +404,7 @@
       .loading {
         padding: 28px 8px;
         color: var(--muted);
-        font-size: 20px;
+        font-size: 24px;
       }
       .loading::before {
         content: '';
@@ -425,7 +428,7 @@
       }
       .summary-label {
         margin: 0;
-        font-size: 20px;
+        font-size: 24px;
         font-weight: 600;
         color: var(--muted);
       }
@@ -453,10 +456,11 @@
         border-collapse: collapse;
         text-align: left;
         font-variant-numeric: tabular-nums;
-        white-space: nowrap;
+        white-space: normal;
       }
       .members-table {
-        min-width: 840px;
+        min-width: 0;
+        table-layout: fixed;
       }
       th,
       td {
@@ -467,7 +471,7 @@
         padding-top: 12px;
         padding-bottom: 12px;
         background: var(--surface-low);
-        font-size: 20px;
+        font-size: 24px;
         font-weight: 600;
         color: var(--muted);
       }
@@ -488,7 +492,7 @@
         border-bottom: 0;
       }
       td {
-        font-size: 20px;
+        font-size: 24px;
       }
       .duration {
         font-weight: 650;
@@ -521,13 +525,13 @@
       }
       .wifi-code figcaption {
         margin-top: 4px;
-        font-size: 20px;
+        font-size: 24px;
         font-weight: 650;
       }
       .wifi-status {
         margin: 8px 0;
         color: var(--muted);
-        font-size: 20px;
+        font-size: 24px;
       }
       .error-banner {
         display: flex;
@@ -541,7 +545,7 @@
       }
       .error-banner p {
         margin: 0;
-        font-size: 20px;
+        font-size: 24px;
       }
       .error-banner button {
         color: inherit;
@@ -560,7 +564,7 @@
         align-items: center;
         gap: 8px;
         color: var(--muted);
-        font-size: 20px;
+        font-size: 24px;
       }
       #sync-status[data-state='ready'] {
         color: var(--green);
@@ -571,19 +575,7 @@
       .sync-note {
         margin: 0;
         color: var(--muted);
-        font-size: 20px;
-      }
-      footer {
-        display: flex;
-        justify-content: space-between;
-        flex-wrap: wrap;
-        gap: 8px;
-        padding: 24px 4px 0;
-        color: var(--muted);
-        font-size: 20px;
-      }
-      footer p {
-        margin: 0;
+        font-size: 24px;
       }
       @media (min-width: 1600px) {
         .app-shell {
@@ -593,7 +585,7 @@
           grid-template-columns: 300px minmax(0, 1fr);
         }
         .person-name {
-          font-size: 22px;
+          font-size: 24px;
         }
         .elapsed {
           font-size: 38px;
@@ -640,7 +632,7 @@
         }
         .header-actions button {
           padding: 10px 13px;
-          font-size: 20px;
+          font-size: 24px;
         }
         main {
           gap: 18px;
@@ -740,13 +732,13 @@
         min-height: 44px;
         margin-left: auto;
         color: var(--muted);
-        font-size: 20px;
+        font-size: 24px;
       }
       .pager button {
         min-width: 44px;
         min-height: 44px;
         padding: 4px 8px;
-        font-size: 20px;
+        font-size: 24px;
       }
       @media (min-width: 1000px) and (min-aspect-ratio: 3/2) {
         html,
@@ -785,7 +777,7 @@
           font-size: clamp(28px, 3.5vh, 50px);
         }
         #date {
-          font-size: 20px;
+          font-size: 24px;
         }
         .header-actions {
           gap: 7px;
@@ -793,17 +785,14 @@
         .header-actions button {
           min-height: 44px;
           padding: 10px 14px;
-          font-size: 20px;
+          font-size: 24px;
         }
         main {
           flex: 1;
           min-height: 0;
-          overflow-y: auto;
           display: grid;
           grid-template-columns: minmax(0, 1.8fr) minmax(290px, 1fr);
-          grid-template-rows:
-            auto minmax(335px, max-content) minmax(210px, max-content) minmax(260px, max-content)
-            auto;
+          grid-template-rows: auto minmax(0, 1.2fr) minmax(0, 0.8fr) minmax(0, 1fr) 0;
           grid-template-areas: 'error error' 'hero hero' 'members summary' 'members wifi' 'sync sync';
           gap: 10px 12px;
         }
@@ -813,7 +802,7 @@
           border-radius: 12px;
         }
         #error p {
-          font-size: 20px;
+          font-size: 24px;
         }
         .hero {
           grid-area: hero;
@@ -851,12 +840,12 @@
         }
         .wifi-code figcaption {
           margin-top: 2px;
-          font-size: 20px;
+          font-size: 24px;
           line-height: 1.3;
         }
         .wifi-status {
           margin: 4px 0;
-          font-size: 20px;
+          font-size: 24px;
         }
         .sync-row {
           grid-area: sync;
@@ -894,7 +883,7 @@
         }
         #member-count {
           margin-top: 4px;
-          font-size: 20px;
+          font-size: 24px;
         }
         .present-content {
           padding: 14px 16px;
@@ -915,12 +904,11 @@
         .pill {
           padding: 3px 8px;
           gap: 5px;
-          font-size: 20px;
+          font-size: 24px;
         }
         .cards {
-          flex: none;
-          height: min(36vh, 320px);
-          min-height: 160px;
+          flex: 1;
+          min-height: 0;
           grid-template-columns: repeat(4, minmax(0, 1fr));
           grid-template-rows: repeat(2, minmax(0, 1fr));
           gap: 10px;
@@ -956,18 +944,18 @@
           padding: 8px;
         }
         .empty-state strong {
-          font-size: clamp(20px, 2.8vh, 32px);
+          font-size: clamp(24px, 2.8vh, 32px);
         }
         .empty-state p {
           margin-top: 4px;
-          font-size: 20px;
+          font-size: 24px;
         }
         .empty-symbol {
           width: 32px;
           height: 32px;
           margin-bottom: 8px;
           border-radius: 10px;
-          font-size: 20px;
+          font-size: 24px;
         }
         .summary-card {
           display: grid;
@@ -979,7 +967,7 @@
           border-radius: 14px;
         }
         .summary-label {
-          font-size: 20px;
+          font-size: 24px;
         }
         .summary-value {
           grid-column: 2;
@@ -988,43 +976,39 @@
           font-size: clamp(32px, 3.8vh, 56px);
         }
         .table-scroll {
-          flex: none;
-          height: min(42vh, 420px);
-          overflow: auto;
+          flex: 1;
+          min-height: 0;
+          overflow: visible;
         }
         table {
           table-layout: auto;
         }
         .members-table {
-          min-width: 1100px;
+          min-width: 0;
+          width: 100%;
         }
         th,
         td {
           padding: 5px 7px;
-          font-size: clamp(20px, 2vh, 26px);
+          font-size: clamp(24px, 2vh, 26px);
           line-height: 1.5;
         }
         thead th {
           padding: 5px 7px;
-          font-size: 20px;
+          font-size: 24px;
         }
         tbody th {
           min-width: 0;
           max-width: none;
           white-space: normal;
-          font-size: clamp(20px, 2.2vh, 28px);
+          font-size: clamp(24px, 2.2vh, 28px);
         }
         .members-table th:first-child {
           width: auto;
         }
         #sync-status,
         .sync-note {
-          font-size: 20px;
-        }
-        footer {
-          flex-shrink: 0;
-          padding: 8px 2px 0;
-          font-size: 20px;
+          font-size: 24px;
         }
       }
       @media (prefers-reduced-motion: no-preference) {
@@ -1092,7 +1076,7 @@
         border-radius: 999px;
         background: var(--primary-container);
         color: var(--on-primary-container);
-        font-size: 20px;
+        font-size: 24px;
         font-weight: 750;
         letter-spacing: 0.12em;
       }
@@ -1107,7 +1091,7 @@
       .greeting-description {
         margin: 16px 0 24px;
         color: var(--muted);
-        font-size: 20px;
+        font-size: 24px;
       }
       .greeting-close {
         min-width: 96px;
@@ -1141,7 +1125,7 @@
       .monitor-description {
         margin: 0;
         color: var(--muted);
-        font-size: clamp(20px, 1.8vh, 24px);
+        font-size: clamp(24px, 1.8vh, 24px);
         line-height: 1.35;
       }
       .monitor-status {
@@ -1154,7 +1138,7 @@
         border-radius: 999px;
         background: var(--amber-container);
         color: var(--amber);
-        font-size: clamp(20px, 2.2vh, 28px);
+        font-size: clamp(24px, 2.2vh, 28px);
         line-height: 1.3;
         font-weight: 750;
       }
@@ -1202,7 +1186,7 @@
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        font-size: clamp(22px, 2.2vh, 28px);
+        font-size: clamp(24px, 2.2vh, 28px);
         font-weight: 750;
         white-space: normal;
       }
@@ -1236,7 +1220,7 @@
       }
       .worker-health > strong {
         color: var(--text);
-        font-size: clamp(22px, 2.3vh, 28px);
+        font-size: clamp(24px, 2.3vh, 28px);
         line-height: 1.2;
         white-space: nowrap;
       }
@@ -1245,7 +1229,7 @@
         align-items: center;
         gap: 6px;
         color: var(--amber);
-        font-size: clamp(20px, 1.9vh, 23px);
+        font-size: clamp(24px, 1.9vh, 24px);
         font-weight: 750;
         line-height: 1.3;
         white-space: normal;
@@ -1303,7 +1287,7 @@
         flex-wrap: wrap;
         gap: 2px 14px;
         color: var(--muted);
-        font-size: clamp(20px, 1.85vh, 22px);
+        font-size: clamp(24px, 1.85vh, 24px);
         line-height: 1.3;
       }
       .koin-service-reason,
@@ -1320,7 +1304,7 @@
         border-radius: 999px;
         color: var(--amber);
         background: var(--amber-container);
-        font-size: clamp(20px, 2.1vh, 26px);
+        font-size: clamp(24px, 2.1vh, 26px);
         font-weight: 750;
         line-height: 1.2;
         white-space: nowrap;
@@ -1349,7 +1333,7 @@
       .monitor-timestamp {
         margin: 0;
         color: var(--muted);
-        font-size: clamp(20px, 1.8vh, 22px);
+        font-size: clamp(24px, 1.8vh, 24px);
         line-height: 1.3;
         text-align: right;
       }
@@ -1396,13 +1380,13 @@
         padding-top: 8px;
         border-top: 1px solid var(--line);
         color: var(--muted);
-        font-size: clamp(20px, 1.85vh, 22px);
+        font-size: clamp(24px, 1.85vh, 24px);
         line-height: 1.3;
       }
       .monitor-value-note {
         margin: 5px 0 0;
         color: var(--amber);
-        font-size: 20px;
+        font-size: 24px;
         line-height: 1.3;
       }
       .monitor-metrics {
@@ -1418,7 +1402,7 @@
         align-items: center;
         gap: 9px;
         color: var(--monitor-cpu);
-        font-size: clamp(20px, 2.2vh, 26px);
+        font-size: clamp(24px, 2.2vh, 26px);
         line-height: 1.2;
         font-weight: 750;
       }
@@ -1446,7 +1430,7 @@
         display: block;
         margin-top: 4px;
         color: var(--muted);
-        font-size: 20px;
+        font-size: 24px;
         line-height: 1.3;
         font-variant-numeric: tabular-nums;
         overflow-wrap: anywhere;
@@ -1494,7 +1478,7 @@
         justify-content: space-between;
         gap: 8px;
         color: var(--muted);
-        font-size: 20px;
+        font-size: 24px;
         line-height: 1.25;
       }
       .monitor-waiting {
@@ -1502,7 +1486,7 @@
         margin: 0;
         padding: 24px;
         color: var(--muted);
-        font-size: clamp(22px, 2.5vh, 30px);
+        font-size: clamp(24px, 2.5vh, 30px);
         border: 2px dashed var(--outline);
         border-radius: 20px;
       }
@@ -1529,7 +1513,7 @@
           font-size: 30px;
         }
         .monitor-health {
-          font-size: 20px;
+          font-size: 24px;
         }
       }
       @media (max-width: 650px) {
@@ -1551,13 +1535,13 @@
           font-size: 28px;
         }
         .monitor-description {
-          font-size: 20px;
+          font-size: 24px;
         }
         .monitor-title {
           gap: 8px;
         }
         .monitor-status {
-          font-size: 20px;
+          font-size: 24px;
         }
       }
       @media (min-width: 1000px) and (min-aspect-ratio: 3/2) {
@@ -1565,8 +1549,7 @@
           flex: 1;
           min-height: 0;
           gap: clamp(8px, 1vh, 14px);
-          grid-template-rows: auto auto auto auto minmax(360px, max-content);
-          overflow-y: auto;
+          grid-template-rows: auto auto auto auto minmax(0, 1fr);
         }
         .monitor-title {
           flex-wrap: wrap;
@@ -1577,7 +1560,7 @@
         }
         .monitor-cards {
           gap: clamp(12px, 1.2vw, 24px);
-          min-height: max-content;
+          min-height: 0;
         }
         .koin-service-name,
         .monitor-node h4 {
@@ -1587,10 +1570,10 @@
           font-size: clamp(58px, 5.4vh, 72px);
         }
         .monitor-health {
-          font-size: clamp(22px, 2.1vh, 26px);
+          font-size: clamp(24px, 2.1vh, 26px);
         }
         .monitor-node.panel {
-          min-height: max-content;
+          min-height: 0;
           padding: clamp(10px, 1.4vh, 22px);
           gap: clamp(6px, 0.9vh, 14px);
         }
@@ -1603,18 +1586,18 @@
           font-size: 28px;
         }
         .monitor-description {
-          font-size: 20px;
+          font-size: 24px;
         }
         .monitor-status {
           padding: 7px 12px;
-          font-size: 20px;
+          font-size: 24px;
         }
         .monitor-path {
           padding: 6px 12px;
         }
         .monitor-path strong,
         .monitor-path span {
-          font-size: 22px;
+          font-size: 24px;
         }
         .koin-service {
           padding: 10px 16px;
@@ -1626,28 +1609,28 @@
         .koin-service-detail,
         .monitor-timestamp,
         .monitor-node-time {
-          font-size: 20px;
+          font-size: 24px;
         }
         .monitor-section-heading h3 {
           font-size: 28px;
         }
         .monitor-health {
-          font-size: 20px;
+          font-size: 24px;
         }
         .monitor-node h4 {
           font-size: 30px;
         }
         .monitor-metric-label {
-          font-size: 20px;
+          font-size: 24px;
         }
         .monitor-value {
           font-size: 54px;
         }
         .monitor-metric-detail {
-          font-size: 20px;
+          font-size: 24px;
         }
         .monitor-graph-axis {
-          font-size: 20px;
+          font-size: 24px;
         }
       }
 
@@ -1697,13 +1680,13 @@
       }
       .spotify-title {
         color: var(--text);
-        font-size: 20px;
+        font-size: 24px;
         font-weight: 650;
         line-height: 1.2;
       }
       .spotify-artists {
         color: var(--muted);
-        font-size: 20px;
+        font-size: 24px;
         line-height: 1.2;
       }
       @media (min-width: 1000px) and (min-aspect-ratio: 3/2) {
@@ -1721,7 +1704,7 @@
           line-height: 1.2;
         }
         .app-header #date {
-          font-size: 20px;
+          font-size: 24px;
           line-height: 1.2;
         }
       }
@@ -1756,7 +1739,7 @@
       }
       .wifi-codes.has-jam .wifi-code figcaption {
         margin-top: 2px;
-        font-size: 20px;
+        font-size: 24px;
         line-height: 1.3;
         overflow-wrap: anywhere;
       }
@@ -1770,7 +1753,7 @@
         color: var(--amber);
         background: var(--surface-low);
         font:
-          500 20px/1.35 system-ui,
+          500 24px/1.25 system-ui,
           sans-serif;
         font-variant-numeric: tabular-nums;
         overflow-wrap: anywhere;
@@ -1803,15 +1786,15 @@
         flex-wrap: wrap;
         gap: 4px 14px;
         min-width: 0;
-        font-size: 20px;
+        font-size: 24px;
         line-height: 1.4;
       }
       .automation-row strong {
-        font-size: 20px;
+        font-size: 24px;
       }
       .automation-row small {
         color: var(--muted);
-        font-size: 20px;
+        font-size: 24px;
       }
       .automation-row span {
         overflow-wrap: anywhere;
@@ -1864,7 +1847,7 @@
           gap: 3px;
         }
         .automation-row {
-          font-size: 20px;
+          font-size: 24px;
           gap: 2px 12px;
         }
         .automation-row strong {
@@ -1873,12 +1856,223 @@
         .automation-row button {
           min-height: 44px;
           padding: 4px 12px;
-          font-size: 20px;
+          font-size: 24px;
           margin-left: auto;
         }
         #present .person-name,
         #present .elapsed {
           flex-shrink: 0;
+        }
+      }
+      @media (min-width: 1000px) and (min-aspect-ratio: 3/2) {
+        .cards {
+          overflow: visible;
+        }
+        .monitor-plot {
+          min-height: 0;
+        }
+        .monitor-graph {
+          flex: 1;
+          height: 0;
+          min-height: 0;
+        }
+        .monitor-node.panel {
+          grid-template-rows: auto auto minmax(0, 1fr) auto;
+        }
+      }
+      @media (min-width: 1000px) and (min-aspect-ratio: 3/2) and (max-height: 800px) {
+        .app-shell {
+          padding: 10px 18px;
+        }
+        .app-header {
+          display: grid;
+          grid-template-columns: auto minmax(0, 1fr) auto;
+          gap: 10px;
+          padding-bottom: 6px;
+          margin-bottom: 6px;
+        }
+        .app-header .header-actions {
+          flex-wrap: nowrap;
+          gap: 6px;
+        }
+        .app-header .header-actions button {
+          padding: 6px 10px;
+        }
+        .app-header .clock-block {
+          margin-right: 0;
+        }
+        .spotify-now {
+          max-width: none;
+          padding: 2px 6px;
+          gap: 6px;
+        }
+        #cloud-snapshot {
+          margin-bottom: 4px;
+          padding: 2px 8px;
+        }
+        .automation-monitor {
+          margin-bottom: 6px;
+          padding: 3px 10px;
+          gap: 2px;
+        }
+        .automation-row {
+          line-height: 1.2;
+          gap: 2px 8px;
+        }
+        .automation-row button {
+          min-height: 36px;
+          padding: 2px 8px;
+        }
+        main {
+          grid-template-columns: minmax(0, 2fr) minmax(350px, 1fr);
+          grid-template-rows: auto minmax(188px, 1fr) minmax(212px, 1fr) 0;
+          grid-template-areas: 'error error' 'hero summary' 'members wifi' 'sync sync';
+          gap: 6px 10px;
+        }
+        .hero {
+          grid-template-columns: 140px minmax(0, 1fr);
+        }
+        .panel,
+        .occupancy,
+        .present-content {
+          padding: 8px;
+        }
+        .hero.panel {
+          padding: 0;
+        }
+        .occupancy {
+          gap: 2px;
+        }
+        #member-count {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          margin: -1px;
+          padding: 0;
+          overflow: hidden;
+          clip-path: inset(50%);
+          white-space: nowrap;
+        }
+        .section-heading,
+        .present-content .section-heading {
+          margin-bottom: 4px;
+        }
+        .present-content h2,
+        h2 {
+          font-size: 24px;
+          line-height: 1.2;
+        }
+        .cards {
+          gap: 4px;
+        }
+        .person-card {
+          padding: 4px;
+        }
+        .person-name {
+          font-size: 24px;
+          line-height: 1.1;
+        }
+        .elapsed {
+          font-size: 28px;
+          line-height: 1.1;
+        }
+        .summary-grid {
+          gap: 4px;
+        }
+        .summary-card {
+          padding: 4px 8px;
+          gap: 4px;
+        }
+        .summary-label {
+          font-size: 24px;
+          line-height: 1.2;
+        }
+        .summary-value {
+          font-size: 28px;
+        }
+        th,
+        td,
+        thead th {
+          padding: 2px 7px;
+          font-size: 24px;
+          line-height: 1.15;
+        }
+        #wifi-section {
+          padding: 6px 8px;
+        }
+        #wifi-section .section-heading h2 {
+          font-size: 24px;
+        }
+        .wifi-codes.has-jam {
+          gap: 4px;
+        }
+        .wifi-codes.has-jam .wifi-code img {
+          width: 104px;
+        }
+        .wifi-code figcaption,
+        .wifi-codes.has-jam .wifi-code figcaption {
+          line-height: 1.1;
+        }
+        .wifi-status {
+          margin: 2px 0;
+          line-height: 1.1;
+        }
+        .monitor-view {
+          gap: 4px;
+        }
+        .monitor-status {
+          padding: 3px 10px;
+        }
+        .monitor-path,
+        .worker-health {
+          padding: 4px 8px;
+        }
+        .koin-service {
+          padding: 4px 8px;
+          gap: 2px;
+        }
+        .koin-service-name,
+        .monitor-node h4,
+        .monitor-section-heading h3 {
+          font-size: 24px;
+        }
+        .monitor-node.panel {
+          padding: 6px;
+          gap: 4px;
+          grid-template-rows: auto auto minmax(0, 1fr);
+        }
+        .monitor-node-title {
+          gap: 4px;
+        }
+        .monitor-health {
+          padding: 2px 6px;
+        }
+        .monitor-metrics {
+          gap: 8px;
+        }
+        .monitor-value {
+          font-size: 40px;
+        }
+        .monitor-metric-detail {
+          margin-top: 0;
+          line-height: 1.1;
+        }
+        .monitor-graph-axis {
+          gap: 4px;
+          line-height: 1.1;
+        }
+        .monitor-timestamp,
+        .monitor-node-time,
+        .monitor-value-note,
+        .koin-service-time {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          margin: -1px;
+          padding: 0;
+          overflow: hidden;
+          clip-path: inset(50%);
+          white-space: nowrap;
         }
       }
     </style>
@@ -1933,7 +2127,7 @@
             <strong>오류 수신 · 24시간</strong>
             <span class="automation-state" id="am-ingress-state" data-state="unknown" role="status">확인 중</span>
             <span id="am-sentry">Sentry —</span><span id="am-cloudflare">Cloudflare —</span>
-            <button class="button-tonal" id="am-details" type="button">상세 · 시각과 프로세스</button>
+            <button class="button-tonal" id="am-details" type="button" aria-label="상세 · 시각과 프로세스">상세</button>
           </div>
           <div class="automation-row">
             <strong>Rocky</strong>
@@ -1979,21 +2173,20 @@
               <div class="cards" id="present" role="list" aria-labelledby="present-heading"></div>
               <div class="empty-state" id="present-empty" hidden>
                 <span class="empty-symbol" aria-hidden="true">↗</span><strong>첫 입실을 기다리고 있어요</strong>
-                <p>모바일 학생증을 리더에 태그해 주세요.</p>
               </div>
             </div>
           </section>
           <section class="summary-grid" aria-label="체류 시간 요약">
             <div class="summary-card">
-              <h2 class="summary-label">오늘 체류 시간 중앙값</h2>
+              <h2 class="summary-label">오늘 중간값</h2>
               <p class="summary-value" id="today-total">—</p>
             </div>
             <div class="summary-card">
-              <h2 class="summary-label">이번 주 체류 시간 중앙값</h2>
+              <h2 class="summary-label">주간 중간값</h2>
               <p class="summary-value" id="week-total">—</p>
             </div>
             <div class="summary-card" id="unrecorded-summary">
-              <h2 class="summary-label">이번 주 퇴근 미기록</h2>
+              <h2 class="summary-label">퇴근 미기록</h2>
               <p class="summary-value" id="unrecorded-total">—</p>
             </div>
           </section>
@@ -2007,23 +2200,19 @@
               class="table-scroll"
               id="members-table"
               role="region"
-              aria-label="회원별 체류 시간, 가로 스크롤 가능"
+              aria-label="회원별 오늘과 이번 주 체류 시간"
               tabindex="0"
               hidden
             >
               <table class="members-table">
                 <caption class="sr-only">
-                  회원별 현재 상태, 오늘 첫 입실 시각, 오늘 마지막 퇴실 시각, 오늘과 이번 주 체류 시간, 퇴근 미기록 건수
+                  회원별 오늘과 이번 주 체류 시간
                 </caption>
                 <thead>
                   <tr>
                     <th scope="col">이름</th>
-                    <th scope="col">현재 상태</th>
-                    <th scope="col">오늘 첫 입실</th>
-                    <th scope="col">오늘 마지막 퇴실</th>
                     <th scope="col">오늘</th>
                     <th scope="col">이번 주</th>
-                    <th scope="col">퇴근 미기록</th>
                   </tr>
                 </thead>
                 <tbody id="members"></tbody>
@@ -2031,7 +2220,6 @@
             </div>
             <div class="empty-state" id="members-empty" hidden>
               <strong>아직 기록이 없어요</strong>
-              <p>Internal에 등록된 회원이 모바일 학생증을 태그하면 표시됩니다.</p>
             </div>
           </section>
           <section class="panel" id="wifi-section" aria-labelledby="wifi-heading">
@@ -2039,7 +2227,7 @@
             <div class="wifi-codes">
               <figure class="wifi-code">
                 <img id="wifi-5" alt="BCSD_5G Wi-Fi 연결 QR 코드" hidden />
-                <p class="wifi-status" id="wifi-5-status" role="status">QR 코드를 불러오는 중</p>
+                <p class="wifi-status" id="wifi-5-status" role="status">QR 확인 중</p>
                 <figcaption>BCSD_5G</figcaption>
               </figure>
               <figure class="wifi-code">
@@ -2049,7 +2237,7 @@
               </figure>
             </div>
           </section>
-          <div class="sync-row">
+          <div class="sync-row sr-only">
             <span id="sync-status" role="status" data-state="loading"
               ><span class="dot" aria-hidden="true"></span><span id="sync-label">첫 데이터를 불러오는 중</span></span
             >
@@ -2092,11 +2280,6 @@
             <p class="monitor-waiting">서버 수집 데이터 대기 · 아직 노드 관측 없음</p>
           </div>
         </section>
-
-        <footer>
-          <p>BCSD LAB · 작은 태그 하나로 이어지는 우리의 하루</p>
-          <p>모든 시각은 KST · 관측 시점 데이터 · NFC는 LAN에서 즉시 반영</p>
-        </footer>
       </div>
     </div>
     <noscript><p>출근부를 보려면 브라우저에서 JavaScript를 활성화해 주세요.</p></noscript>
@@ -2237,7 +2420,7 @@
           };
           image.onerror = function () {
             image.hidden = true;
-            status.textContent = 'Wi-Fi QR 코드를 사용할 수 없습니다.';
+            status.textContent = 'QR 연결 불가';
             status.hidden = false;
           };
           image.hidden = true;
@@ -2469,22 +2652,9 @@
           var row = el('tr');
           var name = el('th', '', m.name);
           name.scope = 'row';
-          var status = el('td');
-          status.appendChild(
-            el('span', m.present ? 'pill pill-live' : 'pill', m.present ? '관측 시 입실' : '관측 시 퇴실'),
-          );
-          row.append(name, status);
-          row.appendChild(el('td', 'muted', m.firstInToday === null ? '—' : timeFormat.format(m.firstInToday)));
-          row.appendChild(el('td', 'muted', m.lastCheckOut === null ? '—' : timeFormat.format(m.lastCheckOut)));
+          row.appendChild(name);
           row.appendChild(el('td', '', formatDuration(m.todayMs)));
           row.appendChild(el('td', 'duration', formatDuration(m.weekMs)));
-          row.appendChild(
-            el(
-              'td',
-              m.unrecordedWeek > 0 ? 'warn' : 'muted',
-              m.unrecordedWeek > 0 ? m.unrecordedWeek + '건 · 시간 제외' : '—',
-            ),
-          );
           body.appendChild(row);
         });
         document.getElementById('members-table').hidden = members.length === 0;
