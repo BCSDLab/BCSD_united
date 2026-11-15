@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createFileRoute, useNavigate, useSearch, useParams } from '@tanstack/react-router';
 
 import BlockIcon from 'assets/svg/Articles/block.svg';
@@ -36,6 +36,24 @@ interface LostItemChatPageProps {
   chatRoomIdParam: string | null;
 }
 
+function findLastVisibleMessageId(container: HTMLDivElement): string | undefined {
+  const bounds = container.getBoundingClientRect();
+  const visibleTop = Math.max(bounds.top, 0);
+  const visibleBottom = Math.min(bounds.bottom, window.innerHeight);
+  if (bounds.width === 0 || visibleTop >= visibleBottom) return undefined;
+
+  const messageElements = container.querySelectorAll<HTMLElement>('[data-message-id]');
+  for (let index = messageElements.length - 1; index >= 0; index -= 1) {
+    const element = messageElements[index];
+    const messageBounds = element.getBoundingClientRect();
+    if (messageBounds.bottom > visibleTop && messageBounds.top < visibleBottom) {
+      return element.dataset.messageId;
+    }
+  }
+
+  return undefined;
+}
+
 function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageProps) {
   const isMobile = useMediaQuery();
   const isOnline = useNetworkStatus();
@@ -54,10 +72,14 @@ function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageP
     chatroomDetail,
     chatroomList,
     messages,
+    hasPreviousMessages,
+    isLoadingPreviousMessages,
+    loadPreviousMessages,
     defaultChatroomId: chatroomId,
     defaultArticleId: articleId,
     sendMessage: sendChatMessage,
     sendMessageAsync: sendChatMessageAsync,
+    markVisibleMessagesRead,
   } = useChatPolling({
     userId: userInfo?.id ?? null,
     articleId: articleIdParam,
@@ -69,6 +91,44 @@ function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageP
   const showList = !isMobile || !showDetail;
 
   const prevMessagesLengthRef = useRef(0);
+  const roomKey = `${articleId}:${chatroomId}`;
+  const previousMessagesScrollRef = useRef<{
+    roomKey: string;
+    oldestMessageId: string | undefined;
+    scrollHeight: number;
+    scrollTop: number;
+  } | null>(null);
+
+  const loadPreviousMessagesOnScroll = async (event: React.UIEvent<HTMLDivElement>) => {
+    const container = event.currentTarget;
+    if (
+      container.scrollTop > 0 ||
+      !isOnline ||
+      !hasPreviousMessages ||
+      isLoadingPreviousMessages ||
+      previousMessagesScrollRef.current
+    ) {
+      return;
+    }
+
+    const scrollSnapshot = {
+      roomKey,
+      oldestMessageId: messages?.[0]?.message_id,
+      scrollHeight: container.scrollHeight,
+      scrollTop: container.scrollTop,
+    };
+    previousMessagesScrollRef.current = scrollSnapshot;
+
+    try {
+      const page = await loadPreviousMessages();
+      if (!page?.messages.length && previousMessagesScrollRef.current === scrollSnapshot) {
+        previousMessagesScrollRef.current = null;
+      }
+    } catch {
+      // 조회 오류는 공통 mutation에서 표시하고, 다음 스크롤에서 다시 시도할 수 있게 한다.
+      if (previousMessagesScrollRef.current === scrollSnapshot) previousMessagesScrollRef.current = null;
+    }
+  };
 
   const uploadImage = async () => {
     try {
@@ -108,15 +168,57 @@ function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageP
     e.currentTarget.src = DefaultPhotoUrl;
   };
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const currentLength = messages?.length ?? 0;
     const hasNewMessages = currentLength > prevMessagesLengthRef.current;
     prevMessagesLengthRef.current = currentLength;
+    const container = chatContainerRef.current;
+    if (!container) return;
 
-    if (hasNewMessages && chatContainerRef.current) {
-      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    const scrollSnapshot = previousMessagesScrollRef.current;
+    if (scrollSnapshot?.roomKey === roomKey) {
+      if (messages?.[0]?.message_id !== scrollSnapshot.oldestMessageId) {
+        // 이전 대화가 앞에 추가된 높이만큼 보정해 보고 있던 메시지의 위치를 유지한다.
+        container.scrollTop = scrollSnapshot.scrollTop + container.scrollHeight - scrollSnapshot.scrollHeight;
+        previousMessagesScrollRef.current = null;
+      }
+
+      return;
     }
-  }, [messages]);
+    previousMessagesScrollRef.current = null;
+
+    if (hasNewMessages) container.scrollTop = container.scrollHeight;
+  }, [messages, roomKey]);
+
+  useEffect(() => {
+    const container = chatContainerRef.current;
+    if (!showDetail || !container) return;
+    let animationFrame: number | undefined;
+
+    const markVisibleMessages = () => {
+      animationFrame = undefined;
+      if (document.visibilityState !== 'visible') return;
+      const lastVisibleMessageId = findLastVisibleMessageId(container);
+      if (lastVisibleMessageId) markVisibleMessagesRead(lastVisibleMessageId);
+    };
+    const scheduleRead = () => {
+      if (animationFrame === undefined) animationFrame = window.requestAnimationFrame(markVisibleMessages);
+    };
+
+    scheduleRead();
+    container.addEventListener('scroll', scheduleRead);
+    container.addEventListener('load', scheduleRead, true);
+    document.addEventListener('visibilitychange', scheduleRead);
+    window.addEventListener('resize', scheduleRead);
+
+    return () => {
+      if (animationFrame !== undefined) window.cancelAnimationFrame(animationFrame);
+      container.removeEventListener('scroll', scheduleRead);
+      container.removeEventListener('load', scheduleRead, true);
+      document.removeEventListener('visibilitychange', scheduleRead);
+      window.removeEventListener('resize', scheduleRead);
+    };
+  }, [showDetail, messages, markVisibleMessagesRead]);
 
   const chatRoomItems = (chatroomList ?? []).map(
     ({
@@ -153,7 +255,8 @@ function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageP
     const dateLabel = formatChatDate(message.timestamp);
     const timeLabel = formatChatTime(message.timestamp);
     const normalizedMessage = {
-      key: `${message.timestamp}-${index}`,
+      key: message.message_id ?? `${message.timestamp}-${index}`,
+      messageId: message.message_id,
       isMine: message.user_id === userInfo?.id,
       content: message.content,
       isImage: message.is_image,
@@ -233,7 +336,13 @@ function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageP
                     </button>
                   </div>
 
-                  <div className={styles['message-container']} ref={chatContainerRef}>
+                  <div
+                    className={styles['message-container']}
+                    ref={chatContainerRef}
+                    onScroll={(event) => {
+                      void loadPreviousMessagesOnScroll(event);
+                    }}
+                  >
                     <ChatMessageList groups={messageGroups} />
                   </div>
                   <div className={styles['chat-input-container-wrapper']}>

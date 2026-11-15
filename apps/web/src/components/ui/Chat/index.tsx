@@ -32,7 +32,7 @@ export interface ChatMessageListItem {
   isImage: boolean;
   timeLabel: string;
   unreadCount?: number;
-  senderId: number;
+  senderId: number | null;
   senderName?: string;
   senderAvatar?: ReactNode;
 }

@@ -3,11 +3,12 @@ import { captureError } from '@koin/telemetry/runtime';
 import { skipToken, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { postLeaveLostItemChatroomV2 } from 'api/articles';
-import { articleQueries, articleQueryKeys } from 'api/articles/queries';
+import { articleQueryKeys } from 'api/articles/queries';
 import { sendChatMessage } from 'api/chat';
+import { chatMutations } from 'api/chat/mutations';
 import { chatQueries, chatQueryKeys } from 'api/chat/queries';
 import { isKoinError } from 'interfaces/APIError';
-import { getCachedMessages, cacheMessages, clearChatroomCache } from 'utils/db/chatDB';
+import { getCachedMessages, cacheMessages, clearChatroomCache, type CachedChatMessage } from 'utils/db/chatDB';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import showToast from 'utils/ts/showToast';
 
@@ -55,6 +56,7 @@ const useChatPolling = ({
   };
 
   const matchedRoom = findMatchedRoom();
+  const roomId = matchedRoom?.room_id ?? '';
 
   const defaultChatroomId = matchedRoom?.chat_room_id ?? null;
   const defaultArticleId = matchedRoom?.context_id ?? null;
@@ -89,7 +91,7 @@ const useChatPolling = ({
   }, [queryClient, numericArticleId, numericChatroomId, defaultArticleId, defaultChatroomId, isLoggedIn]);
 
   const { data: roomDetail } = useQuery({
-    ...chatQueries.room(userId, matchedRoom?.room_id ?? ''),
+    ...chatQueries.room(userId, roomId),
     enabled: userId !== null && !!matchedRoom && isOnline,
   });
   const chatroomDetail = roomDetail
@@ -101,16 +103,28 @@ const useChatPolling = ({
       }
     : undefined;
 
-  const { data: messages } = useQuery({
-    ...(defaultArticleId && defaultChatroomId && isOnline
-      ? articleQueries.lostItemChatroomMessages(isLoggedIn, Number(defaultArticleId), Number(defaultChatroomId))
-      : {
-          queryKey: articleQueryKeys.lostItemChatroomMessages(defaultArticleId, defaultChatroomId, isLoggedIn),
-          queryFn: skipToken,
-        }),
-    refetchInterval: isOnline && defaultArticleId && defaultChatroomId ? POLLING_INTERVAL_MS : false,
+  const { data: offlineMessages } = useQuery<CachedChatMessage[]>({
+    queryKey: articleQueryKeys.lostItemChatroomMessages(defaultArticleId, defaultChatroomId, isLoggedIn),
+    queryFn: skipToken,
+  });
+  const { data: messageCache } = useQuery({
+    ...chatQueries.messages(queryClient, userId, roomId),
+    enabled: userId !== null && !!roomId && isOnline,
+    refetchInterval: isOnline && roomId ? POLLING_INTERVAL_MS : false,
     refetchIntervalInBackground: false,
   });
+  const messages = messageCache?.messages ?? offlineMessages;
+  const { mutateAsync: loadPreviousMessages, isPending: isLoadingPreviousMessages } = useMutation(
+    chatMutations.loadPreviousMessages(queryClient, userId, roomId),
+  );
+
+  const { mutate: markRead } = useMutation(chatMutations.markRead(queryClient, userId, roomId));
+  const markVisibleMessagesRead = useCallback(
+    (messageId: string) => {
+      if (isOnline && roomDetail?.supports_read_receipts) markRead(messageId);
+    },
+    [isOnline, roomDetail?.supports_read_receipts, markRead],
+  );
 
   // 폴링 응답 도착 시 indexedDB 캐시
   useEffect(() => {
@@ -132,7 +146,7 @@ const useChatPolling = ({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: articleQueryKeys.lostItemChatroomMessages(defaultArticleId, defaultChatroomId, isLoggedIn),
+        queryKey: chatQueryKeys.messages(userId, roomId),
       });
       queryClient.invalidateQueries({ queryKey: chatQueryKeys.roomsRoot(userId) });
     },
@@ -159,7 +173,7 @@ const useChatPolling = ({
         clearChatroomCache(numericArticleId, numericChatroomId);
       }
       queryClient.invalidateQueries({
-        queryKey: articleQueryKeys.lostItemChatroomList(isLoggedIn),
+        queryKey: chatQueryKeys.roomsRoot(userId),
       });
     },
     onError: (error) => {
@@ -206,20 +220,23 @@ const useChatPolling = ({
 
   const invalidateChatroomList = useCallback(() => {
     queryClient.invalidateQueries({
-      queryKey: articleQueryKeys.lostItemChatroomList(isLoggedIn),
+      queryKey: chatQueryKeys.roomsRoot(userId),
     });
-  }, [queryClient, isLoggedIn]);
+  }, [queryClient, userId]);
 
   const invalidateMessages = useCallback(() => {
     queryClient.invalidateQueries({
-      queryKey: articleQueryKeys.lostItemChatroomMessages(defaultArticleId, defaultChatroomId, isLoggedIn),
+      queryKey: chatQueryKeys.messages(userId, roomId),
     });
-  }, [queryClient, defaultArticleId, defaultChatroomId, isLoggedIn]);
+  }, [queryClient, userId, roomId]);
 
   return {
     chatroomList,
     chatroomDetail,
     messages,
+    hasPreviousMessages: messageCache?.hasPreviousMessages ?? false,
+    isLoadingPreviousMessages,
+    loadPreviousMessages,
     defaultChatroomId,
     defaultArticleId,
     sendMessage,
@@ -227,6 +244,7 @@ const useChatPolling = ({
     leaveChatroom,
     invalidateChatroomList,
     invalidateMessages,
+    markVisibleMessagesRead,
   };
 };
 
