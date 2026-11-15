@@ -1,0 +1,30 @@
+[Unit]
+Description=BCSD LAN attendance dashboard and Internal member lookup
+After=network.target
+
+[Service]
+Type=simple
+DynamicUser=yes
+EnvironmentFile=/etc/attendance-lan/config
+LoadCredential=lookup:/etc/attendance-lan/lookup-token
+LoadCredential=device:/etc/attendance-lan/device-token
+Environment=INTERNAL_LOOKUP_TOKEN_FILE=%d/lookup
+Environment=DEVICE_TOKEN_FILE=%d/device
+Environment=ATTENDANCE_HTML=/opt/attendance/lan/dashboard.html
+Environment=ATTENDANCE_DATA_DIR=/var/lib/attendance-lan
+ExecStart=/usr/bin/python3 /opt/attendance/lan/server.py
+StateDirectory=attendance-lan
+StateDirectoryMode=0700
+UMask=0077
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+RestrictAddressFamilies=AF_INET AF_UNIX
+
+[Install]
+WantedBy=multi-user.target

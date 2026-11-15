@@ -1,85 +1,50 @@
 #!/usr/bin/env python3
-"""RFID 리더의 태그를 출근부 Worker로 전송한다.
+"""RC522에서 Android 모바일 학생증 HCE 학번을 읽어 같은 Pi의 LAN 서버로 전송한다.
 
-리더 종류(READER):
-  rc522  Raspberry Pi GPIO(SPI)에 직접 연결한 RC522(MFRC522) 모듈. 카드 UID를 16진수 대문자로 보낸다.
-         태그 결과를 LED 두 개(초록·빨강)로 알린다. 배선은 ../README.md 의 "라즈베리파이" 절.
-  hid    (기본값) 카드 UID를 숫자·영문 키 입력 후 Enter로 보내는 일반 USB 리더. 장치를 독점(grab)해
-         UID가 콘솔 입력으로 새지 않게 한다.
-네트워크가 끊기면 태그를 QUEUE_FILE에 쌓았다가 다음 태그·유휴 주기에 순서대로 재전송한다.
-
-환경 변수:
-  ATTENDANCE_URL    예: https://bcsd-attendance.<account>.workers.dev
-  DEVICE_TOKEN      Worker의 DEVICE_TOKEN 시크릿과 같은 값
-  READER            rc522 | hid (기본 hid)
-  READER_DEVICE     (hid) USB HID 입력 장치 경로. 기본값은 /dev/input/by-id/ 의 첫 *-event-kbd
-  QUEUE_FILE        기본값 /var/lib/attendance/queue.jsonl
+ATTENDANCE_URL은 http://127.0.0.1:8080, DEVICE_TOKEN은 LAN 서버의 장치 토큰이다.
+QUEUE_FILE은 선택 사항이며 장애 시 태그를 비공개 큐에 저장하고 순서대로 재전송한다.
+UID나 일반 USB 키보드 리더 입력을 학번으로 추정하지 않는다.
 """
 
-import glob
 import json
 import os
-import select
 import sys
 import time
 import urllib.error
 import urllib.request
 
-try:
-    from evdev import InputDevice, ecodes
-except ImportError:
-    InputDevice = ecodes = None
+from hce import HceError, read_student_number
 
 FLUSH_INTERVAL_SECONDS = 30
 REQUEST_TIMEOUT_SECONDS = 10
-# 한 번 태그로 인정하는 UID 문자 범위. 서버의 UID_PATTERN과 같아야 한다.
-MIN_UID_LENGTH = 4
-MAX_UID_LENGTH = 32
+LAN_URL = "http://127.0.0.1:8080"
 
 # rc522 배선(BCM 번호). SPI0 CE0(GPIO8)·SCK(11)·MOSI(10)·MISO(9)는 spidev가 쓴다.
 RC522_RST_PIN = 25
 GREEN_LED_PIN = 23
 RED_LED_PIN = 24
 POLL_INTERVAL_SECONDS = 0.1
-# 카드를 떼었다 다시 댄 같은 카드를 한 번으로 보는 시간. 서버도 10초 안의 중복 태그를 무시한다.
+# 시작·RF 복구 후에도 카드가 없는 상태가 이 시간만큼 확인돼야 다시 태그를 받는다.
 REPEAT_GUARD_SECONDS = 2.0
-
-
-def build_keymap():
-    keymap = {}
-    for name, code in ecodes.ecodes.items():
-        if not isinstance(name, str) or not name.startswith("KEY_"):
-            continue
-        suffix = name[4:]
-        if len(suffix) == 1 and suffix.isalnum():
-            keymap[code] = suffix
-        elif suffix.startswith("KP") and len(suffix) == 3 and suffix[2].isdigit():
-            keymap[code] = suffix[2]
-    return keymap
-
-
-def find_device_path():
-    explicit = os.environ.get("READER_DEVICE")
-    if explicit:
-        return explicit
-    candidates = sorted(glob.glob("/dev/input/by-id/*-event-kbd"))
-    if not candidates:
-        sys.exit("리더 장치를 찾지 못했습니다. READER_DEVICE로 경로를 지정하세요.")
-    return candidates[0]
 
 
 def read_queue(path):
     try:
-        with open(path, encoding="utf-8") as handle:
+        descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        with os.fdopen(descriptor, encoding="utf-8") as handle:
+            os.fchmod(handle.fileno(), 0o600)
             return [json.loads(line) for line in handle if line.strip()]
     except FileNotFoundError:
         return []
 
 
 def write_queue(path, entries):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
+    os.makedirs(os.path.dirname(path), mode=0o700, exist_ok=True)
     temporary = path + ".tmp"
-    with open(temporary, "w", encoding="utf-8") as handle:
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(temporary, flags, 0o600)
+    with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+        os.fchmod(handle.fileno(), 0o600)
         for entry in entries:
             handle.write(json.dumps(entry) + "\n")
         handle.flush()
@@ -87,31 +52,55 @@ def write_queue(path, entries):
     os.replace(temporary, path)
 
 
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+# The local device token must not traverse an environment-configured HTTP proxy.
+HTTP_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
+
+
 def send(url, token, entry):
-    """서버 처리 결과(응답의 status, 영구 거절이면 "rejected")를 돌려준다. 나중에 재시도해야 하면 None."""
+    """서버 처리 결과, 영구 거절이면 rejected, 재시도해야 하면 None."""
+    if url.rstrip("/") != LAN_URL:
+        raise ValueError("ATTENDANCE_URL must be " + LAN_URL)
     request = urllib.request.Request(
-        url.rstrip("/") + "/api/taps",
+        LAN_URL + "/api/taps",
         data=json.dumps(entry).encode(),
         headers={"authorization": "Bearer " + token, "content-type": "application/json"},
         method="POST",
     )
     try:
-        with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
+        with HTTP_OPENER.open(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
             body = response.read().decode()
-            print(entry["uid"], response.status, body, flush=True)
+            print("태그 전송:", response.status, flush=True)
             try:
-                return json.loads(body).get("status") or "ok"
+                outcome = json.loads(body).get("status")
+                return outcome if outcome in ("check-in", "check-out", "ignored") else None
             except (ValueError, AttributeError):
-                return "ok"
+                return None
     except urllib.error.HTTPError as error:
-        print(entry["uid"], error.code, error.read().decode(), flush=True)
-        # 인증 오류·서버 오류·속도 제한은 설정/복구 후 다시 보내야 하므로 큐에 남긴다.
-        if error.code in (401, 403, 408, 429) or error.code >= 500:
+        print("태그 전송 실패:", error.code, flush=True)
+        # 리디렉션·인증 오류·서버 오류·속도 제한은 복구 후 다시 보내도록 보관한다.
+        if 300 <= error.code < 400 or error.code in (401, 403, 408, 429) or error.code >= 500:
             return None
         return "rejected"
-    except (urllib.error.URLError, TimeoutError, OSError) as error:
-        print("전송 실패, 큐에 보관:", error, flush=True)
+    except (urllib.error.URLError, TimeoutError, OSError):
+        print("전송 실패, 큐에 보관", flush=True)
         return None
+
+
+def valid_entry(entry):
+    return (isinstance(entry, dict)
+            and set(entry) == {"studentNumber", "at"}
+            and valid_student_number(entry["studentNumber"])
+            and type(entry["at"]) is int)
+
+
+def valid_student_number(number):
+    return (isinstance(number, str) and 8 <= len(number) <= 10
+            and number.isascii() and number.isdigit())
 
 
 def flush_queue(url, token, queue_file):
@@ -122,7 +111,7 @@ def flush_queue(url, token, queue_file):
     remaining = list(entries)
     outcome = None
     while remaining:
-        outcome = send(url, token, remaining[0])
+        outcome = send(url, token, remaining[0]) if valid_entry(remaining[0]) else "rejected"
         if outcome is None:
             break
         remaining.pop(0)
@@ -131,59 +120,25 @@ def flush_queue(url, token, queue_file):
     return None if remaining else outcome
 
 
-def record_tap(url, token, queue_file, uid):
-    """태그를 큐에 넣고 바로 전송한다. 이 태그의 처리 결과, 전송하지 못했으면 "queued"."""
-    if not MIN_UID_LENGTH <= len(uid) <= MAX_UID_LENGTH:
-        print("무시한 입력 길이:", len(uid), flush=True)
+def record_tap(url, token, queue_file, student_number):
+    """유효한 학번만 큐에 넣고 바로 전송한다."""
+    if not valid_student_number(student_number):
         return "rejected"
     entries = read_queue(queue_file)
-    entries.append({"uid": uid, "at": int(time.time() * 1000)})
+    entries.append({"studentNumber": student_number, "at": int(time.time() * 1000)})
     write_queue(queue_file, entries)
     return flush_queue(url, token, queue_file) or "queued"
 
 
-def run_keyboard(url, token, queue_file):
-    if InputDevice is None:
-        sys.exit("python3-evdev가 필요합니다: sudo apt install python3-evdev")
-    keymap = build_keymap()
-    device = InputDevice(find_device_path())
-    device.grab()
-    print("리더 대기 중:", device.name, flush=True)
-
-    buffer = ""
-    last_flush = time.monotonic()
-    while True:
-        readable, _, _ = select.select([device.fd], [], [], FLUSH_INTERVAL_SECONDS)
-        if not readable:
-            flush_queue(url, token, queue_file)
-            last_flush = time.monotonic()
-            continue
-        for event in device.read():
-            if event.type != ecodes.EV_KEY or event.value != 1:  # 키 누름만 처리
-                continue
-            if event.code in (ecodes.KEY_ENTER, ecodes.KEY_KPENTER):
-                uid, buffer = buffer, ""
-                if uid:
-                    record_tap(url, token, queue_file, uid)
-                    last_flush = time.monotonic()
-            elif event.code in keymap:
-                buffer += keymap[event.code]
-        if time.monotonic() - last_flush >= FLUSH_INTERVAL_SECONDS:
-            flush_queue(url, token, queue_file)
-            last_flush = time.monotonic()
-
-
 class Mfrc522:
-    """spidev로 MFRC522를 직접 다루는 최소 구현. ISO 14443A 카드 하나의 UID(4·7·10바이트)만 읽는다."""
+    """spidev로 MFRC522를 직접 다루며 HCE 교환은 hce 모듈에 맡긴다."""
 
-    COMMAND, COM_IRQ, DIV_IRQ, ERROR, FIFO_DATA, FIFO_LEVEL, CONTROL, BIT_FRAMING, COLL = (
-        0x01, 0x04, 0x05, 0x06, 0x09, 0x0A, 0x0C, 0x0D, 0x0E)
+    COMMAND, COM_IRQ, ERROR, FIFO_DATA, FIFO_LEVEL, CONTROL, BIT_FRAMING, COLL = (
+        0x01, 0x04, 0x06, 0x09, 0x0A, 0x0C, 0x0D, 0x0E)
     MODE, TX_MODE, RX_MODE, TX_CONTROL, TX_ASK = 0x11, 0x12, 0x13, 0x14, 0x15
-    CRC_RESULT_H, CRC_RESULT_L, MOD_WIDTH, RF_CFG = 0x21, 0x22, 0x24, 0x26
+    MOD_WIDTH, RF_CFG = 0x24, 0x26
     T_MODE, T_PRESCALER, T_RELOAD_H, T_RELOAD_L, VERSION = 0x2A, 0x2B, 0x2C, 0x2D, 0x37
-    IDLE, CALC_CRC, TRANSCEIVE = 0x00, 0x03, 0x0C
-    # 카드 응답 대기 상한. 칩 타이머(25 ms)가 먼저 끝나는 것이 정상이다.
-    WAIT_SECONDS = 0.05
+    IDLE, TRANSCEIVE = 0x00, 0x0C
 
     def __init__(self, spi, gpio, rst_pin):
         spi.open(0, 0)
@@ -198,6 +153,10 @@ class Mfrc522:
         self.version = self._read(self.VERSION)
         if self.version in (0x00, 0xFF):
             raise RuntimeError("RC522 응답 없음(배선·SPI 활성화 확인)")
+        self._configure()
+
+    def _configure(self):
+        self._write(self.COMMAND, self.IDLE)
         self._write(self.TX_MODE, 0x00)
         self._write(self.RX_MODE, 0x00)
         self._write(self.MOD_WIDTH, 0x26)
@@ -208,8 +167,20 @@ class Mfrc522:
         self._write(self.T_RELOAD_L, 0xE8)
         self._write(self.TX_ASK, 0x40)  # 100% ASK
         self._write(self.MODE, 0x3D)  # CRC 초기값 0x6363(ISO 14443A)
-        self._write(self.RF_CFG, 0x70)  # 수신 이득 최대(48 dB): 케이스 벽 너머로도 읽히게
+        self._write(self.RF_CFG, (self._read(self.RF_CFG) & ~0x70) | 0x40)  # HCE: 33 dB
         self._set_bits(self.TX_CONTROL, 0x03)  # 안테나 켬
+        time.sleep(0.005)
+
+    def ensure_ready(self):
+        # A chip reset leaves SPI responsive but RF off; the host process survives.
+        if (self._read(self.MODE) == 0x3D
+                and self._read(self.TX_ASK) & 0x40
+                and self._read(self.TX_CONTROL) & 0x03 == 0x03):
+            return False
+        if self._read(self.VERSION) in (0x00, 0xFF):
+            raise RuntimeError("RC522 응답 없음(배선·전원 확인)")
+        self._configure()
+        return True
 
     def _write(self, reg, *values):
         self.spi.xfer2([(reg << 1) & 0x7E, *values])
@@ -223,68 +194,6 @@ class Mfrc522:
     def _clear_bits(self, reg, mask):
         self._write(reg, self._read(reg) & ~mask & 0xFF)
 
-    def _transceive(self, data, tx_last_bits=0):
-        """카드와 프레임을 주고받는다. 응답 바이트 목록, 응답이 없거나 오류(충돌 포함)면 None."""
-        self._write(self.COMMAND, self.IDLE)
-        self._write(self.COM_IRQ, 0x7F)
-        self._write(self.FIFO_LEVEL, 0x80)
-        self._write(self.FIFO_DATA, *data)
-        self._write(self.BIT_FRAMING, tx_last_bits)
-        self._write(self.COMMAND, self.TRANSCEIVE)
-        self._set_bits(self.BIT_FRAMING, 0x80)  # StartSend
-        deadline = time.monotonic() + self.WAIT_SECONDS
-        try:
-            while True:
-                irq = self._read(self.COM_IRQ)
-                if irq & 0x30:  # RxIRq | IdleIRq
-                    break
-                if irq & 0x01 or time.monotonic() > deadline:  # TimerIRq
-                    return None
-        finally:
-            self._clear_bits(self.BIT_FRAMING, 0x80)
-        if self._read(self.ERROR) & 0x1B:  # BufferOvfl | CollErr | ParityErr | ProtocolErr
-            return None
-        return [self._read(self.FIFO_DATA) for _ in range(self._read(self.FIFO_LEVEL))]
-
-    def _crc(self, data):
-        self._write(self.COMMAND, self.IDLE)
-        self._write(self.DIV_IRQ, 0x04)
-        self._write(self.FIFO_LEVEL, 0x80)
-        self._write(self.FIFO_DATA, *data)
-        self._write(self.COMMAND, self.CALC_CRC)
-        deadline = time.monotonic() + self.WAIT_SECONDS
-        while not self._read(self.DIV_IRQ) & 0x04:
-            if time.monotonic() > deadline:
-                raise RuntimeError("RC522 CRC 계산 시간 초과")
-        self._write(self.COMMAND, self.IDLE)
-        return [self._read(self.CRC_RESULT_L), self._read(self.CRC_RESULT_H)]
-
-    def read_uid(self):
-        """대기(IDLE) 상태 카드 하나의 UID를 16진수 대문자로 읽고 HALT시킨다. 없으면 None.
-
-        HALT된 카드는 REQA에 답하지 않으므로, 카드를 떼었다 다시 대야 다시 읽힌다.
-        """
-        self._clear_bits(self.COLL, 0x80)
-        atqa = self._transceive([0x26], tx_last_bits=7)  # REQA(7비트)
-        if not atqa or len(atqa) != 2:
-            return None
-        uid = []
-        for cascade in (0x93, 0x95, 0x97):
-            part = self._transceive([cascade, 0x20])  # ANTICOLLISION: UID 4바이트 + BCC
-            if not part or len(part) != 5 or part[0] ^ part[1] ^ part[2] ^ part[3] != part[4]:
-                return None
-            frame = [cascade, 0x70, *part]  # SELECT
-            sak = self._transceive(frame + self._crc(frame))
-            if not sak or len(sak) != 3:
-                return None
-            if sak[0] & 0x04:  # UID가 더 남음: 첫 바이트는 캐스케이드 태그(0x88)
-                uid += part[1:4]
-                continue
-            uid += part[0:4]
-            halt = [0x50, 0x00]
-            self._transceive(halt + self._crc(halt))  # 응답이 없는 것이 정상
-            return bytes(uid).hex().upper()
-        return None
 
 
 class Feedback:
@@ -321,6 +230,33 @@ class Feedback:
         self._pulse(*self.PATTERNS.get(outcome, self.PATTERNS["rejected"]))
 
 
+class _TapGate:
+    """Only fresh presentations count; startup/RF resets never toggle a held card."""
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.armed = False
+        self.last_number = None
+        self.absent_since = None
+
+    def failed(self):
+        self.absent_since = None
+
+    def observe(self, number, now):
+        if number is None:
+            if self.absent_since is None:
+                self.absent_since = now
+            if now - self.absent_since >= REPEAT_GUARD_SECONDS:
+                self.armed, self.last_number = True, None
+            return False
+        self.absent_since = None
+        if not self.armed or number == self.last_number:
+            return False
+        self.last_number = number
+        return True
+
+
 def run_rc522(url, token, queue_file):
     try:
         import RPi.GPIO as GPIO
@@ -334,16 +270,29 @@ def run_rc522(url, token, queue_file):
         reader = Mfrc522(spidev.SpiDev(), GPIO, RC522_RST_PIN)
         print(f"RC522 대기 중: 버전 0x{reader.version:02X}", flush=True)
         feedback.startup()
-        last_uid, last_at = None, 0.0
+        gate = _TapGate()
         last_flush = time.monotonic()
         while True:
-            uid = reader.read_uid()
+            try:
+                if reader.ensure_ready():
+                    print("RC522 RF 설정 초기화 감지: 설정 복원", flush=True)
+                    gate.reset()
+                student_number = read_student_number(reader)
+            except Exception as error:
+                reason = str(error) if isinstance(error, HceError) else "reader: local failure"
+                print("학생증 인식 실패:", reason, flush=True)
+                gate.failed()
+            else:
+                now = time.monotonic()
+                if student_number is None:
+                    gate.observe(None, now)
+                elif not valid_student_number(student_number):
+                    feedback.result("rejected")
+                elif gate.observe(student_number, now):
+                    feedback.result(record_tap(url, token, queue_file, student_number))
+                    last_flush = time.monotonic()
             now = time.monotonic()
-            if uid and not (uid == last_uid and now - last_at < REPEAT_GUARD_SECONDS):
-                last_uid, last_at = uid, now
-                feedback.result(record_tap(url, token, queue_file, uid))
-                last_flush = time.monotonic()
-            elif now - last_flush >= FLUSH_INTERVAL_SECONDS:
+            if now - last_flush >= FLUSH_INTERVAL_SECONDS:
                 flush_queue(url, token, queue_file)
                 last_flush = time.monotonic()
             time.sleep(POLL_INTERVAL_SECONDS)
@@ -353,16 +302,18 @@ def run_rc522(url, token, queue_file):
 
 def main():
     url = os.environ["ATTENDANCE_URL"]
+    if url.rstrip("/") != LAN_URL:
+        raise ValueError("ATTENDANCE_URL must be " + LAN_URL)
     token = os.environ["DEVICE_TOKEN"]
     queue_file = os.environ.get("QUEUE_FILE", "/var/lib/attendance/queue.jsonl")
-    reader = os.environ.get("READER", "hid")
-    if reader == "rc522":
-        run_rc522(url, token, queue_file)
-    elif reader == "hid":
-        run_keyboard(url, token, queue_file)
-    else:
-        sys.exit(f"알 수 없는 READER: {reader} (rc522 | hid)")
+    os.makedirs(os.path.dirname(queue_file), mode=0o700, exist_ok=True)
+    os.chmod(os.path.dirname(queue_file), 0o700)
+    run_rc522(url, token, queue_file)
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        print("리더 오류로 종료", flush=True)
+        sys.exit(1)

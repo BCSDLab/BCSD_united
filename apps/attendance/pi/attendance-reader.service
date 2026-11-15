@@ -1,16 +1,18 @@
 [Unit]
-Description=BCSD attendance RFID reader
+Description=BCSD attendance RC522 HCE reader
 After=network-online.target
 Wants=network-online.target
 
 [Service]
-# ATTENDANCE_URL, DEVICE_TOKEN(선택: READER, READER_DEVICE, QUEUE_FILE)은 이 파일에 둔다. 권한은 600.
+# ATTENDANCE_URL=http://127.0.0.1:8080, DEVICE_TOKEN(선택: QUEUE_FILE). root 소유, 600 권한.
 EnvironmentFile=/etc/attendance-reader.env
 ExecStart=/usr/bin/python3 /opt/attendance/reader.py
 StateDirectory=attendance
+StateDirectoryMode=0700
+UMask=0077
 Restart=always
 RestartSec=5
-# 입력 장치(/dev/input)·SPI(/dev/spidev0.0)·GPIO 접근을 위해 root로 실행한다.
+# SPI(/dev/spidev0.0)·GPIO 접근 및 비공개 큐를 위해 root로 실행한다.
 User=root
 
 [Install]

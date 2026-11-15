@@ -6,10 +6,19 @@
   "workers_dev": true,
   "preview_urls": false,
   "observability": { "enabled": true },
-  // 운영 플랫폼 Access audience 등 외부 관리 vars를 보존합니다.
-  "keep_vars": true,
-  "rules": [{ "type": "Text", "globs": ["**/*.html"], "fallthrough": true }],
-  // 원본 출입 원장 KV는 삭제·치환하지 않으며 뷰어는 별도 스냅샷만 읽습니다.
+  "build": { "command": "node scripts/build-viewer.mjs" },
+  // 불필요한 외부 관리 vars를 제거하며 인증용 secrets는 별도로 유지합니다.
+  "keep_vars": false,
+  "rules": [{ "type": "Text", "globs": ["**/*.html"], "fallthrough": false }],
+  // 출입 원장 KV는 변경·삭제하지 않으며 별도 스냅샷만 읽습니다.
   "kv_namespaces": [{ "binding": "VIEW_STATE", "id": "b519a98db46d4b088baee97a256bf0f0" }],
   "services": [{ "binding": "ERROR_AUTOMATION", "service": "bcsd-error-automation" }],
+  // 위치별 근사 제한이며 전역 카운터가 아니다. 로그인 전용 접두사로 키 충돌을 막는다.
+  "ratelimits": [
+    {
+      "name": "INTERNAL_LOGIN_RATE_LIMIT",
+      "namespace_id": "31415927",
+      "simple": { "limit": 10, "period": 60 },
+    },
+  ],
 }

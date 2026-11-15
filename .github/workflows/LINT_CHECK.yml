@@ -40,3 +40,7 @@ jobs:
       - uses: ./.github/actions/setup
       - name: Check types
         run: pnpm typecheck
+      - name: Check attendance behavior
+        run: pnpm --filter @koin/attendance test
+      - name: Check attendance POSIX runtime
+        run: pnpm --filter @koin/attendance test:runtime
