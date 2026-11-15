@@ -10,7 +10,6 @@ const worker = createViewer('<main>private viewer</main>', {
     return Response.json({ memberId: '42', name: '홍길동', expiresAt: Date.now() + 899_000 });
   },
 });
-const context = { access: { aud: 'test-private-audience' } };
 
 const NOW = Date.UTC(2026, 10, 13, 12);
 const TOKEN = 'm'.repeat(32);
@@ -32,7 +31,6 @@ const snapshot = (overrides = {}) => ({
 const json = (value) => Response.json(value);
 const binding = (fetch) => ({ fetch });
 const env = (fetch) => ({
-  CF_ACCESS_AUD: 'test-private-audience',
   INTERNAL_AUTH_CLIENT_ID: 'isolated-monitor-client',
   INTERNAL_AUTH_CLIENT_SECRET: 'isolated-monitor-secret',
   ERROR_AUTOMATION: binding(fetch),
@@ -53,7 +51,7 @@ const request = (headers = {}, path = '/api/automation') =>
     headers: { cookie: '__Host-attendance-session=a.b.c', ...headers },
   });
 
-test('platform Access context, not client headers, authorizes the independent monitor route', async (t) => {
+test('only a live Internal session authorizes the independent monitor route without Cloudflare metadata', async (t) => {
   t.mock.method(Date, 'now', () => NOW);
   let calls = 0;
   const workerEnv = env(async (url) => {
@@ -64,26 +62,21 @@ test('platform Access context, not client headers, authorizes the independent mo
     return json(snapshot());
   });
   for (const headers of [
-    {},
-    { authorization: 'Bearer device-secret' },
-    { authorization: AUTH },
+    { cookie: '' },
+    { authorization: 'Bearer device-secret', cookie: '' },
+    { authorization: AUTH, cookie: '' },
     { 'cf-access-jwt-assertion': 'forged', cookie: 'CF_Authorization=forged' },
   ]) {
-    assert.equal((await worker.fetch(request(headers), workerEnv, {})).status, 403);
+    const response = await worker.fetch(request(headers), workerEnv);
+    assert.equal(response.status, 401);
+    assert.equal(response.headers.get('www-authenticate'), null);
   }
-  assert.equal((await worker.fetch(request(), workerEnv, { access: { aud: 'wrong-app' } })).status, 403);
   assert.equal(
-    (
-      await worker.fetch(
-        request({}, '/api/automation?url=https%3A%2F%2Fattacker.example%2Fhealthz'),
-        workerEnv,
-        context,
-      )
-    ).status,
+    (await worker.fetch(request({}, '/api/automation?url=https%3A%2F%2Fattacker.example%2Fhealthz'), workerEnv)).status,
     400,
   );
   assert.equal(calls, 0);
-  const response = await worker.fetch(request(), workerEnv, context);
+  const response = await worker.fetch(request(), workerEnv);
   assert.equal(response.status, 200);
   assert.equal(response.headers.get('cache-control'), 'private, no-store');
   assert.equal(response.headers.get('x-bcsd-view-mode'), 'live-automation-read-only');
@@ -133,7 +126,7 @@ test('live monitor reads remain independent of absent, missing, stale, malformed
       }),
       VIEW_STATE,
     };
-    const response = await worker.fetch(request(), workerEnv, context);
+    const response = await worker.fetch(request(), workerEnv);
     assert.equal(response.status, 200);
     const result = await response.json();
     assert.equal(result.state, 'ok');

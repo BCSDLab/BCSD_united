@@ -358,6 +358,8 @@ export function createInternalLogin({ onAuthorized, onUnauthorized, clearPrivate
         deny('학번 또는 비밀번호를 확인해 주세요.');
       } else if (result.status === 403) {
         deny('이 계정의 접근 권한을 확인할 수 없습니다.');
+      } else if (result.status === 429) {
+        deny('로그인 시도가 너무 많습니다. 1분 뒤 직접 다시 시도해 주세요.');
       } else if (result.status !== 200) {
         deny('로그인 서비스를 사용할 수 없습니다. 잠시 뒤 직접 다시 시도해 주세요.');
       } else {

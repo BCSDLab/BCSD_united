@@ -6,8 +6,6 @@ import { join } from 'node:path';
 import { createViewer } from '../src/viewer.ts';
 import { buildViewer } from '../scripts/build-viewer.mjs';
 
-const AUD = 'isolated-viewer-test-audience';
-const ctx = { access: { aud: AUD } };
 const SESSION_TOKEN = 'a.b.c';
 const SESSION_COOKIE = `__Host-attendance-session=${SESSION_TOKEN}`;
 const AUTH_ENV = {
@@ -77,16 +75,18 @@ function environment(value = snapshot()) {
         : new TextEncoder().encode(this.raw).buffer;
     },
   };
-  return { store, CF_ACCESS_AUD: AUD, VIEW_STATE: store, ...AUTH_ENV };
+  return { store, VIEW_STATE: store, ...AUTH_ENV };
 }
-function get(env, path = '/api/state', context = ctx, options = {}) {
+function loginEnv() {
+  return { ...environment(), INTERNAL_LOGIN_RATE_LIMIT: { limit: async () => ({ success: true }) } };
+}
+function get(env, path = '/api/state', options = {}) {
   return worker.fetch(
     new Request(`https://attendance.example${path}`, {
       ...options,
       headers: { cookie: SESSION_COOKIE, ...options.headers },
     }),
     env,
-    context,
   );
 }
 function assertPrivate(response) {
@@ -101,30 +101,28 @@ function assertPrivate(response) {
     assert.equal(response.headers.get(name), null);
 }
 
-test('missing/wrong platform audience and spoofed headers never cause any KV access', async () => {
+test('spoofed Cloudflare headers and cookies cannot authorize private reads without a live Internal session', async () => {
   const env = environment();
-  for (const context of [
-    undefined,
+  env.ERROR_MONITOR_TOKEN = 'm'.repeat(32);
+  env.ERROR_AUTOMATION = { fetch: async () => assert.fail('unauthenticated request must not read automation') };
+  const guarded = createViewer(html, {
+    fetch: async () => assert.fail('client identity headers must not produce an Internal session'),
+  });
+  for (const headers of [
     {},
-    { access: {} },
-    { access: { aud: 'other-worker' } },
-    { access: { aud: [AUD] } },
+    { 'cf-access-jwt-assertion': 'unverified.jwt.assertion' },
+    { cookie: 'CF_Authorization=client-token' },
+    {
+      'cf-access-jwt-assertion': 'unverified.jwt.assertion',
+      'cf-access-authenticated-user-email': 'admin@example.test',
+      'cf-warp-tag-id': 'client-asserted-device',
+      authorization: 'Bearer client-token',
+      cookie: 'CF_Authorization=client-token',
+    },
   ]) {
-    for (const path of paths) {
-      const response = await worker.fetch(
-        new Request(`https://attendance.example${path}`, {
-          headers: {
-            'cf-access-jwt-assertion': 'unverified.jwt.assertion',
-            'cf-access-authenticated-user-email': 'admin@example.test',
-            'cf-warp-tag-id': AUD,
-            authorization: 'Bearer client-token',
-            cookie: 'CF_Authorization=client-token',
-          },
-        }),
-        env,
-        context,
-      );
-      assert.equal(response.status, 403);
+    for (const path of paths.filter((path) => path !== '/')) {
+      const response = await guarded.fetch(new Request(`https://attendance.example${path}`, { headers }), env);
+      assert.equal(response.status, 401, path);
       assertPrivate(response);
     }
   }
@@ -133,19 +131,12 @@ test('missing/wrong platform audience and spoofed headers never cause any KV acc
   assert.equal(env.store.reads, 1);
 });
 
-test('missing dedicated namespace/audience fails closed and legacy attendance KV is never used', async () => {
-  for (const change of [
-    { VIEW_STATE: undefined },
-    { CF_ACCESS_AUD: undefined },
-    { CF_ACCESS_AUD: '' },
-    { CF_ACCESS_AUD: ` ${AUD}` },
-    { CF_ACCESS_AUD: 'x'.repeat(257) },
-  ]) {
-    const env = Object.assign(environment(), change);
-    assert.equal((await get(env)).status, 503);
-    assert.equal(env.store.reads, 0);
-  }
-  const legacy = { ATTENDANCE: environment().store, CF_ACCESS_AUD: AUD, ...AUTH_ENV };
+test('missing dedicated namespace fails closed and legacy attendance KV is never used', async () => {
+  const env = environment();
+  delete env.VIEW_STATE;
+  assert.equal((await get(env)).status, 503);
+  assert.equal(env.store.reads, 0);
+  const legacy = { ATTENDANCE: environment().store, ...AUTH_ENV };
   assert.equal((await get(legacy)).status, 503);
   assert.equal(legacy.ATTENDANCE.reads, 0);
 });
@@ -170,7 +161,7 @@ test('build serves the current complete LAN dashboard with truthful hosted notic
   assert.ok(!html.includes('변경 즉시 갱신'));
   assert.ok(!html.includes('임시 LAN 운영 · 로그인 없음'));
   assert.ok(!html.includes('new EventSource('));
-  const head = await get(env, '/', ctx, { method: 'HEAD' });
+  const head = await get(env, '/', { method: 'HEAD' });
   assert.equal(head.status, 200);
   assert.equal(await head.text(), '');
   assert.equal(env.store.reads, 0);
@@ -259,8 +250,8 @@ test('camera/auth/admin/writes/arbitrary paths/queries and non-root HEAD never r
   }
   for (const path of paths) {
     for (const method of ['POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])
-      assert.equal((await get(env, path, ctx, { method })).status, 405);
-    if (path !== '/') assert.equal((await get(env, path, ctx, { method: 'HEAD' })).status, 405);
+      assert.equal((await get(env, path, { method })).status, 405);
+    if (path !== '/') assert.equal((await get(env, path, { method: 'HEAD' })).status, 405);
     assert.equal((await get(env, `${path}?url=http://attacker.example`)).status, 400);
     assert.equal((await get(env, `${path}?`)).status, 400);
   }
@@ -270,7 +261,7 @@ test('camera/auth/admin/writes/arbitrary paths/queries and non-root HEAD never r
 test('client auth/cookies/forwarding/conditional headers cannot select data or become response headers', async () => {
   const value = snapshot();
   const env = environment(value);
-  const response = await get(env, '/api/state', ctx, {
+  const response = await get(env, '/api/state', {
     headers: {
       authorization: 'Bearer private',
       cookie: `${SESSION_COOKIE}; private-cookie=value`,
@@ -458,50 +449,18 @@ test('client disconnect cancels SSE timers and prevents any subsequent KV read',
   t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now });
   const env = environment(snapshot(now));
   const client = new AbortController();
-  const reader = (await get(env, '/api/events', ctx, { signal: client.signal })).body.getReader();
+  const reader = (await get(env, '/api/events', { signal: client.signal })).body.getReader();
   await reader.read();
   const pending = reader.read();
   client.abort();
   assert.equal((await pending).done, true);
   t.mock.timers.tick(120_000);
   assert.equal(env.store.reads, 1);
-  assert.equal((await get(env, '/api/events', ctx, { signal: client.signal })).status, 499);
+  assert.equal((await get(env, '/api/events', { signal: client.signal })).status, 499);
   assert.equal(env.store.reads, 1);
 });
 
-test('native platform context gates all auth endpoints before any Internal or data calls', async () => {
-  let upstream = 0;
-  const guarded = createViewer(html, {
-    fetch: async () => {
-      upstream++;
-      throw new Error('unexpected transport');
-    },
-  });
-  const env = environment();
-  for (const path of ['/api/login', '/api/me', '/api/logout']) {
-    const mutation = path !== '/api/me';
-    const response = await guarded.fetch(
-      new Request(`https://attendance.example${path}`, {
-        method: mutation ? 'POST' : 'GET',
-        headers: {
-          cookie: SESSION_COOKIE,
-          authorization: 'Basic attacker',
-          origin: 'https://attendance.example',
-          'content-type': 'application/json',
-        },
-        body: mutation ? '{}' : undefined,
-      }),
-      env,
-      {},
-    );
-    assert.equal(response.status, 403);
-    assertPrivate(response);
-  }
-  assert.equal(upstream, 0);
-  assert.equal(env.store.reads, 0);
-});
-
-test('login, live me and local logout preserve private response headers without exposing JWTs or reading KV', async () => {
+test('consumer login, live me and logout work without Cloudflare metadata or private data reads', async () => {
   const seen = [];
   const expiresAt = Date.now() + 800_000;
   const guarded = createViewer(html, {
@@ -515,21 +474,28 @@ test('login, live me and local logout preserve private response headers without 
       return Response.json({ memberId: '42', name: '홍길동', expiresAt });
     },
   });
-  const env = environment();
+  const env = loginEnv();
+  let cookie;
   const send = (path, body) =>
     guarded.fetch(
       new Request(`https://attendance.example${path}`, {
         method: body ? 'POST' : 'GET',
-        headers: { cookie: SESSION_COOKIE, origin: 'https://attendance.example', 'content-type': 'application/json' },
+        headers: {
+          ...(cookie ? { cookie } : {}),
+          origin: 'https://attendance.example',
+          'content-type': 'application/json',
+          ...(path === '/api/login' ? { 'cf-connecting-ip': '203.0.113.10' } : {}),
+        },
         body: body ? JSON.stringify(body) : undefined,
       }),
       env,
-      ctx,
     );
-  for (const response of [
-    await send('/api/login', { studentNumber: '20231234', password: 'isolated password' }),
-    await send('/api/me'),
-  ]) {
+  const login = await send('/api/login', { studentNumber: '20231234', password: 'isolated password' });
+  assert.equal(login.status, 200);
+  assert.match(login.headers.get('set-cookie'), /Path=\/; Secure; HttpOnly; SameSite=Strict/);
+  cookie = login.headers.get('set-cookie').split(';')[0];
+  assert.equal(cookie, SESSION_COOKIE);
+  for (const response of [login, await send('/api/me')]) {
     assert.equal(response.status, 200);
     const body = await response.json();
     assert.deepEqual(Object.keys(body).sort(), ['authenticated', 'expiresAt', 'memberId', 'name', 'servedAt']);
@@ -572,10 +538,13 @@ test('all private Pi and automation routes require live Internal membership befo
     for (const path of paths.filter((path) => path !== '/')) {
       const response = await guarded.fetch(
         new Request(`https://attendance.example${path}`, {
-          headers: { cookie: SESSION_COOKIE },
+          headers: {
+            cookie: `${SESSION_COOKIE}; CF_Authorization=forged`,
+            'cf-access-jwt-assertion': 'unverified.jwt.assertion',
+            'cf-access-authenticated-user-email': 'admin@example.test',
+          },
         }),
         env,
-        ctx,
       );
       assert.equal(response.status, status, path);
       assert.equal(response.headers.get('www-authenticate'), null);
@@ -591,7 +560,6 @@ test('all private Pi and automation routes require live Internal membership befo
         headers: { authorization: 'Basic attacker', cookie: 'CF_Authorization=forged' },
       }),
       env,
-      ctx,
     );
     assert.equal(response.status, 401, path);
   }
@@ -606,7 +574,7 @@ test('static root and HEAD never validate membership or read private data, even 
   delete env.INTERNAL_AUTH_CLIENT_ID;
   delete env.INTERNAL_AUTH_CLIENT_SECRET;
   for (const method of ['GET', 'HEAD']) {
-    const response = await guarded.fetch(new Request('https://attendance.example/', { method }), env, ctx);
+    const response = await guarded.fetch(new Request('https://attendance.example/', { method }), env);
     assert.equal(response.status, 200);
     assert.equal(await response.text(), method === 'GET' ? '<main>login shell</main>' : '');
   }
@@ -626,7 +594,6 @@ test('pending membership validation cannot race ahead into snapshot reads', asyn
   const pending = guarded.fetch(
     new Request('https://attendance.example/api/state', { headers: { cookie: SESSION_COOKIE } }),
     env,
-    ctx,
   );
   await entered.promise;
   assert.equal(env.store.reads, 0);
@@ -651,7 +618,6 @@ test('SSE revalidates current membership before each poll and stops revoked sess
   const response = await guarded.fetch(
     new Request('https://attendance.example/api/events', { headers: { cookie: SESSION_COOKIE } }),
     env,
-    ctx,
   );
   const reader = response.body.getReader();
   await reader.read();
@@ -679,7 +645,6 @@ test('SSE closes at Internal expiry even when unread and without another private
   const response = await guarded.fetch(
     new Request('https://attendance.example/api/events', { headers: { cookie: SESSION_COOKIE } }),
     env,
-    ctx,
   );
   t.mock.timers.tick(5_000);
   assert.match(await response.text(), /^event: state/);
@@ -702,7 +667,6 @@ test('a snapshot finishing after session expiry never returns its private payloa
   const response = await guarded.fetch(
     new Request('https://attendance.example/api/state', { headers: { cookie: SESSION_COOKIE } }),
     env,
-    ctx,
   );
   assert.equal(response.status, 401);
   assert.equal((await response.json()).error, 'authentication_required');
@@ -722,7 +686,6 @@ test('SSE revalidation can shorten but never extend the original expiry before t
   const response = await guarded.fetch(
     new Request('https://attendance.example/api/events', { headers: { cookie: SESSION_COOKIE } }),
     env,
-    ctx,
   );
   const reader = response.body.getReader();
   await reader.read();

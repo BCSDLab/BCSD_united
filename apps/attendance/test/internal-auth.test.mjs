@@ -9,6 +9,7 @@ const SESSION_URL = 'https://bcsd-attendance-auth.koreatech.in/v1/members/attend
 const ENV = {
   INTERNAL_AUTH_CLIENT_ID: 'isolated-client.access',
   INTERNAL_AUTH_CLIENT_SECRET: 'isolated-service-secret',
+  INTERNAL_LOGIN_RATE_LIMIT: { limit: async () => ({ success: true }) },
 };
 const CREDENTIALS = { studentNumber: '2023123456', password: '  isolated-password  ' };
 const SESSION = { memberId: '42', name: '홍길동', expiresAt: NOW + 899_000 };
@@ -22,7 +23,11 @@ after(() => mock.restoreAll());
 function request(path = '/api/me', options = {}) {
   return new Request(`https://attendance.example${path}`, {
     ...options,
-    headers: { cookie: COOKIE, ...options.headers },
+    headers: {
+      cookie: COOKIE,
+      ...(path === '/api/login' ? { 'cf-connecting-ip': '203.0.113.10' } : {}),
+      ...options.headers,
+    },
   });
 }
 
@@ -36,14 +41,27 @@ function mutation(path = '/api/login', value = CREDENTIALS, headers = {}) {
 
 function fixture(responses = [], overrides = {}) {
   const calls = [];
+  const rateLimitCalls = [];
   const transport = async (url, init) => {
     calls.push({ url, ...init, headers: new Headers(init.headers) });
     assert.ok(responses.length, 'Unexpected upstream request');
     const next = responses.shift();
     return typeof next === 'function' ? next(url, init) : next;
   };
-  const auth = createInternalAuth({ ...ENV, ...overrides }, { fetch: transport, now: () => NOW });
-  return { auth, calls };
+  const auth = createInternalAuth(
+    {
+      ...ENV,
+      INTERNAL_LOGIN_RATE_LIMIT: {
+        async limit(options) {
+          rateLimitCalls.push(options);
+          return { success: true };
+        },
+      },
+      ...overrides,
+    },
+    { fetch: transport, now: () => NOW },
+  );
+  return { auth, calls, rateLimitCalls };
 }
 
 function loginPayload(change = {}) {
@@ -71,7 +89,7 @@ function cookieHeader(response) {
 }
 
 test('login uses only the two fixed broker paths and returns safe live metadata with an HttpOnly cookie', async () => {
-  const { auth, calls } = fixture([loginPayload(), Response.json({ ...SESSION })]);
+  const { auth, calls, rateLimitCalls } = fixture([loginPayload(), Response.json({ ...SESSION })]);
   const response = await auth.login(
     mutation('/api/login', CREDENTIALS, {
       authorization: 'Basic attacker',
@@ -84,6 +102,7 @@ test('login uses only the two fixed broker paths and returns safe live metadata 
   assert.deepEqual(await response.json(), { authenticated: true, ...SESSION, servedAt: NOW });
   assert.equal(cookieHeader(response), `${COOKIE}; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=899`);
   assert.equal(calls.length, 2);
+  assert.deepEqual(rateLimitCalls, [{ key: 'attendance-login:203.0.113.10' }]);
   assert.equal(calls[0].url, LOGIN_URL);
   assert.equal(calls[1].url, SESSION_URL);
   assert.equal(calls[0].method, 'POST');
@@ -103,6 +122,140 @@ test('login uses only the two fixed broker paths and returns safe live metadata 
   assert.equal(calls[1].headers.get('authorization'), `Bearer ${TOKEN}`);
 });
 
+test('login limiter denial precedes credential parsing and never calls Internal or changes cookies', async () => {
+  const keys = [];
+  const { auth, calls } = fixture([], {
+    INTERNAL_LOGIN_RATE_LIMIT: {
+      async limit(options) {
+        keys.push(options);
+        return { success: false };
+      },
+    },
+  });
+  const req = mutation();
+  req.json = () => assert.fail('Credentials must not be parsed');
+  req.body.getReader = () => assert.fail('Credentials must not be read');
+  const response = await auth.login(req);
+  await assertSafeFailure(response, 429);
+  assert.equal(response.headers.get('retry-after'), '60');
+  assert.equal(response.headers.get('set-cookie'), null);
+  assert.deepEqual(keys, [{ key: 'attendance-login:203.0.113.10' }]);
+  assert.equal(calls.length, 0);
+});
+
+test('missing or malformed login binding and Cloudflare IP fail closed without fallback', async () => {
+  for (const binding of [undefined, null, {}, { limit: true }]) {
+    const { auth, calls } = fixture([], { INTERNAL_LOGIN_RATE_LIMIT: binding });
+    const response = await auth.login(mutation());
+    await assertSafeFailure(response, 503);
+    assert.equal(response.headers.get('set-cookie'), null);
+    assert.equal(calls.length, 0);
+  }
+  for (const ip of [null, '', ' '.repeat(3), 'x'.repeat(65), '203.0.113.10\tother', '203.0.113.10\x7f']) {
+    const { auth, calls, rateLimitCalls } = fixture();
+    const req = mutation('/api/login', CREDENTIALS, { 'x-forwarded-for': '203.0.113.10' });
+    if (ip === null) req.headers.delete('cf-connecting-ip');
+    else req.headers.set('cf-connecting-ip', ip);
+    const response = await auth.login(req);
+    await assertSafeFailure(response, 503);
+    assert.equal(response.headers.get('set-cookie'), null);
+    assert.equal(calls.length, 0);
+    assert.equal(rateLimitCalls.length, 0);
+  }
+});
+
+test('login limiter exceptions and malformed results fail closed without upstream or cookies', async () => {
+  const outcomes = [undefined, null, true, false, {}, [], { success: 'true' }, { success: 1 }];
+  for (const result of outcomes) {
+    const { auth, calls } = fixture([], { INTERNAL_LOGIN_RATE_LIMIT: { limit: async () => result } });
+    const response = await auth.login(mutation());
+    await assertSafeFailure(response, 503);
+    assert.equal(response.headers.get('set-cookie'), null);
+    assert.equal(calls.length, 0);
+  }
+  const { auth, calls } = fixture([], {
+    INTERNAL_LOGIN_RATE_LIMIT: {
+      async limit() {
+        throw new Error('upstream-diagnostic');
+      },
+    },
+  });
+  const response = await auth.login(mutation());
+  await assertSafeFailure(response, 503);
+  assert.equal(response.headers.get('set-cookie'), null);
+  assert.equal(calls.length, 0);
+});
+
+test('stalled login limiter times out and late approval cannot forward credentials', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const entered = Promise.withResolvers();
+  const approval = Promise.withResolvers();
+  const { auth, calls } = fixture([], {
+    INTERNAL_LOGIN_RATE_LIMIT: {
+      limit() {
+        entered.resolve();
+        return approval.promise;
+      },
+    },
+  });
+  const pending = auth.login(mutation());
+  await entered.promise;
+  t.mock.timers.tick(5_000);
+  const response = await pending;
+  await assertSafeFailure(response, 503);
+  assert.equal(response.headers.get('set-cookie'), null);
+  assert.equal(calls.length, 0);
+  approval.resolve({ success: true });
+  await Promise.resolve();
+  assert.equal(calls.length, 0);
+});
+
+test('login mutation and machine guards reject before using the limiter', async () => {
+  let attempted = false;
+  const limiter = {
+    async limit() {
+      attempted = true;
+      assert.fail('Limiter must not run before login guards');
+    },
+  };
+  for (const req of [
+    request('/api/login'),
+    mutation('/api/login', CREDENTIALS, { origin: 'https://attacker.example' }),
+    mutation('/api/login', CREDENTIALS, { 'content-type': 'text/plain' }),
+  ]) {
+    const { auth, calls } = fixture([], { INTERNAL_LOGIN_RATE_LIMIT: limiter });
+    assert.ok([400, 403, 405].includes((await auth.login(req)).status));
+    assert.equal(calls.length, 0);
+  }
+  const { auth, calls } = fixture([], {
+    INTERNAL_AUTH_CLIENT_SECRET: undefined,
+    INTERNAL_LOGIN_RATE_LIMIT: limiter,
+  });
+  await assertSafeFailure(await auth.login(mutation()), 503);
+  assert.equal(calls.length, 0);
+  assert.equal(attempted, false);
+});
+
+test('verify, me and logout work without a login limiter or Cloudflare IP', async () => {
+  for (const binding of [
+    undefined,
+    { limit: async () => ({ success: false }) },
+    {
+      limit: async () => {
+        assert.fail('Session routes must not use the login limiter');
+      },
+    },
+  ]) {
+    const { auth, calls } = fixture([Response.json({ ...SESSION }), Response.json({ ...SESSION })], {
+      INTERNAL_LOGIN_RATE_LIMIT: binding,
+    });
+    assert.equal((await auth.verify(request())).ok, true);
+    assert.equal((await auth.me(request())).status, 200);
+    assert.equal((await auth.logout(mutation('/api/logout', {}))).status, 200);
+    assert.equal(calls.length, 2);
+  }
+});
+
 test('login never creates a browser session until the new token passes the real session endpoint', async () => {
   for (const status of [401, 403, 500, 302]) {
     const { auth, calls } = fixture([loginPayload(), new Response('upstream-diagnostic', { status })]);
@@ -114,7 +267,7 @@ test('login never creates a browser session until the new token passes the real 
 });
 
 test('missing or malformed dedicated machine secrets fail closed without any fallback', async () => {
-  for (const key of Object.keys(ENV)) {
+  for (const key of ['INTERNAL_AUTH_CLIENT_ID', 'INTERNAL_AUTH_CLIENT_SECRET']) {
     for (const value of [undefined, '', ' whitespace ', 'bad\r\nheader', 'x'.repeat(1025)]) {
       const { auth, calls } = fixture([], { [key]: value, BASIC_AUTH_PASSWORD: 'legacy', JWT_SECRET: 'legacy' });
       await assertSafeFailure(await auth.login(mutation()), 503);
@@ -485,19 +638,27 @@ test('late transport success after timeout cannot issue a session cookie or star
 test('bounded login request body times out without calling Internal', async (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   let canceled = false;
+  const entered = Promise.withResolvers();
   const { auth, calls } = fixture();
   const pending = auth.login(
     request('/api/login', {
       method: 'POST',
       duplex: 'half',
       headers: { origin: 'https://attendance.example', 'content-type': 'application/json' },
-      body: new ReadableStream({
-        cancel() {
-          canceled = true;
+      body: new ReadableStream(
+        {
+          pull() {
+            entered.resolve();
+          },
+          cancel() {
+            canceled = true;
+          },
         },
-      }),
+        { highWaterMark: 0 },
+      ),
     }),
   );
+  await entered.promise;
   t.mock.timers.tick(5_000);
   await assertSafeFailure(await pending, 400);
   assert.equal(calls.length, 0);

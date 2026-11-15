@@ -6,11 +6,7 @@ import {
   type InternalAuthOptions,
 } from './internal-auth.ts';
 
-export type Env = AutomationEnv &
-  InternalAuthEnv &
-  Partial<Pick<Cloudflare.Env, 'VIEW_STATE'>> & {
-    CF_ACCESS_AUD?: string;
-  };
+export type Env = AutomationEnv & InternalAuthEnv & Partial<Pick<Cloudflare.Env, 'VIEW_STATE'>>;
 
 const SNAPSHOT_KEY = 'clubroom:view:v1';
 const MAX_AGE_MS = 300_000;
@@ -280,7 +276,7 @@ function events(request: Request, env: Env, initial: Snapshot, deadline: number,
 /** 기존 LAN 템플릿으로 빌드한 HTML이며 Worker Static Assets는 사용하지 않는다. */
 export function createViewer(html: string, authOptions: InternalAuthOptions = {}) {
   return {
-    async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    async fetch(request: Request, env: Env): Promise<Response> {
       const deadline = Date.now() + STREAM_MS;
       const url = new URL(request.url);
       // 원격 인증은 두 경로의 전용 브리지로만 수행하고 관리·출결 쓰기는 노출하지 않는다.
@@ -289,16 +285,6 @@ export function createViewer(html: string, authOptions: InternalAuthOptions = {}
       const allowed = url.pathname === '/' ? 'GET, HEAD' : authRoute && url.pathname !== '/api/me' ? 'POST' : 'GET';
       if (!allowed.split(', ').includes(request.method)) return failure(405, 'method_not_allowed', undefined, allowed);
       if (request.url.includes('?') || url.hash) return failure(400, 'query_not_allowed');
-      if (
-        typeof env.CF_ACCESS_AUD !== 'string' ||
-        !env.CF_ACCESS_AUD ||
-        env.CF_ACCESS_AUD.length > 256 ||
-        env.CF_ACCESS_AUD.trim() !== env.CF_ACCESS_AUD
-      ) {
-        return failure(503, 'private_view_unconfigured');
-      }
-      // 플랫폼 인증만 신뢰하고 클라이언트 헤더·쿠키를 권한으로 해석하지 않는다.
-      if (!ctx?.access || ctx.access.aud !== env.CF_ACCESS_AUD) return failure(403, 'access_required');
       if (request.signal.aborted) return failure(499, 'client_closed');
       const auth = createInternalAuth(env, authOptions);
       if (authRoute) {

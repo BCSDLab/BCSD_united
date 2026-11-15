@@ -1,6 +1,9 @@
 export interface InternalAuthEnv {
   INTERNAL_AUTH_CLIENT_ID?: string;
   INTERNAL_AUTH_CLIENT_SECRET?: string;
+  INTERNAL_LOGIN_RATE_LIMIT?: {
+    limit(options: { key: string }): Promise<{ success: boolean }>;
+  };
 }
 
 export interface VerifiedInternalSession {
@@ -253,7 +256,6 @@ function mutationGuard(request: Request): Response | null {
   return null;
 }
 
-/** 반드시 CF_ACCESS_AUD의 플랫폼 ctx 게이트 뒤에서 호출하고 저장소·서비스 조회보다 앞에 둔다. */
 export function createInternalAuth(env: InternalAuthEnv, options: InternalAuthOptions = {}): InternalAuth {
   const transport = options.fetch ?? globalThis.fetch;
   const now = options.now ?? Date.now;
@@ -282,6 +284,22 @@ export function createInternalAuth(env: InternalAuthEnv, options: InternalAuthOp
       const rejected = mutationGuard(request);
       if (rejected) return rejected;
       if (!configured(env)) return failure(503);
+      // Cloudflare가 제공한 IP는 로그인 시도 제한에만 쓰며 인증 근거로 삼지 않는다.
+      const ip = request.headers.get('cf-connecting-ip');
+      if (!ip || !ip.trim() || ip.length > 64 || hasControlCharacters(ip)) return failure(503);
+      try {
+        const limiter = env.INTERNAL_LOGIN_RATE_LIMIT;
+        if (!limiter || typeof limiter.limit !== 'function') return failure(503);
+        const result = await bounded(() => limiter.limit({ key: `attendance-login:${ip}` }), request.signal);
+        if (!object(result) || typeof result.success !== 'boolean') return failure(503);
+        if (!result.success) {
+          const response = reply({ error: 'login_rate_limited' }, 429);
+          response.headers.set('retry-after', '60');
+          return response;
+        }
+      } catch {
+        return failure(503);
+      }
       if (cookieToken(request) === false) return failure(401, true);
       let credentials: { studentNumber: string; password: string };
       try {

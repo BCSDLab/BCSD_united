@@ -8,7 +8,7 @@ flowchart LR
   Reader --> LAN["loopback LAN API · SQLite"]
   LAN --> Publisher["운영자 PC 또는 전용 게시기"]
   Publisher --> KV["별도 VIEW_STATE KV"]
-  KV --> Viewer["Access · 조직 Gateway로 보호한 원격 화면"]
+  KV --> Viewer["Internal 학번·비밀번호 회원 인증 원격 화면"]
 ```
 
 ## 출입 원장과 회원 식별
@@ -25,11 +25,12 @@ flowchart LR
 
 ## 원격 조회·접근 정책
 
-- 해당 Worker의 모든 URL을 Cloudflare Access로 보호하고 조직 Gateway를 필수로 요구합니다. 일반 소비자 WARP나 클라이언트가 보낸 인증 헤더는 허용 근거가 아닙니다.
-- Worker는 플랫폼의 `ctx.access.aud`를 실제 `CF_ACCESS_AUD`와 비교합니다. 인증되지 않은 별도 호스트·서비스 호출은 데이터를 읽지 못합니다.
+- 사용자는 Internal 학번·비밀번호로 한 번만 로그인합니다. 출근부에는 WARP·조직 Gateway·Cloudflare 이메일 인증을 요구하지 않으며 SSH·관리용 Gateway 정책과 분리합니다.
+- 루트 HTML·로그인만 공개하며 모든 비공개 데이터 경로는 실제 Internal 세션 검증 후에만 저장소·서비스를 읽습니다. Cloudflare 사용자 컨텍스트·이메일·클라이언트 인증 헤더를 회원 자격으로 해석하지 않습니다.
 - 회원 자격은 실제 Internal 학번·비밀번호 로그인과 매 요청의 `/v1/members/attendance-session` 검증으로 확인합니다. 이메일 일치, 회원 조회 성공, 별도 Keycloak 계정만으로 로그인 자격을 추정하지 않습니다.
 - Internal의 15분 access token은 `Secure; HttpOnly; SameSite=Strict`의 `__Host-attendance-session` 쿠키에만 보관하며 JSON·브라우저 저장소에 전달하지 않습니다. 계정 비활성화·탈퇴·비밀번호 변경·만료는 다음 검증에서 차단하고 화면의 비공개 상태를 지웁니다.
-- Worker는 고정된 `https://bcsd-attendance-auth.koreatech.in`의 로그인·세션 두 경로만 호출합니다. 전용 Cloudflare 서비스 토큰과 터널의 Access JWT 검증을 사용하며 일반 Internal API·관리자 경로는 공개하지 않습니다.
+- Worker는 고정된 `https://bcsd-attendance-auth.koreatech.in`의 로그인·세션 두 경로만 호출합니다. 이 기계 전용 중계에만 Cloudflare 서비스 토큰·터널 Access JWT 검증을 사용하며 사용자 이메일 로그인이나 일반 Internal API·관리자 경로 공개로 대체하지 않습니다.
+- 공개 로그인 시도는 `INTERNAL_LOGIN_RATE_LIMIT`으로 IP당 분당 10회 제한합니다. Cloudflare 위치별 근사 제한이며 전역 엄격 한도는 아닙니다. 제한 초과는 429와 `Retry-After: 60`, 바인딩·IP·검증 장애는 503으로 실패하고 Internal에 비밀번호를 전달하지 않습니다.
 - 원격 화면은 기본 180초 간격 스냅샷이며 KV의 지역별 반영 지연이 추가됩니다. 체류 시간·지표는 실제 관측 시각에 고정하고 스냅샷임을 표시합니다. LAN의 즉시 갱신과 다릅니다.
 - 관측 후 5분 초과, 필수 데이터 누락·손상, 인증·연결 실패 시 과거 수치를 현재처럼 연장하지 않고 사용 불가로 처리합니다.
 - `VIEW_STATE`의 `clubroom:view:v1`만 조회합니다. 기존 `ATTENDANCE` KV 데이터는 보존하며 자동으로 병합·이관·삭제하지 않습니다.
@@ -62,7 +63,7 @@ Worker 검사는 Node.js 24에서 실행합니다. `test:runtime`은 POSIX 파�
 
 빌드는 설치된 `tsx`로 LAN 렌더러를 실행해 `.wrangler/viewer/dashboard.html`을 생성합니다. Worker는 이 파일을 Text 모듈로 가져오며 별도 Static Assets 인증 우회 경로를 만들지 않습니다.
 
-`wrangler.jsonc`에는 실제 별도 KV ID와 service binding을 설정합니다. 운영의 `CF_ACCESS_AUD`는 별도 환경 변수로 관리하고 `keep_vars: true`로 보존합니다. 조직 Gateway·회원 자격 정책이 적용되기 전에는 `workers_dev`를 활성화하지 않습니다. 미리보기 URL은 비활성 상태를 유지하며 원장 KV를 삭제하거나 덮어쓰지 않습니다.
+`wrangler.jsonc`에는 실제 별도 KV ID, service binding, 로그인 rate-limit binding을 설정합니다. `keep_vars: false`로 이전 Cloudflare 사용자 audience 변수에 의존하지 않습니다. 회원 세션 검증이 동작하기 전에는 기존 보호를 해제하지 않습니다. 검증 후 출근부 URL의 Cloudflare 이메일 인증만 제거하며 기계 전용 인증 중계·SSH·관리자 정책은 유지합니다. 미리보기 URL은 비활성 상태를 유지하며 원장 KV를 삭제하거나 덮어쓰지 않습니다.
 
 `INTERNAL_AUTH_CLIENT_ID`, `INTERNAL_AUTH_CLIENT_SECRET`은 인증 중계 앱 한 곳만 허용하는 전용 서비스 토큰으로 설정합니다. 기존 기기·lookup·monitor·관리자 토큰이나 Internal의 JWT 서명 키를 재사용하지 않습니다. 자격증명·비밀번호·원본 인증 응답을 Git이나 로그에 기록하지 않습니다. 인증 중계가 없거나 검증에 실패하면 데이터를 제공하지 않습니다.
 

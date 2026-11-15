@@ -10,7 +10,6 @@ const worker = createViewer('<main>readonly snapshot viewer</main>', {
   },
 });
 const NOW = Date.UTC(2026, 10, 14, 1);
-const context = { access: { aud: 'private-app' } };
 const paths = ['/api/state', '/api/monitor', '/api/koin-health', '/api/worker-health', '/api/spotify', '/api/jam'];
 const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6t8sAAAAASUVORK5CYII=';
 function snapshot(observedAt = NOW) {
@@ -25,7 +24,6 @@ function snapshot(observedAt = NOW) {
 function harness(value) {
   let reads = 0;
   const env = {
-    CF_ACCESS_AUD: 'private-app',
     INTERNAL_AUTH_CLIENT_ID: 'isolated-viewer-client',
     INTERNAL_AUTH_CLIENT_SECRET: 'isolated-viewer-secret',
     VIEW_STATE: {
@@ -37,14 +35,13 @@ function harness(value) {
       },
     },
   };
-  const request = (path, options = {}, ctx = context) =>
+  const request = (path, options = {}) =>
     worker.fetch(
       new Request('https://viewer.example' + path, {
         ...options,
         headers: { cookie: '__Host-attendance-session=a.b.c', ...options.headers },
       }),
       env,
-      ctx,
     );
   return { env, request, reads: () => reads };
 }
@@ -53,15 +50,12 @@ test('the viewer rejects client-asserted authentication and mutations without re
   const h = harness(snapshot());
   assert.equal(
     (
-      await h.request(
-        '/api/state',
-        { headers: { 'cf-access-jwt-assertion': 'forged', cookie: 'CF_Authorization=forged' } },
-        {},
-      )
+      await h.request('/api/state', {
+        headers: { 'cf-access-jwt-assertion': 'forged', cookie: 'CF_Authorization=forged' },
+      })
     ).status,
-    403,
+    401,
   );
-  assert.equal((await h.request('/api/state', {}, { access: { aud: 'other-app' } })).status, 403);
   for (const path of ['/api/taps', '/api/members', '/api/camera'])
     assert.equal((await h.request(path, { method: 'POST' })).status, 404);
   assert.equal((await h.request('/api/state', { method: 'POST' })).status, 405);
