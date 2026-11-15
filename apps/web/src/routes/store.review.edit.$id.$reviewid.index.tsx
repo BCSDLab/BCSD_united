@@ -1,14 +1,16 @@
+import { Suspense } from 'react';
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, useSearch, useParams, notFound } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
 import { reviewQueries } from 'api/review/queries';
 import { storeMobileQueries } from 'api/storeMobile/queries';
-import Layout, { SSRLayout } from 'components/layout';
+import { SSRLayout } from 'components/layout';
 import ReviewEditPage from 'components/Store/mobile/ReviewFormPage/ReviewEditPage';
 import useStoreDetail from 'components/Store/StoreDetailPage/hooks/useStoreDetail';
 import { useEditStoreReview } from 'components/Store/StoreReviewPage/hooks/useEditStoreReview';
 import ReviewForm from 'components/Store/StoreReviewPage/ReviewForm/ReviewForm';
+import useMobileView, { isMobileView } from 'utils/hooks/layout/useMobileView';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import useMount from 'utils/hooks/state/useMount';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
@@ -18,7 +20,7 @@ import { isNotFoundKoinError } from 'utils/ts/isr';
 interface Props {
   id: string;
   reviewId: string;
-  isMobile: boolean;
+  showMobile: boolean;
 }
 
 function EditReviewComponent({ id, reviewId }: { id: string; reviewId: string }) {
@@ -45,8 +47,8 @@ function DesktopEditReview() {
   return <EditReviewComponent id={pageId} reviewId={String(reviewid)} />;
 }
 
-function EditReviewPage({ id, reviewId, isMobile }: Props) {
-  if (!isMobile) return <DesktopEditReview />;
+function EditReviewPage({ id, reviewId, showMobile }: Props) {
+  if (!showMobile) return <DesktopEditReview />;
 
   return <ReviewEditPage id={id} reviewId={reviewId} />;
 }
@@ -56,12 +58,12 @@ const loadPage = definePageLoad(async ({ params, queryClient }, _cacheControl, s
   const { id, reviewid: reviewId } = params;
   if (!id || !reviewId) throw notFound();
 
-  // 데스크톱은 기존처럼 브라우저에서 그린다
-  if (serverRequest.device !== 'mobile') {
-    return { id, reviewId, isMobile: false };
+  // 데스크톱 화면은 기존처럼 브라우저에서 그린다
+  if (!isMobileView(serverRequest.device)) {
+    return { id, reviewId };
   }
 
-  // 모바일은 상점명과 기존 리뷰를 미리 받아 본문까지 렌더한다
+  // 모바일 화면은 상점명과 기존 리뷰를 미리 받아 본문까지 렌더한다
   try {
     await Promise.all([
       queryClient.fetchQuery(storeMobileQueries.detail(id)),
@@ -72,7 +74,7 @@ const loadPage = definePageLoad(async ({ params, queryClient }, _cacheControl, s
     throw error;
   }
 
-  return { id, reviewId, isMobile: true };
+  return { id, reviewId };
 });
 
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
@@ -88,13 +90,17 @@ export const Route = createFileRoute('/store/review/edit/$id/$reviewid/')({
   component: RouteComponent,
 });
 
+// 모바일 기기이거나 창이 모바일 폭이면 모바일 화면을 그린다(useMobileView). 페이지 헤더 레이아웃은 모바일 폭에서만 적용되므로 데스크톱 폭에서는 기본 헤더가 그대로 보인다.
+// 데스크톱 창을 모바일 폭으로 줄이면 데이터를 미리 받지 않은 화면으로 바뀌므로 Suspense로 감싼다
 function RouteComponent() {
-  const loaderData = Route.useLoaderData();
-  const page = <EditReviewPage {...loaderData} />;
+  const { serverRequest, ...loaderData } = Route.useLoaderData();
+  const showMobile = useMobileView(serverRequest.device);
 
-  return loaderData.serverRequest.device === 'mobile' ? (
-    <SSRLayout mobileHeader="page">{page}</SSRLayout>
-  ) : (
-    <Layout>{page}</Layout>
+  return (
+    <SSRLayout mobileHeader="page">
+      <Suspense fallback={null}>
+        <EditReviewPage {...loaderData} showMobile={showMobile} />
+      </Suspense>
+    </SSRLayout>
   );
 }

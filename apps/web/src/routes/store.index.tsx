@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { Suspense, useState, useEffect, useRef } from 'react';
 import { cn } from '@bcsdlab/utils';
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate, useSearch, useParams } from '@tanstack/react-router';
@@ -8,22 +8,19 @@ import type { StoreSorterType, StoreFilterType, StoreCategory } from 'api/store/
 import { storeQueries } from 'api/store/queries';
 import { storeMobileQueries } from 'api/storeMobile/queries';
 import Close from 'assets/svg/close-icon-20x20.svg';
-import Layout, { SSRLayout } from 'components/layout';
+import { SSRLayout } from 'components/layout';
 import MobilePageHeader from 'components/layout/MobilePageHeader';
 import StoreListPage from 'components/Store/mobile/StoreListPage';
 import { getListRequestParams, parseListQuery } from 'components/Store/mobile/StoreListPage/utils/listQuery';
 import DesktopStoreList from 'components/Store/StorePage/components/DesktopStoreList';
 import EventCarousel from 'components/Store/StorePage/components/EventCarousel';
-import MobileStoreList from 'components/Store/StorePage/components/MobileStoreList';
-import SearchBar from 'components/Store/StorePage/components/SearchBar';
 import SearchBarModal from 'components/Store/StorePage/components/SearchBarModal';
 import { getCategoryDurationTime, initializeCategoryEntryTime } from 'components/Store/utils/durationTime';
-import IntroToolTip from 'components/ui/IntroToolTip';
 import ROUTES from 'static/routes';
 import { STORE_PAGE } from 'static/store';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import { useScrollLogging } from 'utils/hooks/analytics/useScrollLogging';
-import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
+import useMobileView, { isMobileView } from 'utils/hooks/layout/useMobileView';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
 import { useLocalStorage } from 'utils/hooks/state/useLocalStorage';
 import useMount from 'utils/hooks/state/useMount';
@@ -43,29 +40,25 @@ interface StoreSearchQueryType {
   shopIds?: string;
 }
 
-const MOBILE_SORT_CHECK_BOX = [
+const SORT_CHECK_BOX = [
   {
     id: 'COUNT',
     content: '리뷰순',
-    value: 1,
   },
   {
     id: 'RATING',
     content: '별점순',
-    value: 2,
   },
 ] as const;
 
-const MOBILE_FILTER_CHECK_BOX = [
+const FILTER_CHECK_BOX = [
   {
     id: 'OPEN',
     content: '영업중',
-    value: 3,
   },
   {
     id: 'DELIVERY',
     content: '배달 가능',
-    value: 4,
   },
 ] as const;
 
@@ -115,7 +108,6 @@ function Store() {
   };
 
   const logger = useLogger();
-  const isMobile = useMediaQuery();
   const [localStorageValue] = useLocalStorage('store-review-tooltip', null);
   const [isTooltipOpen, , closeTooltip] = useBooleanState(localStorageValue === null);
   const isMounted = useMount();
@@ -211,16 +203,14 @@ function Store() {
   return (
     <div className={styles.section}>
       <div className={styles.header}>주변 상점</div>
-      {isMobile && <SearchBar />}
       <div className={styles.category}>
         <div className={styles.category__header}>CATEGORY</div>
         <div className={styles.category__wrapper}>
-          {categories.shop_categories.slice(isMobile ? 1 : 0, 12).map((category) => (
+          {categories.shop_categories.slice(0, 12).map((category) => (
             <button
               className={cn({
                 [styles.category__menu]: true,
                 [styles['category__menu--selected']]: category.id === selectedCategory,
-                [styles['category__menu--disabled']]: category.id === 1 && isMobile,
               })}
               role="radio"
               aria-checked={category.id === selectedCategory}
@@ -243,7 +233,7 @@ function Store() {
           혜택이 있는 상점 모아보기
         </button>
       </div>
-      {!isMobile && <SearchBarModal onClose={() => {}} />}
+      <SearchBarModal onClose={() => {}} />
       <div className={styles.option}>
         {routeQuery.storeName ? (
           <div className={styles.option__count}>
@@ -261,7 +251,7 @@ function Store() {
         )}
 
         <div className={styles.option__checkbox}>
-          {MOBILE_SORT_CHECK_BOX.map(({ id, content }) => (
+          {SORT_CHECK_BOX.map(({ id, content }) => (
             <div key={id} className={styles['option-checkbox']}>
               <label htmlFor={id} className={styles['option-checkbox__label']}>
                 <input
@@ -275,7 +265,7 @@ function Store() {
               </label>
             </div>
           ))}
-          {MOBILE_FILTER_CHECK_BOX.map(({ id, content }) => (
+          {FILTER_CHECK_BOX.map(({ id, content }) => (
             <div key={id} className={styles['option-checkbox']}>
               <label htmlFor={id} className={styles['option-checkbox__label']}>
                 <input
@@ -304,70 +294,39 @@ function Store() {
           )}
         </div>
       </div>
-      {isMobile && <div className={styles['store-mobile-header']}>상점목록</div>}
       <EventCarousel />
-      <div className={styles.filter}>
-        {MOBILE_SORT_CHECK_BOX.map(({ id, content, value }) => (
-          <button
-            className={cn({
-              [styles.filter__box]: true,
-              [styles['filter__box--activate']]: storeSorter === id,
-            })}
-            key={value}
-            type="button"
-            onClick={handleSortCheckBox(id)}
-          >
-            {content}
-          </button>
-        ))}
-
-        {MOBILE_FILTER_CHECK_BOX.map(({ id, content, value }) => (
-          <button
-            className={cn({
-              [styles.filter__box]: true,
-              [styles['filter__box--activate']]: storeFilterList[id],
-            })}
-            key={value}
-            type="button"
-            onClick={handleFilterCheckBox(id)}
-          >
-            {content}
-          </button>
-        ))}
-
-        {isMounted && isTooltipOpen && (
-          <IntroToolTip content="지금 리뷰가 가장 많은 상점을 확인해보세요!" closeTooltip={closeTooltip} />
-        )}
-      </div>
-      {!isMobile ? (
-        <DesktopStoreList storeListData={storeList} storeType={STORE_PAGE.MAIN} />
-      ) : (
-        <MobileStoreList storeListData={storeList} storeType={STORE_PAGE.MAIN} />
-      )}
+      <DesktopStoreList storeListData={storeList} storeType={STORE_PAGE.MAIN} />
     </div>
   );
 }
 
 interface StorePageProps {
-  isMobilePage?: boolean;
+  showMobile: boolean;
 }
 
-function StorePage({ isMobilePage }: StorePageProps) {
-  if (isMobilePage) {
+// 데스크톱 창을 모바일 폭으로 줄이면 데이터를 미리 받지 않은 모바일 화면으로 바뀌므로 Suspense로 감싼다
+function StorePage({ showMobile }: StorePageProps) {
+  if (showMobile) {
     return (
       <>
         <MobilePageHeader background="gray" title="주변상점" />
-        <StoreListPage />
+        <Suspense fallback={null}>
+          <StoreListPage />
+        </Suspense>
       </>
     );
   }
 
-  return <Store />;
+  return (
+    <Suspense fallback={null}>
+      <Store />
+    </Suspense>
+  );
 }
 
 const loadPage = definePageLoad(async ({ search, queryClient }, cacheControl, serverRequest) => {
-  // 모바일은 KOIN_ORDER_WEBVIEW 주변상점 화면을 그린다. order가 부르는 API(카테고리·v3 목록)만 미리 받아 본문까지 렌더한다
-  if (serverRequest.device === 'mobile') {
+  // 모바일 화면은 KOIN_ORDER_WEBVIEW 주변상점 화면을 그린다. order가 부르는 API(카테고리·v3 목록)만 미리 받아 본문까지 렌더한다
+  if (isMobileView(serverRequest.device)) {
     const { sort, filter } = parseListQuery(search);
     const { sorter, filter: listFilter } = getListRequestParams(sort, filter);
 
@@ -378,7 +337,7 @@ const loadPage = definePageLoad(async ({ search, queryClient }, cacheControl, se
 
     cacheControl.enablePublicCache(STORE_PUBLIC_SSR_CACHE_CONTROL);
 
-    return { isMobilePage: true };
+    return {};
   }
 
   const { storeName } = search;
@@ -398,7 +357,7 @@ const loadPage = definePageLoad(async ({ search, queryClient }, cacheControl, se
 
   cacheControl.enablePublicCache(STORE_PUBLIC_SSR_CACHE_CONTROL);
 
-  return { isMobilePage: false };
+  return {};
 });
 
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
@@ -414,14 +373,14 @@ export const Route = createFileRoute('/store/')({
   component: RouteComponent,
 });
 
-// 기기는 서버가 확정한다. 모바일만 페이지 헤더 레이아웃을 쓰고 데스크톱은 기본 레이아웃 그대로 둔다
+// 모바일 기기이거나 창이 모바일 폭이면 모바일 화면을 그린다(useMobileView). 페이지 헤더 레이아웃은 모바일 폭에서만 적용되므로 데스크톱 폭에서는 기본 헤더가 그대로 보인다
 function RouteComponent() {
-  const loaderData = Route.useLoaderData();
-  const page = <StorePage {...loaderData} />;
+  const { serverRequest } = Route.useLoaderData();
+  const showMobile = useMobileView(serverRequest.device);
 
-  return loaderData.serverRequest.device === 'mobile' ? (
-    <SSRLayout mobileHeader="page">{page}</SSRLayout>
-  ) : (
-    <Layout>{page}</Layout>
+  return (
+    <SSRLayout mobileHeader="page">
+      <StorePage showMobile={showMobile} />
+    </SSRLayout>
   );
 }

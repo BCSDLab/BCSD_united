@@ -1,13 +1,15 @@
+import { Suspense } from 'react';
 import { createFileRoute, useSearch, useParams, notFound } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
 import { storeMobileQueries } from 'api/storeMobile/queries';
-import Layout, { SSRLayout } from 'components/layout';
+import { SSRLayout } from 'components/layout';
 import MobilePageHeader from 'components/layout/MobilePageHeader';
 import ReviewCreatePage from 'components/Store/mobile/ReviewFormPage';
 import useStoreDetail from 'components/Store/StoreDetailPage/hooks/useStoreDetail';
 import { useAddStoreReview } from 'components/Store/StoreReviewPage/hooks/useAddStoreReview';
 import ReviewForm from 'components/Store/StoreReviewPage/ReviewForm/ReviewForm';
+import useMobileView, { isMobileView } from 'utils/hooks/layout/useMobileView';
 import useMount from 'utils/hooks/state/useMount';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
@@ -15,7 +17,7 @@ import { isNotFoundKoinError } from 'utils/ts/isr';
 
 interface Props {
   id: string;
-  isMobile: boolean;
+  showMobile: boolean;
 }
 
 function AddReviewComponent({ id }: { id: string }) {
@@ -40,8 +42,8 @@ function DesktopAddReview() {
   return <AddReviewComponent id={pageId} />;
 }
 
-function AddReviewPage({ id, isMobile }: Props) {
-  if (!isMobile) return <DesktopAddReview />;
+function AddReviewPage({ id, showMobile }: Props) {
+  if (!showMobile) return <DesktopAddReview />;
 
   return (
     <>
@@ -56,12 +58,12 @@ const loadPage = definePageLoad(async ({ params, queryClient }, _cacheControl, s
   const id = params.id;
   if (!id) throw notFound();
 
-  // 데스크톱은 기존처럼 브라우저에서 그린다
-  if (serverRequest.device !== 'mobile') {
-    return { id, isMobile: false };
+  // 데스크톱 화면은 기존처럼 브라우저에서 그린다
+  if (!isMobileView(serverRequest.device)) {
+    return { id };
   }
 
-  // 모바일은 상점명을 미리 받아 본문까지 렌더한다
+  // 모바일 화면은 상점명을 미리 받아 본문까지 렌더한다
   try {
     await queryClient.fetchQuery(storeMobileQueries.detail(id));
   } catch (error) {
@@ -69,7 +71,7 @@ const loadPage = definePageLoad(async ({ params, queryClient }, _cacheControl, s
     throw error;
   }
 
-  return { id, isMobile: true };
+  return { id };
 });
 
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
@@ -85,13 +87,17 @@ export const Route = createFileRoute('/store/review/$id/')({
   component: RouteComponent,
 });
 
+// 모바일 기기이거나 창이 모바일 폭이면 모바일 화면을 그린다(useMobileView). 페이지 헤더 레이아웃은 모바일 폭에서만 적용되므로 데스크톱 폭에서는 기본 헤더가 그대로 보인다.
+// 데스크톱 창을 모바일 폭으로 줄이면 데이터를 미리 받지 않은 화면으로 바뀌므로 Suspense로 감싼다
 function RouteComponent() {
-  const loaderData = Route.useLoaderData();
-  const page = <AddReviewPage {...loaderData} />;
+  const { serverRequest, ...loaderData } = Route.useLoaderData();
+  const showMobile = useMobileView(serverRequest.device);
 
-  return loaderData.serverRequest.device === 'mobile' ? (
-    <SSRLayout mobileHeader="page">{page}</SSRLayout>
-  ) : (
-    <Layout>{page}</Layout>
+  return (
+    <SSRLayout mobileHeader="page">
+      <Suspense fallback={null}>
+        <AddReviewPage {...loaderData} showMobile={showMobile} />
+      </Suspense>
+    </SSRLayout>
   );
 }
