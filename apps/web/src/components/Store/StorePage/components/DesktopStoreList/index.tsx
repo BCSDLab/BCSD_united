@@ -1,4 +1,3 @@
-import { getJosaPicker } from '@bcsdlab/utils';
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 
@@ -32,7 +31,6 @@ export const getOpenCloseTime = (open_time: string | null, close_time: string | 
 export default function DesktopStoreList(storeListProps: StoreListProps) {
   const { storeListData, storeType } = storeListProps;
   const logger = useLogger();
-  const pickTopicJosa = getJosaPicker('은');
 
   // getDayOfWeek()는 new Date()에 의존한다. 응답이 공유 캐시되므로 자정을 넘기면
   // 서버는 어제 요일, 클라이언트는 오늘 요일을 그린다.
@@ -74,8 +72,7 @@ export default function DesktopStoreList(storeListProps: StoreListProps) {
           )}
           {!store.is_open && (
             <div className={styles['store-none-open']}>
-              <span className={styles['store-none-open__name']}>{store.name}</span>
-              {`${pickTopicJosa(store.name)} 준비중입니다.`}
+              <span className={styles['store-none-open__text']}>지금은 영업시간이 아니에요</span>
             </div>
           )}
           <div className={styles['store-list__title']}>{store.name}</div>
