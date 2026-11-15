@@ -27,12 +27,14 @@
   "vars": {
     "KOIN_ENVIRONMENT": "main",
     "KOIN_API_ORIGIN": "https://api.koreatech.in",
+    "R2_FILES_PUBLIC_URL": "",
     "NEXT_PUBLIC_SENTRY_ENVIRONMENT": "production",
   },
   "previews": {
     "vars": {
       "KOIN_ENVIRONMENT": "preview",
       "KOIN_API_ORIGIN": "https://api.stage.koreatech.in",
+      "R2_FILES_PUBLIC_URL": "",
       "NEXT_PUBLIC_SENTRY_ENVIRONMENT": "preview",
     },
     "images": {

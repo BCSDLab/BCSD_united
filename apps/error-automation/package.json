@@ -5,11 +5,12 @@
   "scripts": {
     "dev": "wrangler dev",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --experimental-strip-types --test test/webhook.test.mjs test/workflow.test.mjs test/queue.test.mjs test/model.test.mjs test/pull-request.test.mjs",
+    "test": "node --experimental-strip-types --test test/webhook.test.mjs test/workflow.test.mjs test/queue.test.mjs test/model.test.mjs test/pull-request.test.mjs test/monitor.test.mjs",
     "smoke:local": "node test/smoke-local.mjs",
     "deploy": "wrangler deploy"
   },
   "dependencies": {
-    "@jridgewell/trace-mapping": "^0.3.31"
+    "@jridgewell/trace-mapping": "^0.3.31",
+    "@koin/telemetry": "workspace:*"
   }
 }

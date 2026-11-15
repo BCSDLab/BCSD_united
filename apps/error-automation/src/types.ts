@@ -145,11 +145,15 @@ export interface Env {
   CLOUDFLARE_SOURCES: string;
   CLOUDFLARE_DIAGNOSTICS_TOKEN?: string;
   DIAGNOSTICS_READ_TOKEN: string;
+  /** 수신 이슈 요약 전용 Bearer. 모델·실행기·진단·태그 토큰과 재사용하지 않습니다. */
+  ERROR_MONITOR_TOKEN?: string;
   ERROR_PROJECT_DOMAINS: string;
   ERROR_SOURCE_BRANCHES: string;
   /** The only model upstream: Workers VPC service binding to the Rocky omp gateway, paired with its bearer. */
   OMP_GATEWAY?: Fetcher;
   OMP_GATEWAY_TOKEN?: string;
+  /** Rocky 읽기 전용 healthz 전용 Bearer. 모델·실행기·Worker 수신 요약 토큰과 분리합니다. */
+  OMP_GATEWAY_MONITOR_TOKEN?: string;
   GITHUB_OWNER: string;
   GITHUB_REPOSITORY: string;
   GITHUB_DISPATCH_APP_ID: string;

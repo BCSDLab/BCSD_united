@@ -112,8 +112,45 @@ export const preservedFields = [
   'Expires',
   'Metadata',
 ];
+// JSON checkpoints serialize SDK dates as ISO strings; only that exact form is
+// accepted on readback. The SDK upload commands cannot send raw ExpiresString.
+function timestamp(value) {
+  if (value instanceof Date) return value.getTime();
+  if (typeof value !== 'string') return NaN;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) && new Date(parsed).toISOString() === value ? parsed : NaN;
+}
+
+function assertRepresentableExpires(head) {
+  const raw = head.ExpiresString;
+  const expires = head.Expires;
+  if (raw === undefined && expires === undefined) return undefined;
+  const expiresTime = timestamp(expires);
+  const rawTime = typeof raw === 'string' ? Date.parse(raw) : NaN;
+  if (!Number.isFinite(expiresTime) || (raw !== undefined && rawTime !== expiresTime))
+    throw new Error('Expires header is not representable by the S3 upload API');
+  return expires instanceof Date ? expires : new Date(expiresTime);
+}
+
+// ListObjectsV2 can retain milliseconds while HEAD/GET Last-Modified is HTTP-date
+// (seconds). ETag, length and exclusive-writer checks carry same-second changes.
+export function sameModifiedSecond(left, right) {
+  const leftTime = timestamp(left);
+  const rightTime = timestamp(right);
+  return (
+    Number.isFinite(leftTime) &&
+    Number.isFinite(rightTime) &&
+    Math.floor(leftTime / 1000) === Math.floor(rightTime / 1000)
+  );
+}
+
 export function objectMetadata(head) {
-  return Object.fromEntries(preservedFields.filter((key) => head[key] !== undefined).map((key) => [key, head[key]]));
+  const expires = assertRepresentableExpires(head);
+  const metadata = Object.fromEntries(
+    preservedFields.filter((key) => head[key] !== undefined).map((key) => [key, head[key]]),
+  );
+  if (expires !== undefined) metadata.Expires = expires;
+  return metadata;
 }
 
 export function assertCheckpoint(record, object, snapshot) {

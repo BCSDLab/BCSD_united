@@ -1,4 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
+import { parseErrorMonitorSnapshot, parseRockyMonitorSnapshot, readMonitorJson } from '@koin/telemetry/monitor';
 import { DiagnosticProviderError, trustedDiagnostics } from './diagnostics';
 import { SourceMapEvidenceError } from './source-maps';
 import { gatewayTransport, modelRateLimit, parseModelRequest } from './model';
@@ -444,6 +445,8 @@ export function redact(value: unknown, env: Env): string {
     env.SENTRY_READ_TOKEN,
     env.DIAGNOSTICS_READ_TOKEN,
     env.AUTOFIX_EXECUTOR_TOKEN,
+    env.ERROR_MONITOR_TOKEN,
+    env.OMP_GATEWAY_MONITOR_TOKEN,
   ]) {
     if (secret) text = text.replaceAll(secret, '[REDACTED]');
   }
@@ -594,15 +597,94 @@ function cloudflarePayload(raw: unknown, config: Configuration, env: Env): Diagn
   );
 }
 
-async function verifySecret(value: string | null, secret: string): Promise<void> {
-  if (!value || value.length > 4096 || !secret) throw new RequestError(401, 'Missing or invalid authentication.');
+async function sameSecret(value: string, secret: string): Promise<boolean> {
   const key = await crypto.subtle.importKey('raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, [
     'sign',
     'verify',
   ]);
   const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(secret));
-  if (!(await crypto.subtle.verify('HMAC', key, signature, encoder.encode(value)))) {
+  return crypto.subtle.verify('HMAC', key, signature, encoder.encode(value));
+}
+
+async function verifySecret(value: string | null, secret: string): Promise<void> {
+  if (!value || value.length > 4096 || !secret || !(await sameSecret(value, secret)))
     throw new RequestError(401, 'Missing or invalid authentication.');
+}
+
+/** 인증·고정 경로 검증은 저장소와 VPC 접속보다 먼저 끝냅니다. */
+async function authorizeMonitoring(request: Request, env: Env, url: URL): Promise<Response | null> {
+  if (!env.ERROR_MONITOR_TOKEN || env.ERROR_MONITOR_TOKEN.length < 32)
+    throw new RequestError(503, 'Read-only monitoring is not configured.');
+  const authorization = request.headers.get('Authorization');
+  await verifySecret(authorization?.startsWith('Bearer ') ? authorization.slice(7) : null, env.ERROR_MONITOR_TOKEN);
+  if (request.method !== 'GET')
+    return new Response('Use GET.', { status: 405, headers: { Allow: 'GET', 'Cache-Control': 'no-store' } });
+  if (url.search) throw new RequestError(400, 'Monitoring query parameters are not supported.');
+  return null;
+}
+
+/** 수신 요약은 Rocky 연결 실패와 독립적으로 저장된 이슈만 읽습니다. */
+async function monitoringHealth(request: Request, env: Env, url: URL): Promise<Response> {
+  const denied = await authorizeMonitoring(request, env, url);
+  if (denied) return denied;
+  const { promise: deadline, reject } = Promise.withResolvers<never>();
+  const timer = setTimeout(() => reject(new RequestError(503, 'Monitoring storage timed out.')), 3000);
+  try {
+    const result = await Promise.race([
+      env.AUTOFIX_QUEUE.getByName('bcsdlab/bcsd_united').monitorSnapshot(Date.now()),
+      deadline,
+    ]);
+    const snapshot = parseErrorMonitorSnapshot(result, Date.now());
+    if (!snapshot) throw new RequestError(503, 'Monitoring snapshot is unavailable or stale.');
+    return reply(200, { ...snapshot }, null);
+  } catch (error) {
+    if (error instanceof RequestError) throw error;
+    throw new RequestError(503, 'Monitoring snapshot is unavailable.');
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** 기존 VPC의 고정 healthz만 읽으며 모델용 Bearer나 공개 URL을 사용하지 않습니다. */
+async function rockyMonitoringHealth(request: Request, env: Env, url: URL): Promise<Response> {
+  const denied = await authorizeMonitoring(request, env, url);
+  if (denied) return denied;
+  const gateway = env.OMP_GATEWAY;
+  const token = env.OMP_GATEWAY_MONITOR_TOKEN;
+  if (!gateway || !token || !/^[A-Za-z0-9_-]{32,512}$/.test(token))
+    throw new RequestError(503, 'Rocky read-only monitoring is not configured.');
+  for (const privileged of [env.OMP_GATEWAY_TOKEN, env.AUTOFIX_EXECUTOR_TOKEN, env.ERROR_MONITOR_TOKEN]) {
+    if (privileged && (await sameSecret(token, privileged)))
+      throw new RequestError(503, 'Rocky read-only monitoring requires a separate credential.');
+  }
+  const controller = new AbortController();
+  const { promise: deadline, reject } = Promise.withResolvers<never>();
+  const timer = setTimeout(() => {
+    controller.abort();
+    reject(new RequestError(503, 'Rocky monitoring timed out.'));
+  }, 3000);
+  try {
+    const task = async (): Promise<Response> => {
+      const response = await gateway.fetch('http://omp-gateway/healthz', {
+        method: 'GET',
+        redirect: 'manual',
+        headers: { Authorization: `Bearer ${token}` },
+        signal: controller.signal,
+      });
+      if (response.status !== 200 || response.redirected) {
+        void response.body?.cancel().catch(() => {});
+        throw new RequestError(503, 'Rocky monitoring is unavailable.');
+      }
+      const snapshot = parseRockyMonitorSnapshot(await readMonitorJson(response, controller.signal), Date.now());
+      if (!snapshot) throw new RequestError(503, 'Rocky monitoring is unavailable or stale.');
+      return reply(200, { ...snapshot }, null);
+    };
+    return await Promise.race([task(), deadline]);
+  } catch (error) {
+    if (error instanceof RequestError) throw error;
+    throw new RequestError(503, 'Rocky monitoring is unavailable.');
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -932,6 +1014,8 @@ export default {
       if (url.protocol !== 'https:') throw new RequestError(400, 'HTTPS is required.');
       if (env.ENVIRONMENT !== 'production')
         throw new RequestError(503, 'Only the fixed production installation is enabled.');
+      if (url.pathname === '/healthz') return await monitoringHealth(request, env, url);
+      if (url.pathname === '/healthz/rocky') return await rockyMonitoringHealth(request, env, url);
       if (url.pathname.startsWith('/executor/')) return await executorRequest(request, env, url);
       const retrieval = url.pathname.startsWith('/diagnostics/');
       if (!retrieval && !['/webhooks/sentry', '/webhooks/cloudflare', '/webhooks/github'].includes(url.pathname))
