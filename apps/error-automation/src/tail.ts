@@ -28,6 +28,8 @@ export function sourcePath(path: string, app: App): string | null {
 
 /** Vite의 서버 번들 위치에서 시작하는 소스맵 경로만 앱 소스로 정규화한다. 원시 Tail 경로에는 적용하지 않는다. */
 export function mappedSourcePath(path: string, app: App): string | null {
+  const serverFunctionSuffix = '?tss-serverfn-split';
+  if (path.endsWith(serverFunctionSuffix)) path = path.slice(0, -serverFunctionSuffix.length);
   if (path.startsWith('../../../src/')) return sourcePath(path.slice(9), app);
   if (path.startsWith('../../src/')) return sourcePath(path.slice(6), app);
   return sourcePath(path, app);

@@ -90,7 +90,9 @@ export async function mappedTailFrames(
         const raw = record(JSON.parse(moduleContent(sourceMap, 'application/source-map', MAX_MAP_BYTES)));
         if (
           raw.version !== 3 ||
-          raw.file !== frame.path ||
+          (raw.file !== undefined &&
+            raw.file !== frame.path &&
+            raw.file !== frame.path.slice(frame.path.lastIndexOf('/') + 1)) ||
           !Array.isArray(raw.sources) ||
           raw.sources.length > 20_000 ||
           typeof raw.mappings !== 'string' ||

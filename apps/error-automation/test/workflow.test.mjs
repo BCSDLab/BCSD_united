@@ -259,7 +259,12 @@ test('Tail resolves app-relative source-mapped frames without accepting foreign 
   }
 });
 
-function sourceMapFixture({ source = 'src/handler.ts', mapFile = 'assets/handler.js', duplicate = false } = {}) {
+function sourceMapFixture({
+  source = 'src/handler.ts',
+  mapFile = 'handler.js',
+  duplicate = false,
+  omitFile = false,
+} = {}) {
   const code = 'function handler() {}\n//# sourceMappingURL=handler.js.map';
   const modules = [
     {
@@ -273,7 +278,7 @@ function sourceMapFixture({ source = 'src/handler.ts', mapFile = 'assets/handler
       content_base64: Buffer.from(
         JSON.stringify({
           version: 3,
-          file: mapFile,
+          ...(omitFile ? {} : { file: mapFile }),
           sources: [source],
           sourcesContent: ['private source content'],
           names: [],
@@ -309,6 +314,13 @@ test('pinned bundle mapping preserves original line/column and exposes positions
   );
 });
 
+test('pinned Vite chunks map basename or omitted file metadata and server-function sources', async () => {
+  for (const options of [{}, { omitFile: true }, { mapFile: 'assets/handler.js' }]) {
+    const fixture = sourceMapFixture({ ...options, source: '../../../src/routes/store.tsx?tss-serverfn-split' });
+    assert.deepEqual(await fixture.map(), [{ path: 'apps/web/src/routes/store.tsx', line: 3, column: 5 }]);
+  }
+});
+
 test('source mapping never uses another version, duplicate maps or foreign app sources', async (t) => {
   for (const options of [
     { mapFile: 'assets/other.js' },
@@ -316,6 +328,8 @@ test('source mapping never uses another version, duplicate maps or foreign app s
     { source: 'apps/api/src/handler.ts' },
     { source: '../src/handler.ts' },
     { source: 'https://attacker.example/src/handler.ts' },
+    { source: '../../../src/handler.ts?arbitrary-query' },
+    { source: '../../../src/handler.ts?tss-serverfn-split#fragment' },
   ]) {
     await t.test(JSON.stringify(options), async () => {
       const fixture = sourceMapFixture(options);
