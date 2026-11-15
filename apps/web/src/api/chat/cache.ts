@@ -83,7 +83,10 @@ export async function fetchChatMessageCache(
       let page = latest;
       while (page.length === CHAT_MESSAGE_LIMIT) {
         const before = page[0].message_id;
-        page = await fetchMessages({ before_message_id: before, limit: CHAT_MESSAGE_LIMIT });
+        page = await fetchMessages({
+          before_message_id: before,
+          limit: CHAT_MESSAGE_LIMIT,
+        });
         if (page.length && compareMessageIds(page[0].message_id, before) >= 0) {
           throw new Error('이전 메시지 조회가 진행되지 않았습니다.');
         }
@@ -97,7 +100,10 @@ export async function fetchChatMessageCache(
   if (cursor && cache.initialized) {
     let page: ChatMessageResponse[];
     do {
-      page = await fetchMessages({ after_message_id: cursor, limit: CHAT_MESSAGE_LIMIT });
+      page = await fetchMessages({
+        after_message_id: cursor,
+        limit: CHAT_MESSAGE_LIMIT,
+      });
       if (page.length) {
         const nextCursor = page.at(-1)!.message_id;
         if (compareMessageIds(nextCursor, cursor) <= 0) {
@@ -118,11 +124,17 @@ export async function fetchChatMessageCache(
       compareMessageIds(pageToRefresh[0].message_id, oldestId) > 0
     ) {
       const before = pageToRefresh[0].message_id;
-      pageToRefresh = await fetchMessages({ before_message_id: before, limit: CHAT_MESSAGE_LIMIT });
+      pageToRefresh = await fetchMessages({
+        before_message_id: before,
+        limit: CHAT_MESSAGE_LIMIT,
+      });
       if (pageToRefresh.length && compareMessageIds(pageToRefresh[0].message_id, before) >= 0) {
         throw new Error('메시지 상태 갱신이 진행되지 않았습니다.');
       }
-      messages = mergeChatMessages(messages, pageToRefresh);
+      messages = mergeChatMessages(
+        messages,
+        pageToRefresh.filter((message) => compareMessageIds(message.message_id, oldestId) >= 0),
+      );
     }
   }
 

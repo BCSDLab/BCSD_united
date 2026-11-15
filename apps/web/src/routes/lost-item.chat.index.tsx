@@ -89,8 +89,10 @@ function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageP
   });
   const showDetail = !isMobile || (requestedDetail && articleId !== null && chatroomId !== null);
   const showList = !isMobile || !showDetail;
+  const isChatroomOpen = showDetail && !!chatroomDetail;
 
   const prevMessagesLengthRef = useRef(0);
+  const previousRoomKeyRef = useRef<string | null>(null);
   const roomKey = `${articleId}:${chatroomId}`;
   const previousMessagesScrollRef = useRef<{
     roomKey: string;
@@ -174,6 +176,8 @@ function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageP
     prevMessagesLengthRef.current = currentLength;
     const container = chatContainerRef.current;
     if (!container) return;
+    const hasRoomChanged = previousRoomKeyRef.current !== roomKey;
+    previousRoomKeyRef.current = roomKey;
 
     const scrollSnapshot = previousMessagesScrollRef.current;
     if (scrollSnapshot?.roomKey === roomKey) {
@@ -187,8 +191,8 @@ function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageP
     }
     previousMessagesScrollRef.current = null;
 
-    if (hasNewMessages) container.scrollTop = container.scrollHeight;
-  }, [messages, roomKey]);
+    if (hasNewMessages || hasRoomChanged) container.scrollTop = container.scrollHeight;
+  }, [messages, roomKey, isChatroomOpen]);
 
   useEffect(() => {
     const container = chatContainerRef.current;
@@ -285,8 +289,6 @@ function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageP
 
     return groups;
   }, []);
-
-  const isChatroomOpen = showDetail && !!chatroomDetail;
 
   return (
     <>

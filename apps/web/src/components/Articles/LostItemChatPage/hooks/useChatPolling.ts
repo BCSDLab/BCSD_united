@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 import { captureError } from '@koin/telemetry/runtime';
 import { skipToken, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -13,6 +13,15 @@ import showToast from 'utils/ts/showToast';
 
 const POLLING_INTERVAL_MS = 10_000;
 const PRESENCE_INTERVAL_MS = 10_000;
+
+function subscribeToVisibility(onChange: () => void) {
+  document.addEventListener('visibilitychange', onChange);
+
+  return () => document.removeEventListener('visibilitychange', onChange);
+}
+
+const isVisible = () => typeof document !== 'undefined' && document.visibilityState === 'visible';
+const getServerVisibility = () => false;
 
 function reportPresenceError(error: unknown, fallbackMessage: string) {
   if (isKoinError(error)) {
@@ -40,6 +49,7 @@ const useChatPolling = ({
 }: UseChatPollingOptions) => {
   const isLoggedIn = useIsLoggedIn();
   const queryClient = useQueryClient();
+  const visible = useSyncExternalStore(subscribeToVisibility, isVisible, getServerVisibility);
   const presenceRequestRef = useRef<Promise<unknown>>(Promise.resolve());
 
   const { data: rooms } = useQuery({
@@ -200,7 +210,7 @@ const useChatPolling = ({
   });
 
   useEffect(() => {
-    if (userId === null || !roomId || !isOnline) return;
+    if (userId === null || !roomId || !isOnline || !visible) return;
     let active = true;
     let refreshing = false;
 
@@ -209,7 +219,7 @@ const useChatPolling = ({
       refreshing = true;
       presenceRequestRef.current = presenceRequestRef.current
         .then(() => {
-          if (active) return touchChatPresence(roomId);
+          if (active && isVisible()) return touchChatPresence(roomId);
         })
         .catch((error: unknown) => {
           reportPresenceError(error, '채팅방 접속 상태를 갱신하지 못했습니다.');
@@ -229,7 +239,7 @@ const useChatPolling = ({
         reportPresenceError(error, '채팅방 퇴장을 실패하였습니다');
       });
     };
-  }, [userId, roomId, isOnline, leaveRoom]);
+  }, [userId, roomId, isOnline, visible, leaveRoom]);
 
   const invalidateChatroomList = useCallback(() => {
     queryClient.invalidateQueries({
