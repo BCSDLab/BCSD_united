@@ -10,6 +10,7 @@ import { isMobileView } from 'utils/hooks/layout/useMobileView';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { createPageLoader, definePageLoad, STORE_PUBLIC_SSR_CACHE_CONTROL } from 'utils/ssr/pageLoader';
 import { isNotFoundKoinError } from 'utils/ts/isr';
+import { parseQueryId } from 'utils/ts/parseServerSideParams';
 
 interface Props {
   id: string;
@@ -26,7 +27,7 @@ function StoreEventsRoute({ id }: Props) {
 
 const loadPage = definePageLoad(async ({ params, queryClient }, cacheControl, serverRequest) => {
   const id = params.id;
-  if (!id) throw notFound();
+  if (parseQueryId(id) === null) throw notFound();
 
   // 모바일 전용 화면. 모바일 화면 조건이 아니면 데스크톱 화면으로 보낸다
   if (!isMobileView(serverRequest.device)) {

@@ -1085,10 +1085,7 @@ export default {
             workerName: capture.identity.project,
             sourceId: capture.identity.sourceId,
             reason: error instanceof SourceMapEvidenceError ? error.message : 'Source evidence unavailable',
-            providerStatus:
-              error instanceof DiagnosticProviderError || error instanceof SourceMapEvidenceError
-                ? (error.status ?? null)
-                : null,
+            providerStatus: error instanceof DiagnosticProviderError ? error.status : null,
           });
           return reply(503, { error: 'Authenticated Cloudflare route and mapped source evidence unavailable.' });
         }

@@ -1,5 +1,5 @@
 import { Suspense, useCallback, useEffect, useState } from 'react';
-import { createFileRoute, useNavigate, useRouter, useSearch, useParams } from '@tanstack/react-router';
+import { createFileRoute, notFound, useNavigate, useRouter, useSearch, useParams } from '@tanstack/react-router';
 import { FormProvider, useForm } from 'react-hook-form';
 
 import ChevronLeftIcon from 'assets/svg/Login/chevron-left.svg';
@@ -180,6 +180,9 @@ function FindPassword() {
 }
 
 export const Route = createFileRoute('/auth/findpw/$step/')({
+  beforeLoad: ({ params }) => {
+    if (!Object.hasOwn(stepToProgress, params.step)) throw notFound();
+  },
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   component: RouteComponent,
 });

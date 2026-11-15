@@ -1,18 +1,12 @@
 import { originalPositionFor, TraceMap } from '@jridgewell/trace-mapping';
 import type { App } from './types';
-import { isBundlePath, sourcePath, type TailEvidence } from './tail';
+import { isBundlePath, mappedSourcePath, sourcePath, type TailEvidence } from './tail';
 
 type Frame = TailEvidence['frames'][number];
-const MAX_CONTENT_BYTES = 32 * 1024 * 1024;
-const MAX_MODULE_BYTES = 4 * 1024 * 1024;
+const MAX_BUNDLE_BYTES = 8 * 1024 * 1024;
+const MAX_MAP_BYTES = 16 * 1024 * 1024;
 
-export class SourceMapEvidenceError extends Error {
-  readonly status?: number;
-  constructor(message: string, status?: number) {
-    super(message);
-    this.status = status;
-  }
-}
+export class SourceMapEvidenceError extends Error {}
 
 function record(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value))
@@ -20,41 +14,17 @@ function record(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-async function contentPart(parts: FormData, name: string): Promise<string> {
-  const matches = parts.getAll(name);
-  if (matches.length !== 1) throw new SourceMapEvidenceError('Missing or ambiguous version source module');
-  const part = matches[0];
-  if (typeof part === 'string') {
-    if (new TextEncoder().encode(part).byteLength > MAX_MODULE_BYTES)
-      throw new SourceMapEvidenceError('Source module exceeds limit');
-    return part;
+function moduleContent(module: Record<string, unknown>, type: string, limit: number): string {
+  const encoded = module.content_base64;
+  if (module.content_type !== type || typeof encoded !== 'string' || encoded.length > Math.ceil(limit / 3) * 4)
+    throw new SourceMapEvidenceError('Invalid pinned version module');
+  try {
+    const bytes = Uint8Array.from(atob(encoded), (char) => char.charCodeAt(0));
+    if (bytes.byteLength > limit) throw new SourceMapEvidenceError('Pinned version module exceeds limit');
+    return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
+  } catch {
+    throw new SourceMapEvidenceError('Invalid pinned version module');
   }
-  if (part.size > MAX_MODULE_BYTES) throw new SourceMapEvidenceError('Source module exceeds limit');
-  return part.text();
-}
-
-async function versionContent(workerName: string, version: string, token: string): Promise<FormData> {
-  // 대시보드에서 확인한 버전 지정 원본 경로. 아래에서 공식 버전 API의 코드와도 대조한다.
-  const response = await fetch(
-    `https://api.cloudflare.com/client/v4/accounts/abe06b869950de952decf9df29c6f1a3/workers/scripts/${workerName}?deployment=${version}`,
-    { headers: { Authorization: `Bearer ${token}` }, redirect: 'manual', signal: AbortSignal.timeout(15_000) },
-  );
-  const type = response.headers.get('content-type');
-  if (!response.ok || !response.body || !type?.startsWith('multipart/form-data;')) {
-    await response.body?.cancel();
-    throw new SourceMapEvidenceError('Pinned version source content unavailable', response.status);
-  }
-  let received = 0;
-  const limited = response.body.pipeThrough(
-    new TransformStream<Uint8Array, Uint8Array>({
-      transform(chunk, controller) {
-        received += chunk.byteLength;
-        if (received > MAX_CONTENT_BYTES) throw new SourceMapEvidenceError('Version source content exceeds limit');
-        controller.enqueue(chunk);
-      },
-    }),
-  );
-  return new Response(limited, { headers: { 'Content-Type': type } }).formData();
 }
 
 /** 소스맵은 동일 버전의 원본 코드와 일치할 때만 사용하며 코드·sourcesContent는 반환하지 않는다. */
@@ -64,7 +34,6 @@ export async function mappedTailFrames(
   scriptVersion: string,
   version: Record<string, unknown>,
   frames: Frame[],
-  token: string,
 ): Promise<Frame[]> {
   if (
     workerName !== `koin-${app}` ||
@@ -92,7 +61,8 @@ export async function mappedTailFrames(
   if (!frames.some((frame) => isBundlePath(frame.path))) {
     return frames.map((frame) => ({ ...frame, path: sourcePath(frame.path, app)! }));
   }
-  if (!Array.isArray(version.modules)) throw new SourceMapEvidenceError('Pinned version modules unavailable');
+  if (!Array.isArray(version.modules) || version.modules.length > 2_000)
+    throw new SourceMapEvidenceError('Pinned version modules unavailable');
   const modules = new Map<string, Record<string, unknown>>();
   for (const value of version.modules) {
     const module = record(value);
@@ -100,7 +70,6 @@ export async function mappedTailFrames(
       throw new SourceMapEvidenceError('Ambiguous version module');
     modules.set(module.name, module);
   }
-  const parts = await versionContent(workerName, scriptVersion, token);
   const maps = new Map<string, TraceMap>();
   const result: Frame[] = [];
   const seen = new Set<string>();
@@ -111,19 +80,14 @@ export async function mappedTailFrames(
       if (!map) {
         const module = modules.get(frame.path);
         if (!module) throw new SourceMapEvidenceError('Bundle is absent from the pinned version');
-        const encoded = module.content_base64;
-        if (typeof encoded !== 'string' || encoded.length > (MAX_MODULE_BYTES * 4) / 3 + 4) {
-          throw new SourceMapEvidenceError('Invalid pinned version module');
-        }
-        const bytes = Uint8Array.from(atob(encoded), (char) => char.charCodeAt(0));
-        const pinned = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
-        const compiled = await contentPart(parts, frame.path);
-        if (compiled !== pinned) throw new SourceMapEvidenceError('Source content does not match the pinned version');
+        const compiled = moduleContent(module, 'application/javascript+module', MAX_BUNDLE_BYTES);
         const reference = /(?:^|\n)\/\/# sourceMappingURL=([A-Za-z0-9_.$/-]+\.map)\s*$/.exec(compiled)?.[1];
         if (!reference || reference.startsWith('/') || reference.includes('..'))
           throw new SourceMapEvidenceError('Invalid source-map reference');
         const mapName = `${frame.path.slice(0, frame.path.lastIndexOf('/') + 1)}${reference}`;
-        const raw = record(JSON.parse(await contentPart(parts, mapName)));
+        const sourceMap = modules.get(mapName);
+        if (!sourceMap) throw new SourceMapEvidenceError('Source map is absent from the pinned version');
+        const raw = record(JSON.parse(moduleContent(sourceMap, 'application/source-map', MAX_MAP_BYTES)));
         if (
           raw.version !== 3 ||
           raw.file !== frame.path ||
@@ -145,7 +109,7 @@ export async function mappedTailFrames(
         maps.set(frame.path, map);
       }
       const original = originalPositionFor(map, { line: frame.line, column: frame.column - 1 });
-      const path = original.source && sourcePath(original.source, app);
+      const path = original.source && mappedSourcePath(original.source, app);
       if (
         !path ||
         original.line === null ||

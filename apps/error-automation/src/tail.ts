@@ -21,9 +21,16 @@ const FRAME =
 
 export function sourcePath(path: string, app: App): string | null {
   if (path.length > 180 || path.includes('..')) return null;
-  const match = /^(?:apps\/(web|api)\/)?src\/([A-Za-z0-9_.$/-]+\.(?:ts|tsx|js|jsx))$/.exec(path);
+  const match = /^(?:apps\/(web|api)\/)?src\/([A-Za-z0-9_.$()/-]+\.(?:ts|tsx|js|jsx))$/.exec(path);
   if (!match || (match[1] && match[1] !== app)) return null;
   return `apps/${app}/src/${match[2]}`;
+}
+
+/** Vite의 서버 번들 위치에서 시작하는 소스맵 경로만 앱 소스로 정규화한다. 원시 Tail 경로에는 적용하지 않는다. */
+export function mappedSourcePath(path: string, app: App): string | null {
+  if (path.startsWith('../../../src/')) return sourcePath(path.slice(9), app);
+  if (path.startsWith('../../src/')) return sourcePath(path.slice(6), app);
+  return sourcePath(path, app);
 }
 
 export function isBundlePath(path: string): boolean {

@@ -38,6 +38,8 @@ export default function useNaverMapsLoaded() {
 
   useEffect(() => {
     if (isLoaded) return undefined;
+    const clientId = process.env.NEXT_PUBLIC_NAVER_MAPS_CLIENT_ID;
+    if (!clientId) return undefined;
 
     let isActive = true;
     const markReady = () => {
@@ -53,7 +55,7 @@ export default function useNaverMapsLoaded() {
     } else {
       script = document.createElement('script');
       script.id = NAVER_MAP_GEOCODER_SCRIPT_ID;
-      script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${process.env.NEXT_PUBLIC_NAVER_MAPS_CLIENT_ID}&submodules=geocoder`;
+      script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${clientId}&submodules=geocoder`;
       script.async = true;
       script.addEventListener('load', handleLoad);
       document.head.appendChild(script);
