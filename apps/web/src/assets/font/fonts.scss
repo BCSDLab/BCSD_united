@@ -2,7 +2,7 @@
   --font-pretendard: "Pretendard";
 }
 
-// 미얀마어 글리프는 Pretendard에 없어 Myanmar Sans Pro(SIL OFL, MyanmarSansPro-OFL.txt)로 채운다.
+// 미얀마어 글리프는 Pretendard에 없어 Myanmar Sans Pro(SIL OFL, `MyanmarSansPro-OFL.txt`)로 채운다.
 // 같은 Pretendard 패밀리에 미얀마 문자 범위만 등록해, 기존 `font-family: Pretendard` 선언을 그대로 두고 해당 글자만 받는다.
 // Pretendard가 굵기마다 face를 따로 등록하므로 같은 굵기로 하나씩 등록해야 굵게 쓴 곳에서도 이 글꼴로 이어진다.
 // 파일은 Regular 한 굵기뿐이라 모든 굵기를 같은 파일로 그린다.

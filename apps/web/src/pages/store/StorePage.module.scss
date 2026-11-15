@@ -71,6 +71,23 @@
       font-weight: 700;
     }
 
+    // 번역된 이름은 한 줄에 들어가지 않아 옆 칸과 겹친다. 한국어가 아니면 두 줄까지 줄바꿈하고 아이콘 높이를 맞춘다.
+    // 위 여백은 한 줄짜리 이름이 기존 가운데 정렬과 같은 위치에 오는 값이다: (142px - 아이콘 61px - 한 줄 14px) / 2
+    &:not(:lang(ko)) {
+      justify-content: flex-start;
+      padding-top: 33px;
+      white-space: normal;
+
+      & span {
+        display: -webkit-box;
+        overflow: hidden;
+        overflow-wrap: anywhere;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+      }
+    }
+
     &:hover {
       color: #f7941e;
     }
