@@ -2,9 +2,10 @@ import { useCallback, useEffect, useRef } from 'react';
 import { captureError } from '@koin/telemetry/runtime';
 import { skipToken, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { postLeaveLostItemChatroomV2, postLostItemChatroomMessageV2 } from 'api/articles';
+import { postLeaveLostItemChatroomV2 } from 'api/articles';
 import { articleQueries, articleQueryKeys } from 'api/articles/queries';
-import { chatQueries } from 'api/chat/queries';
+import { sendChatMessage } from 'api/chat';
+import { chatQueries, chatQueryKeys } from 'api/chat/queries';
 import { isKoinError } from 'interfaces/APIError';
 import { getCachedMessages, cacheMessages, clearChatroomCache } from 'utils/db/chatDB';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
@@ -120,11 +121,11 @@ const useChatPolling = ({
 
   const { mutate: sendMessage, mutateAsync: sendMessageAsync } = useMutation({
     mutationFn: ({ content, isImage = false }: { content: string; isImage?: boolean }) => {
-      if (defaultArticleId == null || defaultChatroomId == null) {
+      if (!matchedRoom) {
         return Promise.reject(new Error('채팅방 정보가 없습니다.'));
       }
 
-      return postLostItemChatroomMessageV2(Number(defaultArticleId), Number(defaultChatroomId), {
+      return sendChatMessage(matchedRoom.room_id, {
         content,
         is_image: isImage,
       });
@@ -133,6 +134,7 @@ const useChatPolling = ({
       queryClient.invalidateQueries({
         queryKey: articleQueryKeys.lostItemChatroomMessages(defaultArticleId, defaultChatroomId, isLoggedIn),
       });
+      queryClient.invalidateQueries({ queryKey: chatQueryKeys.roomsRoot(userId) });
     },
     onError: (error) => {
       if (isKoinError(error)) {
