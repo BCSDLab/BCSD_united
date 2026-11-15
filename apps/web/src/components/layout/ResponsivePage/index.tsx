@@ -1,4 +1,4 @@
-import { Suspense, useEffect, type ReactNode } from 'react';
+import { Fragment, Suspense, useEffect, type ReactNode } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 
 import { SSRLayout } from 'components/layout';
@@ -6,6 +6,7 @@ import useMobileView from 'utils/hooks/layout/useMobileView';
 import type { DeviceClass } from 'utils/ssr/requestContext';
 
 // 화면이 바뀌면 미리 받지 않은 데이터를 쓰게 될 수 있으므로 Suspense로 감싼다.
+// 두 화면이 같은 컴포넌트(오류 경계 등)로 시작해도 상태를 이어받지 않도록 화면별 key로 다시 마운트한다.
 // 페이지 헤더 레이아웃은 모바일 폭에서만 레거시 헤더를 숨기므로 데스크톱 화면에도 그대로 쓴다.
 interface ResponsivePageProps {
   device: DeviceClass;
@@ -19,7 +20,9 @@ export function ResponsivePage({ device, mobile, desktop }: ResponsivePageProps)
 
   return (
     <SSRLayout mobileHeader="page">
-      <Suspense fallback={null}>{showMobile ? mobile : desktop}</Suspense>
+      <Suspense fallback={null}>
+        <Fragment key={showMobile ? 'mobile' : 'desktop'}>{showMobile ? mobile : desktop}</Fragment>
+      </Suspense>
     </SSRLayout>
   );
 }
