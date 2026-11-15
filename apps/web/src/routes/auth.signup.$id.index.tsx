@@ -17,7 +17,7 @@ import Terms from 'components/Auth/SignupPage/Steps/Terms';
 import Verification from 'components/Auth/SignupPage/Steps/VerificationStep';
 import LoadingSpinner from 'components/feedback/LoadingSpinner';
 import { useSessionLogger } from 'utils/hooks/analytics/useSessionLogger';
-import useMediaQuery, { MOBILE_QUERY } from 'utils/hooks/layout/useMediaQuery';
+import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import showToast from 'utils/ts/showToast';
 
 import styles from 'pages/auth/signup/SignupPage.module.scss';
@@ -164,13 +164,9 @@ function SignupPage() {
 }
 
 export const Route = createFileRoute('/auth/signup/$id/')({
-  beforeLoad: ({ params, context }) => {
-    const isMobile =
-      typeof window === 'undefined'
-        ? context.serverRequest.device === 'mobile'
-        : window.matchMedia(MOBILE_QUERY).matches;
-    const steps = isMobile ? mobileSteps : desktopSteps;
-    if (!steps.includes(params.id as StepTitle)) throw notFound();
+  beforeLoad: ({ params }) => {
+    // 서버(UA)와 클라이언트(뷰포트)의 기기 판정이 다를 수 있으므로 등록된 모든 단계를 허용해 SSR·하이드레이션 결과를 맞춘다.
+    if (!mobileSteps.includes(params.id as StepTitle) && !desktopSteps.includes(params.id as StepTitle)) throw notFound();
   },
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   component: RouteComponent,
