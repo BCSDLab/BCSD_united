@@ -156,11 +156,11 @@ export default function ParticipantsList({ postId }: ParticipantsListProps) {
           <div className={styles['route-card__locations']}>
             <div className={styles['route-card__location']}>
               <span className={styles['route-card__label']}>출발:</span>
-              <span className={styles['route-card__value']}>{post.departure}</span>
+              <span className={styles['route-card__value']}>{post.display_departure ?? post.departure}</span>
             </div>
             <div className={styles['route-card__location']}>
               <span className={styles['route-card__label']}>도착:</span>
-              <span className={styles['route-card__value']}>{post.arrival}</span>
+              <span className={styles['route-card__value']}>{post.display_arrival ?? post.arrival}</span>
             </div>
           </div>
           <div className={styles['route-card__datetime']}>

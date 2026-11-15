@@ -91,7 +91,7 @@ export default function ShuttleDetailMobile({ timetable, selectedName, onSelect 
                 {isMultiple ? (
                   <>
                     <th scope="row" className={styles.timetable__stop}>
-                      {node.name}
+                      {node.display_name ?? node.name}
                       {node.detail && <span className={styles.timetable__description}>{node.detail}</span>}
                     </th>
                     {timetable.route_info.map((route) => (
@@ -104,7 +104,7 @@ export default function ShuttleDetailMobile({ timetable, selectedName, onSelect 
                   <>
                     <td className={styles.timetable__time}>{selectedRoute?.arrival_time[nodeIndex]?.split('/')[0]}</td>
                     <th scope="row" className={styles.timetable__stop}>
-                      {node.name}
+                      {node.display_name ?? node.name}
                       {node.detail && ` ${node.detail}`}
                     </th>
                   </>

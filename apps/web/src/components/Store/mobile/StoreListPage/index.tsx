@@ -149,7 +149,7 @@ export default function StoreListPage() {
                   {/* KOIN_ORDER_WEBVIEW와 같이 원본 이미지를 크기 조정 없이 요청한다. */}
                   <img
                     src={category.image_url}
-                    alt={category.name}
+                    alt={category.display_name ?? category.name}
                     className={cn({
                       [styles.category__image]: true,
                       [styles['category__image--selected']]: isSelected,
@@ -163,7 +163,7 @@ export default function StoreListPage() {
                     [styles['category__name--selected']]: isSelected,
                   })}
                 >
-                  {category.name}
+                  {category.display_name ?? category.name}
                 </div>
               </button>
             );
@@ -222,6 +222,7 @@ export default function StoreListPage() {
                 href={ROUTES.StoreDetail({ id: String(shop.id) })}
                 isOpen={shop.is_open}
                 name={shop.name}
+                displayName={shop.display_name}
                 rating={shop.average_rate}
                 reviewCount={shop.review_count}
                 thumbnailUrl={shop.images[0] ?? ''}

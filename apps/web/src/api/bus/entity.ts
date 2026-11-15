@@ -140,6 +140,8 @@ export interface ShuttleTimetableDetailInfoResponse {
   sub_name: null;
   node_info: Array<{
     name: string;
+    /** 화면 언어의 공식 정류장 이름. 없으면 원문이다. */
+    display_name?: string;
     detail: string;
   }>;
   route_info: Array<{
