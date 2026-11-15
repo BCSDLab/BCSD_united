@@ -54,11 +54,7 @@ function usePhoneVerificationInFindId({ phoneNumber, onNext }: UsePhoneVerificat
     },
   });
 
-  const { isResendLocked, markSent, withResendLock, resendButtonText } = useResendLock(
-    phoneNumber,
-    isTimer,
-    timerValue,
-  );
+  const { isResendLocked, markSent, withResendLock, resendButtonText } = useResendLock(phoneNumber);
 
   const { mutate: sendVerificationSms } = useMutation({
     mutationFn: smsSend,

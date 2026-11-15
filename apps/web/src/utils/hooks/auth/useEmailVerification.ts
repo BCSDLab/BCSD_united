@@ -55,7 +55,7 @@ function useEmailVerification({ email, onNext }: UseEmailVerificationProps) {
     },
   });
 
-  const { isResendLocked, markSent, withResendLock, resendButtonText } = useResendLock(email, isTimer, timerValue);
+  const { isResendLocked, markSent, withResendLock, resendButtonText } = useResendLock(email);
 
   const resetVerificationState = () => {
     disableButton();

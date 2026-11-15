@@ -60,11 +60,7 @@ function usePhoneVerification({ phoneNumber, onNext, step }: UsePhoneVerificatio
     },
   });
 
-  const { isResendLocked, markSent, withResendLock, resendButtonText } = useResendLock(
-    phoneNumber,
-    isTimer,
-    timerValue,
-  );
+  const { isResendLocked, markSent, withResendLock, resendButtonText } = useResendLock(phoneNumber);
 
   const resetVerificationState = () => {
     disableButton();

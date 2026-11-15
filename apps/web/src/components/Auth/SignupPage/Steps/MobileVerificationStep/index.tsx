@@ -68,11 +68,7 @@ function MobileVerification({ onNext }: MobileVerificationProps) {
     },
   });
 
-  const { isResendLocked, markSent, withResendLock, resendButtonText } = useResendLock(
-    phoneNumber,
-    isTimer,
-    timerValue,
-  );
+  const { isResendLocked, markSent, withResendLock, resendButtonText } = useResendLock(phoneNumber);
 
   const clearVerificationMessageTimer = () => {
     if (verificationMessageTimerRef.current) {
