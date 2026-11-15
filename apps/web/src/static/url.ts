@@ -12,6 +12,8 @@ export const WEB_AUTH_ACCESS_COOKIE_KEY = IS_STAGE ? '__Secure-koin-stage-web-ac
 // 프론트가 쓰는 쿠키 이름.
 // 시간표에서 선택한 학기. localStorage(zustand)에만 두면 서버가 몰라 SSR과 클라이언트 렌더가 갈린다.
 export const TIMETABLE_SEMESTER_COOKIE_KEY = IS_STAGE ? 'koin-stage-timetable-semester' : 'koin-timetable-semester';
+// 화면 언어. 서버 렌더도 같은 언어로 그려야 하므로 localStorage가 아닌 쿠키에 둔다.
+export const LANGUAGE_COOKIE_KEY = IS_STAGE ? 'koin-stage-language' : 'koin-language';
 
 const KOIN_URL = `https://${BASE_DOMAIN}`;
 const KOIN_STAGE_URL = `https://${STAGE_DOMAIN}`;

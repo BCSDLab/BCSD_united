@@ -5,10 +5,12 @@ import { useLocation, useMatches, useRouter } from '@tanstack/react-router';
 import Toast from 'components/feedback/Toast';
 import PortalProvider from 'components/modal/Modal/PortalProvider';
 import Seo from 'components/seo/Seo';
+import { DEFAULT_LANGUAGE } from 'static/language';
 import ROUTES from 'static/routes';
 import { clearLegacySessionStorage } from 'utils/auth/legacyStorage';
 import { initializeSessionConfirmation } from 'utils/auth/sessionConfirmation';
 import { useSessionState } from 'utils/hooks/auth/useSession';
+import { LanguageProvider } from 'utils/language/useLanguage';
 import type { ServerRequestContext } from 'utils/ssr/requestContext';
 import { initializeServerClock } from 'utils/ssr/serverClock';
 import { ServerRequestProvider } from 'utils/ssr/useServerRequest';
@@ -76,12 +78,14 @@ export default function ApplicationProviders({
     <QueryClientProvider client={client}>
       <HydrationBoundary state={data?.dehydratedState}>
         <ServerRequestProvider value={data?.serverRequest ?? serverRequest}>
-          <PortalProvider>
-            <AuthGuard required={leaf?.staticData.requireAuth ?? false} />
-            {!leaf?.staticData.hasPageSeo && <Seo title={pageTitle} />}
-            {children}
-            <Toast />
-          </PortalProvider>
+          <LanguageProvider initialLanguage={(data?.serverRequest ?? serverRequest)?.language ?? DEFAULT_LANGUAGE}>
+            <PortalProvider>
+              <AuthGuard required={leaf?.staticData.requireAuth ?? false} />
+              {!leaf?.staticData.hasPageSeo && <Seo title={pageTitle} />}
+              {children}
+              <Toast />
+            </PortalProvider>
+          </LanguageProvider>
         </ServerRequestProvider>
       </HydrationBoundary>
     </QueryClientProvider>
