@@ -1,6 +1,8 @@
 import { WebSession } from 'api/auth/APIDetail';
-import { WEB_AUTH_ACCESS_COOKIE_KEY } from 'static/url';
+import { DEFAULT_LANGUAGE, type LanguageCode } from 'static/language';
+import { LANGUAGE_COOKIE_KEY, WEB_AUTH_ACCESS_COOKIE_KEY } from 'static/url';
 import { toUserType, type UserType } from 'utils/auth/session';
+import { parseLanguage } from 'utils/language/language';
 import APIClient from 'utils/ts/apiClient';
 
 export type DeviceClass = 'mobile' | 'desktop';
@@ -14,6 +16,11 @@ export interface ServerRequestContext {
   now: string;
   /** 문서가 공유 캐시에서 제공될 수 있으면 클라이언트는 새 서버 시각을 받아야 한다. */
   mayBeSharedCached: boolean;
+  /**
+   * 서버 렌더에 쓴 화면 언어. 언어 쿠키가 없으면 기본 언어다.
+   * 브라우저 언어 판정과 로그인 사용자의 서버 선호 언어 반영은 마운트 후 `LanguageProvider`가 한다.
+   */
+  language: LanguageCode;
 }
 
 /**
@@ -61,26 +68,47 @@ function hasUsableAccessToken(accessToken: string | undefined): boolean {
   }
 }
 
+function readCookie(cookie: string | null, name: string): string | undefined {
+  const value = cookie
+    ?.split(';')
+    .map((entry) => entry.trim())
+    .find((entry) => entry.startsWith(`${name}=`))
+    ?.slice(name.length + 1);
+  if (value === undefined) return undefined;
+
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
 export async function getServerRequestContext(request: Request): Promise<ServerRequestContext> {
   const device = getDeviceClass(request.headers.get('user-agent') ?? undefined);
   const now = new Date().toISOString();
   const cookie = request.headers.get('cookie');
 
-  const accessToken = cookie
-    ?.split(';')
-    .map((entry) => entry.trim())
-    .find((entry) => entry.startsWith(`${WEB_AUTH_ACCESS_COOKIE_KEY}=`))
-    ?.slice(WEB_AUTH_ACCESS_COOKIE_KEY.length + 1);
+  const accessToken = readCookie(cookie, WEB_AUTH_ACCESS_COOKIE_KEY);
+  const language = parseLanguage(readCookie(cookie, LANGUAGE_COOKIE_KEY)) ?? DEFAULT_LANGUAGE;
+  // 공유 캐시는 언어 쿠키로 나뉘지 않으므로 기본 언어로 그린 응답만 공유 캐시에 남긴다
+  const isDefaultLanguage = language === DEFAULT_LANGUAGE;
   if (!cookie || !hasUsableAccessToken(accessToken)) {
-    return { device, isLoggedIn: false, userType: null, now, mayBeSharedCached: true };
+    return { device, isLoggedIn: false, userType: null, now, mayBeSharedCached: isDefaultLanguage, language };
   }
 
   try {
     const session = await APIClient.request(new WebSession({ Cookie: cookie, Origin: new URL(request.url).origin }));
     const userType = session.authenticated ? toUserType(session.user_type) : null;
 
-    return { device, isLoggedIn: userType !== null, userType, now, mayBeSharedCached: userType === null };
+    return {
+      device,
+      isLoggedIn: userType !== null,
+      userType,
+      now,
+      mayBeSharedCached: userType === null && isDefaultLanguage,
+      language,
+    };
   } catch {
-    return { device, isLoggedIn: false, userType: null, now, mayBeSharedCached: true };
+    return { device, isLoggedIn: false, userType: null, now, mayBeSharedCached: isDefaultLanguage, language };
   }
 }

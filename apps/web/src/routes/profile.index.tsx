@@ -10,7 +10,6 @@ import LoginIcon from 'assets/svg/common/login-icon.svg';
 import LogoutIcon from 'assets/svg/common/logout-icon.svg';
 import SettingIcon from 'assets/svg/common/setting-icon.svg';
 import UserIcon from 'assets/svg/common/user-2-icon.svg';
-import AuthenticateUserModal from 'components/AuthenticateUserModal';
 import HomeLayout from 'components/layout/HomeLayout';
 import { LoggedInTimetablePreview, ProfileTimetableGrid } from 'components/ProfilePage/TimetablePreview';
 import IconBox from 'components/ui/IconBox';
@@ -19,7 +18,6 @@ import ROUTES from 'static/routes';
 import { TIMETABLE_SEMESTER_COOKIE_KEY } from 'static/url';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import { useLogout } from 'utils/hooks/auth/useLogout';
-import useBooleanState from 'utils/hooks/state/useBooleanState';
 import { useUser } from 'utils/hooks/state/useUser';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
@@ -41,7 +39,7 @@ interface LinkProfileMenuItem {
 
 interface ButtonProfileMenuItem {
   type: 'button';
-  action: 'logout' | 'setting';
+  action: 'logout';
   title: string;
   Icon: IconComponent;
 }
@@ -62,19 +60,12 @@ const getProfileMenus = (isLoggedIn: boolean): ProfileMenuItem[] => [
         href: ROUTES.Auth(),
         Icon: LoginIcon,
       },
-  isLoggedIn
-    ? {
-        type: 'button',
-        action: 'setting',
-        title: '설정',
-        Icon: SettingIcon,
-      }
-    : {
-        type: 'link',
-        title: '설정',
-        href: ROUTES.Auth(),
-        Icon: SettingIcon,
-      },
+  {
+    type: 'link',
+    title: '설정',
+    href: ROUTES.Setting(),
+    Icon: SettingIcon,
+  },
 ];
 
 interface TimetablePreviewProps {
@@ -116,18 +107,11 @@ interface ProfileMenuProps {
   title: string;
   actions: ProfileMenuItem[];
   onLogout: () => void;
-  onOpenAuthModal: () => void;
   onActionClick: (action: ProfileMenuItem) => void;
   subtitle?: string;
 }
 
-function ProfileMenu({ title, actions, onLogout, onOpenAuthModal, onActionClick, subtitle }: ProfileMenuProps) {
-  const getButtonAction = (action: ButtonProfileMenuItem) => {
-    if (action.action === 'setting') return onOpenAuthModal;
-
-    return onLogout;
-  };
-
+function ProfileMenu({ title, actions, onLogout, onActionClick, subtitle }: ProfileMenuProps) {
   return (
     <section className={styles['profile-menu']}>
       <div className={styles['profile-menu__user']}>
@@ -159,7 +143,7 @@ function ProfileMenu({ title, actions, onLogout, onOpenAuthModal, onActionClick,
                   className={styles['profile-menu__action']}
                   onClick={() => {
                     onActionClick(action);
-                    getButtonAction(action)();
+                    onLogout();
                   }}
                 >
                   <IconBox>
@@ -180,8 +164,6 @@ function ProfilePageContent({ serverSemester, hasSemesterCookie }: Omit<Timetabl
   const { data: userInfo } = useUser();
   const logout = useLogout();
   const logger = useLogger();
-
-  const [isModalOpen, openModal, closeModal] = useBooleanState(false);
 
   const isLoggedIn = !!userInfo;
   const isStudent = isStudentUser(userInfo);
@@ -205,24 +187,16 @@ function ProfilePageContent({ serverSemester, hasSemesterCookie }: Omit<Timetabl
   };
 
   return (
-    <>
-      <main className={styles.profile}>
-        <ProfileMenu
-          title={title}
-          actions={actions}
-          onLogout={logout}
-          onOpenAuthModal={openModal}
-          onActionClick={handleProfileMenuActionClick}
-          subtitle={isLoggedIn ? subtitle : undefined}
-        />
-        <TimetablePreview
-          isLoggedIn={isLoggedIn}
-          serverSemester={serverSemester}
-          hasSemesterCookie={hasSemesterCookie}
-        />
-      </main>
-      {isModalOpen && <AuthenticateUserModal onClose={closeModal} />}
-    </>
+    <main className={styles.profile}>
+      <ProfileMenu
+        title={title}
+        actions={actions}
+        onLogout={logout}
+        onActionClick={handleProfileMenuActionClick}
+        subtitle={isLoggedIn ? subtitle : undefined}
+      />
+      <TimetablePreview isLoggedIn={isLoggedIn} serverSemester={serverSemester} hasSemesterCookie={hasSemesterCookie} />
+    </main>
   );
 }
 
