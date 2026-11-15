@@ -90,16 +90,25 @@ export async function getServerRequestContext(request: Request): Promise<ServerR
 
   const accessToken = readCookie(cookie, WEB_AUTH_ACCESS_COOKIE_KEY);
   const language = parseLanguage(readCookie(cookie, LANGUAGE_COOKIE_KEY)) ?? DEFAULT_LANGUAGE;
+  // 공유 캐시는 언어 쿠키로 나뉘지 않으므로 기본 언어로 그린 응답만 공유 캐시에 남긴다
+  const isDefaultLanguage = language === DEFAULT_LANGUAGE;
   if (!cookie || !hasUsableAccessToken(accessToken)) {
-    return { device, isLoggedIn: false, userType: null, now, mayBeSharedCached: true, language };
+    return { device, isLoggedIn: false, userType: null, now, mayBeSharedCached: isDefaultLanguage, language };
   }
 
   try {
     const session = await APIClient.request(new WebSession({ Cookie: cookie, Origin: new URL(request.url).origin }));
     const userType = session.authenticated ? toUserType(session.user_type) : null;
 
-    return { device, isLoggedIn: userType !== null, userType, now, mayBeSharedCached: userType === null, language };
+    return {
+      device,
+      isLoggedIn: userType !== null,
+      userType,
+      now,
+      mayBeSharedCached: userType === null && isDefaultLanguage,
+      language,
+    };
   } catch {
-    return { device, isLoggedIn: false, userType: null, now, mayBeSharedCached: true, language };
+    return { device, isLoggedIn: false, userType: null, now, mayBeSharedCached: isDefaultLanguage, language };
   }
 }
