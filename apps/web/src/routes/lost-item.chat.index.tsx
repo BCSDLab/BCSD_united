@@ -48,8 +48,7 @@ function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageP
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const { logMessageListSelcetClick } = useChatLogger();
 
-  const showList = !isMobile || !chatRoomIdParam;
-  const showDetail = !isMobile || !!chatRoomIdParam;
+  const requestedDetail = !isMobile || !!chatRoomIdParam;
 
   const {
     chatroomDetail,
@@ -60,11 +59,14 @@ function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageP
     sendMessage: sendChatMessage,
     sendMessageAsync: sendChatMessageAsync,
   } = useChatPolling({
+    userId: userInfo?.id ?? null,
     articleId: articleIdParam,
     chatroomId: chatRoomIdParam,
     isOnline,
-    autoSelectFirst: showDetail,
+    autoSelectFirst: requestedDetail,
   });
+  const showDetail = !isMobile || (requestedDetail && articleId !== null && chatroomId !== null);
+  const showList = !isMobile || !showDetail;
 
   const prevMessagesLengthRef = useRef(0);
 

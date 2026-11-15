@@ -372,18 +372,15 @@ test('공통 쿼리와 mutation은 실제 APIClient HTTP 경로에서 캐시와 
     const { renderToString } = await import('react-dom/server');
     const { QueryClientProvider } = await import('@tanstack/react-query');
     const { default: useChat } = await import('../src/utils/hooks/chat/useChat');
-    let active = true;
     const fetch = subtest.mock.method(globalThis, 'fetch', () => Promise.reject(new Error('Unexpected HTTP request')));
 
     function Probe() {
       const chat = useChat({ userId: 7, roomId });
-      active = chat.isActive;
-
-      return null;
+      return createElement('span', null, String(chat.isActive));
     }
 
-    renderToString(createElement(QueryClientProvider, { client }, createElement(Probe)));
-    assert.equal(active, false);
+    const html = renderToString(createElement(QueryClientProvider, { client }, createElement(Probe)));
+    assert.equal(html, '<span>false</span>');
     assert.equal(fetch.mock.callCount(), 0);
   });
 });
