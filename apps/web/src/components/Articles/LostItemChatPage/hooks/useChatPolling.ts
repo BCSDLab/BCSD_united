@@ -2,9 +2,8 @@ import { useCallback, useEffect, useRef } from 'react';
 import { captureError } from '@koin/telemetry/runtime';
 import { skipToken, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { postLeaveLostItemChatroomV2 } from 'api/articles';
 import { articleQueryKeys } from 'api/articles/queries';
-import { sendChatMessage } from 'api/chat';
+import { leaveChatPresence, sendChatMessage, touchChatPresence } from 'api/chat';
 import { chatMutations } from 'api/chat/mutations';
 import { chatQueries, chatQueryKeys } from 'api/chat/queries';
 import { isKoinError } from 'interfaces/APIError';
@@ -13,6 +12,16 @@ import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import showToast from 'utils/ts/showToast';
 
 const POLLING_INTERVAL_MS = 10_000;
+const PRESENCE_INTERVAL_MS = 10_000;
+
+function reportPresenceError(error: unknown, fallbackMessage: string) {
+  if (isKoinError(error)) {
+    showToast('error', error.message || fallbackMessage);
+  } else {
+    showToast('error', fallbackMessage);
+    captureError(error);
+  }
+}
 
 interface UseChatPollingOptions {
   userId: number | null;
@@ -31,6 +40,7 @@ const useChatPolling = ({
 }: UseChatPollingOptions) => {
   const isLoggedIn = useIsLoggedIn();
   const queryClient = useQueryClient();
+  const presenceRequestRef = useRef<Promise<unknown>>(Promise.resolve());
 
   const { data: rooms } = useQuery({
     ...chatQueries.rooms(userId, 'LOST_ITEM'),
@@ -160,13 +170,21 @@ const useChatPolling = ({
     },
   });
 
+  // 진행 중인 갱신 뒤에 해제 요청을 보내야 늦은 갱신이 접속 상태를 되살리지 않는다.
+  const leaveRoom = useCallback((targetRoomId: string) => {
+    const request = presenceRequestRef.current.then(() => leaveChatPresence(targetRoomId));
+    presenceRequestRef.current = request.catch(() => undefined);
+
+    return request;
+  }, []);
+
   const { mutateAsync: leaveChatroom } = useMutation({
     mutationFn: () => {
-      if (defaultArticleId == null || defaultChatroomId == null) {
+      if (!roomId) {
         return Promise.reject(new Error('채팅방 정보가 없습니다.'));
       }
 
-      return postLeaveLostItemChatroomV2(Number(defaultArticleId), Number(defaultChatroomId));
+      return leaveRoom(roomId);
     },
     onSuccess: () => {
       if (numericArticleId != null && numericChatroomId != null) {
@@ -177,46 +195,41 @@ const useChatPolling = ({
       });
     },
     onError: (error) => {
-      if (isKoinError(error)) {
-        showToast('error', error.message || '채팅방 퇴장을 실패하였습니다');
-      } else {
-        showToast('error', '채팅방 퇴장을 실패하였습니다');
-        captureError(error);
-      }
+      reportPresenceError(error, '채팅방 퇴장을 실패하였습니다');
     },
   });
 
-  const leaveRoom = useCallback((aId: number, cId: number) => {
-    postLeaveLostItemChatroomV2(aId, cId).catch((error: unknown) => {
-      if (isKoinError(error)) {
-        showToast('error', error.message || '채팅방 퇴장을 실패하였습니다');
-      } else {
-        showToast('error', '채팅방 퇴장을 실패하였습니다');
-        captureError(error);
-      }
-    });
-  }, []);
-
-  const prevRoomRef = useRef<{ articleId: number; chatroomId: number } | null>(null);
-
   useEffect(() => {
-    if (numericArticleId != null && numericChatroomId != null) {
-      if (
-        prevRoomRef.current &&
-        (prevRoomRef.current.articleId !== numericArticleId || prevRoomRef.current.chatroomId !== numericChatroomId)
-      ) {
-        leaveRoom(prevRoomRef.current.articleId, prevRoomRef.current.chatroomId);
-      }
-      prevRoomRef.current = { articleId: numericArticleId, chatroomId: numericChatroomId };
-    }
+    if (userId === null || !roomId || !isOnline) return;
+    let active = true;
+    let refreshing = false;
+
+    const refreshPresence = () => {
+      if (refreshing) return;
+      refreshing = true;
+      presenceRequestRef.current = presenceRequestRef.current
+        .then(() => {
+          if (active) return touchChatPresence(roomId);
+        })
+        .catch((error: unknown) => {
+          reportPresenceError(error, '채팅방 접속 상태를 갱신하지 못했습니다.');
+        })
+        .finally(() => {
+          refreshing = false;
+        });
+    };
+
+    refreshPresence();
+    const interval = window.setInterval(refreshPresence, PRESENCE_INTERVAL_MS);
 
     return () => {
-      if (prevRoomRef.current) {
-        leaveRoom(prevRoomRef.current.articleId, prevRoomRef.current.chatroomId);
-        prevRoomRef.current = null;
-      }
+      active = false;
+      window.clearInterval(interval);
+      void leaveRoom(roomId).catch((error: unknown) => {
+        reportPresenceError(error, '채팅방 퇴장을 실패하였습니다');
+      });
     };
-  }, [numericArticleId, numericChatroomId, leaveRoom]);
+  }, [userId, roomId, isOnline, leaveRoom]);
 
   const invalidateChatroomList = useCallback(() => {
     queryClient.invalidateQueries({
