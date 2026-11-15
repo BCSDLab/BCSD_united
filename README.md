@@ -51,6 +51,8 @@ pnpm dev
 
 `NEXT_PUBLIC_*` 값은 브라우저에 노출되므로 비밀 키를 넣지 않습니다. `.env*`, `.dev.vars*`, PEM, 데이터 스냅샷은 커밋하지 않습니다.
 
+네이버 지도는 `NEXT_PUBLIC_NAVER_MAPS_CLIENT_ID`를 빌드 시 주입해야 합니다. 로컬은 `apps/web/.env.local`, Cloudflare는 `koin-web`의 Workers Builds 빌드 변수에 설정합니다. 런타임 변수만 바꿔서는 이미 생성된 브라우저 번들이 갱신되지 않습니다. Workers Builds 배포 빌드는 ID가 없거나 가짜 값이면 실패하며, 키가 없는 로컬·격리 빌드는 잘못된 SDK 요청을 만들지 않습니다.
+
 ## 검증
 
 ```sh

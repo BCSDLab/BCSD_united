@@ -11,6 +11,8 @@ export default function useNaverMapScript() {
 
   useEffect(() => {
     if (isLoaded) return;
+    const clientId = process.env.NEXT_PUBLIC_NAVER_MAPS_CLIENT_ID;
+    if (!clientId) return;
 
     const existingScript = document.getElementById(NAVER_MAP_SCRIPT_ID);
     if (existingScript) {
@@ -22,7 +24,7 @@ export default function useNaverMapScript() {
 
     const script = document.createElement('script');
     script.id = NAVER_MAP_SCRIPT_ID;
-    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${process.env.NEXT_PUBLIC_NAVER_MAPS_CLIENT_ID}`;
+    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${clientId}`;
     script.async = true;
     script.onload = () => setIsLoaded(true);
     document.head.appendChild(script);
