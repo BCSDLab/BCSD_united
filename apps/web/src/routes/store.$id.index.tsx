@@ -17,7 +17,6 @@ import StoreDetailMobilePage from 'components/Store/mobile/StoreDetailPage';
 import EventTable from 'components/Store/StoreDetailPage/components/EventTable';
 import MenuTable from 'components/Store/StoreDetailPage/components/MenuTable';
 import ReviewPage from 'components/Store/StoreDetailPage/components/Review';
-import UpdateInfo from 'components/Store/StoreDetailPage/components/UpdateInfo/UpdateInfo';
 import ROUTES from 'static/routes';
 import { useABTestView } from 'utils/hooks/abTest/useABTestView';
 import useLogger from 'utils/hooks/analytics/useLogger';
@@ -241,7 +240,6 @@ function StoreDetailPage({ id }: Props) {
             >
               주변 상점
             </button>
-            {storeDetail?.updated_at && <UpdateInfo date={storeDetail.updated_at} />}
           </div>
         )}
         <div className={styles['section__store-info']}>
@@ -344,7 +342,6 @@ function StoreDetailPage({ id }: Props) {
                   상점목록
                 </button>
               </div>
-              {isMobile && storeDetail?.updated_at && <UpdateInfo date={storeDetail.updated_at} />}
             </div>
           )}
           <div
