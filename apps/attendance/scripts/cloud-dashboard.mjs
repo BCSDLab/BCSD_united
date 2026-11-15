@@ -373,16 +373,14 @@ function createAutomationMonitor(auth) {
     for (const name of ['sentry', 'cloudflare']) {
       const value = ingress.data && ingress.data.sources[name];
       text(
-        'am-' + name + '-count',
+        'am-' + name,
         (name === 'sentry' ? 'Sentry ' : 'Cloudflare ') + prefix(ingress) + (value ? value.count + '건' : '—'),
       );
       text(
-        'am-' + name,
-        (name === 'sentry' ? 'Sentry ' : 'Cloudflare ') +
+        'am-' + name + '-latest',
+        (name === 'sentry' ? 'Sentry 신규 ' : 'Cloudflare 신규 ') +
           prefix(ingress) +
-          (value
-            ? value.count + '건 · 신규 ' + (value.latestAt === null ? '없음' : time.format(value.latestAt) + ' KST')
-            : '—'),
+          (value ? (value.latestAt === null ? '없음' : time.format(value.latestAt) + ' KST') : '—'),
       );
     }
     text(
@@ -754,15 +752,12 @@ body[data-cloud-core="pending"] #main { visibility:hidden; }
  <section class="automation-monitor" aria-label="오류 수신과 Rocky 관측">
   <div class="automation-row"><strong>오류 · 24시간</strong>
    <span class="automation-state" id="am-ingress-state" data-state="unknown">확인 중</span>
-   <span id="am-sentry-count">Sentry —</span><span id="am-cloudflare-count">Cloudflare —</span>
-   <small id="am-ingress-time">확인 —</small>
-   <button class="button-tonal" id="am-details" type="button">상세</button>
+   <span id="am-sentry">Sentry —</span><span id="am-cloudflare">Cloudflare —</span>
+   <button class="button-tonal" id="am-details" type="button">상세 · 시각과 프로세스</button>
   </div>
   <div class="automation-row"><strong>Rocky</strong>
    <span class="automation-state" id="am-rocky-state" data-state="unknown">확인 중</span>
    <span id="am-cpu">CPU —</span><span id="am-memory">RAM —</span>
-   <span id="am-executor">실행기 —</span><span id="am-broker">브로커 —</span>
-   <small id="am-rocky-time">확인 —</small><small>HTTP·모델 미확인</small>
   </div>
  </section>
  <section class="login-panel"`,
@@ -775,7 +770,15 @@ body[data-cloud-core="pending"] #main { visibility:hidden; }
    <button class="button-text" id="am-close" type="button">닫기</button></header>
   <p>Pi와 독립 관측 · CPU: 두 표본 차이 · RAM: 사용/전체</p>
   <p>프로세스 실행 ≠ HTTP·모델 인증·작업 성공</p>
-  <p><span id="am-sentry">Sentry —</span><br><span id="am-cloudflare">Cloudflare —</span></p>
+  <div class="automation-detail">
+   <h3>오류 수신 · 마지막 확인</h3>
+   <p id="am-ingress-time">확인 —</p>
+   <p id="am-sentry-latest">Sentry 신규 —</p><p id="am-cloudflare-latest">Cloudflare 신규 —</p>
+   <h3>Rocky · 마지막 확인</h3>
+   <p id="am-rocky-time">확인 —</p>
+   <p id="am-executor">실행기 —</p><p id="am-broker">브로커 —</p>
+   <p>HTTP·모델 미확인</p>
+  </div>
   <p id="am-note">최근 정상 조회 기록이 없습니다.</p><ul id="am-recent"></ul>
  </dialog>
  <script>var automationMonitor = (${createAutomationMonitor.toString()})(internalLogin); internalLogin.start();</script>
@@ -787,15 +790,16 @@ body[data-cloud-core="pending"] #main { visibility:hidden; }
  .automation-monitor { flex-shrink:0; display:grid; gap:2px; margin:0 0 4px; padding:4px 10px; border:1px solid var(--line); border-radius:16px; background:var(--surface); }
  .automation-row { display:flex; align-items:center; flex-wrap:wrap; gap:2px 10px; min-width:0; font-size:24px; line-height:1.2; }
  .automation-row strong { font-size:inherit; }
- .automation-row small { color:var(--muted); font-size:inherit; }
+ .automation-row span { overflow-wrap:anywhere; }
  .automation-state { padding:0 6px; border-radius:999px; color:var(--amber); background:var(--amber-container); }
  .automation-state[data-state="ok"] { color:var(--on-green-container); background:var(--green-container); }
- .automation-row button { min-height:32px; padding:0 10px; font-size:24px; margin-left:auto; }
+ .automation-row button { min-height:44px; padding:4px 12px; font-size:24px; margin-left:auto; }
  .automation-dialog { width:min(1000px,calc(100% - 32px)); max-height:85vh; overflow:auto; padding:20px; border:1px solid var(--outline); border-radius:24px; background:var(--surface); color:var(--text); font-size:24px; line-height:1.3; }
  .automation-dialog::backdrop { background:#10131b88; }
- .automation-dialog header { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+ .automation-dialog header { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; }
  .automation-dialog h2 { font-size:28px; margin:0; }
- .automation-dialog p, .automation-dialog li, .automation-dialog button { font-size:24px; }
+ .automation-dialog h3 { font-size:28px; line-height:1.25; }
+ .automation-dialog p, .automation-dialog li, .automation-dialog button { font-size:24px; overflow-wrap:anywhere; }
  .automation-dialog ul { padding-left:28px; }
  @media (min-width:1000px) and (min-aspect-ratio:3/2) {
   .automation-monitor { padding:4px 12px; gap:3px; }
