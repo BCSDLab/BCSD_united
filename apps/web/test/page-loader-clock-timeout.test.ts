@@ -34,6 +34,7 @@ test('공유 문서의 응답 없는 시계 표본은 짧은 타임아웃 뒤 SS
     userType: null,
     now,
     mayBeSharedCached: true,
+    language: 'ko-KR',
   });
   const elapsed = performance.now() - start;
   assert.ok(elapsed >= 2000 && elapsed < 5000, `elapsed: ${elapsed}`);
