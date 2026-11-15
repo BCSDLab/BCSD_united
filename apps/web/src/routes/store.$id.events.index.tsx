@@ -2,11 +2,10 @@ import { createFileRoute, notFound, redirect } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
 import { storeMobileQueries } from 'api/storeMobile/queries';
-import { SSRLayout } from 'components/layout';
 import MobilePageHeader from 'components/layout/MobilePageHeader';
+import { MobileOnlyPage } from 'components/layout/ResponsivePage';
 import StoreEventsPage from 'components/Store/mobile/StoreEventsPage';
 import ROUTES from 'static/routes';
-import useMobileOnlyPage from 'utils/hooks/layout/useMobileOnlyPage';
 import { isMobileView } from 'utils/hooks/layout/useMobileView';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { createPageLoader, definePageLoad, STORE_PUBLIC_SSR_CACHE_CONTROL } from 'utils/ssr/pageLoader';
@@ -29,7 +28,7 @@ const loadPage = definePageLoad(async ({ params, queryClient }, cacheControl, se
   const id = params.id;
   if (!id) throw notFound();
 
-  // 모바일 전용 화면. 모바일 화면 조건(isMobileView)이 아니면 데스크톱 화면으로 보낸다
+  // 모바일 전용 화면. 모바일 화면 조건이 아니면 데스크톱 화면으로 보낸다
   if (!isMobileView(serverRequest.device)) {
     throw redirect({ href: ROUTES.StoreDetail({ id }), statusCode: 302 });
   }
@@ -61,11 +60,10 @@ export const Route = createFileRoute('/store/$id/events/')({
 
 function RouteComponent() {
   const { id, serverRequest } = Route.useLoaderData();
-  useMobileOnlyPage(serverRequest.device, ROUTES.StoreDetail({ id }));
 
   return (
-    <SSRLayout mobileHeader="page">
+    <MobileOnlyPage device={serverRequest.device} desktopHref={ROUTES.StoreDetail({ id })}>
       <StoreEventsRoute id={id} />
-    </SSRLayout>
+    </MobileOnlyPage>
   );
 }

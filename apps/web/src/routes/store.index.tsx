@@ -1,4 +1,4 @@
-import { Suspense, useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { cn } from '@bcsdlab/utils';
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate, useSearch, useParams } from '@tanstack/react-router';
@@ -8,8 +8,8 @@ import type { StoreSorterType, StoreFilterType, StoreCategory } from 'api/store/
 import { storeQueries } from 'api/store/queries';
 import { storeMobileQueries } from 'api/storeMobile/queries';
 import Close from 'assets/svg/close-icon-20x20.svg';
-import { SSRLayout } from 'components/layout';
 import MobilePageHeader from 'components/layout/MobilePageHeader';
+import { ResponsivePage } from 'components/layout/ResponsivePage';
 import StoreListPage from 'components/Store/mobile/StoreListPage';
 import { getListRequestParams, parseListQuery } from 'components/Store/mobile/StoreListPage/utils/listQuery';
 import DesktopStoreList from 'components/Store/StorePage/components/DesktopStoreList';
@@ -20,7 +20,7 @@ import ROUTES from 'static/routes';
 import { STORE_PAGE } from 'static/store';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import { useScrollLogging } from 'utils/hooks/analytics/useScrollLogging';
-import useMobileView, { isMobileView } from 'utils/hooks/layout/useMobileView';
+import { isMobileView } from 'utils/hooks/layout/useMobileView';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
 import { useLocalStorage } from 'utils/hooks/state/useLocalStorage';
 import useMount from 'utils/hooks/state/useMount';
@@ -300,30 +300,6 @@ function Store() {
   );
 }
 
-interface StorePageProps {
-  showMobile: boolean;
-}
-
-// 데스크톱 창을 모바일 폭으로 줄이면 데이터를 미리 받지 않은 모바일 화면으로 바뀌므로 Suspense로 감싼다
-function StorePage({ showMobile }: StorePageProps) {
-  if (showMobile) {
-    return (
-      <>
-        <MobilePageHeader background="gray" title="주변상점" />
-        <Suspense fallback={null}>
-          <StoreListPage />
-        </Suspense>
-      </>
-    );
-  }
-
-  return (
-    <Suspense fallback={null}>
-      <Store />
-    </Suspense>
-  );
-}
-
 const loadPage = definePageLoad(async ({ search, queryClient }, cacheControl, serverRequest) => {
   // 모바일 화면은 KOIN_ORDER_WEBVIEW 주변상점 화면을 그린다. order가 부르는 API(카테고리·v3 목록)만 미리 받아 본문까지 렌더한다
   if (isMobileView(serverRequest.device)) {
@@ -373,14 +349,19 @@ export const Route = createFileRoute('/store/')({
   component: RouteComponent,
 });
 
-// 모바일 기기이거나 창이 모바일 폭이면 모바일 화면을 그린다(useMobileView). 페이지 헤더 레이아웃은 모바일 폭에서만 적용되므로 데스크톱 폭에서는 기본 헤더가 그대로 보인다
 function RouteComponent() {
   const { serverRequest } = Route.useLoaderData();
-  const showMobile = useMobileView(serverRequest.device);
 
   return (
-    <SSRLayout mobileHeader="page">
-      <StorePage showMobile={showMobile} />
-    </SSRLayout>
+    <ResponsivePage
+      device={serverRequest.device}
+      mobile={
+        <>
+          <MobilePageHeader background="gray" title="주변상점" />
+          <StoreListPage />
+        </>
+      }
+      desktop={<Store />}
+    />
   );
 }

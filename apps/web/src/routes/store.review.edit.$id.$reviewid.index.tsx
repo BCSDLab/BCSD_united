@@ -1,27 +1,20 @@
-import { Suspense } from 'react';
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, useSearch, useParams, notFound } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
 import { reviewQueries } from 'api/review/queries';
 import { storeMobileQueries } from 'api/storeMobile/queries';
-import { SSRLayout } from 'components/layout';
+import { ResponsivePage } from 'components/layout/ResponsivePage';
 import ReviewEditPage from 'components/Store/mobile/ReviewFormPage/ReviewEditPage';
 import useStoreDetail from 'components/Store/StoreDetailPage/hooks/useStoreDetail';
 import { useEditStoreReview } from 'components/Store/StoreReviewPage/hooks/useEditStoreReview';
 import ReviewForm from 'components/Store/StoreReviewPage/ReviewForm/ReviewForm';
-import useMobileView, { isMobileView } from 'utils/hooks/layout/useMobileView';
+import { isMobileView } from 'utils/hooks/layout/useMobileView';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import useMount from 'utils/hooks/state/useMount';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
 import { isNotFoundKoinError } from 'utils/ts/isr';
-
-interface Props {
-  id: string;
-  reviewId: string;
-  showMobile: boolean;
-}
 
 function EditReviewComponent({ id, reviewId }: { id: string; reviewId: string }) {
   const isLoggedIn = useIsLoggedIn();
@@ -45,12 +38,6 @@ function DesktopEditReview() {
   if (!isMounted || !pageId || !reviewid) return null;
 
   return <EditReviewComponent id={pageId} reviewId={String(reviewid)} />;
-}
-
-function EditReviewPage({ id, reviewId, showMobile }: Props) {
-  if (!showMobile) return <DesktopEditReview />;
-
-  return <ReviewEditPage id={id} reviewId={reviewId} />;
 }
 
 // 로그인 필수 화면이라 공용 캐시를 켜지 않는다(loadPageData 기본값 private)
@@ -90,17 +77,14 @@ export const Route = createFileRoute('/store/review/edit/$id/$reviewid/')({
   component: RouteComponent,
 });
 
-// 모바일 기기이거나 창이 모바일 폭이면 모바일 화면을 그린다(useMobileView). 페이지 헤더 레이아웃은 모바일 폭에서만 적용되므로 데스크톱 폭에서는 기본 헤더가 그대로 보인다.
-// 데스크톱 창을 모바일 폭으로 줄이면 데이터를 미리 받지 않은 화면으로 바뀌므로 Suspense로 감싼다
 function RouteComponent() {
-  const { serverRequest, ...loaderData } = Route.useLoaderData();
-  const showMobile = useMobileView(serverRequest.device);
+  const { id, reviewId, serverRequest } = Route.useLoaderData();
 
   return (
-    <SSRLayout mobileHeader="page">
-      <Suspense fallback={null}>
-        <EditReviewPage {...loaderData} showMobile={showMobile} />
-      </Suspense>
-    </SSRLayout>
+    <ResponsivePage
+      device={serverRequest.device}
+      mobile={<ReviewEditPage id={id} reviewId={reviewId} />}
+      desktop={<DesktopEditReview />}
+    />
   );
 }

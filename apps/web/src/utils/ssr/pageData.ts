@@ -68,6 +68,8 @@ export async function loadPageData<Props extends object>(
   );
   const finalPolicy = getResponseHeader('Set-Cookie') ? PRIVATE_SSR_CACHE_CONTROL : policy;
   setResponseHeader('Cache-Control', finalPolicy);
+  // 서버는 UA로 기기를 판정해 HTML을 그리므로 공유 캐시가 기기별로 갈리게 한다
+  if (finalPolicy !== PRIVATE_SSR_CACHE_CONTROL) setResponseHeader('Vary', 'User-Agent');
   serverRequest.mayBeSharedCached = finalPolicy !== PRIVATE_SSR_CACHE_CONTROL;
 
   return { ...props, serverRequest, dehydratedState: dehydrate(queryClient) };

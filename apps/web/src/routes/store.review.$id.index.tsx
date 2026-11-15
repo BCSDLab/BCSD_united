@@ -1,24 +1,18 @@
-import { Suspense } from 'react';
 import { createFileRoute, useSearch, useParams, notFound } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
 import { storeMobileQueries } from 'api/storeMobile/queries';
-import { SSRLayout } from 'components/layout';
 import MobilePageHeader from 'components/layout/MobilePageHeader';
+import { ResponsivePage } from 'components/layout/ResponsivePage';
 import ReviewCreatePage from 'components/Store/mobile/ReviewFormPage';
 import useStoreDetail from 'components/Store/StoreDetailPage/hooks/useStoreDetail';
 import { useAddStoreReview } from 'components/Store/StoreReviewPage/hooks/useAddStoreReview';
 import ReviewForm from 'components/Store/StoreReviewPage/ReviewForm/ReviewForm';
-import useMobileView, { isMobileView } from 'utils/hooks/layout/useMobileView';
+import { isMobileView } from 'utils/hooks/layout/useMobileView';
 import useMount from 'utils/hooks/state/useMount';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
 import { isNotFoundKoinError } from 'utils/ts/isr';
-
-interface Props {
-  id: string;
-  showMobile: boolean;
-}
 
 function AddReviewComponent({ id }: { id: string }) {
   const { storeDetail } = useStoreDetail(id);
@@ -40,17 +34,6 @@ function DesktopAddReview() {
   if (!isMounted || !pageId) return null;
 
   return <AddReviewComponent id={pageId} />;
-}
-
-function AddReviewPage({ id, showMobile }: Props) {
-  if (!showMobile) return <DesktopAddReview />;
-
-  return (
-    <>
-      <MobilePageHeader title="리뷰 작성하기" />
-      <ReviewCreatePage id={id} />
-    </>
-  );
 }
 
 // 로그인 필수 화면이라 공용 캐시를 켜지 않는다(loadPageData 기본값 private)
@@ -87,17 +70,19 @@ export const Route = createFileRoute('/store/review/$id/')({
   component: RouteComponent,
 });
 
-// 모바일 기기이거나 창이 모바일 폭이면 모바일 화면을 그린다(useMobileView). 페이지 헤더 레이아웃은 모바일 폭에서만 적용되므로 데스크톱 폭에서는 기본 헤더가 그대로 보인다.
-// 데스크톱 창을 모바일 폭으로 줄이면 데이터를 미리 받지 않은 화면으로 바뀌므로 Suspense로 감싼다
 function RouteComponent() {
-  const { serverRequest, ...loaderData } = Route.useLoaderData();
-  const showMobile = useMobileView(serverRequest.device);
+  const { id, serverRequest } = Route.useLoaderData();
 
   return (
-    <SSRLayout mobileHeader="page">
-      <Suspense fallback={null}>
-        <AddReviewPage {...loaderData} showMobile={showMobile} />
-      </Suspense>
-    </SSRLayout>
+    <ResponsivePage
+      device={serverRequest.device}
+      mobile={
+        <>
+          <MobilePageHeader title="리뷰 작성하기" />
+          <ReviewCreatePage id={id} />
+        </>
+      }
+      desktop={<DesktopAddReview />}
+    />
   );
 }

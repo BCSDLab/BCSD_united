@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { cn } from '@bcsdlab/utils';
 import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate, notFound } from '@tanstack/react-router';
@@ -10,7 +10,7 @@ import EmptyImageIcon from 'assets/svg/empty-thumbnail.svg';
 import Phone from 'assets/svg/Review/phone.svg';
 import Copy from 'assets/svg/Store/copy.svg';
 import StoreErrorBoundary from 'components/boundary/StoreErrorBoundary';
-import { SSRLayout } from 'components/layout';
+import { ResponsivePage } from 'components/layout/ResponsivePage';
 import ImageModal from 'components/modal/Modal/ImageModal';
 import type { Portal } from 'components/modal/Modal/PortalProvider';
 import StoreDetailMobilePage from 'components/Store/mobile/StoreDetailPage';
@@ -21,7 +21,7 @@ import ROUTES from 'static/routes';
 import { useABTestView } from 'utils/hooks/abTest/useABTestView';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import { useScrollLogging } from 'utils/hooks/analytics/useScrollLogging';
-import useMobileView, { isMobileView } from 'utils/hooks/layout/useMobileView';
+import { isMobileView } from 'utils/hooks/layout/useMobileView';
 import useModalPortal from 'utils/hooks/layout/useModalPortal';
 import useParamsHandler from 'utils/hooks/routing/useParamsHandler';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
@@ -420,21 +420,11 @@ function StoreDetailPage({ id }: Props) {
   );
 }
 
-interface StoreDetailProps {
-  id: string;
-  showMobile: boolean;
-}
-
-// 데스크톱 창을 모바일 폭으로 줄이면 데이터를 미리 받지 않은 화면으로 바뀌므로 두 화면 모두 Suspense와 오류 경계로 감싼다
-function StoreDetail({ id, showMobile }: StoreDetailProps) {
+function StoreDetailBoundary({ children }: { children: React.ReactNode }) {
   const routeNavigate = useNavigate();
 
   return (
-    <StoreErrorBoundary onErrorClick={() => routeNavigate({ href: ROUTES.Store() })}>
-      <Suspense fallback={<div />}>
-        {showMobile ? <StoreDetailMobilePage id={id} /> : <StoreDetailPage id={id} />}
-      </Suspense>
-    </StoreErrorBoundary>
+    <StoreErrorBoundary onErrorClick={() => routeNavigate({ href: ROUTES.Store() })}>{children}</StoreErrorBoundary>
   );
 }
 
@@ -511,15 +501,22 @@ export const Route = createFileRoute('/store/$id/')({
   component: RouteComponent,
 });
 
-// 모바일 기기이거나 창이 모바일 폭이면 모바일 화면을 그린다(useMobileView). 모바일 화면은 상세 전용 오버레이 헤더를 본문에서 그린다.
-// 페이지 헤더 레이아웃은 모바일 폭에서만 적용되므로 데스크톱 폭에서는 기본 헤더가 그대로 보인다
 function RouteComponent() {
   const { id, serverRequest } = Route.useLoaderData();
-  const showMobile = useMobileView(serverRequest.device);
 
   return (
-    <SSRLayout mobileHeader="page">
-      <StoreDetail id={id} showMobile={showMobile} />
-    </SSRLayout>
+    <ResponsivePage
+      device={serverRequest.device}
+      mobile={
+        <StoreDetailBoundary>
+          <StoreDetailMobilePage id={id} />
+        </StoreDetailBoundary>
+      }
+      desktop={
+        <StoreDetailBoundary>
+          <StoreDetailPage id={id} />
+        </StoreDetailBoundary>
+      }
+    />
   );
 }
