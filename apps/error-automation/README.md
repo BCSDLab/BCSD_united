@@ -1,5 +1,16 @@
 # 오류 자동 수정 웹훅과 전용 실행기
 
+## 백엔드·Android 연동을 구현하려면
+
+다른 팀의 구현 접수는 [오류 출처·검증 프로필 등록 이슈](https://github.com/BCSDLab/BCSD_united/issues/new?template=NEW_ERROR_SOURCE.md)로 받습니다. `BCSD_united/apps/api`, `KOIN_API_V2`, `KOIN_ANDROID` 중 대상을 적고 담당자와 출처·검증 환경을 정하세요. 이슈 작성은 실행 권한이나 운영 활성화가 아닙니다.
+
+1. 저장소에 고정된 Node·pnpm 버전으로 `pnpm install --frozen-lockfile`을 실행합니다. 로컬 계약 검증에 운영 비밀은 필요하지 않습니다.
+2. [확장 가이드](../../scripts/autofix/EXTENDING.md)의 대상별 차단 지점과 인증 → canonical 진단 → 큐 → 파일 범위 → 독립 검증 → PR 계약을 확인합니다.
+3. 등록 이슈에 비식별 입력과 검증 계획을 먼저 합의한 뒤 구현 PR을 올립니다. `pnpm --dir apps/error-automation typecheck`와 변경 경로의 격리 테스트 결과를 첨부하세요.
+4. 관리자가 GitHub App 설치·최소 권한·비밀 주입·Worker/실행기 배포를 검토합니다. 운영 SSH·DB 접근, 자동 merge·배포 권한은 별도로 승인합니다.
+
+현재 Sentry는 `web`, Cloudflare는 기존 `BCSD_united`의 `web/api`만 지원합니다. Spring/Java와 Android는 **연동 구현 접수 대상**이며 아직 실행하지 않습니다. Java/Android를 기존 `app: api`로 바꾸거나 보호 경로를 풀어 우회하지 마세요.
+
 `bcsd-error-automation` Worker는 Sentry 브라우저 오류와 Cloudflare Issues Worker/API/SSR 알림을 인증한다. 진단을 source별 SQLite Durable Object에 먼저 저장하고, 고정 저장소의 `AutofixQueue` DO에 중복 없이 등록한다. GitHub Actions `repository_dispatch` 또는 Cloudflare 유료 Container/Workflow로 후보 코드를 실행하지 않는다. 고정 등록된 Rocky/UMPC 실행기가 **아웃바운드 HTTPS로만** 작업을 요청한다. 실제 호스트 서비스 설치·비밀 등록·배포·GitHub PR 발행은 별도 운영 승인과 통합 검증 전에는 완료된 것으로 간주하지 않는다.
 
 ## 고정 배포와 권한
