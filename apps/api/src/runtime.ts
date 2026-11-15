@@ -1,5 +1,7 @@
 import type { Database } from '@api/db/client';
 import type { Job } from '@api/jobs';
+import type { CityBusDurableObject } from '@api/koin-db/city-bus-object';
+import type { DiningDurableObject } from '@api/koin-db/dining-object';
 
 export interface Principal {
   id: number;
@@ -16,6 +18,28 @@ export interface Bindings {
   ENVIRONMENT: 'development' | 'preview' | 'production';
   /** 업무 API 실행 여부. 정확히 'true'일 때만 실행하며 그 외는 비활성(기본). 판정은 api-gate.ts의 isApiEnabled. */
   API_ENABLED?: string;
+  /** 익명 공개 조회 HTTPS bridge·Java 프록시 경로. 활성화하면 레거시 D1 업무는 항상 차단한다. */
+  KOIN_DB_ENABLED?: string;
+  KOIN_DB_BRIDGE_URL?: string;
+  KOIN_DB_BRIDGE_TOKEN?: string;
+  KOIN_AWS_ORIGIN?: string;
+  /** 배치 종합 KV(koin-school-batch). 식단 스냅샷 키는 koin:dining:v1:YYYY-MM-DD(DINING DO가 쓴다). */
+  BATCH_KV?: KVNamespace;
+  /**
+   * 식단·좋아요 원본 Durable Object. 이름 = KST 날짜, "index" = 식단 ID → 날짜 색인,
+   * "coop" = 품절·사진·품절 제보·알림 outbox(KOIN_DINING_COOP_OWNER일 때).
+   */
+  DINING?: DurableObjectNamespace<DiningDurableObject>;
+  /** 정확히 'true'면 품절·사진·품절 제보를 DO가 소유한다(MySQL 품절·사진 동기화 중단). 되돌림은 'false'. */
+  KOIN_DINING_COOP_OWNER?: string;
+  /** 천안 시내버스 실시간·도착 이력 원본 Durable Object. 인스턴스 이름 = "cheonan". */
+  CITY_BUS?: DurableObjectNamespace<CityBusDurableObject>;
+  /** data.go.kr TAGO 인증키(Decoding). 버스도착·정류소·위치·노선정보 API. */
+  TAGO_SERVICE_KEY?: string;
+  /** 시내버스 이력 수집 방식: location(기본)·arrival·off. city-bus-live.ts trackingMode. */
+  CITY_BUS_TRACKING?: string;
+  /** Java jwt.secret-key. 앱 Bearer·웹 access 토큰 검증용. */
+  KOIN_JWT_SECRET?: string;
   SERIALIZED?: boolean;
   JWT_SECRET?: string;
   WEB_CSRF_SECRET?: string;

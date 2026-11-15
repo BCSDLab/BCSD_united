@@ -5,7 +5,7 @@
   "workers_dev": true,
   "preview_urls": true,
   "compatibility_date": "2026-10-26",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "upload_source_maps": true,
   "secrets": { "required": ["JWT_SECRET", "WEB_CSRF_SECRET", "SOURCE_SYNC_SECRET"] },
   "observability": { "enabled": true, "issues": { "enabled": true }, "traces": { "enabled": true } },
@@ -19,24 +19,37 @@
     },
   ],
   "r2_buckets": [{ "binding": "FILES", "bucket_name": "koin-api-files" }],
+  "kv_namespaces": [{ "binding": "BATCH_KV", "id": "7d4c6599e0cc4c6ba6ccf2c46fb7a772" }],
   "durable_objects": {
     "bindings": [
       { "name": "COORDINATOR", "class_name": "Coordinator" },
       { "name": "COMMUNITY_CHAT", "class_name": "CommunityChatDurableObject" },
+      // 식단·좋아요 원본. 인스턴스 이름 = KST 날짜, "index" = 식단 ID 색인.
+      { "name": "DINING", "class_name": "DiningDurableObject" },
+      // 천안 시내버스 실시간·도착 이력(TAGO). 인스턴스 이름 = "cheonan".
+      { "name": "CITY_BUS", "class_name": "CityBusDurableObject" },
     ],
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Coordinator", "CommunityChatDurableObject"] }],
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["Coordinator", "CommunityChatDurableObject"] },
+    { "tag": "v2", "new_sqlite_classes": ["DiningDurableObject"] },
+    { "tag": "v3", "new_sqlite_classes": ["CityBusDurableObject"] },
+  ],
   "queues": {
     "producers": [{ "binding": "JOBS", "queue": "koin-api-jobs" }],
     "consumers": [
       { "queue": "koin-api-jobs", "max_batch_size": 20, "max_retries": 5, "dead_letter_queue": "koin-api-jobs-dlq" },
     ],
   },
-  "triggers": { "crons": [] },
+  // KOIN_DB_ENABLED 모드에서는 식단 KV 동기화와 시내버스 수집만 실행한다. 레거시 cron은 API_ENABLED로 막힌다.
+  "triggers": { "crons": ["* * * * *"] },
   "vars": {
     "ENVIRONMENT": "production",
     // 업무 API 비활성(기본). 정확히 "true"로 바꿔야만 HTTP/cron/queue/Durable Object 업무가 실행된다.
     "API_ENABLED": "false",
+    "KOIN_DB_ENABLED": "true",
+    "KOIN_DINING_COOP_OWNER": "true",
+    "KOIN_AWS_ORIGIN": "https://admin.koreatech.in",
     "SOURCE_SYNC_ENABLED": "false",
     "WEB_COOKIE_PREFIX": "koin-web",
     "WEB_COOKIE_DOMAIN": "",
@@ -49,6 +62,7 @@
     "vars": {
       "ENVIRONMENT": "preview",
       "API_ENABLED": "false",
+      "KOIN_DB_ENABLED": "false",
       "SOURCE_SYNC_ENABLED": "false",
       "WEB_COOKIE_PREFIX": "koin-web",
       "WEB_COOKIE_DOMAIN": "",
@@ -71,6 +85,8 @@
       "bindings": [
         { "name": "COORDINATOR", "class_name": "Coordinator" },
         { "name": "COMMUNITY_CHAT", "class_name": "CommunityChatDurableObject" },
+        { "name": "DINING", "class_name": "DiningDurableObject" },
+        { "name": "CITY_BUS", "class_name": "CityBusDurableObject" },
       ],
     },
     "queues": { "producers": [{ "binding": "JOBS", "queue": "koin-api-jobs-test" }] },

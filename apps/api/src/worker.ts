@@ -12,6 +12,9 @@ import { handleMiscJob, runMiscCron } from '@api/domains/misc';
 import { handleTeamJob, runTeamCron } from '@api/domains/team';
 import { runTransportCron } from '@api/domains/transport';
 import type { Job } from '@api/jobs';
+import { tickCityBus } from '@api/koin-db/city-bus-realtime';
+import gateway from '@api/koin-db/gateway';
+import { syncDiningCache } from '@api/koin-db/dining';
 import type { Bindings } from '@api/runtime';
 
 // Worker 진입 핸들러. Durable Object 클래스 export는 index.ts가 맡는다(cloudflare:workers 의존 분리, Node 테스트 가능).
@@ -39,8 +42,8 @@ const schedules = [
 ];
 
 const worker: ExportedHandler<Bindings, Job> = {
-  // HTTP 비활성 503은 app 첫 미들웨어가 처리한다(Coordinator 경유 호출도 동일).
-  fetch: (request, env, context) => app.fetch(request, env, context),
+  fetch: (request, env, context) =>
+    env.KOIN_DB_ENABLED === 'true' ? gateway.fetch(request, env, context) : app.fetch(request, env, context),
   async queue(batch, env) {
     if (!isApiEnabled(env)) {
       // 비활성: 어떤 메시지도 ack/drop하지 않고 전체를 최대 지연으로 재시도한다. 원격 큐 일시정지는 별도 운영.
@@ -65,7 +68,16 @@ const worker: ExportedHandler<Bindings, Job> = {
     }
   },
   async scheduled(event, env) {
-    // 비활성: cron 업무를 하나도 시작하지 않는다(현재 triggers.crons도 비어 있다).
+    // 공유 DB 모드는 식단 KV 동기화와 시내버스 수집만 실행한다. 레거시 cron은 API_ENABLED 게이트로 막힌다.
+    if (env.KOIN_DB_ENABLED === 'true') {
+      const results = await Promise.allSettled([
+        syncDiningCache(env, new Date(event.scheduledTime)),
+        tickCityBus(env, event.scheduledTime),
+      ]);
+      const failures = results.flatMap((result) => (result.status === 'rejected' ? [result.reason] : []));
+      if (failures.length) throw new AggregateError(failures, 'Scheduled KOIN DB work failed');
+      return;
+    }
     if (!isApiEnabled(env)) return;
     const results = await Promise.allSettled(schedules.map((schedule) => schedule(env, event.scheduledTime)));
     const failures = results.flatMap((result) => (result.status === 'rejected' ? [result.reason] : []));
