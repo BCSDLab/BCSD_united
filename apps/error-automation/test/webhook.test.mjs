@@ -198,7 +198,10 @@ function harness(t) {
           const include = url.searchParams.get('include');
           const sourceMap = JSON.stringify({
             version: 3,
-            file: capturedEvidence.mapMode === 'wrong-bundle' ? 'other.js' : bundleName,
+            file:
+              capturedEvidence.mapMode === 'wrong-bundle'
+                ? 'other.js'
+                : bundleName.slice(bundleName.lastIndexOf('/') + 1),
             sources: [
               capturedEvidence.mapMode === 'relative-two'
                 ? '../../src/handler.ts'
