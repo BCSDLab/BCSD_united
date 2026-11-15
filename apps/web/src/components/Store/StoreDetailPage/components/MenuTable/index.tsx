@@ -5,7 +5,6 @@ import type { MenuCategory } from 'api/store/entity';
 import EmptyImageIcon from 'assets/svg/empty-thumbnail.svg';
 import Image from 'components/ui/Image';
 import MENU_CATEGORY from 'static/menu';
-import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 
 import styles from './MenuTable.module.scss';
 
@@ -15,9 +14,8 @@ interface MenuTableProps {
 }
 
 function MenuTable({ storeMenuCategories, onClickImage }: MenuTableProps) {
-  const isMobile = useMediaQuery();
   const [categoryType, setCategoryType] = useState<string>(storeMenuCategories[0].name);
-  const headerOffset = isMobile ? 164 : 96; // categories 높이
+  const headerOffset = 96; // categories 높이
 
   const handleScroll = () => {
     storeMenuCategories.forEach((menu) => {

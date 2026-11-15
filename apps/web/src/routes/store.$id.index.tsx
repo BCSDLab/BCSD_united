@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { cn } from '@bcsdlab/utils';
 import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate, notFound } from '@tanstack/react-router';
@@ -10,7 +10,7 @@ import EmptyImageIcon from 'assets/svg/empty-thumbnail.svg';
 import Phone from 'assets/svg/Review/phone.svg';
 import Copy from 'assets/svg/Store/copy.svg';
 import StoreErrorBoundary from 'components/boundary/StoreErrorBoundary';
-import Layout, { SSRLayout } from 'components/layout';
+import { ResponsivePage } from 'components/layout/ResponsivePage';
 import ImageModal from 'components/modal/Modal/ImageModal';
 import type { Portal } from 'components/modal/Modal/PortalProvider';
 import StoreDetailMobilePage from 'components/Store/mobile/StoreDetailPage';
@@ -21,7 +21,7 @@ import ROUTES from 'static/routes';
 import { useABTestView } from 'utils/hooks/abTest/useABTestView';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import { useScrollLogging } from 'utils/hooks/analytics/useScrollLogging';
-import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
+import { isMobileView } from 'utils/hooks/layout/useMobileView';
 import useModalPortal from 'utils/hooks/layout/useModalPortal';
 import useParamsHandler from 'utils/hooks/routing/useParamsHandler';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
@@ -49,7 +49,6 @@ interface Props {
 // 기기·로그인 여부는 요청 스냅샷으로 확정한다. SSR은 요청별로 렌더하고, 브라우저 이동은 같은 쿼리 범위를 앱 캐시에 미리 받는다.
 // 요청을 모르는 정적 생성은 항상 guest 범위로 프리페치해 캐시 상태에 따라 요청이 달라진다
 function StoreDetailPage({ id }: Props) {
-  const isMobile = useMediaQuery();
   const enterCategoryTimeRef = useRef<number | null>(null);
   const queryClient = useQueryClient();
   const isLoggedIn = useIsLoggedIn();
@@ -230,42 +229,23 @@ function StoreDetailPage({ id }: Props) {
   return (
     <div className={styles.template}>
       <div className={styles.section}>
-        {!isMobile && (
-          <div className={styles.section__header}>
-            <button
-              className={styles['section__header--button']}
-              aria-label="주변 상점 리스트 이동"
-              type="button"
-              onClick={() => routeNavigate({ href: ROUTES.Store() })}
-            >
-              주변 상점
-            </button>
-          </div>
-        )}
+        <div className={styles.section__header}>
+          <button
+            className={styles['section__header--button']}
+            aria-label="주변 상점 리스트 이동"
+            type="button"
+            onClick={() => routeNavigate({ href: ROUTES.Store() })}
+          >
+            주변 상점
+          </button>
+        </div>
         <div className={styles['section__store-info']}>
           {storeDetail && (
             <div className={styles.store}>
               <div className={styles.store__name}>{storeDetail?.name}</div>
               <div className={styles.store__detail}>
                 <span>전화번호</span>
-                {isMobile && (testValue === 'call_number' || testValue === 'default') ? (
-                  <a
-                    role="button"
-                    aria-label="상점 전화하기"
-                    href={`tel:${storeDetail?.phone}`}
-                    onClick={onClickCallNumber}
-                    className={styles['store__detail--phone']}
-                  >
-                    <div className={styles['store__detail--number']}>
-                      {storeDetail?.phone}{' '}
-                      <div>
-                        <Phone />
-                      </div>
-                    </div>
-                  </a>
-                ) : (
-                  storeDetail?.phone
-                )}
+                {storeDetail?.phone}
                 <br />
                 <span>운영시간</span>
                 {storeDetail.open[getDayOfWeek()] && storeDetail?.open
@@ -344,12 +324,7 @@ function StoreDetailPage({ id }: Props) {
               </div>
             </div>
           )}
-          <div
-            className={cn({
-              [styles.image]: true,
-              [styles['image--none']]: storeDetail?.image_urls.length === 0,
-            })}
-          >
+          <div className={styles.image}>
             {storeDetail?.image_urls && storeDetail.image_urls.length > 0 ? (
               storeDetail.image_urls.map((img, index) => (
                 <div key={img} className={styles.image__content}>
@@ -445,24 +420,11 @@ function StoreDetailPage({ id }: Props) {
   );
 }
 
-interface StoreDetailProps {
-  id: string;
-  isMobilePage?: boolean;
-}
-
-function StoreDetail({ id, isMobilePage }: StoreDetailProps) {
+function StoreDetailBoundary({ children }: { children: React.ReactNode }) {
   const routeNavigate = useNavigate();
 
-  if (isMobilePage) {
-    return <StoreDetailMobilePage id={id} />;
-  }
-
   return (
-    <StoreErrorBoundary onErrorClick={() => routeNavigate({ href: ROUTES.Store() })}>
-      <Suspense fallback={<div />}>
-        <StoreDetailPage id={id} />
-      </Suspense>
-    </StoreErrorBoundary>
+    <StoreErrorBoundary onErrorClick={() => routeNavigate({ href: ROUTES.Store() })}>{children}</StoreErrorBoundary>
   );
 }
 
@@ -474,8 +436,8 @@ const loadPage = definePageLoad(async ({ params, queryClient }, cacheControl, se
     throw notFound();
   }
 
-  // 모바일은 KOIN_ORDER_WEBVIEW 상점 상세 화면을 그린다. order가 부르는 API(요약·v2 상세·메뉴·이벤트)만 미리 받아 본문까지 렌더한다
-  if (serverRequest.device === 'mobile') {
+  // 모바일 화면은 KOIN_ORDER_WEBVIEW 상점 상세 화면을 그린다. order가 부르는 API(요약·v2 상세·메뉴·이벤트)만 미리 받아 본문까지 렌더한다
+  if (isMobileView(serverRequest.device)) {
     try {
       await Promise.all([
         queryClient.fetchQuery(storeMobileQueries.summary(storeId)),
@@ -492,10 +454,7 @@ const loadPage = definePageLoad(async ({ params, queryClient }, cacheControl, se
 
     cacheControl.enablePublicCache(STORE_PUBLIC_SSR_CACHE_CONTROL);
 
-    return {
-      isMobilePage: true,
-      id: storeId,
-    };
+    return { id: storeId };
   }
 
   try {
@@ -542,14 +501,22 @@ export const Route = createFileRoute('/store/$id/')({
   component: RouteComponent,
 });
 
-// 기기는 서버가 확정한다. 모바일은 상세 전용 오버레이 헤더를 본문에서 그리므로 페이지 헤더 레이아웃을 쓰고, 데스크톱은 기본 레이아웃 그대로 둔다
 function RouteComponent() {
-  const loaderData = Route.useLoaderData();
-  const page = <StoreDetail {...loaderData} />;
+  const { id, serverRequest } = Route.useLoaderData();
 
-  return loaderData.serverRequest.device === 'mobile' ? (
-    <SSRLayout mobileHeader="page">{page}</SSRLayout>
-  ) : (
-    <Layout>{page}</Layout>
+  return (
+    <ResponsivePage
+      device={serverRequest.device}
+      mobile={
+        <StoreDetailBoundary>
+          <StoreDetailMobilePage id={id} />
+        </StoreDetailBoundary>
+      }
+      desktop={
+        <StoreDetailBoundary>
+          <StoreDetailPage id={id} />
+        </StoreDetailBoundary>
+      }
+    />
   );
 }

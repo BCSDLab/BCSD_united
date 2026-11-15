@@ -1,5 +1,3 @@
-@use "src/utils/scss/media";
-
 .template {
   width: 100%;
   min-height: calc(100vh - 84px);
@@ -15,12 +13,6 @@
   min-height: 700px;
   display: inline-block;
   position: relative;
-
-  @include media.media-breakpoint(mobile) {
-    width: 100%;
-    margin: 0;
-    font-size: 20px;
-  }
 
   &__header {
     height: 54px;
@@ -52,26 +44,12 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-
-    @include media.media-breakpoint(mobile) {
-      border-bottom: 12px solid #f5f5f5;
-      flex-direction: column-reverse;
-      padding: 0 0 16px;
-      margin-bottom: 0;
-      height: auto;
-    }
   }
 }
 
 .store {
   display: flex;
   flex-direction: column;
-
-  @include media.media-breakpoint(mobile) {
-    width: calc(100% - 10px);
-    height: auto;
-    margin-top: 20px;
-  }
 
   &__name {
     font-size: 26px;
@@ -80,12 +58,6 @@
     letter-spacing: -1.5px;
     color: #252525;
     margin-bottom: 18px;
-
-    @include media.media-breakpoint(mobile) {
-      font-size: 20px;
-      font-weight: 600;
-      letter-spacing: normal;
-    }
   }
 
   &__detail {
@@ -105,43 +77,6 @@
       display: block;
       margin-bottom: 1px;
     }
-
-    &--phone {
-      color: #175c8e;
-      display: inline-block;
-    }
-
-    &--number {
-      display: flex;
-      align-items: center;
-      gap: 3px;
-
-      & > div {
-        width: 16px;
-        height: 16px;
-
-        & > svg {
-          width: 100%;
-          height: 100%;
-        }
-
-        & > svg > g > path {
-          fill: #175c8e;
-        }
-      }
-    }
-
-    @include media.media-breakpoint(mobile) {
-      font-size: 14px;
-
-      & span {
-        margin-right: 5px;
-      }
-
-      & br:nth-child(2) {
-        margin-bottom: -4px;
-      }
-    }
   }
 
   &__tags {
@@ -158,14 +93,6 @@
       border: 1px #6dbbdd solid;
       color: #6dbbdd;
     }
-
-    @include media.media-breakpoint(mobile) {
-      margin: 15px 10px 30px 0;
-
-      & span {
-        height: 14px;
-      }
-    }
   }
 }
 
@@ -180,12 +107,6 @@
 
 .button-wrapper {
   display: flex;
-
-  @include media.media-breakpoint(mobile) {
-    display: flex;
-    justify-content: flex-end;
-    width: 100%;
-  }
 
   &__button {
     color: #fff;
@@ -212,35 +133,12 @@
       background-color: #858585;
       border: 1px solid #858585;
     }
-
-    @include media.media-breakpoint(mobile) {
-      padding: 6px 12px;
-
-      & + & {
-        margin-left: 5px;
-      }
-    }
   }
 }
 
 .image {
   height: 330px;
   display: flex;
-
-  &--none {
-    @include media.media-breakpoint(mobile) {
-      display: none !important;
-    }
-  }
-
-  @include media.media-breakpoint(mobile) {
-    display: flex;
-    max-height: 255px;
-    cursor: initial;
-    overflow: scroll hidden;
-    overflow: hidden;
-    white-space: nowrap;
-  }
 
   ::-webkit-scrollbar {
     display: none;
@@ -277,10 +175,6 @@
     &:nth-child(n + 2) {
       display: none;
     }
-
-    @include media.media-breakpoint(mobile) {
-      width: 100%;
-    }
   }
 }
 
@@ -301,10 +195,6 @@
       width: 100px;
       height: 100px;
     }
-
-    @include media.media-breakpoint(mobile) {
-      width: 100%;
-    }
   }
 }
 
@@ -316,10 +206,6 @@
   top: 0;
   z-index: 10;
   background-color: white;
-
-  @include media.media-breakpoint(mobile) {
-    top: 56px;
-  }
 
   &__type {
     font-size: 20px;
@@ -333,10 +219,6 @@
     &--active {
       color: #175c8e;
       border-bottom: 1.5px solid #175c8e;
-    }
-
-    @include media.media-breakpoint(mobile) {
-      font-size: 16px;
     }
   }
 }

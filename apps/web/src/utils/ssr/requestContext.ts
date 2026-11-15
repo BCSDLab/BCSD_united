@@ -23,12 +23,7 @@ export interface ServerRequestContext {
   language: LanguageCode;
 }
 
-/**
- * UA로 기기를 분류한다.
- *
- * nginx 캐시 키(`$device_class`, /etc/nginx/conf.d/proxy-cache.conf)가 같은 정규식을 쓴다.
- * 한쪽만 바꾸면 캐시가 잘못 갈려 다른 기기용 HTML이 서빙되므로 반드시 함께 수정할 것.
- */
+/** UA로 기기를 분류한다. 서버는 창 폭을 모르므로 첫 렌더 화면을 이 값으로 고른다. */
 const MOBILE_UA = /iphone|ipod|android.*mobile|windows phone/i;
 
 export function getDeviceClass(userAgent: string | undefined): DeviceClass {
@@ -41,8 +36,7 @@ export function getDeviceClass(userAgent: string | undefined): DeviceClass {
  * 이 값들이 없으면 서버는 "비로그인 데스크톱"을 가정해 렌더하고, 클라이언트는 마운트 후
  * 실제 값으로 다시 그린다. 그 과정에서 서버가 그린 DOM이 통째로 버려진다.
  *
- * 인증 상태를 SSR에 반영해도 캐시는 안전하다. nginx가 인증 쿠키가 있으면
- * `proxy_cache_bypass`/`proxy_no_cache`로 캐시를 우회한다.
+ * 인증 상태를 SSR에 반영해도 캐시는 안전하다. 쿠키가 있는 요청은 공개 캐시를 켜지 않는다(`loadPageData`).
  *
  * 세션 유효성은 원본 Cookie를 그대로 실어 세션 조회(`GET /v2/web/auth/session`)로 백엔드가 확인한다.
  */
