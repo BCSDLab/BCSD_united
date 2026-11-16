@@ -21,23 +21,44 @@ function withBackend(response: Response, backend: 'workers' | 'aws'): Response {
   });
 }
 
-function batchCors(response: Response, request: Request, env: Bindings): Response {
-  const origin = request.headers.get('Origin');
-  if (!origin) return response;
-  const value = env.AUTH_ALLOWED_ORIGINS ?? '';
-  let allowed: unknown;
+// 허용 출처 목록(JSON 배열 또는 쉼표 구분)을 읽는다. 형식이 틀리면 설정 오류로 본다.
+function parseOrigins(value: string | undefined): string[] {
+  if (!value) return [];
+  let parsed: unknown;
   try {
-    allowed = value.trim().startsWith('[') ? JSON.parse(value) : value.split(',');
+    parsed = value.trim().startsWith('[') ? JSON.parse(value) : value.split(',');
   } catch {
     throw new ApiError(503, 'AUTH_CONFIGURATION_ERROR', '허용 출처 설정이 올바르지 않습니다.');
   }
-  if (!Array.isArray(allowed) || !allowed.every((entry) => typeof entry === 'string')) {
+  if (!Array.isArray(parsed) || !parsed.every((entry) => typeof entry === 'string')) {
     throw new ApiError(503, 'AUTH_CONFIGURATION_ERROR', '허용 출처 설정이 올바르지 않습니다.');
   }
+  return parsed.map((entry: string) => entry.trim());
+}
+
+// GATEWAY_CORS_ORIGINS는 보조 목록이라, 형식이 틀려도 식단 API 전체를 503으로 막지 않고 무시한다(해당 출처만 차단).
+function parseExtraOrigins(value: string | undefined): string[] {
+  try {
+    return parseOrigins(value);
+  } catch (error) {
+    captureError(error);
+    return [];
+  }
+}
+
+// CORS 정책:
+// - AUTH_ALLOWED_ORIGINS(웹 쿠키 세션 출처): Allow-Credentials: true. 쿠키 인증 경로는 Java가 Origin·CSRF를 다시 검증한다.
+// - GATEWAY_CORS_ORIGINS(Bearer 토큰으로만 호출하는 자체 웹, 예: 영양사 웹): Allow-Credentials 없이 출처만 허용한다.
+//   쿠키를 실어 보내는 요청의 응답은 이 출처의 스크립트가 읽지 못한다. 웹 쿠키 세션·CSRF 신뢰 출처에도 영향이 없다.
+// Vary: Origin은 Origin이 없는 요청에도 붙인다. 공개 캐시 헤더가 있는 응답(예: 엑셀 내보내기)이 출처별로 섞이지 않게 한다.
+function batchCors(response: Response, request: Request, env: Bindings): Response {
   response.headers.append('Vary', 'Origin');
-  if (allowed.some((entry) => entry.trim() === origin)) {
+  const origin = request.headers.get('Origin');
+  if (!origin) return response;
+  const credentialed = parseOrigins(env.AUTH_ALLOWED_ORIGINS).includes(origin);
+  if (credentialed || parseExtraOrigins(env.GATEWAY_CORS_ORIGINS).includes(origin)) {
     response.headers.set('Access-Control-Allow-Origin', origin);
-    response.headers.set('Access-Control-Allow-Credentials', 'true');
+    if (credentialed) response.headers.set('Access-Control-Allow-Credentials', 'true');
     response.headers.set('Access-Control-Expose-Headers', 'X-Koin-Backend');
   }
   return response;

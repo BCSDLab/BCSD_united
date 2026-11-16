@@ -44,6 +44,8 @@ export interface Bindings {
   JWT_SECRET?: string;
   WEB_CSRF_SECRET?: string;
   AUTH_ALLOWED_ORIGINS?: string;
+  /** KOIN_DB 게이트웨이 응답에만 CORS를 허용할 추가 출처(JSON 배열 또는 쉼표 구분). 웹 세션 신뢰 출처와 별개다. */
+  GATEWAY_CORS_ORIGINS?: string;
   WEB_COOKIE_SECURE?: string;
   WEB_COOKIE_SAME_SITE?: string;
   WEB_COOKIE_DOMAIN?: string;
