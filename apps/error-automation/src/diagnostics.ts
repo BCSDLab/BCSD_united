@@ -1,5 +1,5 @@
 import type { Diagnostic, Env, Identity } from './types';
-import { extractStackFrames, isBundlePath, SOURCE_HOSTS, sourcePath, tailKey } from './tail';
+import { extractStackFrames, isBundlePath, mappedSourcePath, SOURCE_HOSTS, sourcePath, tailKey } from './tail';
 import { mappedTailFrames } from './source-maps';
 
 export class DiagnosticProviderError extends Error {
@@ -42,30 +42,22 @@ async function boundedJson(response: Response, max = 2_000_000): Promise<Record<
     throw new DiagnosticProviderError(response.status);
   }
   if (!response.body) throw new Error('Missing diagnostic response');
-  const reader = response.body.getReader();
   let length = 0;
-  const chunks: Uint8Array[] = [];
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      length += value.byteLength;
-      if (length > max) {
-        await reader.cancel();
-        throw new Error('Diagnostic exceeds size limit');
-      }
-      chunks.push(value);
-    }
-  } finally {
-    reader.releaseLock();
-  }
-  const bytes = new Uint8Array(length);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.length;
-  }
-  return object(JSON.parse(new TextDecoder('utf-8', { fatal: true, ignoreBOM: false }).decode(bytes)));
+  const decoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: false });
+  const limited = response.body.pipeThrough(
+    new TransformStream<Uint8Array, Uint8Array>({
+      transform(chunk, controller) {
+        length += chunk.byteLength;
+        if (length > max) throw new Error('Diagnostic exceeds size limit');
+        decoder.decode(chunk, { stream: true });
+        controller.enqueue(chunk);
+      },
+      flush() {
+        decoder.decode();
+      },
+    }),
+  );
+  return object(await new Response(limited).json());
 }
 function safeRoute(value: unknown, hosts: readonly string[]): string | null {
   try {
@@ -194,7 +186,7 @@ async function cloudflareEvidence(
 
     const bundled = frames.some((frame) => isBundlePath(frame.path as string));
     const version = await fetch(
-      `${api}/workers/workers/${identity.project}/versions/${scriptVersion}${bundled ? '?include=modules' : ''}`,
+      `${api}/workers/workers/${identity.project}/versions/${scriptVersion}${bundled ? '?include=modules,sourcemaps' : ''}`,
       {
         headers,
         redirect: 'manual',
@@ -205,7 +197,7 @@ async function cloudflareEvidence(
       await version.body?.cancel();
       continue;
     }
-    const versionBody = await boundedJson(version, bundled ? 12 * 1024 * 1024 : 100_000);
+    const versionBody = await boundedJson(version, bundled ? 32 * 1024 * 1024 : 100_000);
     if (versionBody.success !== true || object(versionBody.result).id !== scriptVersion)
       throw new Error('CLOUDFLARE_EVIDENCE_UNAVAILABLE: source version mismatch');
 
@@ -264,7 +256,6 @@ async function cloudflareEvidence(
         line: frame.line as number,
         column: frame.column as number,
       })),
-      env.CLOUDFLARE_DIAGNOSTICS_TOKEN!,
     );
 
     return {
@@ -359,16 +350,11 @@ export async function trustedDiagnostics(env: Env, identity: Identity, stored: D
             const frame = object(raw);
             if (frame.inApp !== true || typeof frame.filename !== 'string') return [];
             const filename = frame.filename.replace(/^app:\/\/\//, '').replace(/^\.\//, '');
-            if (
-              !/^(?:apps\/web\/)?src\/[A-Za-z0-9_/$().-]+\.(?:tsx?|jsx?)$/.test(filename) ||
-              filename.split('/').includes('..') ||
-              !Number.isSafeInteger(frame.lineNo) ||
-              (frame.lineNo as number) < 1
-            )
-              return [];
+            const mapped = mappedSourcePath(filename, 'web');
+            if (!mapped || !Number.isSafeInteger(frame.lineNo) || (frame.lineNo as number) < 1) return [];
             return [
               {
-                filename,
+                filename: mapped.slice('apps/web/'.length),
                 function: redact(frame.function, 300),
                 lineNo: frame.lineNo,
                 colNo: Number.isSafeInteger(frame.colNo) && (frame.colNo as number) >= 0 ? frame.colNo : null,

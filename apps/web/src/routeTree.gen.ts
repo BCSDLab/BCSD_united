@@ -31,6 +31,7 @@ import { Route as OrderIndexRouteImport } from './routes/order.index'
 import { Route as PolicyIndexRouteImport } from './routes/policy.index'
 import { Route as ProfileIndexRouteImport } from './routes/profile.index'
 import { Route as RoomIndexRouteImport } from './routes/room.index'
+import { Route as SettingIndexRouteImport } from './routes/setting.index'
 import { Route as StoreIndexRouteImport } from './routes/store.index'
 import { Route as TeamIndexRouteImport } from './routes/team.index'
 import { Route as TimetableIndexRouteImport } from './routes/timetable.index'
@@ -55,6 +56,7 @@ import { Route as OrderCartIndexRouteImport } from './routes/order.cart.index'
 import { Route as OrderCheckoutIndexRouteImport } from './routes/order.checkout.index'
 import { Route as OrderOrdersIndexRouteImport } from './routes/order.orders.index'
 import { Route as RoomIdIndexRouteImport } from './routes/room.$id.index'
+import { Route as SettingLanguageIndexRouteImport } from './routes/setting.language.index'
 import { Route as StoreIdIndexRouteImport } from './routes/store.$id.index'
 import { Route as StoreSearchIndexRouteImport } from './routes/store.search.index'
 import { Route as TeamChatIndexRouteImport } from './routes/team.chat.index'
@@ -83,6 +85,7 @@ import { Route as OrderDeliveryCampusIndexRouteImport } from './routes/order.del
 import { Route as OrderDeliveryOutsideIndexRouteImport } from './routes/order.delivery.outside.index'
 import { Route as OrderResultPaymentIdIndexRouteImport } from './routes/order.result.$paymentId.index'
 import { Route as OrderShopsIdIndexRouteImport } from './routes/order.shops.$id.index'
+import { Route as SettingPolicyTypeIndexRouteImport } from './routes/setting.policy.$type.index'
 import { Route as StoreIdEventsIndexRouteImport } from './routes/store.$id.events.index'
 import { Route as StoreIdInfoIndexRouteImport } from './routes/store.$id.info.index'
 import { Route as StoreIdReviewsIndexRouteImport } from './routes/store.$id.reviews.index'
@@ -215,6 +218,11 @@ const RoomIndexRoute = RoomIndexRouteImport.update({
   path: '/room/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingIndexRoute = SettingIndexRouteImport.update({
+  id: '/setting/',
+  path: '/setting/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StoreIndexRoute = StoreIndexRouteImport.update({
   id: '/store/',
   path: '/store/',
@@ -334,6 +342,11 @@ const OrderOrdersIndexRoute = OrderOrdersIndexRouteImport.update({
 const RoomIdIndexRoute = RoomIdIndexRouteImport.update({
   id: '/room/$id/',
   path: '/room/$id/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingLanguageIndexRoute = SettingLanguageIndexRouteImport.update({
+  id: '/setting/language/',
+  path: '/setting/language/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StoreIdIndexRoute = StoreIdIndexRouteImport.update({
@@ -481,6 +494,11 @@ const OrderShopsIdIndexRoute = OrderShopsIdIndexRouteImport.update({
   path: '/order/shops/$id/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingPolicyTypeIndexRoute = SettingPolicyTypeIndexRouteImport.update({
+  id: '/setting/policy/$type/',
+  path: '/setting/policy/$type/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StoreIdEventsIndexRoute = StoreIdEventsIndexRouteImport.update({
   id: '/store/$id/events/',
   path: '/store/$id/events/',
@@ -623,6 +641,7 @@ export interface FileRoutesByFullPath {
   '/policy/': typeof PolicyIndexRoute
   '/profile/': typeof ProfileIndexRoute
   '/room/': typeof RoomIndexRoute
+  '/setting/': typeof SettingIndexRoute
   '/store/': typeof StoreIndexRoute
   '/team/': typeof TeamIndexRoute
   '/timetable/': typeof TimetableIndexRoute
@@ -647,6 +666,7 @@ export interface FileRoutesByFullPath {
   '/order/checkout/': typeof OrderCheckoutIndexRoute
   '/order/orders/': typeof OrderOrdersIndexRoute
   '/room/$id/': typeof RoomIdIndexRoute
+  '/setting/language/': typeof SettingLanguageIndexRoute
   '/store/$id/': typeof StoreIdIndexRoute
   '/store/search/': typeof StoreSearchIndexRoute
   '/team/chat/': typeof TeamChatIndexRoute
@@ -675,6 +695,7 @@ export interface FileRoutesByFullPath {
   '/order/delivery/outside/': typeof OrderDeliveryOutsideIndexRoute
   '/order/result/$paymentId/': typeof OrderResultPaymentIdIndexRoute
   '/order/shops/$id/': typeof OrderShopsIdIndexRoute
+  '/setting/policy/$type/': typeof SettingPolicyTypeIndexRoute
   '/store/$id/events/': typeof StoreIdEventsIndexRoute
   '/store/$id/info/': typeof StoreIdInfoIndexRoute
   '/store/$id/reviews/': typeof StoreIdReviewsIndexRoute
@@ -720,6 +741,7 @@ export interface FileRoutesByTo {
   '/policy': typeof PolicyIndexRoute
   '/profile': typeof ProfileIndexRoute
   '/room': typeof RoomIndexRoute
+  '/setting': typeof SettingIndexRoute
   '/store': typeof StoreIndexRoute
   '/team': typeof TeamIndexRoute
   '/timetable': typeof TimetableIndexRoute
@@ -744,6 +766,7 @@ export interface FileRoutesByTo {
   '/order/checkout': typeof OrderCheckoutIndexRoute
   '/order/orders': typeof OrderOrdersIndexRoute
   '/room/$id': typeof RoomIdIndexRoute
+  '/setting/language': typeof SettingLanguageIndexRoute
   '/store/$id': typeof StoreIdIndexRoute
   '/store/search': typeof StoreSearchIndexRoute
   '/team/chat': typeof TeamChatIndexRoute
@@ -772,6 +795,7 @@ export interface FileRoutesByTo {
   '/order/delivery/outside': typeof OrderDeliveryOutsideIndexRoute
   '/order/result/$paymentId': typeof OrderResultPaymentIdIndexRoute
   '/order/shops/$id': typeof OrderShopsIdIndexRoute
+  '/setting/policy/$type': typeof SettingPolicyTypeIndexRoute
   '/store/$id/events': typeof StoreIdEventsIndexRoute
   '/store/$id/info': typeof StoreIdInfoIndexRoute
   '/store/$id/reviews': typeof StoreIdReviewsIndexRoute
@@ -818,6 +842,7 @@ export interface FileRoutesById {
   '/policy/': typeof PolicyIndexRoute
   '/profile/': typeof ProfileIndexRoute
   '/room/': typeof RoomIndexRoute
+  '/setting/': typeof SettingIndexRoute
   '/store/': typeof StoreIndexRoute
   '/team/': typeof TeamIndexRoute
   '/timetable/': typeof TimetableIndexRoute
@@ -842,6 +867,7 @@ export interface FileRoutesById {
   '/order/checkout/': typeof OrderCheckoutIndexRoute
   '/order/orders/': typeof OrderOrdersIndexRoute
   '/room/$id/': typeof RoomIdIndexRoute
+  '/setting/language/': typeof SettingLanguageIndexRoute
   '/store/$id/': typeof StoreIdIndexRoute
   '/store/search/': typeof StoreSearchIndexRoute
   '/team/chat/': typeof TeamChatIndexRoute
@@ -870,6 +896,7 @@ export interface FileRoutesById {
   '/order/delivery/outside/': typeof OrderDeliveryOutsideIndexRoute
   '/order/result/$paymentId/': typeof OrderResultPaymentIdIndexRoute
   '/order/shops/$id/': typeof OrderShopsIdIndexRoute
+  '/setting/policy/$type/': typeof SettingPolicyTypeIndexRoute
   '/store/$id/events/': typeof StoreIdEventsIndexRoute
   '/store/$id/info/': typeof StoreIdInfoIndexRoute
   '/store/$id/reviews/': typeof StoreIdReviewsIndexRoute
@@ -917,6 +944,7 @@ export interface FileRouteTypes {
     | '/policy/'
     | '/profile/'
     | '/room/'
+    | '/setting/'
     | '/store/'
     | '/team/'
     | '/timetable/'
@@ -941,6 +969,7 @@ export interface FileRouteTypes {
     | '/order/checkout/'
     | '/order/orders/'
     | '/room/$id/'
+    | '/setting/language/'
     | '/store/$id/'
     | '/store/search/'
     | '/team/chat/'
@@ -969,6 +998,7 @@ export interface FileRouteTypes {
     | '/order/delivery/outside/'
     | '/order/result/$paymentId/'
     | '/order/shops/$id/'
+    | '/setting/policy/$type/'
     | '/store/$id/events/'
     | '/store/$id/info/'
     | '/store/$id/reviews/'
@@ -1014,6 +1044,7 @@ export interface FileRouteTypes {
     | '/policy'
     | '/profile'
     | '/room'
+    | '/setting'
     | '/store'
     | '/team'
     | '/timetable'
@@ -1038,6 +1069,7 @@ export interface FileRouteTypes {
     | '/order/checkout'
     | '/order/orders'
     | '/room/$id'
+    | '/setting/language'
     | '/store/$id'
     | '/store/search'
     | '/team/chat'
@@ -1066,6 +1098,7 @@ export interface FileRouteTypes {
     | '/order/delivery/outside'
     | '/order/result/$paymentId'
     | '/order/shops/$id'
+    | '/setting/policy/$type'
     | '/store/$id/events'
     | '/store/$id/info'
     | '/store/$id/reviews'
@@ -1111,6 +1144,7 @@ export interface FileRouteTypes {
     | '/policy/'
     | '/profile/'
     | '/room/'
+    | '/setting/'
     | '/store/'
     | '/team/'
     | '/timetable/'
@@ -1135,6 +1169,7 @@ export interface FileRouteTypes {
     | '/order/checkout/'
     | '/order/orders/'
     | '/room/$id/'
+    | '/setting/language/'
     | '/store/$id/'
     | '/store/search/'
     | '/team/chat/'
@@ -1163,6 +1198,7 @@ export interface FileRouteTypes {
     | '/order/delivery/outside/'
     | '/order/result/$paymentId/'
     | '/order/shops/$id/'
+    | '/setting/policy/$type/'
     | '/store/$id/events/'
     | '/store/$id/info/'
     | '/store/$id/reviews/'
@@ -1209,6 +1245,7 @@ export interface RootRouteChildren {
   PolicyIndexRoute: typeof PolicyIndexRoute
   ProfileIndexRoute: typeof ProfileIndexRoute
   RoomIndexRoute: typeof RoomIndexRoute
+  SettingIndexRoute: typeof SettingIndexRoute
   StoreIndexRoute: typeof StoreIndexRoute
   TeamIndexRoute: typeof TeamIndexRoute
   TimetableIndexRoute: typeof TimetableIndexRoute
@@ -1233,6 +1270,7 @@ export interface RootRouteChildren {
   OrderCheckoutIndexRoute: typeof OrderCheckoutIndexRoute
   OrderOrdersIndexRoute: typeof OrderOrdersIndexRoute
   RoomIdIndexRoute: typeof RoomIdIndexRoute
+  SettingLanguageIndexRoute: typeof SettingLanguageIndexRoute
   StoreIdIndexRoute: typeof StoreIdIndexRoute
   StoreSearchIndexRoute: typeof StoreSearchIndexRoute
   TeamChatIndexRoute: typeof TeamChatIndexRoute
@@ -1261,6 +1299,7 @@ export interface RootRouteChildren {
   OrderDeliveryOutsideIndexRoute: typeof OrderDeliveryOutsideIndexRoute
   OrderResultPaymentIdIndexRoute: typeof OrderResultPaymentIdIndexRoute
   OrderShopsIdIndexRoute: typeof OrderShopsIdIndexRoute
+  SettingPolicyTypeIndexRoute: typeof SettingPolicyTypeIndexRoute
   StoreIdEventsIndexRoute: typeof StoreIdEventsIndexRoute
   StoreIdInfoIndexRoute: typeof StoreIdInfoIndexRoute
   StoreIdReviewsIndexRoute: typeof StoreIdReviewsIndexRoute
@@ -1440,6 +1479,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RoomIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/setting/': {
+      id: '/setting/'
+      path: '/setting'
+      fullPath: '/setting/'
+      preLoaderRoute: typeof SettingIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/store/': {
       id: '/store/'
       path: '/store'
@@ -1606,6 +1652,13 @@ declare module '@tanstack/react-router' {
       path: '/room/$id'
       fullPath: '/room/$id/'
       preLoaderRoute: typeof RoomIdIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/setting/language/': {
+      id: '/setting/language/'
+      path: '/setting/language'
+      fullPath: '/setting/language/'
+      preLoaderRoute: typeof SettingLanguageIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/store/$id/': {
@@ -1804,6 +1857,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrderShopsIdIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/setting/policy/$type/': {
+      id: '/setting/policy/$type/'
+      path: '/setting/policy/$type'
+      fullPath: '/setting/policy/$type/'
+      preLoaderRoute: typeof SettingPolicyTypeIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/store/$id/events/': {
       id: '/store/$id/events/'
       path: '/store/$id/events'
@@ -1977,6 +2037,7 @@ const rootRouteChildren: RootRouteChildren = {
   PolicyIndexRoute: PolicyIndexRoute,
   ProfileIndexRoute: ProfileIndexRoute,
   RoomIndexRoute: RoomIndexRoute,
+  SettingIndexRoute: SettingIndexRoute,
   StoreIndexRoute: StoreIndexRoute,
   TeamIndexRoute: TeamIndexRoute,
   TimetableIndexRoute: TimetableIndexRoute,
@@ -2001,6 +2062,7 @@ const rootRouteChildren: RootRouteChildren = {
   OrderCheckoutIndexRoute: OrderCheckoutIndexRoute,
   OrderOrdersIndexRoute: OrderOrdersIndexRoute,
   RoomIdIndexRoute: RoomIdIndexRoute,
+  SettingLanguageIndexRoute: SettingLanguageIndexRoute,
   StoreIdIndexRoute: StoreIdIndexRoute,
   StoreSearchIndexRoute: StoreSearchIndexRoute,
   TeamChatIndexRoute: TeamChatIndexRoute,
@@ -2029,6 +2091,7 @@ const rootRouteChildren: RootRouteChildren = {
   OrderDeliveryOutsideIndexRoute: OrderDeliveryOutsideIndexRoute,
   OrderResultPaymentIdIndexRoute: OrderResultPaymentIdIndexRoute,
   OrderShopsIdIndexRoute: OrderShopsIdIndexRoute,
+  SettingPolicyTypeIndexRoute: SettingPolicyTypeIndexRoute,
   StoreIdEventsIndexRoute: StoreIdEventsIndexRoute,
   StoreIdInfoIndexRoute: StoreIdInfoIndexRoute,
   StoreIdReviewsIndexRoute: StoreIdReviewsIndexRoute,

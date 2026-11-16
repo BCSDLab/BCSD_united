@@ -49,6 +49,7 @@ test('응답 없는 세션 실패는 최신 캐시를 사용하고 시계 표본
     userType: 'STUDENT',
     now,
     mayBeSharedCached: true,
+    language: 'ko-KR',
   });
   assert.equal(calls, 1);
   assert.equal(result.serverRequest.userType, null);

@@ -24,7 +24,6 @@ export default [
       'eslint-rules/**',
       '**/*.d.ts',
       'src/routeTree.gen.ts',
-      'prettier.config.js',
       'eslint.config.mjs',
     ],
   },
@@ -350,6 +349,7 @@ export default [
     },
   },
 
-  // Prettier와 충돌하는 포맷팅 규칙을 끈다. 배열의 마지막에 위치해야 한다.
+  // Oxfmt와 충돌하는 ESLint 포맷 규칙을 끄는 호환 설정이다. Prettier를 실행하지 않는다.
+  // 배열의 마지막에 위치해야 한다.
   eslintConfigPrettier,
 ];

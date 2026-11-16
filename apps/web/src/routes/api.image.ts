@@ -1,6 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { env } from 'cloudflare:workers';
 
+import { hasExplicitPort, hasUnsafeR2Path, isR2ImageSource, r2ImagePrefix } from 'utils/worker/r2ImageSource';
+
 const HOSTS: Record<string, true> = {
   'stage-static.koreatech.in': true,
   'static.koreatech.in': true,
@@ -9,10 +11,12 @@ const HOSTS: Record<string, true> = {
 };
 const WIDTHS = new Set([16, 32, 48, 64, 96, 128, 256, 384, 640, 750, 828, 1080, 1200, 1920, 2048, 3840]);
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
-const imageEnvironment: { readonly KOIN_ENVIRONMENT?: string } = env;
+const imageEnvironment: { readonly KOIN_ENVIRONMENT?: string; readonly R2_FILES_PUBLIC_URL?: string } = env;
 
-function allowedSource(url: URL, origin: string): boolean {
+function allowedSource(url: URL, origin: string, r2Prefix: URL | null): boolean {
   if (url.username || url.password || url.hash) return false;
+  if (hasUnsafeR2Path(url, r2Prefix)) return false;
+  if (isR2ImageSource(url, r2Prefix)) return true;
   if (url.origin === 'https://pub-035732b521844e3b9205d80d8d6efda1.r2.dev') {
     return imageEnvironment.KOIN_ENVIRONMENT === 'preview';
   }
@@ -21,10 +25,11 @@ function allowedSource(url: URL, origin: string): boolean {
   return url.protocol === 'https:' && !url.port && Object.hasOwn(HOSTS, url.hostname);
 }
 
-async function fetchImage(source: URL, request: Request): Promise<Response> {
+async function fetchImage(source: URL, request: Request, r2Prefix: URL | null, r2Source: boolean): Promise<Response> {
   let url = source;
   for (let redirects = 0; redirects <= 3; redirects += 1) {
-    if (!allowedSource(url, new URL(request.url).origin)) return new Response(null, { status: 400 });
+    if (!allowedSource(url, new URL(request.url).origin, r2Prefix) || isR2ImageSource(url, r2Prefix) !== r2Source)
+      return new Response(null, { status: 400 });
     const response =
       url.origin === new URL(request.url).origin
         ? await env.ASSETS.fetch(new Request(url))
@@ -33,13 +38,25 @@ async function fetchImage(source: URL, request: Request): Promise<Response> {
     await response.body?.cancel();
     const location = response.headers.get('location');
     if (!location) return new Response(null, { status: 502 });
-    url = new URL(location, url);
+    try {
+      const next = new URL(location, url);
+      if (isR2ImageSource(next, r2Prefix) && hasExplicitPort(location)) return new Response(null, { status: 400 });
+      url = next;
+    } catch {
+      return new Response(null, { status: 502 });
+    }
   }
 
   return new Response(null, { status: 502 });
 }
 
 async function optimizeImage(request: Request): Promise<Response> {
+  let r2Prefix: URL | null;
+  try {
+    r2Prefix = r2ImagePrefix(imageEnvironment.R2_FILES_PUBLIC_URL);
+  } catch {
+    return new Response('Invalid image source configuration', { status: 503 });
+  }
   const url = new URL(request.url);
   const rawSource = url.searchParams.get('url');
   const width = Number(url.searchParams.get('w'));
@@ -53,25 +70,35 @@ async function optimizeImage(request: Request): Promise<Response> {
   } catch {
     return new Response('Invalid image URL', { status: 400 });
   }
-  if (!allowedSource(source, url.origin)) return new Response('Image source is not allowed', { status: 400 });
+  if (!allowedSource(source, url.origin, r2Prefix)) return new Response('Image source is not allowed', { status: 400 });
+  if (isR2ImageSource(source, r2Prefix) && hasExplicitPort(rawSource))
+    return new Response('Image source is not allowed', { status: 400 });
+  const r2Source = isR2ImageSource(source, r2Prefix);
 
   const accept = request.headers.get('accept') ?? '';
   let format: 'image/avif' | 'image/webp' | 'image/jpeg' = 'image/jpeg';
   if (accept.includes('image/avif')) format = 'image/avif';
   else if (accept.includes('image/webp')) format = 'image/webp';
-  const key = new URL(url.origin + url.pathname);
-  key.search = new URLSearchParams({ url: source.href, w: String(width), q: String(quality), format }).toString();
-  const cacheRequest = new Request(key);
-  const cache = await caches.open('images-v1');
-  const cached = await cache.match(cacheRequest);
-  if (cached) return cached;
+  let cache: Cache | undefined;
+  let cacheRequest: Request | undefined;
+  if (!r2Source) {
+    const key = new URL(url.origin + url.pathname);
+    key.search = new URLSearchParams({ url: source.href, w: String(width), q: String(quality), format }).toString();
+    cacheRequest = new Request(key);
+    cache = await caches.open('images-v1');
+    const cached = await cache.match(cacheRequest);
+    if (cached) return cached;
+  }
 
-  const upstream = await fetchImage(source, request);
+  const upstream = await fetchImage(source, request, r2Prefix, r2Source);
   // 업로드 메타데이터에 잘못된 MIME 목록이 있어도 실제 이미지 바이트는 디코더가 검증한다.
   if (!upstream.ok || !upstream.body) {
     await upstream.body?.cancel();
 
-    return new Response('Image source is unavailable', { status: upstream.status === 404 ? 404 : 502 });
+    return new Response('Image source is unavailable', {
+      status: upstream.status === 404 ? 404 : 502,
+      headers: r2Source ? { 'Cache-Control': 'no-store' } : undefined,
+    });
   }
   let received = 0;
   const limited = upstream.body.pipeThrough(
@@ -88,19 +115,22 @@ async function optimizeImage(request: Request): Promise<Response> {
     output = await env.IMAGES.input(limited).transform({ width, fit: 'scale-down' }).output({ format, quality });
   } catch (error) {
     if (error instanceof Error && 'code' in error && typeof error.code === 'number') {
-      return new Response('Image transformation failed', { status: 502 });
+      return new Response('Image transformation failed', {
+        status: 502,
+        headers: r2Source ? { 'Cache-Control': 'no-store' } : undefined,
+      });
     }
     throw error;
   }
   const response = output.response({
     headers: {
-      'Cache-Control': 'public, max-age=2678400',
+      'Cache-Control': r2Source ? 'no-store' : 'public, max-age=2678400',
       Vary: 'Accept',
       'X-Content-Type-Options': 'nosniff',
       'Content-Security-Policy': "default-src 'none'; sandbox",
     },
   });
-  await cache.put(cacheRequest, response.clone());
+  if (cache && cacheRequest) await cache.put(cacheRequest, response.clone());
 
   return response;
 }

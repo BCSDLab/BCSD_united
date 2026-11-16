@@ -5,12 +5,10 @@ import { useRouter } from '@tanstack/react-router';
 import { getRelateSearch } from 'api/store';
 import type { RelatedSearchResponse } from 'api/store/entity';
 import { storeQueries } from 'api/store/queries';
-import MobileSearchIcon from 'assets/svg/mobile-store-search-icon.svg';
 import DesktopSearchIcon from 'assets/svg/Store/search-icon.svg';
 import RelateSearchItem from 'components/Store/StorePage/components/RelateSearchItem';
 import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
-import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useParamsHandler from 'utils/hooks/routing/useParamsHandler';
 import { useEscapeKeyDown } from 'utils/hooks/ui/useEscapeKeyDown';
 import { useOutsideClick } from 'utils/hooks/ui/useOutsideClick';
@@ -27,7 +25,6 @@ export default function SearchBarModal({ onClose }: SearchBarModalProps) {
   const [relateSearchItems, setRelateSearchItems] = useState<RelatedSearchResponse>();
   const { params, searchParams, setParams } = useParamsHandler();
   const logger = useLogger();
-  const isMobile = useMediaQuery();
   const router = useRouter();
   const { backgroundRef } = useOutsideClick({ onOutsideClick: onClose });
   useEscapeKeyDown({ onEscape: onClose });
@@ -93,16 +90,10 @@ export default function SearchBarModal({ onClose }: SearchBarModalProps) {
             }}
           />
           <button className={styles['search-bar-modal__icon']} type="button" onClick={handleSearch}>
-            {isMobile ? (
-              <div className={styles['search-icon']}>
-                <MobileSearchIcon />
-              </div>
-            ) : (
-              <DesktopSearchIcon />
-            )}
+            <DesktopSearchIcon />
           </button>
         </div>
-        <div className={styles.result}>
+        <div>
           {relateSearchItems?.keywords?.map((item) => (
             <RelateSearchItem
               key={item.keyword}
@@ -133,7 +124,7 @@ export default function SearchBarModal({ onClose }: SearchBarModalProps) {
                       replacePage: true,
                     },
                   );
-                  if (!isMobile && storeRef.current) {
+                  if (storeRef.current) {
                     storeRef.current.value = '';
                     setRelateSearchItems(undefined);
                   }

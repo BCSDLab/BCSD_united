@@ -29,6 +29,7 @@ import {
   durableJson,
   optionalJson,
   objectMetadata,
+  sameModifiedSecond,
   assertCheckpoint,
   hasVersionReference,
   sdkData,
@@ -142,16 +143,17 @@ async function* objects(client, Bucket) {
   } while (ContinuationToken);
 }
 
-async function sourceRecord(client, Bucket, item) {
+export async function sourceRecord(client, Bucket, item) {
   const head = await client.send(new HeadObjectCommand({ Bucket, Key: item.Key, IfMatch: item.ETag }));
   if (
     head.ETag !== item.ETag ||
     head.ContentLength !== item.Size ||
-    canonical(head.LastModified) !== canonical(item.LastModified) ||
+    !sameModifiedSecond(head.LastModified, item.LastModified) ||
     head.MissingMeta
   )
     throw new Error('Source changed or metadata is not losslessly readable');
   partSizeFor(head.ContentLength);
+  objectMetadata(head);
   const reference = { Bucket, Key: item.Key, ...(head.VersionId === undefined ? {} : { VersionId: head.VersionId }) };
   const tags = await client.send(new GetObjectTaggingCommand(reference));
   const acl = await client.send(new GetObjectAclCommand(reference));
@@ -390,7 +392,7 @@ export async function transferObject(
   }
 }
 
-async function targetInventory(client, Bucket, directory, snapshot, requireComplete) {
+export async function targetInventory(client, Bucket, directory, snapshot, requireComplete) {
   let count = 0;
   let bytes = 0n;
   for await (const item of objects(client, Bucket)) {
@@ -407,7 +409,7 @@ async function targetInventory(client, Bucket, directory, snapshot, requireCompl
       checkpoint.destination &&
       (checkpoint.destination.bytes !== item.Size ||
         checkpoint.destination.etag !== item.ETag ||
-        canonical(checkpoint.destination.lastModified) !== canonical(item.LastModified))
+        !sameModifiedSecond(checkpoint.destination.lastModified, item.LastModified))
     )
       throw new Error('Destination object changed after verification');
     count += 1;

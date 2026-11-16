@@ -86,7 +86,7 @@ function RootDocument({ children }: { children: ReactNode }) {
   const gaId = process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID;
 
   return (
-    <html lang="ko">
+    <html lang={data?.serverRequest?.language ?? 'ko'}>
       <head>
         {!pathname.startsWith(ROUTES.OrderHome()) && (
           <meta name="viewport" content="width=device-width, initial-scale=1" />
