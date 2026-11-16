@@ -2,9 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { cn } from '@bcsdlab/utils';
 import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 
-import type { TeamChatMessage, TeamChatRoomListItem } from 'api/team/entity';
+import type { ChatRoomResponse } from 'api/chat/entity';
+import { chatQueries, chatQueryKeys } from 'api/chat/queries';
+import type { TeamChatMessage } from 'api/team/entity';
 import { teamMutations } from 'api/team/mutations';
-import { TEAM_CHAT_MESSAGE_LIMIT, teamQueries } from 'api/team/queries';
+import { TEAM_CHAT_MESSAGE_LIMIT, TEAM_CHAT_POLLING_INTERVAL, teamQueries } from 'api/team/queries';
 import DefaultPhotoIcon from 'assets/svg/Team/default-photo.svg';
 import PeopleIcon from 'assets/svg/Team/people.svg';
 import MobilePageHeader from 'components/layout/MobilePageHeader';
@@ -26,21 +28,45 @@ interface TeamChatRoomProps {
   chatRoomId: number;
 }
 
+interface TeamChatRoomDetailProps {
+  selectedRoom: ChatRoomResponse;
+  chatRooms: ChatRoomResponse[];
+  userId: number | null;
+}
+
 const PREVIOUS_MESSAGE_LOAD_THRESHOLD = 80;
 const BOTTOM_STICK_THRESHOLD = 80;
 
-const getChatRoomPreview = (room: TeamChatRoomListItem) => {
+const getChatRoomPreview = (room: ChatRoomResponse) => {
   if (room.last_message_is_image) return '사진을 보냈습니다.';
 
   return room.last_message_content ?? '';
 };
 
 export default function TeamChatRoom({ recruitmentId, chatRoomId }: TeamChatRoomProps) {
+  const { data: user } = useUser();
+  const userId = user?.id ?? null;
+  const { data: chatRooms } = useSuspenseQuery({
+    ...chatQueries.rooms(userId, 'TEAM_RECRUITMENT'),
+    refetchInterval: TEAM_CHAT_POLLING_INTERVAL,
+  });
+  const selectedRoom = chatRooms.find((room) => room.context_id === recruitmentId && room.chat_room_id === chatRoomId);
+  if (!selectedRoom) throw new Error('채팅방을 찾을 수 없습니다.');
+
+  return (
+    <TeamChatRoomDetail key={selectedRoom.room_id} selectedRoom={selectedRoom} chatRooms={chatRooms} userId={userId} />
+  );
+}
+
+function TeamChatRoomDetail({ selectedRoom, chatRooms, userId }: TeamChatRoomDetailProps) {
   const isLoggedIn = useIsLoggedIn();
   const queryClient = useQueryClient();
-  const { data: user } = useUser();
-  const { data: chatRooms } = useSuspenseQuery(teamQueries.chatRoomList(isLoggedIn));
-  const { data: chatRoom } = useSuspenseQuery(teamQueries.chatRoom(isLoggedIn, recruitmentId, chatRoomId));
+  const recruitmentId = selectedRoom.context_id;
+  const chatRoomId = selectedRoom.chat_room_id;
+  const { data: chatRoom } = useSuspenseQuery({
+    ...chatQueries.room(userId, selectedRoom.room_id),
+    staleTime: 60_000,
+  });
   const { data: messages } = useSuspenseQuery(teamQueries.chatMessages(isLoggedIn, recruitmentId, chatRoomId));
   const { uploadFile, isPending: isUploading } = useUploadFile();
   const [previousMessages, setPreviousMessages] = useState<TeamChatMessage[]>([]);
@@ -50,8 +76,13 @@ export default function TeamChatRoom({ recruitmentId, chatRoomId }: TeamChatRoom
   const shouldStickToBottomRef = useRef(true);
   const hasInitialScrollRef = useRef(false);
 
+  const sendMessageMutation = teamMutations.sendChatMessage(queryClient, isLoggedIn, recruitmentId, chatRoomId);
   const { mutate: sendMessage, isPending: isSending } = useMutation({
-    ...teamMutations.sendChatMessage(queryClient, isLoggedIn, recruitmentId, chatRoomId),
+    ...sendMessageMutation,
+    onSuccess: (...args) => {
+      sendMessageMutation.onSuccess?.(...args);
+      queryClient.invalidateQueries({ queryKey: chatQueryKeys.rooms(userId, 'TEAM_RECRUITMENT'), exact: true });
+    },
     onError: () => showToast('error', '메시지를 보내지 못했어요. 다시 시도해 주세요.'),
   });
   const mergedMessages = mergeChatMessages(previousMessages, messages);
@@ -67,9 +98,9 @@ export default function TeamChatRoom({ recruitmentId, chatRoomId }: TeamChatRoom
   }, [lastMessageId]);
 
   const sidebarItems = chatRooms.map((room) => ({
-    key: `${room.recruitment_id}-${room.chat_room_id}`,
+    key: room.room_id,
     href: ROUTES.TeamChat({
-      recruitmentId: String(room.recruitment_id),
+      recruitmentId: String(room.context_id),
       chatRoomId: String(room.chat_room_id),
     }),
     title: room.room_name,
@@ -78,12 +109,12 @@ export default function TeamChatRoom({ recruitmentId, chatRoomId }: TeamChatRoom
     unreadCount: room.unread_message_count,
     avatar: <DefaultPhotoIcon />,
     avatarAriaHidden: true,
-    isActive: room.recruitment_id === recruitmentId && room.chat_room_id === chatRoomId,
+    isActive: room.room_id === selectedRoom.room_id,
   }));
 
-  const isTeamRoom = chatRoom.room_type === 'TEAM';
-  const messageGroups = mapTeamChatMessageGroups(mergedMessages, user?.id);
-  const memberCount = isTeamRoom && (
+  const isTeamRoom = chatRoom.room_type === 'GROUP';
+  const messageGroups = mapTeamChatMessageGroups(mergedMessages, userId ?? undefined);
+  const memberCount = isTeamRoom && chatRoom.member_count !== null && chatRoom.max_member_count !== null && (
     <span
       className={cn({
         [styles['chat-room__memberCount']]: true,
