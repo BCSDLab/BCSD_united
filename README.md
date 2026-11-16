@@ -22,6 +22,7 @@ scripts/
 - 프론트엔드: React 19, TanStack Start/Router, React Query, Zustand, SCSS Modules + 식단 CSS Modules
 - 업무 API: 기존 Java 서버(KOIN_API_V2)를 사용합니다. `apps/api`는 레거시로 보존합니다.
 - 도구: pnpm workspace, oxlint, oxfmt, TypeScript, ESLint·Stylelint(웹)
+- 식단 화면은 끼니별 탭과 메뉴 카드를 사용하며, 사진이 미등록된 코너는 큰 이미지 자리 대신 상태 문구를 표시합니다. 등록된 사진은 확대해서 볼 수 있습니다.
 
 ## 개발 환경
 

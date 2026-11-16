@@ -1,28 +1,16 @@
 .page {
-  width: auto;
   min-height: 100vh;
-  padding: 0 10px;
-  background-color: #f5f5f5;
-  overflow-x: hidden;
+  padding: 0 24px;
+  background: #f8f8fa;
+}
+
+.page__content {
+  max-width: 1136px;
+  margin: 0 auto;
 }
 
 @media screen and (width <= 576px) {
   .page {
     padding: 0;
-    width: 100%;
-    background-color: #f5f5f5;
-  }
-}
-
-.page .page__content {
-  margin: 0 auto;
-  display: block;
-  width: 860px;
-}
-
-@media screen and (width <= 576px) {
-  .page .page__content {
-    margin: 0;
-    width: 100%;
   }
 }
