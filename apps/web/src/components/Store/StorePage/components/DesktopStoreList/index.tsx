@@ -75,7 +75,7 @@ export default function DesktopStoreList(storeListProps: StoreListProps) {
               <span className={styles['store-none-open__text']}>지금은 영업시간이 아니에요</span>
             </div>
           )}
-          <div className={styles['store-list__title']}>{store.name}</div>
+          <div className={styles['store-list__title']}>{store.display_name ?? store.name}</div>
           <div className={styles['store-list__review']}>
             {store?.review_count > 0 ? (
               <>

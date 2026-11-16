@@ -65,7 +65,7 @@ export default function PCDiningBlocks({ diningType, isThisWeek }: PCDiningBlock
       {filteredDinings.map((dining) => (
         <div className={styles.block} key={dining.id}>
           <div className={styles.header}>
-            <div className={styles.header__place}>{dining.place}</div>
+            <div className={styles.header__place}>{dining.display_place ?? dining.place}</div>
             <div className={styles.header__detail}>
               {!!dining.kcal && `${dining.kcal}kcal`}
               {!!dining.kcal && !!dining.price_card && !!dining.price_cash && '•'}

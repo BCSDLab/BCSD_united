@@ -61,6 +61,8 @@ export interface UnorderableShopDetailInfoResponse {
   image_urls: string[];
   menu_categories: MenuGroup[];
   name: string;
+  /** 화면 언어의 표시 이름. 번역이 없으면 원문이다. 로그·비교는 `name`을 쓴다. */
+  display_name?: string;
   open: Time[];
   pay_bank: boolean;
   pay_card: boolean;
@@ -163,6 +165,8 @@ export interface ShopInfoSummaryResponse {
   shop_id: number;
   orderable_shop_id?: number;
   name: string;
+  /** 화면 언어의 표시 이름. 번역이 없으면 원문이다. 로그·비교는 `name`을 쓴다. */
+  display_name?: string;
   introduction: string | null;
   pay_card: boolean;
   pay_bank: boolean;
@@ -216,6 +220,8 @@ interface ShopInfo {
   delivery: boolean;
   id: number;
   name: string;
+  /** 화면 언어의 표시 이름. 번역이 없으면 원문이다. 로그·비교는 `name`을 쓴다. */
+  display_name?: string;
   pay_bank: boolean;
   pay_card: boolean;
   phone: string;

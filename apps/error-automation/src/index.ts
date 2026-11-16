@@ -17,6 +17,7 @@ import {
   pullRequestPolicy,
   PUBLISHER_LOGIN,
 } from './pull-request';
+import { slackRequest, SlackRequestError } from './request';
 
 interface CloudflareSource {
   accountId: string;
@@ -445,6 +446,7 @@ export function redact(value: unknown, env: Env): string {
     env.SENTRY_READ_TOKEN,
     env.DIAGNOSTICS_READ_TOKEN,
     env.AUTOFIX_EXECUTOR_TOKEN,
+    env.SLACK_BOT_SIGNING_SECRET,
     env.ERROR_MONITOR_TOKEN,
     env.OMP_GATEWAY_MONITOR_TOKEN,
   ]) {
@@ -1012,11 +1014,23 @@ export default {
     const url = new URL(request.url);
     try {
       if (url.protocol !== 'https:') throw new RequestError(400, 'HTTPS is required.');
-      if (env.ENVIRONMENT !== 'production')
+      if (env.ENVIRONMENT !== 'production' && url.pathname !== '/slack/requests')
         throw new RequestError(503, 'Only the fixed production installation is enabled.');
       if (url.pathname === '/healthz') return await monitoringHealth(request, env, url);
       if (url.pathname === '/healthz/rocky') return await rockyMonitoringHealth(request, env, url);
       if (url.pathname.startsWith('/executor/')) return await executorRequest(request, env, url);
+      if (url.pathname === '/slack/requests') {
+        try {
+          return await slackRequest(request, env);
+        } catch (error) {
+          if (error instanceof SlackRequestError) {
+            const response = reply(error.status, { error: error.message }, error.code ? null : undefined);
+            if (error.code) response.headers.set('x-slack-autofix-error', error.code);
+            return response;
+          }
+          throw error;
+        }
+      }
       const retrieval = url.pathname.startsWith('/diagnostics/');
       if (!retrieval && !['/webhooks/sentry', '/webhooks/cloudflare', '/webhooks/github'].includes(url.pathname))
         return reply(404, { error: 'Not found.' });

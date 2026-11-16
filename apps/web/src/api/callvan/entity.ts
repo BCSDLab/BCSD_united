@@ -57,6 +57,9 @@ export interface CallvanPost {
   title: string;
   departure: string;
   arrival: string;
+  /** 화면 언어로 번역한 장소. 직접 입력한 장소는 원문 그대로다. */
+  display_departure?: string;
+  display_arrival?: string;
   departure_date: string;
   departure_time: string;
   author_nickname: string;
@@ -161,6 +164,9 @@ export interface CallvanPostDetail {
   title: string;
   departure: string;
   arrival: string;
+  /** 화면 언어로 번역한 장소. 직접 입력한 장소는 원문 그대로다. */
+  display_departure?: string;
+  display_arrival?: string;
   departure_date: string;
   departure_time: string;
   current_participants: number;

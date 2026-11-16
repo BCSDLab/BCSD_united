@@ -75,9 +75,17 @@ pnpm --filter @koin/b-bot exec wrangler secret put WEBHOOK_SECRET
 - Slash Commands: `<Worker 주소>/slash`
 - Interactivity: `<Worker 주소>/interaction`
 
-수신 요청은 서명 검증 후 `SLACK_JOBS`에 저장하고 응답한다. 큐 전송이 실패하면 성공으로 응답하지 않는다. 큐 본문에는 Slack 검증 토큰, 응답 웹훅 URL, 모달 트리거 ID를 저장하지 않는다. 모달을 여는 명령·바로가기는 Slack의 3초 제한 때문에 HTTP 요청 안에서 처리한다.
+일반 메시지·상호작용은 서명 검증 후 `SLACK_JOBS`에 저장하고 응답한다. 전송이 실패하면 성공으로 응답하지 않는다. 본문에는 Slack 검증 토큰, 응답 웹훅 URL, 모달 트리거 ID를 저장하지 않는다. 모달을 여는 명령·바로가기는 Slack의 3초 제한 때문에 HTTP 요청 안에서 처리한다.
 
 큐는 at-least-once 전달이다. 반영·생성 기능의 기존 DB 상태 전이와 선점 규칙을 유지한다. 도메인 처리 실패는 사용자에게 알리고 무조건 외부 변경을 재실행하지 않는다. 예상하지 못한 큐 실패는 재시도 후 dead-letter 큐에 남긴다.
+
+### 멘션 코드 수정 요청
+
+Slack 앱의 bot event에 `app_mention`과 `app_mentions:read` 권한을 등록한다. 허용 채널에서 `@삐봇 수정요청 게시글 사진이 표시되도록 고쳐줘`처럼 **멘션으로 시작하는 명시적 `수정요청` 명령**을 보낸다(`코드수정요청`, `fix-request`도 허용). 일반 멘션·질문은 PR을 만들지 않는다. 이 명령 자체가 코드 수정 및 develop 대상 PR 생성을 요청하므로 별도 확인 버튼은 없으며 merge·운영 배포는 허용하지 않는다.
+
+`/event`는 검증한 Slack 원문·서명을 `ERROR_AUTOMATION` 서비스 바인딩(`bcsd-error-automation`)의 `/slack/requests`로 그대로 전달한다. 수신 Worker가 원본 HMAC·5분 freshness·workspace·bot ID·사용자/채널 허용 목록을 재검증하고 `AutofixQueue`에 durable 접수한다. 인증·입력 거절과 `503` + `x-slack-autofix-error: not-configured`의 명시적 설정 거절은 재전송 없이 종결한다. 표식 없는 큐·저장소 `503` 및 전송 실패는 Slack 재시도가 가능하도록 실패 응답하며, Slack event ID로 중복 PR을 막는다. 별도 repository_dispatch나 실행기를 만들지 않는다.
+
+운영자는 error-automation에 **동일 Slack 앱**의 `SLACK_BOT_SIGNING_SECRET`과 `SLACK_AUTOFIX_TEAM_ID`, `SLACK_AUTOFIX_BOT_USER_ID`, `SLACK_AUTOFIX_ALLOWED_USERS`, `SLACK_AUTOFIX_ALLOWED_CHANNELS`를 설정해야 한다. 마지막 두 값은 명시적 Slack ID의 쉼표 구분 목록이며 빈 값은 요청을 거절한다. 저장소·브랜치·모델·시크릿은 요청 텍스트에서 지정할 수 없다. 모델은 요청을 비신뢰 자료로만 읽고 보호 파일을 제외한 허용 앱/패키지의 소스·테스트를 수정하며 독립 검증을 통과한 변경만 develop PR로 발행한다. 자세한 계약은 [오류 자동화](../error-automation/README.md)를 따른다.
 
 ## Google Meet
 

@@ -243,7 +243,7 @@ function StoreDetailPage({ id }: Props) {
         <div className={styles['section__store-info']}>
           {storeDetail && (
             <div className={styles.store}>
-              <div className={styles.store__name}>{storeDetail?.name}</div>
+              <div className={styles.store__name}>{storeDetail?.display_name ?? storeDetail?.name}</div>
               <div className={styles.store__detail}>
                 <span>전화번호</span>
                 {storeDetail?.phone}
