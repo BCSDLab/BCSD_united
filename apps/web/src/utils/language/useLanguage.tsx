@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { type QueryFilters, useQueryClient } from '@tanstack/react-query';
 
 import { getMyLanguage, updateMyLanguage } from 'api/language';
 import { DEFAULT_LANGUAGE, type LanguageCode } from 'static/language';
@@ -55,9 +55,12 @@ export function LanguageProvider({
     if (!readStoredLanguage() && language !== DEFAULT_LANGUAGE) writeLanguageCookie(language);
     if (language !== fetchedLanguageRef.current) {
       fetchedLanguageRef.current = language;
-      queryClient.invalidateQueries({
+      const filters: QueryFilters = {
         predicate: ({ queryKey: [root] }) => typeof root === 'string' && LANGUAGE_AWARE_ROOT_KEYS.has(root),
-      });
+      };
+      // 처음 불러오는 중이라 데이터가 없는 쿼리는 invalidateQueries가 진행 중인 요청을 취소하지 않고 이전 언어 응답을 기다린다.
+      // 진행 중인 요청을 먼저 취소한 뒤 새 언어 쿠키로 다시 받는다.
+      queryClient.cancelQueries(filters).then(() => queryClient.invalidateQueries(filters));
     }
   }, [mounted, language, queryClient]);
 
