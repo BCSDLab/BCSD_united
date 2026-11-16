@@ -21,7 +21,6 @@ export const BRIDGE_RESOURCES = [
 /** DNS-only AWS 호스트로 연결하되 원래 API Host·TLS 인증서 범위를 유지한다. */
 export function fetchOrigin(request: Request, env: Bindings): Promise<Response> {
   const production = env.ENVIRONMENT === 'production';
-  const api = production ? 'api.koreatech.in' : 'api.stage.koreatech.in';
   const allowed = production ? 'https://admin.koreatech.in' : 'https://api.stage.koreatech.in';
   const origin = env.KOIN_AWS_ORIGIN ?? allowed;
   if (origin !== allowed) {
