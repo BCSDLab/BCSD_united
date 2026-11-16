@@ -21,7 +21,9 @@ function useMarker({ getMap, roomList }: MarkerProps) {
     markersRef.current.forEach((m) => m.setMap(null));
     markersRef.current = [];
 
-    const created = (roomList.lands ?? []).map((land) => {
+    const created = (roomList.lands ?? []).flatMap((land) => {
+      if (land.latitude == null || land.longitude == null || land.latitude === 0 || land.longitude === 0) return [];
+
       const marker = new window.naver.maps.Marker({
         position: new window.naver.maps.LatLng(land.latitude, land.longitude),
         title: land.name,
@@ -33,7 +35,7 @@ function useMarker({ getMap, roomList }: MarkerProps) {
         router.navigate({ href: ROUTES.RoomDetail({ id: String(land.id) }) });
       });
 
-      return marker;
+      return [marker];
     });
 
     markersRef.current = created;

@@ -4,8 +4,8 @@ import MarkerIcon from 'components/Room/components/MarkerIcon';
 
 interface DetailMarkerProps {
   getMap: () => naver.maps.Map | null;
-  latitude: number | undefined;
-  longitude: number | undefined;
+  latitude: number | null | undefined;
+  longitude: number | null | undefined;
 }
 
 export default function useDetailMarker({ getMap, latitude, longitude }: DetailMarkerProps) {
@@ -14,6 +14,7 @@ export default function useDetailMarker({ getMap, latitude, longitude }: DetailM
   useEffect(() => {
     const map = getMap();
     if (!map || latitude == null || longitude == null || !window.naver) return;
+    if (latitude === 0 || longitude === 0) return;
 
     if (markerRef.current) {
       markerRef.current.setMap(null);
