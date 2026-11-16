@@ -4,9 +4,11 @@ import { WebRefresh, WebSession } from 'api/auth/APIDetail';
 import { HttpError, isHttpError, type KoinError } from 'interfaces/APIError';
 import { type APIRequest, type APIResult, HTTP_METHOD } from 'interfaces/APIRequest';
 import type { APIResponse } from 'interfaces/APIResponse';
+import { DEFAULT_LANGUAGE } from 'static/language';
 import { WEB_AUTH_CSRF_COOKIE_KEY } from 'static/url';
 import { hasSessionCookie } from 'utils/auth/session';
 import { markSessionAuthenticated, markSessionExpired } from 'utils/auth/sessionControl';
+import { getRequestLanguage, isLanguageAwarePath } from 'utils/language/requestLanguage';
 import { fetchApiRequest, getApiBaseUrl } from 'utils/ssr/apiTarget';
 import { getServerRequestHeaders } from 'utils/ssr/cookieForwarding';
 import { sampleServerClock } from 'utils/ssr/serverClock';
@@ -141,6 +143,11 @@ export default class APIClient {
     if (request.params) {
       const query = qsStringify(request.params);
       if (query) url.search += `${url.search ? '&' : '?'}${query}`;
+    }
+    // 서버 값을 번역해 주는 조회는 화면 언어를 붙인다. 기본 언어는 원문과 같으므로 요청을 바꾸지 않는다.
+    if (request.method === HTTP_METHOD.GET && !url.searchParams.has('language') && isLanguageAwarePath(path)) {
+      const language = getRequestLanguage();
+      if (language !== DEFAULT_LANGUAGE) url.searchParams.set('language', language);
     }
 
     return url;

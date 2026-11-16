@@ -54,7 +54,7 @@ function MealCard({ dining, diningLabel, href, onClick }: MealCardProps) {
           <strong>{dining.kcal}kcal</strong>
         </span>
       </div>
-      <h3 className={styles['meal-card__title']}>{dining.place}</h3>
+      <h3 className={styles['meal-card__title']}>{dining.display_place ?? dining.place}</h3>
       <p className={styles['meal-card__menu']}>{menu}</p>
     </Link>
   );
@@ -166,7 +166,7 @@ function IndexMobileCafeteria() {
               key={dining.place}
               onClick={() => handleTabClick(dining.place)}
             >
-              {dining.place}
+              {dining.display_place ?? dining.place}
             </button>
           ))}
         </div>

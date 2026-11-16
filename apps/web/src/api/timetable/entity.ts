@@ -27,6 +27,8 @@ export interface Lecture {
   id: number;
   code: string;
   name: string;
+  /** 화면 언어의 공식 강의명. 등록되지 않았거나 직접 만든 강의는 원문이다. */
+  display_name?: string;
   grades: string;
   lecture_class: string;
   regular_number: string;

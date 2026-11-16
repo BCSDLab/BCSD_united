@@ -13,6 +13,7 @@
   },
   "kv_namespaces": [{ "binding": "BOT_KV", "id": "d3952ec4ddda4200a81daca33429f253" }],
   "ai": { "binding": "AI", "remote": true },
+  "services": [{ "binding": "ERROR_AUTOMATION", "service": "bcsd-error-automation" }],
   "queues": {
     "producers": [{ "binding": "SLACK_JOBS", "queue": "b-bot-workers-slack-jobs" }],
     "consumers": [
