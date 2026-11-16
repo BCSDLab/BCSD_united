@@ -91,6 +91,7 @@ function CurrentSemesterLectureList({
         const departmentFilter = filter.department;
         const searchCondition =
           lecture.name.toUpperCase().includes(searchFilter) ||
+          !!lecture.display_name?.toUpperCase().includes(searchFilter) ||
           lecture.code.toUpperCase().includes(searchFilter) ||
           lecture.professor.toUpperCase().includes(searchFilter);
 

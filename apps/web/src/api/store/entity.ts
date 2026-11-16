@@ -18,6 +18,8 @@ export interface StoreDetailResponse extends APIResponse {
   image_urls: string[];
   menu_categories: MenuCategory[];
   name: string;
+  /** 화면 언어의 표시 이름. 번역이 없으면 원문이다. 로그·비교는 `name`을 쓴다. */
+  display_name?: string;
   open: Open[];
   pay_bank: boolean;
   pay_card: boolean;
@@ -65,6 +67,8 @@ export interface StoreDetailMenuResponse extends APIResponse {
 export interface StoreList {
   id: number;
   name: string;
+  /** 화면 언어의 표시 이름. 번역이 없으면 원문이다. 로그·비교는 `name`을 쓴다. */
+  display_name?: string;
   phone: string;
   delivery: boolean;
   pay_card: boolean;
@@ -78,6 +82,8 @@ export interface StoreList {
 export interface StoreListV2 {
   id: number;
   name: string;
+  /** 화면 언어의 표시 이름. 번역이 없으면 원문이다. 로그·비교는 `name`을 쓴다. */
+  display_name?: string;
   phone: string;
   delivery: boolean;
   pay_card: boolean;
@@ -119,6 +125,8 @@ export interface StoreEventCountResponse extends APIResponse {
 export interface StoreCategory {
   id: number;
   name: string;
+  /** 화면 언어의 표시 이름. 번역이 없으면 원문이다. 로그·비교는 `name`을 쓴다. */
+  display_name?: string;
   image_url: string;
 }
 

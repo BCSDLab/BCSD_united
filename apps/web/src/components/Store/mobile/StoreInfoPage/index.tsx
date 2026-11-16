@@ -40,7 +40,7 @@ export default function StoreInfoPage({ id }: StoreInfoPageProps) {
             [styles['section--gray']]: !decodedId,
           })}
         >
-          <p className={styles.section__title}>{data.name}</p>
+          <p className={styles.section__title}>{data.display_name ?? data.name}</p>
           <div className={styles.rows}>
             {rows.map((row) => (
               <div key={row.label} className={styles.row}>

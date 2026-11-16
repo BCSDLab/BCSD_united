@@ -81,7 +81,7 @@ export default function ShopSummary({
 
   return (
     <div className={styles.summary}>
-      <span className={styles.summary__name}>{shopInfoSummary.name}</span>
+      <span className={styles.summary__name}>{shopInfoSummary.display_name ?? shopInfoSummary.name}</span>
       <div className={styles.summary__row}>
         <Link to={reviewsHref} className={styles.review} onClick={handleReviewClick}>
           <div className={styles.review__star}>
