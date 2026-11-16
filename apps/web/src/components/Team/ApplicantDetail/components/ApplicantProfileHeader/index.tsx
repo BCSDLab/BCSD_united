@@ -3,7 +3,7 @@ import { cn } from '@bcsdlab/utils';
 import type { TeamApplicationRole, TeamApplicationStatus } from 'api/team/entity';
 import ApplicantChatIcon from 'assets/svg/Team/applicant-chat.svg';
 import ProfileAvatarIcon from 'assets/svg/Team/profile-avatar-icon.svg';
-import formatApplicationStatus from 'components/Team/utils/formatApplicationStatus';
+import useRecruitmentLabels from 'components/Team/utils/useRecruitmentLabels';
 
 import styles from './ApplicantProfileHeader.module.scss';
 
@@ -36,6 +36,8 @@ export default function ApplicantProfileHeader({
   isChatPending = false,
   onChatClick,
 }: ApplicantProfileHeaderProps) {
+  const labels = useRecruitmentLabels();
+
   return (
     <div className={styles.header}>
       <div className={styles.header__avatar}>
@@ -57,7 +59,7 @@ export default function ApplicantProfileHeader({
             </button>
           )}
           <span className={cn({ [styles.header__status]: true, [styles[STATUS_CLASS[status]]]: true })}>
-            {formatApplicationStatus(status)}
+            {labels.applicationStatus(status)}
           </span>
         </div>
 

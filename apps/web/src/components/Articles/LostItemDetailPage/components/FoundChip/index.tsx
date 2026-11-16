@@ -1,5 +1,7 @@
 import { cn } from '@bcsdlab/utils';
 
+import useLostItemLabels from 'components/Articles/hooks/useLostItemLabels';
+
 import styles from './FoundChip.module.scss';
 
 type ChipSize = 'xs' | 'large';
@@ -10,6 +12,8 @@ interface FoundChipProps {
 }
 
 export default function FoundChip({ isFound, size = 'large' }: FoundChipProps) {
+  const labels = useLostItemLabels();
+
   return (
     <div
       className={cn({
@@ -18,7 +22,7 @@ export default function FoundChip({ isFound, size = 'large' }: FoundChipProps) {
         [styles['chip--found']]: isFound,
       })}
     >
-      {isFound ? '찾음' : '찾는중'}
+      {labels.foundStatus(isFound)}
     </div>
   );
 }

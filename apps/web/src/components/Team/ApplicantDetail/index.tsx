@@ -9,7 +9,7 @@ import LoadingSpinner from 'components/feedback/LoadingSpinner';
 import MobilePageHeader from 'components/layout/MobilePageHeader';
 import DetailInfoSection from 'components/Team/components/DetailInfoSection';
 import SubmitConfirmModal from 'components/Team/components/SubmitConfirmModal';
-import { CATEGORY_LABEL } from 'components/Team/utils/recruitmentDisplay';
+import useRecruitmentLabels from 'components/Team/utils/useRecruitmentLabels';
 import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
@@ -51,6 +51,7 @@ const DECISION_MODAL_COPY: Record<TeamRecruitmentApplicationDecision, DecisionMo
 
 export default function ApplicantDetail() {
   const router = useRouter();
+  const labels = useRecruitmentLabels();
   const routeParams = useParams({ strict: false });
   const isLoggedIn = useIsLoggedIn();
   const logger = useLogger();
@@ -161,7 +162,7 @@ export default function ApplicantDetail() {
                 <h1 className={styles['desktop-title__heading']}>지원자 상세</h1>
                 {recruitment && (
                   <div className={styles['desktop-title__context']}>
-                    <span className={styles['desktop-title__category']}>{CATEGORY_LABEL[recruitment.category]}</span>
+                    <span className={styles['desktop-title__category']}>{labels.category(recruitment.category)}</span>
                     <span className={styles['desktop-title__recruitment']}>{recruitment.title}</span>
                   </div>
                 )}

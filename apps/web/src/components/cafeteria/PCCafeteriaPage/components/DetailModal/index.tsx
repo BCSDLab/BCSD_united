@@ -4,6 +4,7 @@ import Image from 'components/ui/Image';
 import { useBodyScrollLock } from 'utils/hooks/ui/useBodyScrollLock';
 import { useEscapeKeyDown } from 'utils/hooks/ui/useEscapeKeyDown';
 import { useOutsideClick } from 'utils/hooks/ui/useOutsideClick';
+import useServerMessage from 'utils/language/useServerMessage';
 
 import styles from './DetailModal.module.scss';
 
@@ -13,6 +14,7 @@ interface DetailModalProps {
 }
 
 export default function DetailModal({ dining, closeModal }: DetailModalProps) {
+  const message = useServerMessage();
   const { backgroundRef } = useOutsideClick({ onOutsideClick: closeModal });
   useEscapeKeyDown({ onEscape: closeModal });
   useBodyScrollLock();
@@ -26,7 +28,9 @@ export default function DetailModal({ dining, closeModal }: DetailModalProps) {
           <div className={styles['modal-header__place-chip']}>
             <div className={styles['modal-header__place']}>{dining.display_place ?? dining.place}</div>
             {dining.soldout_at && (
-              <span className={`${styles['modal-header__chip']} ${styles['modal-header__chip--sold-out']}`}>품절</span>
+              <span className={`${styles['modal-header__chip']} ${styles['modal-header__chip--sold-out']}`}>
+                {message('status', 'SOLD_OUT', '품절')}
+              </span>
             )}
             {!dining.soldout_at && dining.changed_at && (
               <span className={`${styles['modal-header__chip']} ${styles['modal-header__chip--changed']}`}>변경됨</span>

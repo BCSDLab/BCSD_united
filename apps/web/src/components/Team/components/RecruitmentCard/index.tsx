@@ -6,13 +6,8 @@ import type { TeamRecruitmentCard as TeamRecruitment } from 'api/team/entity';
 import CalendarIcon from 'assets/svg/Team/calendar.svg';
 import LocationIcon from 'assets/svg/Team/location.svg';
 import PeopleIcon from 'assets/svg/Team/people.svg';
-import formatRecruitmentStatus from 'components/Team/utils/formatRecruitmentStatus';
-import {
-  CATEGORY_CLASS,
-  CATEGORY_LABEL,
-  formatRecruitmentDate,
-  MEETING_TYPE_LABEL,
-} from 'components/Team/utils/recruitmentDisplay';
+import { CATEGORY_CLASS, formatRecruitmentDate } from 'components/Team/utils/recruitmentDisplay';
+import useRecruitmentLabels from 'components/Team/utils/useRecruitmentLabels';
 import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
 
@@ -26,6 +21,7 @@ interface RecruitmentBadgesProps {
 
 export function RecruitmentBadges({ category, status, dDay }: RecruitmentBadgesProps) {
   const isClosed = status !== 'RECRUITING';
+  const labels = useRecruitmentLabels();
 
   return (
     <span className={styles.card__badges}>
@@ -35,7 +31,7 @@ export function RecruitmentBadges({ category, status, dDay }: RecruitmentBadgesP
           [styles[CATEGORY_CLASS[category]]]: true,
         })}
       >
-        {CATEGORY_LABEL[category]}
+        {labels.category(category)}
       </span>
 
       <span
@@ -44,7 +40,7 @@ export function RecruitmentBadges({ category, status, dDay }: RecruitmentBadgesP
           [styles['card__status--closed']]: isClosed,
         })}
       >
-        {formatRecruitmentStatus(status, dDay)}
+        {labels.status(status, dDay)}
       </span>
     </span>
   );
@@ -67,6 +63,7 @@ export default function RecruitmentCard({
   actionSlot,
 }: RecruitmentCardProps) {
   const logger = useLogger();
+  const labels = useRecruitmentLabels();
 
   const isFull = recruitment.current_participants >= recruitment.max_participants;
 
@@ -106,7 +103,7 @@ export default function RecruitmentCard({
         <div className={styles.card__information}>
           <span className={styles['card__information-item']}>
             <LocationIcon />
-            {MEETING_TYPE_LABEL[recruitment.meeting_type]}
+            {labels.meetingType(recruitment.meeting_type)}
           </span>
 
           <span className={styles['card__information-item']}>
