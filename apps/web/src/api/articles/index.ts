@@ -36,6 +36,7 @@ const readArticleContent = createServerFn({ method: 'GET' })
     if (typeof value !== 'string' || !getArticleContentUrl(value)) {
       throw new TypeError('Invalid article content URL');
     }
+
     return value;
   })
   .handler(({ data }) => fetchArticleContent(data));

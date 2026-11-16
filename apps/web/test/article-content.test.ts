@@ -25,7 +25,10 @@ test('정적 txt 본문을 HTML로 읽어 게시글 사진과 텍스트를 정�
   assert.ok(contentUrl);
   const visibleHtml = sanitizeHtml(await fetchArticleContent(contentUrl));
   assert.match(visibleHtml, /<p>채용설명회<\/p>/);
-  assert.match(visibleHtml, /<img src="https:\/\/portal\.koreatech\.ac\.kr\/ctt\/bb\/bulletin\?b=14&amp;a=id&amp;p=37457&amp;fn=poster\.jpg" alt="포스터"/);
+  assert.match(
+    visibleHtml,
+    /<img src="https:\/\/portal\.koreatech\.ac\.kr\/ctt\/bb\/bulletin\?b=14&amp;a=id&amp;p=37457&amp;fn=poster\.jpg" alt="포스터"/,
+  );
   assert.doesNotMatch(visibleHtml, /<script|onerror|alert\(1\)/);
   assert.doesNotMatch(visibleHtml, /articles\/content/);
 });
@@ -62,8 +65,10 @@ test('본문 조회는 허용된 정적 출처와 경로만 접근한다', async
 
 test('본문 redirect와 HTTP 실패를 빈 본문이나 URL 텍스트로 대체하지 않는다', async (t) => {
   for (const status of [302, 404, 500]) {
-    const fetchMock = t.mock.method(globalThis, 'fetch', async () =>
-      new Response(null, { status, headers: { Location: 'https://example.test/private' } }),
+    const fetchMock = t.mock.method(
+      globalThis,
+      'fetch',
+      async () => new Response(null, { status, headers: { Location: 'https://example.test/private' } }),
     );
     await assert.rejects(fetchArticleContent(CONTENT_URL), /Unable to load article content/);
     assert.equal(fetchMock.mock.callCount(), 1);
@@ -84,20 +89,33 @@ test('본문 MIME과 선언된 크기를 제한한다', async (t) => {
 });
 
 test('Content-Length가 없어도 수신 본문 크기를 제한한다', async (t) => {
-  t.mock.method(globalThis, 'fetch', async () => new Response(new Uint8Array(2 * 1024 * 1024 + 1), {
-    headers: { 'Content-Type': 'text/plain' },
-  }));
+  t.mock.method(
+    globalThis,
+    'fetch',
+    async () =>
+      new Response(new Uint8Array(2 * 1024 * 1024 + 1), {
+        headers: { 'Content-Type': 'text/plain' },
+      }),
+  );
   await assert.rejects(fetchArticleContent(CONTENT_URL), /exceeds 2 MiB/);
 });
 
 test('스트림 경계에서 나뉜 UTF-8 한글 본문도 보존한다', async (t) => {
   const bytes = new TextEncoder().encode('<p>사진</p>');
-  t.mock.method(globalThis, 'fetch', async () => new Response(new ReadableStream({
-    start(controller) {
-      controller.enqueue(bytes.subarray(0, 4));
-      controller.enqueue(bytes.subarray(4));
-      controller.close();
-    },
-  }), { headers: { 'Content-Type': 'text/html' } }));
+  t.mock.method(
+    globalThis,
+    'fetch',
+    async () =>
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(bytes.subarray(0, 4));
+            controller.enqueue(bytes.subarray(4));
+            controller.close();
+          },
+        }),
+        { headers: { 'Content-Type': 'text/html' } },
+      ),
+  );
   assert.equal(await fetchArticleContent(CONTENT_URL), '<p>사진</p>');
 });

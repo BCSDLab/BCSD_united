@@ -44,6 +44,7 @@ export async function fetchArticleContent(content: string): Promise<string> {
         chunks.push(decoder.decode(value, { stream: true }));
       }
       chunks.push(decoder.decode());
+
       return chunks.join('');
     } finally {
       reader.releaseLock();
