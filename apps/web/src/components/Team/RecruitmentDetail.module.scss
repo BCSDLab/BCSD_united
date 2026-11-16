@@ -58,6 +58,13 @@
   }
 }
 
+.summary-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 12px;
+  align-items: center;
+}
+
 .summary {
   display: flex;
   flex-direction: column;
