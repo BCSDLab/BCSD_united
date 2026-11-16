@@ -11,7 +11,7 @@ import { DINING_TYPE_MAP } from 'static/cafeteria';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useModalPortal from 'utils/hooks/layout/useModalPortal';
 
-import styles from './PCDiningBlocks.module.scss';
+import styles from './PCDiningBlocks.module.css';
 
 interface PCDiningBlocksProps {
   diningType: DiningType;

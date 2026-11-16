@@ -5,7 +5,7 @@ import { useBodyScrollLock } from 'utils/hooks/ui/useBodyScrollLock';
 import { useEscapeKeyDown } from 'utils/hooks/ui/useEscapeKeyDown';
 import { useOutsideClick } from 'utils/hooks/ui/useOutsideClick';
 
-import styles from './DetailModal.module.scss';
+import styles from './DetailModal.module.css';
 
 interface DetailModalProps {
   dining: Dining | null;

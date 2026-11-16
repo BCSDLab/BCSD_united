@@ -5,7 +5,7 @@ import NoMeals from 'assets/svg/no-meals-mobile.svg';
 import NoPhoto from 'assets/svg/no-photography-mobile.svg';
 import Image from 'components/ui/Image';
 
-import styles from './MobileMealImage.module.scss';
+import styles from './MobileMealImage.module.css';
 
 interface MobileMealImageProps {
   dining: Dining;

@@ -16,7 +16,7 @@ import useScrollToTop from 'utils/hooks/ui/useScrollToTop';
 import CafeteriaInfoWidget from './components/CafeteriaInfoWidget';
 import MobileDiningBlocks from './components/MobileDiningBlocks';
 import WeeklyDatePicker from './components/WeeklyDatePicker';
-import styles from './MobileCafeteriaPage.module.scss';
+import styles from './MobileCafeteriaPage.module.css';
 
 interface MobileCafeteriaPageProps {
   onReportSoldout?: (initialPlace?: DiningPlace) => void;

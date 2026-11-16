@@ -4,7 +4,7 @@ import { useCafeteriaLiveNow } from 'components/cafeteria/hooks/useCafeteriaLive
 import { useCafeteriaParams } from 'components/cafeteria/hooks/useCafeteriaParams';
 import { kstDateKey, kstDayOfWeek } from 'utils/ts/calendar';
 
-import styles from './WeeklyDatePicker.module.scss';
+import styles from './WeeklyDatePicker.module.css';
 
 const WEEK = ['일', '월', '화', '수', '목', '금', '토'];
 

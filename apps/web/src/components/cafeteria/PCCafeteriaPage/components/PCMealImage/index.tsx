@@ -5,7 +5,7 @@ import NoMeals from 'assets/svg/no-meals-pc.svg';
 import NoPhoto from 'assets/svg/no-photography-pc.svg';
 import Image from 'components/ui/Image';
 
-import styles from './PCMealImage.module.scss';
+import styles from './PCMealImage.module.css';
 
 interface PCMealImageProps {
   dining: Dining;

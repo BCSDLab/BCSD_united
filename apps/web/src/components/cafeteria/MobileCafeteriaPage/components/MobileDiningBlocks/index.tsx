@@ -10,7 +10,7 @@ import { DINING_TYPE_MAP, SOLDOUT_REPORT_PLACES } from 'static/cafeteria';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useModalPortal from 'utils/hooks/layout/useModalPortal';
 
-import styles from './MobileDiningBlocks.module.scss';
+import styles from './MobileDiningBlocks.module.css';
 
 interface MobileDiningBlocksProps {
   diningType: DiningType;

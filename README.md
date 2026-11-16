@@ -19,7 +19,7 @@ scripts/
   autofix/             자동 수정 검증과 PR 발행
 ```
 
-- 프론트엔드: React 19, TanStack Start/Router, React Query, Zustand, SCSS Modules
+- 프론트엔드: React 19, TanStack Start/Router, React Query, Zustand, SCSS Modules + 식단 CSS Modules
 - 업무 API: 기존 Java 서버(KOIN_API_V2)를 사용합니다. `apps/api`는 레거시로 보존합니다.
 - 도구: pnpm workspace, oxlint, oxfmt, TypeScript, ESLint·Stylelint(웹)
 

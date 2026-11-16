@@ -5,7 +5,7 @@ import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import { useEscapeKeyDown } from 'utils/hooks/ui/useEscapeKeyDown';
 import { useOutsideClick } from 'utils/hooks/ui/useOutsideClick';
 
-import styles from './CafeteriaInfo.module.scss';
+import styles from './CafeteriaInfo.module.css';
 
 interface ScheduleTableProps {
   title: string;

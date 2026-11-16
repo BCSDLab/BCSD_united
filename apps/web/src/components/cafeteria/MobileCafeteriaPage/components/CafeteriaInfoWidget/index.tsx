@@ -6,7 +6,7 @@ import CafeteriaInfo from 'components/cafeteria/components/CafeteriaInfo';
 import useCafeteriaInfoParam from 'components/cafeteria/hooks/useCafeteriaInfoParam';
 import { useBodyScrollLock } from 'utils/hooks/ui/useBodyScrollLock';
 
-import styles from 'components/cafeteria/MobileCafeteriaPage/MobileCafeteriaPage.module.scss';
+import styles from 'components/cafeteria/MobileCafeteriaPage/MobileCafeteriaPage.module.css';
 
 export default function CafeteriaInfoWidget() {
   const { data: cafeteriaInfo } = useSuspenseQuery(coopshopQueries.cafeteriaInfo());

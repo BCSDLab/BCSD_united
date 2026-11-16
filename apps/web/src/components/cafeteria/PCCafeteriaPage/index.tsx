@@ -20,7 +20,7 @@ import { kstDateKey, kstDayOfWeek } from 'utils/ts/calendar';
 
 import DateNavigator from './components/DateNavigator';
 import PCDiningBlocks from './components/PCDiningBlocks';
-import styles from './PCCafeteriaPage.module.scss';
+import styles from './PCCafeteriaPage.module.css';
 
 const getWeekAgo = (now: Date) => {
   const twoWeeksAgoSunday = new Date(`${kstDateKey(now)}T00:00:00Z`);
