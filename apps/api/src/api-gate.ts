@@ -5,9 +5,10 @@ import type { Bindings } from '@api/runtime';
  * 업무 API 실행 게이트. `API_ENABLED`가 정확히 문자열 'true'일 때만 활성이고,
  * 미설정·공백·'TRUE'·'1' 등은 전부 비활성으로 본다(기본값 비활성).
  * 비활성 상태에서는 HTTP·cron·queue·Durable Object 어느 진입점도 D1/R2/Queue 업무 IO를 수행하지 않는다.
+ * KOIN_DB 경로가 활성화되면 API_ENABLED와 관계없이 레거시 업무를 차단한다.
  */
-export function isApiEnabled(env: Pick<Bindings, 'API_ENABLED'>): boolean {
-  return env.API_ENABLED === 'true';
+export function isApiEnabled(env: Pick<Bindings, 'API_ENABLED' | 'KOIN_DB_ENABLED'>): boolean {
+  return env.API_ENABLED === 'true' && env.KOIN_DB_ENABLED !== 'true';
 }
 
 /** 비활성 중 클라이언트가 재시도 전 기다리도록 안내하는 시간(초). */

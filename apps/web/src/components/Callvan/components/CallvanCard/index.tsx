@@ -298,11 +298,11 @@ export default function CallvanCard({ post }: CallvanCardProps) {
               <div className={styles['card__main-text']}>
                 <div className={styles.card__location}>
                   <span className={styles['card__location-label']}>출발:</span>
-                  <span className={styles['card__location-value']}>{post.departure}</span>
+                  <span className={styles['card__location-value']}>{post.display_departure ?? post.departure}</span>
                 </div>
                 <div className={styles.card__location}>
                   <span className={styles['card__location-label']}>도착:</span>
-                  <span className={styles['card__location-value']}>{post.arrival}</span>
+                  <span className={styles['card__location-value']}>{post.display_arrival ?? post.arrival}</span>
                 </div>
               </div>
             </div>

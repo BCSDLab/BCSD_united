@@ -1,9 +1,10 @@
 import type { ExecutionContext, ExportedHandler } from '@cloudflare/workers-types';
 import { runWithAi, type AiEnvironment } from '@koin/b-bot-ai';
 import { createDatabaseScope } from '@koin/b-bot-database';
+import type { AutomationBinding } from './src/services/slack/autofix';
 import nitro from './.output/server/index.mjs';
 
-type Bindings = Parameters<typeof createDatabaseScope>[0] & AiEnvironment;
+type Bindings = Parameters<typeof createDatabaseScope>[0] & AiEnvironment & { ERROR_AUTOMATION: AutomationBinding };
 const app = nitro as ExportedHandler<Bindings>;
 
 async function invoke<T>(

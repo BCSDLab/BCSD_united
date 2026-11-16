@@ -67,6 +67,7 @@ export function smokeConfiguration(deployable) {
         'kv_namespaces',
         'ai',
         'queues',
+        'services',
         'triggers',
         'observability',
         'vars',
@@ -79,6 +80,16 @@ export function smokeConfiguration(deployable) {
     if (entry.remote === true) throw new Error('Remote queue bindings are forbidden in offline verification');
   if (Array.isArray(deployable.hyperdrive) && deployable.hyperdrive.length)
     throw new Error('Hyperdrive bindings need a reviewed offline substitute');
+  if (
+    (deployable.services ?? []).some(
+      (binding) =>
+        Object.keys(binding).sort().join(',') !== 'binding,service' ||
+        binding.binding !== 'ERROR_AUTOMATION' ||
+        binding.service !== 'bcsd-error-automation',
+    )
+  )
+    throw new Error('Unreviewed B-BOT service binding');
+  // /health는 자동화 서비스를 호출하지 않는다. 로컬 smoke에는 운영 서비스 바인딩을 넘기지 않는다.
   return {
     name: deployable.name,
     main: '../../worker.ts',

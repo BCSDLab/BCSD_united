@@ -229,7 +229,7 @@ function LectureTable({
                       {headerItem.key === 'professor' &&
                         (lecture[headerItem.key] === '' ? '미배정' : lecture[headerItem.key])}
                       {headerItem.key === null && '수정'}
-                      {headerItem.key === 'name' && 'name' in lecture && lecture.name}
+                      {headerItem.key === 'name' && 'name' in lecture && (lecture.display_name ?? lecture.name)}
                       {headerItem.key === 'name' && 'class_title' in lecture && lecture.class_title}
                       {headerItem.key !== null &&
                         headerItem.key !== 'professor' &&

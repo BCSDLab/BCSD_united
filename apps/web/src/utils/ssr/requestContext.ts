@@ -4,6 +4,7 @@ import { LANGUAGE_COOKIE_KEY, WEB_AUTH_ACCESS_COOKIE_KEY } from 'static/url';
 import { toUserType, type UserType } from 'utils/auth/session';
 import { parseLanguage } from 'utils/language/language';
 import APIClient from 'utils/ts/apiClient';
+import { readCookieHeader } from 'utils/ts/cookie';
 
 export type DeviceClass = 'mobile' | 'desktop';
 
@@ -62,28 +63,13 @@ function hasUsableAccessToken(accessToken: string | undefined): boolean {
   }
 }
 
-function readCookie(cookie: string | null, name: string): string | undefined {
-  const value = cookie
-    ?.split(';')
-    .map((entry) => entry.trim())
-    .find((entry) => entry.startsWith(`${name}=`))
-    ?.slice(name.length + 1);
-  if (value === undefined) return undefined;
-
-  try {
-    return decodeURIComponent(value);
-  } catch {
-    return value;
-  }
-}
-
 export async function getServerRequestContext(request: Request): Promise<ServerRequestContext> {
   const device = getDeviceClass(request.headers.get('user-agent') ?? undefined);
   const now = new Date().toISOString();
   const cookie = request.headers.get('cookie');
 
-  const accessToken = readCookie(cookie, WEB_AUTH_ACCESS_COOKIE_KEY);
-  const language = parseLanguage(readCookie(cookie, LANGUAGE_COOKIE_KEY)) ?? DEFAULT_LANGUAGE;
+  const accessToken = readCookieHeader(cookie, WEB_AUTH_ACCESS_COOKIE_KEY);
+  const language = parseLanguage(readCookieHeader(cookie, LANGUAGE_COOKIE_KEY)) ?? DEFAULT_LANGUAGE;
   // 공유 캐시는 언어 쿠키로 나뉘지 않으므로 기본 언어로 그린 응답만 공유 캐시에 남긴다
   const isDefaultLanguage = language === DEFAULT_LANGUAGE;
   if (!cookie || !hasUsableAccessToken(accessToken)) {

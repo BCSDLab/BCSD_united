@@ -154,6 +154,16 @@ cat /home/user/.home-butler/koin-omp-gateway/omp-gateway.token | pnpm --dir apps
 
 모니터만 중지할 때는 drop-in의 모니터 파일 환경 설정과 Worker의 모니터 전용 secret만 운영 절차로 해제한다. 모델 토큰·VPC·터널을 제거하지 않는다.
 
+## Slack 코드 수정 요청 모드 (`mode: 'request'`)
+
+`@삐봇 수정요청 <변경 내용>`은 B-BOT의 Slack HMAC 검증과 error-automation의 원본 서명·workspace/bot/사용자/채널 허용 목록 검증을 거쳐 기존 `AutofixQueue`로 들어간다. 저장소는 고정 `BCSDLab/BCSD_united`, 기준/PR 대상은 모두 `develop`이다. `team/event_id` identity로 durable dedup하고 `fix/slack-request-<sha256>` 브랜치를 만든다. 기존 수동 PR enqueue는 신규 요청이 아니라 PR 리뷰용이며 이 모드는 repository_dispatch를 사용하지 않는다.
+
+claim은 `{mode:'request', identity:{source:'slack-request',teamId,eventId,channelId,userId,messageTs,text}, owner,repository,baseBranch:'develop',targetBranch:'develop',baseSha,branch,domain:'공통',changedFiles}`다. `changedFiles`는 요청문에서 가져온 경로가 아니라 Worker와 실행기가 대조하는 고정 앱/패키지 scope다. 요청 텍스트는 redaction 후 `request-input/request.json`으로만 제공하며 모델은 `claude-opus-5-5`, 기존 PR 모드와 같은 20회/15분 상한을 쓴다. 출력은 리뷰 판정 JSON이 아니라 구현 요약 또는 blocker다.
+
+파일 도구/manifest 정책은 기존 PR 정책을 재사용한다. 소스와 native regression test 변경이 모두 필요하고 보호된 설정·자동화·시크릿은 수정할 수 없다. verifier는 별도 clean develop worktree에서 `request-base-pinned`를 확인하고 기존 native tests를 먼저 통과시킨다. 후보 소스를 적용하기 전에 회귀 테스트 변경만 적용해 같은 테스트 명령이 종료 코드 1과 `ERR_ASSERTION`으로 실패해야 `request-regression-fails-on-base`를 인정한다. 수정 전 통과하거나 loader/setup 오류로 실패하는 테스트는 거절한다. 이후 후보 소스를 적용하고 native tests/typecheck/security/lint/build/runtime smoke를 통과해야 한다.
+
+proof의 정확한 `passedChecks` 순서는 `request-base-pinned`, `request-regression-fails-on-base`, `native-fixture-tests`, `typecheck`, `autofix-security-tests`, `lint`, `build`, `runtime-route-smoke`다. 실행기 결과는 기존 `outcome:'verified'`/baseSha/manifestSha256/passedChecks로 제출하며 Worker가 고정 scope·테스트·정확한 proof를 재검증한 뒤 기존 GitHub App publisher로 신규 develop PR만 만든다. request 모드에는 PR 리뷰 판정/auto merge가 없고, 빈 변경·실패·이동한 develop은 PR로 발행하지 않는다. 계약 테스트가 공급하는 합성 verifier receipt는 이 Docker 검증을 실행했다는 뜻이 아니다. 실행기 trusted image에는 현재 verifier/common/executor-model 정책이 함께 설치되어야 한다.
+
 ## 기존 PR 검토·수정 모드 (`mode: 'pull-request'`)
 
 같은 Worker 큐와 실행기 lease를 쓰는 별도 `mode:'pull-request'` 작업이다. 수동 `/executor/pull-requests/enqueue`는 `PR_REVIEW_ENABLED==='true'`와 명시적 허용 PR 번호가 필요하다. 자동 경로는 `PR_REVIEW_ENABLED==='true'` + `PR_REVIEW_AUTO==='true'` + 서명된 `POST /webhooks/github`의 opened/reopened/synchronize/ready_for_review 이벤트다. Worker는 canonical PR을 조회해 fork/draft/봇/보호 ref와 자동화 자신이 생성한 수정 head SHA를 제외하고 실제 develop tip과 head를 pin한다. develop보다 뒤처진 head는 write 토큰 확보 후 SHA당 최대 3번 update-branch를 시도한다(일시적 실패만 재시도, 409/422 충돌은 한 marker 댓글로 종결). 성공 후 synchronize를 기다린다.

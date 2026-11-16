@@ -49,6 +49,16 @@ export function pullRequestToolScope(changedFiles) {
   };
 }
 
+/** 요청 텍스트는 파일 입력으로만 노출하고 쓰기 정책은 기존 PR 정책을 그대로 적용한다. */
+export function requestToolScope(changedFiles) {
+  const scope = pullRequestToolScope(changedFiles);
+  return {
+    ...scope,
+    mode: 'request',
+    readable: (name) => name === 'request-input/request.json' || name === 'request-input' || scope.readable(name),
+  };
+}
+
 function relativeFile(root, input, mode, scope) {
   if (typeof input !== 'string' || !input || input.includes('\0') || input.includes('://'))
     throw new Error('An explicit local source path is required');
@@ -60,7 +70,8 @@ function relativeFile(root, input, mode, scope) {
   )
     throw new Error('Unsafe source path');
   const path = resolve(root, name);
-  if (!path.startsWith(`${root}${sep}`) || relative(root, path) !== name) throw new Error('Path escaped workspace');
+  if (!path.startsWith(`${root}${sep}`) || relative(root, path).split(sep).join('/') !== name)
+    throw new Error('Path escaped workspace');
   if (mode === 'write' ? !scope.writable(name) : !scope.readable(name))
     throw new Error('Path is outside allowed application source');
   return { name, path, lineRange };
@@ -146,12 +157,12 @@ export function sourceTools(root, scope, tracked) {
       if (!stat.isDirectory() && !stat.isFile()) throw new Error('Search requires a regular source path');
       const files = stat.isFile() ? [path] : await listFiles(root, path);
       const scoped = files.filter((candidate) => {
-        const rel = relative(root, candidate);
+        const rel = relative(root, candidate).split(sep).join('/');
         return rel.split('/').every((part) => !part.startsWith('.')) && scope.readable(rel);
       });
       if (name === 'Glob')
         return scoped
-          .map((item) => relative(root, item))
+          .map((item) => relative(root, item).split(sep).join('/'))
           .join('\n')
           .slice(0, MAX_RESULT);
       if (typeof input.pattern !== 'string' || !input.pattern || input.pattern.length > 200)
@@ -162,7 +173,8 @@ export function sourceTools(root, scope, tracked) {
         if (stat.size > MAX_TEXT_BYTES) continue;
         const lines = (await readFile(candidate, 'utf8')).split('\n');
         for (let i = 0; i < lines.length; i += 1) {
-          if (lines[i].includes(input.pattern)) hits.push(`${relative(root, candidate)}:${i + 1}:${lines[i]}`);
+          if (lines[i].includes(input.pattern))
+            hits.push(`${relative(root, candidate).split(sep).join('/')}:${i + 1}:${lines[i]}`);
           if (hits.length >= 80) return hits.join('\n').slice(0, MAX_RESULT);
         }
       }
