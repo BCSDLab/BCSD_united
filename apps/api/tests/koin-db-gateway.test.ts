@@ -68,32 +68,125 @@ test('anonymous dining uses only the fixed authenticated HTTPS bridge', async (t
   assert.deepEqual(await response.json(), []);
 });
 
-test('dining CORS also allows GATEWAY_CORS_ORIGINS and nothing else', async (t) => {
+const COOP = 'https://coop.koreatech.in';
+
+function productionDining(extra?: string): Bindings {
+  const bindings = env();
+  bindings.ENVIRONMENT = 'production';
+  bindings.KOIN_DB_BRIDGE_URL = 'https://api.koreatech.in/internal/edge/dinings';
+  if (extra !== undefined) bindings.GATEWAY_CORS_ORIGINS = extra;
+  return bindings;
+}
+
+test('dining CORS allows GATEWAY_CORS_ORIGINS without credentials and nothing else', async (t) => {
   t.mock.method(globalThis, 'fetch', async () => Response.json([]));
-  const coop = 'https://coop.koreatech.in';
-  const cases: [string, string | undefined, string | null][] = [
-    // 영양사 웹은 GATEWAY_CORS_ORIGINS에 있을 때만 허용된다. 설정이 없으면 이전처럼 차단된다.
-    [coop, coop, coop],
-    [coop, JSON.stringify([coop]), coop],
-    [coop, undefined, null],
-    // 미등록 출처는 허용 목록이 있어도 헤더를 받지 못하고, 기존 웹 출처는 계속 허용된다.
-    ['https://evil.example', coop, null],
-    ['https://stage.koreatech.in', coop, 'https://stage.koreatech.in'],
+  // [요청 Origin, GATEWAY_CORS_ORIGINS, 기대 Allow-Origin, 기대 Allow-Credentials]
+  const cases: [string, string | undefined, string | null, string | null][] = [
+    // 영양사 웹은 Bearer 전용이라 Credentials 없이 출처만 허용된다. 설정이 없으면 차단된다.
+    [COOP, COOP, COOP, null],
+    [COOP, JSON.stringify([COOP]), COOP, null],
+    [COOP, undefined, null, null],
+    // 미등록 출처는 차단되고, 기존 웹 세션 출처는 Credentials까지 그대로 허용된다.
+    ['https://evil.example', COOP, null, null],
+    ['https://stage.koreatech.in', COOP, 'https://stage.koreatech.in', 'true'],
+    // 웹 세션 출처가 보조 목록에도 있으면 더 넓은 쪽(Credentials 허용)이 유지된다.
+    ['https://stage.koreatech.in', 'https://stage.koreatech.in', 'https://stage.koreatech.in', 'true'],
   ];
-  for (const [origin, extra, expected] of cases) {
-    const bindings = env();
-    bindings.ENVIRONMENT = 'production';
-    bindings.KOIN_DB_BRIDGE_URL = 'https://api.koreatech.in/internal/edge/dinings';
-    if (extra !== undefined) bindings.GATEWAY_CORS_ORIGINS = extra;
+  for (const [origin, extra, allowOrigin, allowCredentials] of cases) {
     const response = await gateway.request(
       'https://api.koreatech.in/dinings?date=261115',
       { headers: { Origin: origin } },
-      bindings,
+      productionDining(extra),
     );
-    assert.equal(response.status, 200, origin);
-    assert.equal(response.headers.get('X-Koin-Backend'), 'workers');
-    assert.equal(response.headers.get('Access-Control-Allow-Origin'), expected, `${origin} / ${extra}`);
-    assert.equal(response.headers.has('Access-Control-Allow-Credentials'), expected !== null);
+    const label = `${origin} / ${extra}`;
+    assert.equal(response.status, 200, label);
+    assert.equal(response.headers.get('X-Koin-Backend'), 'workers', label);
+    assert.equal(response.headers.get('Access-Control-Allow-Origin'), allowOrigin, label);
+    assert.equal(response.headers.get('Access-Control-Allow-Credentials'), allowCredentials, label);
+  }
+});
+
+test('CORS headers also accompany Workers error responses (401) for allowed origins', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () => Response.json([]));
+  // 인증 없는 좋아요 쓰기는 Workers가 401로 답한다. 허용 출처의 브라우저가 상태 코드와 본문을 읽을 수 있어야 한다.
+  const request = (origin: string) =>
+    gateway.request(
+      'https://api.koreatech.in/dining/like',
+      { method: 'PATCH', headers: { Origin: origin, 'Content-Type': 'application/json' }, body: '{"dining_id":1}' },
+      productionDining(COOP),
+    );
+  const allowed = await request(COOP);
+  assert.equal(allowed.status, 401);
+  assert.equal(allowed.headers.get('X-Koin-Backend'), 'workers');
+  assert.equal(allowed.headers.get('Access-Control-Allow-Origin'), COOP);
+  assert.equal(allowed.headers.get('Access-Control-Allow-Credentials'), null);
+  const blocked = await request('https://evil.example');
+  assert.equal(blocked.status, 401);
+  assert.equal(blocked.headers.get('Access-Control-Allow-Origin'), null);
+});
+
+test('malformed origin settings: AUTH list fails closed with 503, GATEWAY list is ignored', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () => Response.json([]));
+  const headers = { Origin: 'https://stage.koreatech.in' };
+  // 보조 목록(GATEWAY_CORS_ORIGINS) 오타는 기존 웹 출처의 식단 조회를 막지 않고, 해당 출처만 차단한다.
+  for (const broken of ['[not-json', '{"a":1}', '[1,2]']) {
+    const bindings = productionDining(broken);
+    const web = await gateway.request('https://api.koreatech.in/dinings?date=261115', { headers }, bindings);
+    assert.equal(web.status, 200, broken);
+    assert.equal(web.headers.get('Access-Control-Allow-Origin'), 'https://stage.koreatech.in', broken);
+    const coop = await gateway.request(
+      'https://api.koreatech.in/dinings?date=261115',
+      { headers: { Origin: COOP } },
+      productionDining(broken),
+    );
+    assert.equal(coop.status, 200, broken);
+    assert.equal(coop.headers.get('Access-Control-Allow-Origin'), null, broken);
+  }
+  // 웹 세션 출처(AUTH_ALLOWED_ORIGINS) 설정 오류는 기존대로 503이다.
+  const bindings = productionDining(COOP);
+  bindings.AUTH_ALLOWED_ORIGINS = '[not-json';
+  const response = await gateway.request('https://api.koreatech.in/dinings?date=261115', { headers }, bindings);
+  assert.equal(response.status, 503);
+  assert.equal(((await response.json()) as { code: string }).code, 'AUTH_CONFIGURATION_ERROR');
+  assert.equal(response.headers.get('Access-Control-Allow-Origin'), null);
+});
+
+test('Vary: Origin is added with or without an Origin header and keeps existing cache headers', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () => Response.json([]));
+  for (const headers of [{}, { Origin: COOP }, { Origin: 'https://evil.example' }]) {
+    const response = await gateway.request(
+      'https://api.koreatech.in/dinings?date=261115',
+      { headers },
+      productionDining(COOP),
+    );
+    assert.match(response.headers.get('Vary') ?? '', /(^|,\s*)Origin(\s*,|$)/, JSON.stringify(headers));
+    assert.equal(response.headers.get('Cache-Control'), 'no-store');
+  }
+  // Headers.append는 기존 Vary 값을 지우지 않고 이어 붙인다.
+  const existing = new Headers({ Vary: 'Accept-Encoding' });
+  existing.append('Vary', 'Origin');
+  assert.equal(existing.get('Vary'), 'Accept-Encoding, Origin');
+});
+
+test('CORS preflight is not answered by Workers and goes to Java untouched', async (t) => {
+  const seen: Request[] = [];
+  t.mock.method(globalThis, 'fetch', async (request: Request) => {
+    seen.push(request);
+    return new Response(null, { status: 200, headers: { 'Access-Control-Allow-Origin': COOP } });
+  });
+  for (const path of ['/dinings?date=261115', '/dining/like', '/coop/dining/soldout']) {
+    seen.length = 0;
+    const response = await gateway.request(
+      `https://api.koreatech.in${path}`,
+      { method: 'OPTIONS', headers: { Origin: COOP, 'Access-Control-Request-Method': 'GET' } },
+      productionDining(COOP),
+    );
+    assert.equal(seen.length, 1, path);
+    assert.equal(seen[0]!.method, 'OPTIONS', path);
+    assert.equal(response.headers.get('X-Koin-Backend'), 'aws', path);
+    // Workers는 preflight 응답에 CORS 헤더를 만들어 덧붙이지 않는다. Java 응답이 그대로 간다.
+    assert.equal(response.headers.get('Access-Control-Allow-Origin'), COOP, path);
+    assert.equal(response.headers.has('Vary'), false, path);
   }
 });
 
