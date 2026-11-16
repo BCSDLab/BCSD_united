@@ -75,6 +75,8 @@ pnpm build
 
 웹은 `KOIN_API_ORIGIN`으로 Java API를 호출합니다. 운영은 `https://api.koreatech.in`, Preview와 로컬은 `https://api.stage.koreatech.in`입니다. stage API가 발급하는 `__Secure-koin-stage-web-*` 쿠키 이름 같은 stage 전용 값은 빌드 상수 `NEXT_PUBLIC_KOIN_ENVIRONMENT`로 고릅니다. Workers Builds의 `KOIN_PREVIEW_BRANCH` 빌드와 로컬 개발 서버는 `preview`, 나머지 빌드는 `main`입니다.
 
+웹 게시글 상세는 Java v2의 인라인 HTML과 `static.koreatech.in`·`stage-static.koreatech.in`의 `/articles/content/board_<번호>/<파일>.txt` 본문 URL을 모두 처리합니다. 정적 본문은 웹 서버 함수가 쿠키 없이 조회하며 redirect·2 MiB 초과·20초 초과·HTML/텍스트 이외 MIME을 거부합니다. 두 형식 모두 같은 HTML 정제 정책으로 렌더링합니다.
+
 운영 `koreatech.in`과 stage `stage.koreatech.in`의 HTTP 요청과 비표준 HTTPS 포트 요청은 SSR·Java API 호출 전에 경로와 쿼리를 보존한 기본 HTTPS Origin(443)의 308로 이동합니다. 로컬 개발 서버의 `http://localhost:3000`은 그대로 사용합니다. Java API의 Origin 허용 목록을 우회하거나 웹 요청의 Origin을 임의로 바꾸지 않습니다.
 
 stage는 검색 색인에서 뺍니다. `KOIN_ENVIRONMENT`가 `main`이 아닌 Worker는 SSR 응답에, stage 빌드는 `_headers`로 정적 자산에 `X-Robots-Tag: noindex, nofollow`를 붙입니다. 크롤러가 이 헤더를 읽어야 기존 색인이 지워지므로 stage `robots.txt`는 크롤링을 허용하고 sitemap은 만들지 않습니다. 봇은 [별도 안내](apps/b-bot/README.md)를 따릅니다.
