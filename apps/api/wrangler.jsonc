@@ -55,6 +55,7 @@
     "WEB_COOKIE_DOMAIN": "",
     "WEB_COOKIE_SECURE": "true",
     "AUTH_ALLOWED_ORIGINS": "https://koreatech.in,https://koin-web.bcsdlab.workers.dev",
+    "GATEWAY_CORS_ORIGINS": "https://coop.koreatech.in",
     "NATIVE_ACCESS_TTL_SECONDS": "6000",
     "API_PUBLIC_URL": "https://koin-api.bcsdlab.workers.dev",
   },

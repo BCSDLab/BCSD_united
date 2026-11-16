@@ -21,21 +21,29 @@ function withBackend(response: Response, backend: 'workers' | 'aws'): Response {
   });
 }
 
-function batchCors(response: Response, request: Request, env: Bindings): Response {
-  const origin = request.headers.get('Origin');
-  if (!origin) return response;
-  const value = env.AUTH_ALLOWED_ORIGINS ?? '';
-  let allowed: unknown;
+// 허용 출처 목록(JSON 배열 또는 쉼표 구분)을 읽는다. 형식이 틀리면 설정 오류로 본다.
+function parseOrigins(value: string | undefined): string[] {
+  if (!value) return [];
+  let parsed: unknown;
   try {
-    allowed = value.trim().startsWith('[') ? JSON.parse(value) : value.split(',');
+    parsed = value.trim().startsWith('[') ? JSON.parse(value) : value.split(',');
   } catch {
     throw new ApiError(503, 'AUTH_CONFIGURATION_ERROR', '허용 출처 설정이 올바르지 않습니다.');
   }
-  if (!Array.isArray(allowed) || !allowed.every((entry) => typeof entry === 'string')) {
+  if (!Array.isArray(parsed) || !parsed.every((entry) => typeof entry === 'string')) {
     throw new ApiError(503, 'AUTH_CONFIGURATION_ERROR', '허용 출처 설정이 올바르지 않습니다.');
   }
+  return parsed.map((entry: string) => entry.trim());
+}
+
+// CORS는 웹 세션 출처(AUTH_ALLOWED_ORIGINS)에 Bearer 토큰으로만 호출하는 자체 웹(GATEWAY_CORS_ORIGINS, 예: 영양사 웹)을 더해 허용한다.
+// GATEWAY_CORS_ORIGINS는 CORS 헤더에만 쓰이고 웹 쿠키 세션·CSRF 신뢰 출처(requireTrustedOrigin)에는 영향이 없다.
+function batchCors(response: Response, request: Request, env: Bindings): Response {
+  const origin = request.headers.get('Origin');
+  if (!origin) return response;
+  const allowed = [...parseOrigins(env.AUTH_ALLOWED_ORIGINS), ...parseOrigins(env.GATEWAY_CORS_ORIGINS)];
   response.headers.append('Vary', 'Origin');
-  if (allowed.some((entry) => entry.trim() === origin)) {
+  if (allowed.includes(origin)) {
     response.headers.set('Access-Control-Allow-Origin', origin);
     response.headers.set('Access-Control-Allow-Credentials', 'true');
     response.headers.set('Access-Control-Expose-Headers', 'X-Koin-Backend');

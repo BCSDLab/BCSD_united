@@ -68,6 +68,35 @@ test('anonymous dining uses only the fixed authenticated HTTPS bridge', async (t
   assert.deepEqual(await response.json(), []);
 });
 
+test('dining CORS also allows GATEWAY_CORS_ORIGINS and nothing else', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () => Response.json([]));
+  const coop = 'https://coop.koreatech.in';
+  const cases: [string, string | undefined, string | null][] = [
+    // 영양사 웹은 GATEWAY_CORS_ORIGINS에 있을 때만 허용된다. 설정이 없으면 이전처럼 차단된다.
+    [coop, coop, coop],
+    [coop, JSON.stringify([coop]), coop],
+    [coop, undefined, null],
+    // 미등록 출처는 허용 목록이 있어도 헤더를 받지 못하고, 기존 웹 출처는 계속 허용된다.
+    ['https://evil.example', coop, null],
+    ['https://stage.koreatech.in', coop, 'https://stage.koreatech.in'],
+  ];
+  for (const [origin, extra, expected] of cases) {
+    const bindings = env();
+    bindings.ENVIRONMENT = 'production';
+    bindings.KOIN_DB_BRIDGE_URL = 'https://api.koreatech.in/internal/edge/dinings';
+    if (extra !== undefined) bindings.GATEWAY_CORS_ORIGINS = extra;
+    const response = await gateway.request(
+      'https://api.koreatech.in/dinings?date=261115',
+      { headers: { Origin: origin } },
+      bindings,
+    );
+    assert.equal(response.status, 200, origin);
+    assert.equal(response.headers.get('X-Koin-Backend'), 'workers');
+    assert.equal(response.headers.get('Access-Control-Allow-Origin'), expected, `${origin} / ${extra}`);
+    assert.equal(response.headers.has('Access-Control-Allow-Credentials'), expected !== null);
+  }
+});
+
 test('service-token, nonmigrated and internal bridge requests pass straight to Java', async (t) => {
   const seen: Request[] = [];
   t.mock.method(globalThis, 'fetch', async (request: Request) => {
