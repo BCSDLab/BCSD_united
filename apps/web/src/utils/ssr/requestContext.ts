@@ -1,7 +1,10 @@
 import { WebSession } from 'api/auth/APIDetail';
-import { WEB_AUTH_ACCESS_COOKIE_KEY } from 'static/url';
+import { DEFAULT_LANGUAGE, type LanguageCode } from 'static/language';
+import { LANGUAGE_COOKIE_KEY, WEB_AUTH_ACCESS_COOKIE_KEY } from 'static/url';
 import { toUserType, type UserType } from 'utils/auth/session';
+import { parseLanguage } from 'utils/language/language';
 import APIClient from 'utils/ts/apiClient';
+import { readCookieHeader } from 'utils/ts/cookie';
 
 export type DeviceClass = 'mobile' | 'desktop';
 
@@ -14,14 +17,14 @@ export interface ServerRequestContext {
   now: string;
   /** 문서가 공유 캐시에서 제공될 수 있으면 클라이언트는 새 서버 시각을 받아야 한다. */
   mayBeSharedCached: boolean;
+  /**
+   * 서버 렌더에 쓴 화면 언어. 언어 쿠키가 없으면 기본 언어다.
+   * 브라우저 언어 판정과 로그인 사용자의 서버 선호 언어 반영은 마운트 후 `LanguageProvider`가 한다.
+   */
+  language: LanguageCode;
 }
 
-/**
- * UA로 기기를 분류한다.
- *
- * nginx 캐시 키(`$device_class`, /etc/nginx/conf.d/proxy-cache.conf)가 같은 정규식을 쓴다.
- * 한쪽만 바꾸면 캐시가 잘못 갈려 다른 기기용 HTML이 서빙되므로 반드시 함께 수정할 것.
- */
+/** UA로 기기를 분류한다. 서버는 창 폭을 모르므로 첫 렌더 화면을 이 값으로 고른다. */
 const MOBILE_UA = /iphone|ipod|android.*mobile|windows phone/i;
 
 export function getDeviceClass(userAgent: string | undefined): DeviceClass {
@@ -34,8 +37,7 @@ export function getDeviceClass(userAgent: string | undefined): DeviceClass {
  * 이 값들이 없으면 서버는 "비로그인 데스크톱"을 가정해 렌더하고, 클라이언트는 마운트 후
  * 실제 값으로 다시 그린다. 그 과정에서 서버가 그린 DOM이 통째로 버려진다.
  *
- * 인증 상태를 SSR에 반영해도 캐시는 안전하다. nginx가 인증 쿠키가 있으면
- * `proxy_cache_bypass`/`proxy_no_cache`로 캐시를 우회한다.
+ * 인증 상태를 SSR에 반영해도 캐시는 안전하다. 쿠키가 있는 요청은 공개 캐시를 켜지 않는다(`loadPageData`).
  *
  * 세션 유효성은 원본 Cookie를 그대로 실어 세션 조회(`GET /v2/web/auth/session`)로 백엔드가 확인한다.
  */
@@ -66,21 +68,27 @@ export async function getServerRequestContext(request: Request): Promise<ServerR
   const now = new Date().toISOString();
   const cookie = request.headers.get('cookie');
 
-  const accessToken = cookie
-    ?.split(';')
-    .map((entry) => entry.trim())
-    .find((entry) => entry.startsWith(`${WEB_AUTH_ACCESS_COOKIE_KEY}=`))
-    ?.slice(WEB_AUTH_ACCESS_COOKIE_KEY.length + 1);
+  const accessToken = readCookieHeader(cookie, WEB_AUTH_ACCESS_COOKIE_KEY);
+  const language = parseLanguage(readCookieHeader(cookie, LANGUAGE_COOKIE_KEY)) ?? DEFAULT_LANGUAGE;
+  // 공유 캐시는 언어 쿠키로 나뉘지 않으므로 기본 언어로 그린 응답만 공유 캐시에 남긴다
+  const isDefaultLanguage = language === DEFAULT_LANGUAGE;
   if (!cookie || !hasUsableAccessToken(accessToken)) {
-    return { device, isLoggedIn: false, userType: null, now, mayBeSharedCached: true };
+    return { device, isLoggedIn: false, userType: null, now, mayBeSharedCached: isDefaultLanguage, language };
   }
 
   try {
     const session = await APIClient.request(new WebSession({ Cookie: cookie, Origin: new URL(request.url).origin }));
     const userType = session.authenticated ? toUserType(session.user_type) : null;
 
-    return { device, isLoggedIn: userType !== null, userType, now, mayBeSharedCached: userType === null };
+    return {
+      device,
+      isLoggedIn: userType !== null,
+      userType,
+      now,
+      mayBeSharedCached: userType === null && isDefaultLanguage,
+      language,
+    };
   } catch {
-    return { device, isLoggedIn: false, userType: null, now, mayBeSharedCached: true };
+    return { device, isLoggedIn: false, userType: null, now, mayBeSharedCached: isDefaultLanguage, language };
   }
 }

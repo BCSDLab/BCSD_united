@@ -34,7 +34,10 @@ export const useLecturesStore = create<State & Action>((set, get) => ({
     addLecture: (lecture, semester) => {
       const timetableInfoList = get().lectures;
       const newValue = [...(timetableInfoList[semester] || [])];
-      newValue.push(lecture);
+      // 번역 이름은 저장 당시 화면 언어라 언어를 바꾸면 맞지 않는다. 원문만 저장한다.
+      const originalLecture = { ...lecture };
+      delete originalLecture.display_name;
+      newValue.push(originalLecture);
 
       isomorphicLocalStorage.setJSONItem(MY_LECTURES_KEY, { ...timetableInfoList, [semester]: newValue });
       set(() => ({ lectures: { ...timetableInfoList, [semester]: newValue } }));

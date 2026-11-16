@@ -5,6 +5,7 @@ import { authQueries, SESSION_STALE_TIME } from 'api/auth/queries';
 import { isHttpError } from 'interfaces/APIError';
 import { ANONYMOUS_SESSION, SESSION_QUERY_KEY, type Session } from 'utils/auth/session';
 import { isConfirmedSession, prepareSessionFetch, sessionCookie } from 'utils/auth/sessionConfirmation';
+import { readStoredLanguage } from 'utils/language/language';
 import type { ServerRequestContext } from 'utils/ssr/requestContext';
 import { getFreshServerNow, initializeServerClock } from 'utils/ssr/serverClock';
 import APIClient from 'utils/ts/apiClient';
@@ -120,6 +121,8 @@ export async function getClientRootSnapshot(ssrServerRequest: ServerRequestConte
       userType,
       now,
       mayBeSharedCached: false,
+      // 마운트 후 브라우저 언어나 서버 선호 언어로 바뀌었을 수 있으므로 지금 저장된 언어를 쓴다
+      language: readStoredLanguage() ?? ssrServerRequest.language,
     },
     hasSession: !!currentCookie,
   };

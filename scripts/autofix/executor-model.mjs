@@ -70,7 +70,8 @@ function relativeFile(root, input, mode, scope) {
   )
     throw new Error('Unsafe source path');
   const path = resolve(root, name);
-  if (!path.startsWith(`${root}${sep}`) || relative(root, path).split(sep).join('/') !== name) throw new Error('Path escaped workspace');
+  if (!path.startsWith(`${root}${sep}`) || relative(root, path).split(sep).join('/') !== name)
+    throw new Error('Path escaped workspace');
   if (mode === 'write' ? !scope.writable(name) : !scope.readable(name))
     throw new Error('Path is outside allowed application source');
   return { name, path, lineRange };
@@ -172,7 +173,8 @@ export function sourceTools(root, scope, tracked) {
         if (stat.size > MAX_TEXT_BYTES) continue;
         const lines = (await readFile(candidate, 'utf8')).split('\n');
         for (let i = 0; i < lines.length; i += 1) {
-          if (lines[i].includes(input.pattern)) hits.push(`${relative(root, candidate).split(sep).join('/')}:${i + 1}:${lines[i]}`);
+          if (lines[i].includes(input.pattern))
+            hits.push(`${relative(root, candidate).split(sep).join('/')}:${i + 1}:${lines[i]}`);
           if (hits.length >= 80) return hits.join('\n').slice(0, MAX_RESULT);
         }
       }

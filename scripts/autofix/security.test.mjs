@@ -450,9 +450,14 @@ test('B-BOT health smoke config keeps local bindings only and the API gate is re
   assert.equal('build' in smoke, false);
   assert.equal('account_id' in smoke, false);
   assert.equal('services' in smoke, false);
-  assert.throws(() => smokeConfiguration({
-    ...deployable, services: [{ binding: 'ERROR_AUTOMATION', service: 'other-worker' }],
-  }), /Unreviewed B-BOT service binding/);
+  assert.throws(
+    () =>
+      smokeConfiguration({
+        ...deployable,
+        services: [{ binding: 'ERROR_AUTOMATION', service: 'other-worker' }],
+      }),
+    /Unreviewed B-BOT service binding/,
+  );
   assert.throws(() =>
     smokeConfiguration({ ...deployable, kv_namespaces: [{ binding: 'BOT_KV', id: 'kv1', remote: true }] }),
   );

@@ -4,22 +4,17 @@ import { createServerFn } from '@tanstack/react-start';
 
 import { reviewQueries } from 'api/review/queries';
 import { storeMobileQueries } from 'api/storeMobile/queries';
-import Layout, { SSRLayout } from 'components/layout';
+import { ResponsivePage } from 'components/layout/ResponsivePage';
 import ReviewEditPage from 'components/Store/mobile/ReviewFormPage/ReviewEditPage';
 import useStoreDetail from 'components/Store/StoreDetailPage/hooks/useStoreDetail';
 import { useEditStoreReview } from 'components/Store/StoreReviewPage/hooks/useEditStoreReview';
 import ReviewForm from 'components/Store/StoreReviewPage/ReviewForm/ReviewForm';
+import { isMobileView } from 'utils/hooks/layout/useMobileView';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import useMount from 'utils/hooks/state/useMount';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
 import { isNotFoundKoinError } from 'utils/ts/isr';
-
-interface Props {
-  id: string;
-  reviewId: string;
-  isMobile: boolean;
-}
 
 function EditReviewComponent({ id, reviewId }: { id: string; reviewId: string }) {
   const isLoggedIn = useIsLoggedIn();
@@ -45,23 +40,17 @@ function DesktopEditReview() {
   return <EditReviewComponent id={pageId} reviewId={String(reviewid)} />;
 }
 
-function EditReviewPage({ id, reviewId, isMobile }: Props) {
-  if (!isMobile) return <DesktopEditReview />;
-
-  return <ReviewEditPage id={id} reviewId={reviewId} />;
-}
-
 // 로그인 필수 화면이라 공용 캐시를 켜지 않는다(loadPageData 기본값 private)
 const loadPage = definePageLoad(async ({ params, queryClient }, _cacheControl, serverRequest) => {
   const { id, reviewid: reviewId } = params;
   if (!id || !reviewId) throw notFound();
 
-  // 데스크톱은 기존처럼 브라우저에서 그린다
-  if (serverRequest.device !== 'mobile') {
-    return { id, reviewId, isMobile: false };
+  // 데스크톱 화면은 기존처럼 브라우저에서 그린다
+  if (!isMobileView(serverRequest.device)) {
+    return { id, reviewId };
   }
 
-  // 모바일은 상점명과 기존 리뷰를 미리 받아 본문까지 렌더한다
+  // 모바일 화면은 상점명과 기존 리뷰를 미리 받아 본문까지 렌더한다
   try {
     await Promise.all([
       queryClient.fetchQuery(storeMobileQueries.detail(id)),
@@ -72,7 +61,7 @@ const loadPage = definePageLoad(async ({ params, queryClient }, _cacheControl, s
     throw error;
   }
 
-  return { id, reviewId, isMobile: true };
+  return { id, reviewId };
 });
 
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
@@ -89,12 +78,13 @@ export const Route = createFileRoute('/store/review/edit/$id/$reviewid/')({
 });
 
 function RouteComponent() {
-  const loaderData = Route.useLoaderData();
-  const page = <EditReviewPage {...loaderData} />;
+  const { id, reviewId, serverRequest } = Route.useLoaderData();
 
-  return loaderData.serverRequest.device === 'mobile' ? (
-    <SSRLayout mobileHeader="page">{page}</SSRLayout>
-  ) : (
-    <Layout>{page}</Layout>
+  return (
+    <ResponsivePage
+      device={serverRequest.device}
+      mobile={<ReviewEditPage id={id} reviewId={reviewId} />}
+      desktop={<DesktopEditReview />}
+    />
   );
 }

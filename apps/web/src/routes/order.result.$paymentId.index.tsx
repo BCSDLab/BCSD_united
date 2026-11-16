@@ -13,7 +13,10 @@ import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
 import { isNotFoundKoinError } from 'utils/ts/isr';
 
 // useNaverMapsLoaded가 붙이는 지도 스크립트와 같은 주소(미리 받기용)
-const NAVER_MAPS_SCRIPT_URL = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${process.env.NEXT_PUBLIC_NAVER_MAPS_CLIENT_ID}&submodules=geocoder`;
+const NAVER_MAPS_CLIENT_ID = process.env.NEXT_PUBLIC_NAVER_MAPS_CLIENT_ID;
+const NAVER_MAPS_SCRIPT_URL = NAVER_MAPS_CLIENT_ID
+  ? `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${NAVER_MAPS_CLIENT_ID}&submodules=geocoder`
+  : undefined;
 
 interface Props {
   isDesktop: boolean;
@@ -34,7 +37,7 @@ function OrderResultRoute({ isDesktop, paymentId }: Props) {
   return (
     <>
       {!isDesktop && <OrderViewport />}
-      {!isDesktop && (
+      {!isDesktop && NAVER_MAPS_SCRIPT_URL && (
         <>
           {/* order는 index.html에서 지도 스크립트를 바로 불러 첫 렌더 때 지오코더가 준비돼 있다.
               여기선 지도 로더(useNaverMapsLoaded)가 마운트 후 붙이므로, 같은 주소를 미리 받아 둬 지도·가게 위치를 일찍 그린다 */}

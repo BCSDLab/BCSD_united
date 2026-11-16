@@ -25,15 +25,50 @@ describe('Slack autofix mention forwarding', () => {
   it('keeps intake and transport failures retryable instead of acknowledging lost jobs', async () => {
     await expect(forwardAutofixMention(undefined, '{}', '', '')).rejects.toThrow('ERROR_AUTOMATION');
     for (const status of [429, 500, 503])
-      await expect(forwardAutofixMention({ fetch: async () => new Response('', { status }) }, '{}', '', ''))
-        .rejects.toThrow(String(status));
-    await expect(forwardAutofixMention({ fetch: async () => { throw new Error('network'); } }, '{}', '', ''))
-      .rejects.toThrow('network');
+      await expect(
+        forwardAutofixMention({ fetch: async () => new Response('', { status }) }, '{}', '', ''),
+      ).rejects.toThrow(String(status));
+    await expect(
+      forwardAutofixMention(
+        {
+          fetch: async () => {
+            throw new Error('network');
+          },
+        },
+        '{}',
+        '',
+        '',
+      ),
+    ).rejects.toThrow('network');
+  });
+
+  it('acknowledges only explicitly marked configuration rejections without retrying', async () => {
+    const fetch = vi.fn(async () =>
+      Response.json(
+        { error: 'Slack autofix is not configured.' },
+        { status: 503, headers: { 'x-slack-autofix-error': 'not-configured' } },
+      ),
+    );
+    await expect(forwardAutofixMention({ fetch }, '{}', '', '')).resolves.toBeUndefined();
+    expect(fetch).toHaveBeenCalledOnce();
+    for (const [status, marker] of [
+      [503, 'storage-unavailable'],
+      [500, 'not-configured'],
+    ] as const)
+      await expect(
+        forwardAutofixMention(
+          { fetch: async () => new Response('', { status, headers: { 'x-slack-autofix-error': marker } }) },
+          '{}',
+          '',
+          '',
+        ),
+      ).rejects.toThrow(String(status));
   });
 
   it('does not replay unauthorized requests or duplicate durable admissions', async () => {
     for (const status of [200, 400, 401, 403, 413, 415])
-      await expect(forwardAutofixMention({ fetch: async () => new Response('', { status }) }, '{}', '', ''))
-        .resolves.toBeUndefined();
+      await expect(
+        forwardAutofixMention({ fetch: async () => new Response('', { status }) }, '{}', '', ''),
+      ).resolves.toBeUndefined();
   });
 });

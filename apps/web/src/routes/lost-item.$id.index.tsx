@@ -21,6 +21,7 @@ import usePostFoundLostItem from 'components/Articles/LostItemDetailPage/hooks/u
 import usePostLostItemChatroom from 'components/Articles/LostItemDetailPage/hooks/usePostLostItemChatroom';
 import { SSRLayout } from 'components/layout';
 import LoginRequiredModal from 'components/modal/LoginRequiredModal';
+import { isKoinError } from 'interfaces/APIError';
 import ROUTES from 'static/routes';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useModalPortal from 'utils/hooks/layout/useModalPortal';
@@ -29,6 +30,8 @@ import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import useScrollToTop from 'utils/hooks/ui/useScrollToTop';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
+import { isNotFoundKoinError } from 'utils/ts/isr';
+import { parseQueryId } from 'utils/ts/parseServerSideParams';
 
 import styles from 'pages/lost-item/[id]/LostItemDetailPage.module.scss';
 
@@ -247,20 +250,23 @@ function LostItemDetailPage({ articleId }: LostItemDetailPageProps) {
 }
 
 const loadPage = definePageLoad(async ({ params, queryClient }, cacheControl, serverRequest) => {
-  const id = params.id;
-  if (typeof id !== 'string') {
-    throw notFound();
-  }
-  const articleId = Number(id);
+  const articleId = parseQueryId(params.id);
+  if (articleId === null) throw notFound();
 
   const latestLostItemParams = { limit: 10, sort: 'LATEST' as const };
 
-  await Promise.all([
-    queryClient.prefetchQuery(articleQueries.lostItemDetail(serverRequest.isLoggedIn, articleId)),
-    queryClient.prefetchInfiniteQuery(
-      articleQueries.lostItemInfiniteList(serverRequest.isLoggedIn, latestLostItemParams),
-    ),
-  ]);
+  try {
+    await Promise.all([
+      queryClient.fetchQuery(articleQueries.lostItemDetail(serverRequest.isLoggedIn, articleId)),
+      queryClient.prefetchInfiniteQuery(
+        articleQueries.lostItemInfiniteList(serverRequest.isLoggedIn, latestLostItemParams),
+      ),
+    ]);
+  } catch (error) {
+    // 숫자 ID가 다른 게시판 글을 가리키면 API가 400을 반환하며, 분실물 URL에는 해당 자원이 없다.
+    if (isNotFoundKoinError(error) || (isKoinError(error) && error.status === 400)) throw notFound();
+    throw error;
+  }
 
   if (!serverRequest.isLoggedIn) {
     cacheControl.enablePublicCache();

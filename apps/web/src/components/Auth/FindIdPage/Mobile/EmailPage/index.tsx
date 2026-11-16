@@ -36,6 +36,8 @@ function MobileFindIdEmailPage() {
     isTimer,
     timerValue,
     stopTimer,
+    isResendLocked,
+    resendButtonText,
   } = useEmailVerification({ email });
 
   const onClickSendVerificationButton = () => {
@@ -79,8 +81,8 @@ function MobileFindIdEmailPage() {
                   message={emailMessage}
                   isButton
                   disabled={isVerified}
-                  buttonText="인증번호 발송"
-                  buttonDisabled={!field.value || isDisabled || isVerified}
+                  buttonText={resendButtonText('인증번호 발송')}
+                  buttonDisabled={!field.value || isDisabled || isVerified || isResendLocked}
                   buttonOnClick={() => checkEmailExists({ email: field.value })}
                 >
                   {emailMessage?.type === 'success' && (

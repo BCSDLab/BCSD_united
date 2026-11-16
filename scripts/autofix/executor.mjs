@@ -296,10 +296,16 @@ function requestJob(job) {
     /^[A-Z][A-Z0-9]{1,39}$/.test(identity.channelId) &&
     /^[A-Z][A-Z0-9]{1,39}$/.test(identity.userId) &&
     /^[0-9]{10,16}\.[0-9]{6}$/.test(identity.messageTs) &&
-    typeof identity.text === 'string' && identity.text.length >= 5 && identity.text.length <= 4096 &&
-    job.branch === `fix/slack-request-${createHash('sha256').update(`slack-request/${identity.teamId}/${identity.eventId}`).digest('hex')}` &&
-    job.baseBranch === 'develop' && job.targetBranch === 'develop' && SHA.test(job.baseSha) &&
-    job.domain === '공통' && JSON.stringify(job.changedFiles) === JSON.stringify(REQUEST_SCOPE)
+    typeof identity.text === 'string' &&
+    identity.text.length >= 5 &&
+    identity.text.length <= 4096 &&
+    job.branch ===
+      `fix/slack-request-${createHash('sha256').update(`slack-request/${identity.teamId}/${identity.eventId}`).digest('hex')}` &&
+    job.baseBranch === 'develop' &&
+    job.targetBranch === 'develop' &&
+    SHA.test(job.baseSha) &&
+    job.domain === '공통' &&
+    JSON.stringify(job.changedFiles) === JSON.stringify(REQUEST_SCOPE)
   );
 }
 
@@ -325,7 +331,11 @@ export function parseClaim(value) {
     value.leaseExpiresAt > value.deadlineAt ||
     job?.owner !== 'BCSDLab' ||
     job.repository !== 'BCSD_united' ||
-    !(job.mode === undefined ? errorJob(job) : job.mode === 'request' ? requestJob(job) : job.mode === 'pull-request' && pullRequestJob(job))
+    !(job.mode === undefined
+      ? errorJob(job)
+      : job.mode === 'request'
+        ? requestJob(job)
+        : job.mode === 'pull-request' && pullRequestJob(job))
   )
     throw new Error('Claim violates immutable KOIN source and route contract');
   return value;
@@ -619,7 +629,12 @@ export async function generateAnswer(cfg, claim, tools, signal) {
           request,
           AbortSignal.any([
             signal,
-            AbortSignal.timeout(Math.max(1, Math.min(pullRequest || job.mode === 'request' ? 190_000 : 100_000, windowEndsAt - Date.now()))),
+            AbortSignal.timeout(
+              Math.max(
+                1,
+                Math.min(pullRequest || job.mode === 'request' ? 190_000 : 100_000, windowEndsAt - Date.now()),
+              ),
+            ),
           ]),
           pullRequest || job.mode === 'request' ? 1_000_000 : 256_000,
         ),
@@ -674,7 +689,9 @@ async function generate(cfg, claim, modelRoot, signal) {
   } else if (job.mode === 'request') {
     await checkout(modelRoot, job.baseSha, signal);
     await mkdir(join(modelRoot, 'request-input'), { recursive: true });
-    await writeFile(join(modelRoot, 'request-input/request.json'), JSON.stringify({ text: job.identity.text }), { mode: 0o600 });
+    await writeFile(join(modelRoot, 'request-input/request.json'), JSON.stringify({ text: job.identity.text }), {
+      mode: 0o600,
+    });
     tools = sourceTools(modelRoot, requestToolScope(job.changedFiles), new Set());
   } else {
     await checkout(modelRoot, job.baseSha, signal);
@@ -696,7 +713,8 @@ async function generate(cfg, claim, modelRoot, signal) {
     pullRequest || job.mode === 'request' ? pullRequestPolicy(job.changedFiles) : undefined,
   );
   if (
-    !pullRequest && job.mode !== 'request' &&
+    !pullRequest &&
+    job.mode !== 'request' &&
     manifest.files.some(
       (file) => file.path.startsWith('apps/') && !file.path.startsWith(`apps/${job.context.app}/src/`),
     )

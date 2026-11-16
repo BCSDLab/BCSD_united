@@ -1,4 +1,3 @@
-import { getJosaPicker } from '@bcsdlab/utils';
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 
@@ -24,7 +23,6 @@ interface MobileStoreListProps {
 export default function MobileStoreList(mobileStoreListProps: MobileStoreListProps) {
   const { storeListData, storeType } = mobileStoreListProps;
   const logger = useLogger();
-  const pickTopicJosa = getJosaPicker('은');
 
   const { searchParams } = useParamsHandler();
   const { data: categories } = useSuspenseQuery(storeQueries.categories());
@@ -61,13 +59,11 @@ export default function MobileStoreList(mobileStoreListProps: MobileStoreListPro
           )}
           {!store.is_open && (
             <div className={styles['store-none-open']}>
-              <span className={styles['store-none-open__name']}>{store.name}</span>
-              {`${pickTopicJosa(store.name)} `}
-              준비중입니다.
+              <span className={styles['store-none-open__text']}>지금은 영업시간이 아니에요</span>
             </div>
           )}
           <div className={styles['store-list__header']}>
-            <div className={styles['store-list__title']}>{store.name}</div>
+            <div className={styles['store-list__title']}>{store.display_name ?? store.name}</div>
             {store.benefit_details && <BenefitRotator benefits={store.benefit_details} />}
             {store.benefit_detail && <BenefitRotator benefits={store.benefit_detail} />}
           </div>

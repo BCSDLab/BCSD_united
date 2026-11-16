@@ -2,21 +2,17 @@ import { createFileRoute, useSearch, useParams, notFound } from '@tanstack/react
 import { createServerFn } from '@tanstack/react-start';
 
 import { storeMobileQueries } from 'api/storeMobile/queries';
-import Layout, { SSRLayout } from 'components/layout';
 import MobilePageHeader from 'components/layout/MobilePageHeader';
+import { ResponsivePage } from 'components/layout/ResponsivePage';
 import ReviewCreatePage from 'components/Store/mobile/ReviewFormPage';
 import useStoreDetail from 'components/Store/StoreDetailPage/hooks/useStoreDetail';
 import { useAddStoreReview } from 'components/Store/StoreReviewPage/hooks/useAddStoreReview';
 import ReviewForm from 'components/Store/StoreReviewPage/ReviewForm/ReviewForm';
+import { isMobileView } from 'utils/hooks/layout/useMobileView';
 import useMount from 'utils/hooks/state/useMount';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
 import { isNotFoundKoinError } from 'utils/ts/isr';
-
-interface Props {
-  id: string;
-  isMobile: boolean;
-}
 
 function AddReviewComponent({ id }: { id: string }) {
   const { storeDetail } = useStoreDetail(id);
@@ -40,28 +36,17 @@ function DesktopAddReview() {
   return <AddReviewComponent id={pageId} />;
 }
 
-function AddReviewPage({ id, isMobile }: Props) {
-  if (!isMobile) return <DesktopAddReview />;
-
-  return (
-    <>
-      <MobilePageHeader title="리뷰 작성하기" />
-      <ReviewCreatePage id={id} />
-    </>
-  );
-}
-
 // 로그인 필수 화면이라 공용 캐시를 켜지 않는다(loadPageData 기본값 private)
 const loadPage = definePageLoad(async ({ params, queryClient }, _cacheControl, serverRequest) => {
   const id = params.id;
   if (!id) throw notFound();
 
-  // 데스크톱은 기존처럼 브라우저에서 그린다
-  if (serverRequest.device !== 'mobile') {
-    return { id, isMobile: false };
+  // 데스크톱 화면은 기존처럼 브라우저에서 그린다
+  if (!isMobileView(serverRequest.device)) {
+    return { id };
   }
 
-  // 모바일은 상점명을 미리 받아 본문까지 렌더한다
+  // 모바일 화면은 상점명을 미리 받아 본문까지 렌더한다
   try {
     await queryClient.fetchQuery(storeMobileQueries.detail(id));
   } catch (error) {
@@ -69,7 +54,7 @@ const loadPage = definePageLoad(async ({ params, queryClient }, _cacheControl, s
     throw error;
   }
 
-  return { id, isMobile: true };
+  return { id };
 });
 
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
@@ -86,12 +71,18 @@ export const Route = createFileRoute('/store/review/$id/')({
 });
 
 function RouteComponent() {
-  const loaderData = Route.useLoaderData();
-  const page = <AddReviewPage {...loaderData} />;
+  const { id, serverRequest } = Route.useLoaderData();
 
-  return loaderData.serverRequest.device === 'mobile' ? (
-    <SSRLayout mobileHeader="page">{page}</SSRLayout>
-  ) : (
-    <Layout>{page}</Layout>
+  return (
+    <ResponsivePage
+      device={serverRequest.device}
+      mobile={
+        <>
+          <MobilePageHeader title="리뷰 작성하기" />
+          <ReviewCreatePage id={id} />
+        </>
+      }
+      desktop={<DesktopAddReview />}
+    />
   );
 }

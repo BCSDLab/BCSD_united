@@ -23,6 +23,7 @@ import {
   REQUEST_CHECKS,
   REQUEST_SCOPE,
   requestRegressionPath,
+  proveRequestRegression,
   requestSourcePath,
   SHA,
   isSourcePath,
@@ -49,8 +50,10 @@ const manifest = offlineSmoke
   ? { version: 1, files: [] }
   : validateManifest(await jsonFile('error-patch/patch.json'), policy);
 if (requestMode) {
-  if (!manifest.files.some((file) => requestRegressionPath(file.path) && file.content !== null) ||
-      !manifest.files.some((file) => requestSourcePath(file.path)))
+  if (
+    !manifest.files.some((file) => requestRegressionPath(file.path) && file.content !== null) ||
+    !manifest.files.some((file) => requestSourcePath(file.path))
+  )
     throw new Error('A request requires source changes and executable native regression coverage');
 }
 if (!offlineSmoke && !prMode) {
@@ -88,8 +91,11 @@ function pullRequestContext(value) {
   return value;
 }
 function requestContext(value) {
-  if (Object.keys(value).sort().join(',') !== 'baseSha,changedFiles,mode' ||
-      !SHA.test(value.baseSha) || JSON.stringify(value.changedFiles) !== JSON.stringify(REQUEST_SCOPE))
+  if (
+    Object.keys(value).sort().join(',') !== 'baseSha,changedFiles,mode' ||
+    !SHA.test(value.baseSha) ||
+    JSON.stringify(value.changedFiles) !== JSON.stringify(REQUEST_SCOPE)
+  )
     throw new Error('Invalid fixed request verification context');
   return value;
 }
@@ -146,9 +152,13 @@ if (offlineSmoke) {
 } else {
   if (reviewMode) pinPullRequestHead();
   if (requestMode) {
-    if (execFileSync('git', ['rev-parse', 'HEAD']).toString().trim() !== context.baseSha ||
-        execFileSync('git', ['rev-parse', '--verify', `${context.baseSha}^{commit}`]).toString().trim() !== context.baseSha ||
-        execFileSync('git', ['status', '--porcelain', '--untracked-files=no']).toString().trim())
+    if (
+      execFileSync('git', ['rev-parse', 'HEAD']).toString().trim() !== context.baseSha ||
+      execFileSync('git', ['rev-parse', '--verify', `${context.baseSha}^{commit}`])
+        .toString()
+        .trim() !== context.baseSha ||
+      execFileSync('git', ['status', '--porcelain', '--untracked-files=no']).toString().trim()
+    )
       throw new Error('Request verifier is not at the clean pinned develop base');
   }
   // Built from the object database, not `git archive`: a PR head's
@@ -598,13 +608,13 @@ async function readablePatch(files) {
     await chmod(`${root}/${file.path}`, 0o644);
   }
 }
-if (prMode) {
+if (reviewMode) {
   // Corrections are applied on top of the pinned head after the trusted install;
   // every `before` hash must match the head bytes. An empty manifest is a plain
   // head verification.
   await applyManifest(manifest, root, false, true, policy);
   await readablePatch(manifest.files);
-} else if (!offlineSmoke) {
+} else if (!offlineSmoke && !prMode) {
   await applyManifest({ version: 1, files: tests }, root);
   await readablePatch(tests);
   const before = docker(['node', '--test', ...tests.map((file) => file.path)]);
@@ -661,6 +671,24 @@ const workspaceCommand = (script) =>
         '--if-present',
         script,
       ];
+if (requestMode) {
+  const regressionFiles = manifest.files.filter((file) => !requestSourcePath(file.path));
+  const sourceFiles = manifest.files.filter((file) => requestSourcePath(file.path));
+  await proveRequestRegression({
+    runNativeTests: () =>
+      docker(workspaceCommand('test'), {
+        writable: [...bbotBuildScratch, ...bbotRuntimeScratch, ...bbotTestScratch],
+      }),
+    applyRegression: async () => {
+      await applyManifest({ version: 1, files: regressionFiles }, root, false, true, policy);
+      await readablePatch(regressionFiles);
+    },
+    applySource: async () => {
+      await applyManifest({ version: 1, files: sourceFiles }, root, false, true, policy);
+      await readablePatch(sourceFiles);
+    },
+  });
+}
 // SWE-bench-style pass-to-pass gate: the native fixtures must pass on the
 // pinned base as well as on the candidate. New failing regression tests are
 // checked separately above; an already broken base is not a verified fix.

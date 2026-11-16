@@ -44,7 +44,7 @@ function DiningCard({ place, dining, diningType, onClick, onInteract }: DiningCa
         </span>
       </div>
       <div className={styles['meal-card__title-row']}>
-        <span className={styles['meal-card__title']}>{place}</span>
+        <span className={styles['meal-card__title']}>{dining.display_place ?? place}</span>
         {dining.soldout_at && <span className={styles['meal-card__soldout']}>품절</span>}
       </div>
       <p className={styles['meal-card__menu']}>
@@ -197,7 +197,7 @@ export default function DiningCarousel({
 
   const placeTabs = (
     <div className={styles.place}>
-      {availableDinings.map(({ place: placeName }) => (
+      {availableDinings.map(({ place: placeName, display_place: displayPlace }) => (
         <button
           type="button"
           key={placeName}
@@ -207,7 +207,7 @@ export default function DiningCarousel({
           })}
           onClick={() => handlePlaceClick(placeName)}
         >
-          {placeName === '2캠퍼스' ? '2캠' : placeName}
+          {(displayPlace ?? placeName) === '2캠퍼스' ? '2캠' : (displayPlace ?? placeName)}
         </button>
       ))}
     </div>

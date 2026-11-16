@@ -17,18 +17,21 @@ export async function forwardAutofixMention(
   timestamp: string | undefined,
 ): Promise<void> {
   if (!binding) throw new Error('ERROR_AUTOMATION service binding is required for app mentions');
-  const response = await binding.fetch(new Request('https://error-automation.internal/slack/requests', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-slack-signature': signature ?? '',
-      'x-slack-request-timestamp': timestamp ?? '',
-    },
-    body,
-    signal: AbortSignal.timeout(2000),
-  }));
+  const response = await binding.fetch(
+    new Request('https://error-automation.internal/slack/requests', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-slack-signature': signature ?? '',
+        'x-slack-request-timestamp': timestamp ?? '',
+      },
+      body,
+      signal: AbortSignal.timeout(2000),
+    }),
+  );
+  const notConfigured = response.status === 503 && response.headers.get('x-slack-autofix-error') === 'not-configured';
   await response.body?.cancel();
-  // Slack 재전송이 가능한 응답만 실패로 돌린다. 인증/권한 거절은 재전송해도 접수되지 않는다.
-  if (!response.ok && ![400, 401, 403, 413, 415].includes(response.status))
+  // 명시적 설정 거절만 종결한다. 큐·저장소·전송 장애의 503은 Slack 재전송을 유지한다.
+  if (!response.ok && !notConfigured && ![400, 401, 403, 413, 415].includes(response.status))
     throw new Error(`Error automation intake failed (${response.status})`);
 }

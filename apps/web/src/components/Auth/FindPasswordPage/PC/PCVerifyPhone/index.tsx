@@ -47,6 +47,8 @@ function PCVerifyPhone({ onNext, onBack, goToEmailStep, setContactType }: FindPa
     stopTimer,
     checkIdExists,
     checkIdMatchPhone,
+    isResendLocked,
+    resendButtonText,
   } = usePhoneVerification({ phoneNumber, onNext });
 
   const onClickSendVerificationButton = () => {
@@ -167,9 +169,9 @@ function PCVerifyPhone({ onNext, onBack, goToEmailStep, setContactType }: FindPa
                       setIsVerificationSent(true);
                     }}
                     className={styles['check-button']}
-                    disabled={!field.value || isDisabled || isVerified}
+                    disabled={!field.value || isDisabled || isVerified || isResendLocked}
                   >
-                    {isSendingVerification ? '...' : buttonText}
+                    {isSendingVerification ? '...' : resendButtonText(buttonText)}
                   </button>
                 </div>
                 {!isVerificationSent && !isCorrect && (

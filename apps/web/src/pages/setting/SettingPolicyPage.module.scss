@@ -1,0 +1,49 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+  max-width: 576px;
+  margin: 0 auto;
+  padding: 16px 24px 40px;
+  box-sizing: border-box;
+  color: #000;
+  font-size: 14px;
+  line-height: 160%;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+
+  h2,
+  p {
+    margin: 0;
+  }
+}
+
+.sections {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  &__title {
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 160%;
+  }
+
+  &__items {
+    margin: 0;
+    padding-left: 20px;
+    list-style-type: disc;
+  }
+}
+
+.text {
+  margin: 0;
+  white-space: pre-line;
+}

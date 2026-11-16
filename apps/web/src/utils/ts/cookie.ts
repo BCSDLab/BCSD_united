@@ -96,3 +96,19 @@ export const getCookieDomain = () => {
 
   return COOKIE_DOMAIN;
 };
+
+/** 요청의 Cookie 헤더 문자열에서 값을 읽는다. 서버(SSR)에서 `document.cookie` 대신 쓴다. 없으면 `undefined`다. */
+export function readCookieHeader(cookieHeader: string | null | undefined, name: string): string | undefined {
+  const value = cookieHeader
+    ?.split(';')
+    .map((entry) => entry.trim())
+    .find((entry) => entry.startsWith(`${name}=`))
+    ?.slice(name.length + 1);
+  if (value === undefined) return undefined;
+
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}

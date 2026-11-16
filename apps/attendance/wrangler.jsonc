@@ -6,6 +6,10 @@
   "workers_dev": true,
   "preview_urls": false,
   "observability": { "enabled": true },
-  // id는 첫 배포 때 wrangler가 네임스페이스를 만들고 기록합니다.
-  "kv_namespaces": [{ "binding": "ATTENDANCE" }],
+  // 운영 플랫폼 Access audience 등 외부 관리 vars를 보존합니다.
+  "keep_vars": true,
+  "rules": [{ "type": "Text", "globs": ["**/*.html"], "fallthrough": true }],
+  // 원본 출입 원장 KV는 삭제·치환하지 않으며 뷰어는 별도 스냅샷만 읽습니다.
+  "kv_namespaces": [{ "binding": "VIEW_STATE", "id": "b519a98db46d4b088baee97a256bf0f0" }],
+  "services": [{ "binding": "ERROR_AUTOMATION", "service": "bcsd-error-automation" }],
 }

@@ -18,6 +18,8 @@ interface ShopCardProps {
   href: string;
   isOpen: boolean;
   name: string;
+  /** 화면에 보여줄 이름. 없으면 `name`을 쓴다. 로그에는 항상 `name`을 남긴다. */
+  displayName?: string;
   rating: number;
   reviewCount: number;
   thumbnailUrl: string;
@@ -30,6 +32,7 @@ export default function ShopCard({
   href,
   isOpen,
   name,
+  displayName,
   rating,
   reviewCount,
   thumbnailUrl,
@@ -58,20 +61,20 @@ export default function ShopCard({
     <button type="button" onClick={handleShopCardClick} data-testid={`shopCard-${shopId}`} className={styles.card}>
       {!isOpen && (
         <div className={styles.card__closed}>
-          <div className={styles['card__closed-text']}>영업이 종료된 가게에요!</div>
+          <div className={styles['card__closed-text']}>지금은 영업시간이 아니에요</div>
         </div>
       )}
 
       {thumbnailUrl ? (
         // KOIN_ORDER_WEBVIEW와 같이 원본 이미지를 크기 조정 없이 요청한다.
-        <img src={thumbnailUrl} alt={name} className={styles.card__thumbnail} />
+        <img src={thumbnailUrl} alt={displayName ?? name} className={styles.card__thumbnail} />
       ) : (
         <div className={styles.card__placeholder}>이미지 준비중</div>
       )}
 
       <div className={styles.card__info}>
         <div className={styles.card__name} data-testid={`shopName-${shopId}`}>
-          {name}
+          {displayName ?? name}
         </div>
 
         <div className={styles.card__rating}>

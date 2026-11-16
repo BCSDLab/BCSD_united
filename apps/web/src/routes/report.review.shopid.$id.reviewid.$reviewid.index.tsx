@@ -4,7 +4,7 @@ import { createFileRoute, useNavigate, useSearch, useParams, notFound } from '@t
 import { createServerFn } from '@tanstack/react-start';
 
 import { storeMobileQueries } from 'api/storeMobile/queries';
-import Layout, { SSRLayout } from 'components/layout';
+import { ResponsivePage } from 'components/layout/ResponsivePage';
 import ReviewReportPage from 'components/Store/mobile/ReviewReportPage';
 import CheckBox from 'components/Store/StoreDetailPage/components/Review/components/CheckBox';
 import ReportingLabel from 'components/Store/StoreDetailPage/components/Review/components/ReportingLabel';
@@ -12,18 +12,13 @@ import useReviewReport from 'components/Store/StoreDetailPage/components/Review/
 import useStoreDetail from 'components/Store/StoreDetailPage/hooks/useStoreDetail';
 import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
+import { isMobileView } from 'utils/hooks/layout/useMobileView';
 import useMount from 'utils/hooks/state/useMount';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
 import showToast from 'utils/ts/showToast';
 
 import styles from 'pages/report/review/shopid/[id]/reviewid/[reviewid]/ReviewReporting.module.scss';
-
-interface Props {
-  id: string;
-  reviewId: string;
-  isMobile: boolean;
-}
 
 interface RequestOption {
   title: string;
@@ -177,26 +172,20 @@ function ReviewReportingPageWrapper() {
   return <ReviewReportingPage shopid={id} reviewid={reviewid} />;
 }
 
-function ReviewReportRoute({ id, reviewId, isMobile }: Props) {
-  if (!isMobile) return <ReviewReportingPageWrapper />;
-
-  return <ReviewReportPage id={id} reviewId={reviewId} />;
-}
-
 // 로그인 필수 화면이라 공용 캐시를 켜지 않는다(loadPageData 기본값 private)
 const loadPage = definePageLoad(async ({ params, queryClient }, _cacheControl, serverRequest) => {
   const { id, reviewid: reviewId } = params;
   if (!id || !reviewId) throw notFound();
 
-  // 데스크톱은 기존처럼 브라우저에서 그린다
-  if (serverRequest.device !== 'mobile') {
-    return { id, reviewId, isMobile: false };
+  // 데스크톱 화면은 기존처럼 브라우저에서 그린다
+  if (!isMobileView(serverRequest.device)) {
+    return { id, reviewId };
   }
 
-  // 모바일은 KOIN_ORDER_WEBVIEW처럼 신고 카테고리만 미리 받아 본문까지 렌더한다
+  // 모바일 화면은 KOIN_ORDER_WEBVIEW처럼 신고 카테고리만 미리 받아 본문까지 렌더한다
   await queryClient.fetchQuery(storeMobileQueries.reportCategories());
 
-  return { id, reviewId, isMobile: true };
+  return { id, reviewId };
 });
 
 const getPageData = createServerFn({ method: 'GET', strict: { output: false } })
@@ -213,12 +202,13 @@ export const Route = createFileRoute('/report/review/shopid/$id/reviewid/$review
 });
 
 function RouteComponent() {
-  const loaderData = Route.useLoaderData();
-  const page = <ReviewReportRoute {...loaderData} />;
+  const { id, reviewId, serverRequest } = Route.useLoaderData();
 
-  return loaderData.serverRequest.device === 'mobile' ? (
-    <SSRLayout mobileHeader="page">{page}</SSRLayout>
-  ) : (
-    <Layout>{page}</Layout>
+  return (
+    <ResponsivePage
+      device={serverRequest.device}
+      mobile={<ReviewReportPage id={id} reviewId={reviewId} />}
+      desktop={<ReviewReportingPageWrapper />}
+    />
   );
 }

@@ -46,6 +46,7 @@ test('세션 조회 실패 시 확인된 쿠키의 캐시만 유지한다', asyn
     userType: 'STUDENT',
     now: new Date().toISOString(),
     mayBeSharedCached: false,
+    language: 'ko-KR',
   } as const;
   const confirmed = await getClientRootSnapshot(input);
   assert.equal(confirmed.serverRequest.userType, 'STUDENT');
