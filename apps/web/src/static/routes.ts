@@ -105,6 +105,9 @@ const ROUTES = {
     `/team/chat?recruitmentId=${recruitmentId}&chatRoomId=${chatRoomId}`,
   WebviewCampusInfo: () => '/webview/campusinfo',
   PrivatePolicy: () => '/policy',
+  Setting: () => '/setting',
+  SettingLanguage: () => '/setting/language',
+  SettingPolicy: ({ type }: ROUTESParams<'type'>) => `/setting/policy/${type}`,
   Inquiry: () => 'https://forms.gle/qYw17r2kihThiJvj7',
 };
 

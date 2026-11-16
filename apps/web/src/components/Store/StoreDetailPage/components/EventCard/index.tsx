@@ -6,12 +6,10 @@ import HiddenInfoArrow from 'assets/svg/hidden-info-arrow.svg';
 import SeeInfoArrow from 'assets/svg/see-info-arrow.svg';
 import EventContent from 'components/Store/StoreDetailPage/components/EventContent';
 import Image from 'components/ui/Image';
-import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 
 import styles from './EventCard.module.scss';
 
 export default function EventCard({ event }: { event: StoreEvent }) {
-  const isMobile = useMediaQuery();
   const [hiddenInfo, setHiddenInfo] = useState<boolean>(true);
   const toggleHiddenInfo = (state: boolean) => {
     if (state) {
@@ -24,12 +22,6 @@ export default function EventCard({ event }: { event: StoreEvent }) {
     [styles['event-thumbnail--nonHidden']]: hiddenInfo === false,
   });
 
-  const getThumbnailSizes = () => {
-    if (hiddenInfo) return '75px';
-
-    return isMobile ? '100vw' : '30vw';
-  };
-
   const renderThumbnail = () => {
     if (event.thumbnail_images.length > 0) {
       return (
@@ -39,7 +31,7 @@ export default function EventCard({ event }: { event: StoreEvent }) {
             src={event.thumbnail_images[0]}
             alt={event.title}
             fill
-            sizes={getThumbnailSizes()}
+            sizes={hiddenInfo ? '75px' : '30vw'}
           />
         </div>
       );
@@ -66,7 +58,7 @@ export default function EventCard({ event }: { event: StoreEvent }) {
             src="https://static.koreatech.in/assets/img/shop-event-thumbnail-default-img.png"
             alt="이미지를 준비중 입니다."
             fill
-            sizes={isMobile ? '100vw' : '50vw'}
+            sizes="50vw"
           />
         </div>
 

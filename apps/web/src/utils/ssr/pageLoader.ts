@@ -120,6 +120,8 @@ export async function getClientRootSnapshot(ssrServerRequest: ServerRequestConte
       userType,
       now,
       mayBeSharedCached: false,
+      // 언어를 바꾸면 새로고침하므로 문서를 받은 뒤에는 SSR 값이 그대로 유지된다
+      language: ssrServerRequest.language,
     },
     hasSession: !!currentCookie,
   };

@@ -17,6 +17,8 @@ pnpm dev
 
 ## 코드 규칙
 
+- 포맷터는 Oxfmt(`pnpm format`), 공통 JS/TS 린터는 Oxlint(`pnpm lint:oxlint`)입니다. 웹 ESLint·Stylelint는 추가 규칙을 검사합니다.
+- `eslint-config-prettier`는 포맷터가 아니라 Oxfmt와 충돌하는 ESLint 규칙을 끄는 호환 설정으로 유지합니다.
 - 웹은 기존 절대 경로, API는 `@api/*`를 사용합니다.
 - 내부 화면 이동은 TanStack Router와 `ROUTES`를 사용합니다.
 - 웹 mutation 오류는 `interfaces/APIError`의 `isKoinError()`로 좁힌 뒤 `showToast()`로 표시합니다. 업무 오류가 아닌 HTTP·네트워크 오류는 같은 모듈의 `HttpError`를 사용하며, 상태 코드는 `utils/ts/httpError`의 `getErrorStatus()`로 읽습니다.
@@ -46,7 +48,7 @@ UI 변경은 실제 화면, API 변경은 실제 HTTP/D1 경로도 확인합니�
 
 의존성 변경 시 해당 `package.json`, `pnpm-workspace.yaml`의 호환 버전·허용된 설치 스크립트, 루트 `pnpm-lock.yaml`을 함께 반영합니다. `@types/node`는 Node 24에, TypeScript·ESLint·h3는 각 도구/프레임워크의 지원 범위에 맞춥니다. `pnpm up --latest` 후에도 peer 호환성과 고정 버전의 근거를 확인하고, SheetJS 외부 tarball의 lockfile 무결성을 유지합니다. 생성된 route tree와 schema는 생성 원본을 변경한 뒤 갱신합니다. 적용된 D1 마이그레이션을 다시 쓰지 않습니다.
 
-웹의 `@vitejs/plugin-react@6.1.2`는 React Compiler peer로 `oxc-transform-react@^0.152.0`을 요구합니다. `0.x`의 caret 범위는 다음 minor를 포함하지 않으므로, OXC를 `0.153.0` 이상으로 올릴 때는 해당 버전을 지원하는 플러그인과 함께 갱신합니다.
+웹의 `@vitejs/plugin-react@6.2.1`은 React Compiler peer로 `oxc-transform-react >=0.152.0 <0.157.0`을 요구합니다. OXC를 갱신할 때는 설치할 플러그인의 peer 범위를 확인하고, 범위를 벗어나는 버전은 이를 지원하는 플러그인과 함께 갱신합니다.
 
 커밋은 `feat:`, `fix:`, `refactor:`, `chore:` 등 Conventional Commit 접두사와 한국어 설명을 사용합니다. 관련 없는 변경이나 시크릿을 포함하지 않습니다. PR에 수행한 검증과 남은 운영 전제조건을 명시합니다.
 

@@ -43,11 +43,16 @@ pnpm --dir apps/error-automation exec wrangler secret put GITHUB_WEBHOOK_SECRET
 pnpm --dir apps/error-automation exec wrangler secret put AUTOFIX_EXECUTOR_TOKEN
 # 모델 upstream: Rocky omp 게이트웨이. VPC 바인딩 `OMP_GATEWAY`(wrangler.jsonc)와 이 bearer가 함께 있어야 추론이 가능하다.
 pnpm --dir apps/error-automation exec wrangler secret put OMP_GATEWAY_TOKEN
+# 읽기 전용 모니터: ERROR_MONITOR_TOKEN은 attendance와만, OMP_GATEWAY_MONITOR_TOKEN은 Rocky와만 공유한다.
+pnpm --dir apps/error-automation exec wrangler secret put ERROR_MONITOR_TOKEN
+pnpm --dir apps/error-automation exec wrangler secret put OMP_GATEWAY_MONITOR_TOKEN
 ```
 
 `SENTRY_CLIENT_SECRET`는 Sentry 웹훅 서명, `SENTRY_READ_TOKEN`은 Sentry canonical issue/event 조회에만 사용한다. `CLOUDFLARE_WEBHOOK_SECRET`는 Issues Generic Webhook의 `cf-webhook-auth`와 같은 32자 이상 전용 무작위 값이다. `CLOUDFLARE_DIAGNOSTICS_TOKEN`은 BCSD 한 계정의 Workers Observability Write(공식 조회 API도 이 권한 요구)와 **koin-web/koin-api 두 Worker만** Individual Workers Content Read-Only를 가진 별도 토큰이다. 배포/쓰기 명령에는 사용하지 않고, 고정 Cloudflare API 호스트의 승인된 두 서비스 증거 조회에만 사용한다. `DIAGNOSTICS_READ_TOKEN`은 허용 scope의 진단 GET 전용 32자 이상 값이다. `AUTOFIX_EXECUTOR_TOKEN`은 별도 32자 이상 값으로 **Rocky 전용 실행기와 Worker만** 공유한다. 다른 서비스의 광범위한 제어 토큰을 재사용하지 않고, 해당 호스트에 외부 인바운드 포트를 열지 않는다. Worker는 provider API 키를 갖지 않으며 `ANTHROPIC_API_KEY` 경로는 제거되었다.
 
 `OMP_GATEWAY`/`OMP_GATEWAY_TOKEN`이 **유일한** 모델 upstream이다. `OMP_GATEWAY`는 Workers VPC 서비스 `koin-omp-gateway`(`01a1bdd6-d594-76d1-9898-d116f61b6be7`) 바인딩이며, Cloudflare 터널 `koin-omp-gateway-rocky`를 거쳐 Rocky의 `127.0.0.1:43129` 게이트웨이(`scripts/autofix/local-omp-gateway.mjs`, 인증은 Rocky omp auth-broker)로만 연결된다. 공개 hostname은 없다. 둘 다 없으면 접수·진단·큐는 그대로 동작하고 모델 호출만 `omp gateway not configured`로 실패한다. 둘 중 하나라도 있으면 둘 다 유효해야 한다: 바인딩은 `fetch`를 가진 서비스이고, 토큰은 헤더에 안전한 32~512자다. 잘못되거나 반쪽만 있는 설정은 `configuration()`에서 503으로 닫힌다. Worker는 고정 model/system/tools/max_tokens 본문을 바인딩의 `POST /v1/messages`에 `Authorization: Bearer <OMP_GATEWAY_TOKEN>`으로만 보내고(`x-api-key`·`anthropic-version` 없음), 리디렉션·응답 모델 불일치(`anthropic/claude-…` 같은 provider 접두 포함)·비정상 상태는 그대로 실패다. 게이트웨이 실패 뒤 다른 upstream·계정·키로 재시도하지 않는다. 토큰은 다른 secret과 함께 진단·이슈 본문에서 마스킹된다. 이 bearer는 provider 키가 아니라 게이트웨이 접근 토큰이며 실행기·후보 소스·Docker에 전달하지 않는다. Workers Builds 토큰에는 VPC 바인딩을 위한 `Connectivity Directory Bind`가 있어야 한다.
+
+읽기 전용 모니터는 동일 바인딩의 고정 `GET /healthz`를 별도 `OMP_GATEWAY_MONITOR_TOKEN`으로 조회한다. Worker의 `GET /healthz`는 수신 저장소 요약, `GET /healthz/rocky`는 호스트 관측이며 두 경로 모두 `ERROR_MONITOR_TOKEN`으로 인증한다. 수신 요약은 VPC 없이도 동작하고 호스트 조회는 모델·실행기 자격 증명을 필요로 하지 않는다. CPU/RAM·systemd 프로세스 관측과 모델 정상 여부를 혼동하지 않으며 상세 설정·비공개 연결·기한·미확인 상태는 [읽기 전용 모니터 운영 계약](../../scripts/autofix/README.md#읽기-전용-수신-상태rocky-헬스)을 따른다.
 
 기존 `GITHUB_DISPATCH_APP_*`은 단일 고정 App의 설정명이다. 일반 read 토큰(contents/issues/pull requests read)과 발행 write 토큰(contents/issues/pull requests write)은 기존 범위를 유지한다. **자동 merge 판정 전용** `merge-evidence` 토큰만 contents/pull requests/checks/statuses read를 요청한다. 조직 소유자가 아직 Checks/Commit statuses read 권한 변경을 승인하지 않았다면 이 토큰 발급 거절은 리뷰 발행을 막지 않고 `App 권한(checks/statuses) 승인 대기` 사유로 merge만 건너뛴다. App에는 Pull requests write, Contents write, Checks read, Commit statuses read와 Pull request webhook 이벤트가 필요하다. 키와 토큰은 모델·실행기·DO 저장소에 전달하지 않는다. `GITHUB_WEBHOOK_SECRET`은 App webhook과 일치하는 32자 이상 전용 secret이다.
 
@@ -85,9 +90,13 @@ URL은 `https://<운영 호스트>/webhooks/sentry`이다. 정확한 요청 바�
 
 지원 이벤트는 `issue/created`, `issue/unresolved` + `substatus: regressed`, `event_alert/triggered`이다. 나머지는 인증 후 무시한다. issue의 `project.slug`와 공식 issue URL로 조직을 확인한다. legacy `/api/0/issues/<id>/`는 `web_url` 또는 `permalink`에서 조직을 확인한다. event alert의 숫자형 project를 slug로 오인하지 않고 공식 event URL의 조직·프로젝트를 검증한다. 이 URL로 네트워크 요청을 보내지는 않는다. Sentry canonical API 조회는 Worker의 신뢰된 준비 작업에서만 수행한다.
 
+Sentry가 소스맵으로 복원한 `../../src/`·`../../../src/` 경로는 Vite 출력 위치를 기준으로 웹 앱의 `src/` 경로로 정규화한다. `inApp`·프로젝트·SDK·요청 호스트 검증은 그대로 필요하며, 다른 깊이의 상위 경로·다른 앱·외부 URL은 소스 근거로 쓰지 않는다.
+
 ## 진단 보관과 아웃바운드 실행 계약
 
 웹훅 인증·고정 account/policy/단일 Worker·canonical 이슈 ID를 검증한 뒤에만 진단을 검토한다. Cloudflare native 알림은 summary만 포함하며 route/소스 프레임을 직접 주지 않는다. 고정 BCSD account의 Issues occurrence read(GET, 현재 대시보드에서 관찰한 beta/비공개 계약), 공식 Workers Observability telemetry query, 정확한 Worker script version metadata와 두 Worker의 Tail 증거를 서로 비교한다. Tail은 `cf-ray`, Worker, 버전, GET, 고정 production hostname/path와 **Cloudflare가 source-map으로 매핑한 앱 소스 위치만** 7일간 전용 DO에 남기고 요청 헤더·본문·쿼리·원문 로그/스택을 저장하지 않는다. 올바른 route/버전/매핑된 `apps/<app>/src` 프레임이 없거나 조회 API 계약이 바뀌면 503으로 재시도를 요청하며 큐에 넣지 않는다. 기존 이슈의 삭제된 버전에 현재 버전 소스맵을 대입하지 않는다. 오류 모드에서는 GitHub 이슈를 생성·검색하거나 댓글을 게시하지 않는다.
+
+번들 복원은 공식 Worker version GET의 `include=modules,sourcemaps` 응답에서 동일 버전의 코드와 소스맵을 함께 읽는다. 버전 응답은 총 32 MiB, 디코딩한 JavaScript 모듈은 8 MiB, 소스맵은 16 MiB까지 허용한다. 번들의 `sourceMappingURL`로 같은 버전의 맵 모듈을 선택하며, 선택적 `file`이 있으면 번들 경로나 파일명과 일치해야 한다. Vite의 `../../src/`·`../../../src/` 매핑 결과와 정확한 `?tss-serverfn-split` 접미사만 해당 앱의 소스 경로로 정규화한다. 이 정규화는 원시 Tail 스택의 상위 경로를 허용하지 않는다. 원본 코드와 `sourcesContent`는 진단이나 모델 입력에 저장하지 않는다.
 
 Tail과 canonical occurrence의 route 호스트는 Worker별 정확한 목록만 허용한다: `koin-web`은 `koin-web.bcsdlab.workers.dev`와 운영 커스텀 도메인 `koreatech.in`(정확히 이 호스트, https, 포트/userinfo 없음), `koin-api`는 `koin-api.bcsdlab.workers.dev`뿐이다. `www.`/`stage.` 같은 wildcard나 `api.koreatech.in`은 Worker 신원 호스트로 추가하지 않으며, Tail 호스트와 occurrence 호스트가 서로 다른 허용 호스트여도 route 경로는 같아야 한다. 이는 DNS/커스텀 도메인 전환 자체가 아니라 전환 이후 증거 수용 범위이다.
 

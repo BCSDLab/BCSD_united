@@ -2,15 +2,17 @@ import { createFileRoute, notFound, redirect } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
 import { storeMobileQueries } from 'api/storeMobile/queries';
-import { SSRLayout } from 'components/layout';
 import MobilePageHeader from 'components/layout/MobilePageHeader';
+import { MobileOnlyPage } from 'components/layout/ResponsivePage';
 import StoreReviewsPage from 'components/Store/mobile/StoreReviewsPage';
 import { storeReviewsQueries } from 'components/Store/mobile/StoreReviewsPage/queries';
 import { parseReviewSort } from 'components/Store/mobile/StoreReviewsPage/utils/reviewSort';
 import ROUTES from 'static/routes';
+import { isMobileView } from 'utils/hooks/layout/useMobileView';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { createPageLoader, definePageLoad, STORE_PUBLIC_SSR_CACHE_CONTROL } from 'utils/ssr/pageLoader';
 import { isNotFoundKoinError } from 'utils/ts/isr';
+import { parseQueryId } from 'utils/ts/parseServerSideParams';
 
 interface Props {
   id: string;
@@ -27,10 +29,10 @@ function StoreReviewsRoute({ id }: Props) {
 
 const loadPage = definePageLoad(async ({ params, search, queryClient }, cacheControl, serverRequest) => {
   const id = params.id;
-  if (!id) throw notFound();
+  if (parseQueryId(id) === null) throw notFound();
 
-  // 모바일 전용 화면. 데스크톱은 확정된 기기 값으로 기존 화면에 보낸다
-  if (serverRequest.device !== 'mobile') {
+  // 모바일 전용 화면. 모바일 화면 조건이 아니면 데스크톱 화면으로 보낸다
+  if (!isMobileView(serverRequest.device)) {
     throw redirect({ href: ROUTES.StoreDetail({ id }), statusCode: 302 });
   }
 
@@ -69,8 +71,11 @@ export const Route = createFileRoute('/store/$id/reviews/')({
 });
 
 function RouteComponent() {
-  const props = Route.useLoaderData();
-  const page = <StoreReviewsRoute {...props} />;
+  const { id, serverRequest } = Route.useLoaderData();
 
-  return <SSRLayout mobileHeader="page">{page}</SSRLayout>;
+  return (
+    <MobileOnlyPage device={serverRequest.device} desktopHref={ROUTES.StoreDetail({ id })}>
+      <StoreReviewsRoute id={id} />
+    </MobileOnlyPage>
+  );
 }

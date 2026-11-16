@@ -12,15 +12,22 @@ import {
   canonicalizeResponse,
   checkReadiness,
   childEnv,
+  collectRockyHealth,
+  cpuDelta,
   createGateway,
+  distinctTokens,
   installOverlay,
+  loadMonitorToken,
   loadToken,
+  memoryReading,
   removeOverlay,
   runStdioRequest,
+  unitReading,
   validateRequest,
 } from './local-omp-gateway.mjs';
 
 const TOKEN = 'a'.repeat(64);
+const MONITOR_TOKEN = 'b'.repeat(64);
 
 /** A stand-in for `omp auth-gateway stdio` driven by a small inline script. */
 function fakeChild(script) {
@@ -54,6 +61,26 @@ test('token file must be a 0600 regular non-symlink file with a well-formed bear
   await assert.rejects(loadToken(''), /required/);
 });
 
+test('monitor bearer requires a private owned parent and must differ from the model bearer', async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), 'omp-monitor-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const file = join(dir, 'monitor.token');
+  await writeFile(file, MONITOR_TOKEN, { mode: 0o600 });
+  assert.equal(await loadMonitorToken(file), MONITOR_TOKEN);
+  assert.equal(distinctTokens(TOKEN, MONITOR_TOKEN), true);
+  assert.equal(distinctTokens(TOKEN, TOKEN), false);
+  assert.throws(() => createGateway({ token: TOKEN, monitorToken: TOKEN, log: () => {} }));
+  await chmod(dir, 0o755);
+  await assert.rejects(loadMonitorToken(file));
+  await chmod(dir, 0o700);
+  const link = `${dir}-link`;
+  await symlink(dir, link);
+  t.after(() => rm(link, { force: true }));
+  await assert.rejects(loadMonitorToken(join(link, 'monitor.token')));
+  await chmod(file, 0o644);
+  await assert.rejects(loadMonitorToken(file));
+});
+
 test('the omp child gets a scrubbed environment and only the bridge retry overlay', async (t) => {
   assert.throws(() => childEnv({ PATH: '/bin' }, null), /overlay/);
   const file = await installOverlay();
@@ -73,6 +100,7 @@ test('the omp child gets a scrubbed environment and only the bridge retry overla
     CLAUDE_CODE_USE_FOUNDRY: '1',
     OPENAI_API_KEY: 'sk-other',
     OMP_GATEWAY_TOKEN_FILE: '/private/token',
+    OMP_GATEWAY_MONITOR_TOKEN_FILE: '/private/monitor',
   });
   assert.deepEqual(env, {
     PI_CONFIG_FILES: file,
@@ -335,4 +363,252 @@ test('a stalled or dropped request body never pins the single slot, and oversize
   assert.equal(spawns, 2);
   assert.match(await complete(), /^HTTP\/1\.1 200 /);
   assert.equal(spawns, 3);
+});
+
+test('Linux counters use a real two-sample busy delta and MemAvailable arithmetic', async () => {
+  const first = 'cpu 100 10 20 70 10 5 5 0 9 3\n';
+  const second = 'cpu 120 10 30 90 10 5 5 0 99 3\n';
+  assert.deepEqual(cpuDelta(first, second, 1000, 1200), {
+    usagePercent: 60,
+    sampleStart: 1000,
+    sampleEnd: 1200,
+  });
+  assert.deepEqual(memoryReading('MemTotal: 1000 kB\nMemAvailable: 400 kB\n', 1200), {
+    totalBytes: 1024000,
+    availableBytes: 409600,
+    usedBytes: 614400,
+    checkedAt: 1200,
+  });
+  const calls = [];
+  let samples = 0;
+  let clock = 1700000000000;
+  const result = await collectRockyHealth({
+    signal: new AbortController().signal,
+    now: () => clock,
+    platform: 'linux',
+    sampleMs: 0,
+    readProc: async (path) => {
+      calls.push(path);
+      if (path === '/proc/meminfo') return 'MemTotal: 1000 kB\nMemAvailable: 400 kB\n';
+      samples += 1;
+      if (samples === 2) clock += 200;
+      return samples === 1 ? first : second;
+    },
+    runSystemctl: async (name) => {
+      calls.push(name);
+      return name === 'koin-autofix-executor.service'
+        ? 'LoadState=loaded\nActiveState=active\nSubState=running\nMainPID=123\n'
+        : 'LoadState=not-found\nActiveState=inactive\nSubState=dead\nMainPID=0\n';
+    },
+  });
+  assert.deepEqual(
+    calls.sort(),
+    [
+      '/proc/meminfo',
+      '/proc/stat',
+      '/proc/stat',
+      'homebutler-auth-broker.service',
+      'koin-autofix-executor.service',
+    ].sort(),
+  );
+  assert.deepEqual(result, {
+    version: 1,
+    scope: 'rocky-read-only',
+    checkedAt: 1700000000200,
+    gateway: 'responding',
+    cpu: { usagePercent: 60, sampleStart: 1700000000000, sampleEnd: 1700000000200 },
+    memory: { totalBytes: 1024000, availableBytes: 409600, usedBytes: 614400, checkedAt: 1700000000000 },
+    executor: { configured: true, state: 'active', process: 'running', checkedAt: 1700000000000 },
+    broker: { configured: false, state: 'inactive', process: 'stopped', checkedAt: 1700000000000 },
+    brokerResponse: 'not_probed',
+    model: 'not_probed',
+  });
+});
+
+test('counter resets, malformed memory and failed systemd reads stay unknown, not zero', async () => {
+  assert.equal(cpuDelta('cpu 10 0 0 10 0 0 0 0\n', 'cpu 9 0 0 20 0 0 0 0\n', 1, 2), null);
+  assert.equal(cpuDelta('cpu 10 0 0 10 0 0 0 0\n', 'cpu 10 0 0 10 0 0 0 0\n', 1, 2), null);
+  const before = 'cpu 10 0 0 10 0 0 0 0\n';
+  const after = 'cpu 20 0 0 20 0 0 0 0\n';
+  assert.equal(cpuDelta(before, after, 1000, 1000), null);
+  assert.equal(cpuDelta(before, after, 1001, 1000), null);
+  assert.equal(cpuDelta(before, after, 1000, 11001), null);
+  assert.equal(cpuDelta(before, after, Number.NaN, 1100), null);
+  assert.equal(memoryReading('MemTotal: 100 kB\nMemAvailable: 101 kB\n', 2), null);
+  assert.deepEqual(unitReading('LoadState=loaded\nActiveState=active\nSubState=exited\nMainPID=0\n', 2), {
+    configured: true,
+    state: 'active',
+    process: 'stopped',
+    checkedAt: 2,
+  });
+  assert.deepEqual(unitReading('LoadState=loaded\nActiveState=active\nSubState=running\nMainPID=0\n', 2), {
+    configured: true,
+    state: 'active',
+    process: 'unknown',
+    checkedAt: 2,
+  });
+  const result = await collectRockyHealth({
+    signal: new AbortController().signal,
+    platform: 'linux',
+    sampleMs: 0,
+    now: () => 1234,
+    readProc: async () => {
+      throw new Error('/private/raw-path');
+    },
+    runSystemctl: async () => {
+      throw new Error('sensitive systemctl output');
+    },
+  });
+  assert.equal(result.cpu, null);
+  assert.equal(result.memory, null);
+  assert.deepEqual(result.executor, { configured: null, state: 'unknown', process: 'unknown', checkedAt: null });
+  assert.deepEqual(result.broker, result.executor);
+  assert.doesNotMatch(JSON.stringify(result), /private|sensitive|MainPID/);
+});
+
+test(
+  'health route is exact, role-isolated, and remains responsive while the model slot is busy',
+  { timeout: 5000 },
+  async (t) => {
+    let modelCalls = 0;
+    let healthCalls = 0;
+    const modelStarted = Promise.withResolvers();
+    const modelRelease = Promise.withResolvers();
+    const health = {
+      version: 1,
+      scope: 'rocky-read-only',
+      checkedAt: 1234,
+      gateway: 'responding',
+      cpu: null,
+      memory: null,
+      executor: { configured: null, state: 'unknown', process: 'unknown', checkedAt: null },
+      broker: { configured: null, state: 'unknown', process: 'unknown', checkedAt: null },
+      brokerResponse: 'not_probed',
+      model: 'not_probed',
+    };
+    const server = createGateway({
+      token: TOKEN,
+      monitorToken: MONITOR_TOKEN,
+      log: () => {},
+      collectHealth: async () => {
+        healthCalls += 1;
+        return health;
+      },
+      runRequest: ({ body }) => {
+        modelCalls += 1;
+        modelStarted.resolve();
+        return modelRelease.promise.then(() => ({
+          status: 200,
+          body: { type: 'message', model: body.model, content: [], stop_reason: 'end_turn' },
+        }));
+      },
+    });
+    await new Promise((resolve) => server.listen({ host: '127.0.0.1', port: 0 }, resolve));
+    t.after(() => {
+      modelRelease.resolve();
+      server.closeAllConnections();
+      server.close();
+    });
+    const origin = `http://127.0.0.1:${server.address().port}`;
+    const modelHeaders = { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' };
+    const monitorHeaders = { Authorization: `Bearer ${MONITOR_TOKEN}` };
+    const modelBody = JSON.stringify({
+      model: 'claude-sonnet-5-5',
+      max_tokens: 10,
+      messages: [{ role: 'user', content: 'hi' }],
+    });
+    const modelPost = (headers) => fetch(`${origin}/v1/messages`, { method: 'POST', headers, body: modelBody });
+    assert.equal((await fetch(`${origin}/healthz`)).status, 401);
+    assert.equal((await fetch(`${origin}/healthz`, { headers: modelHeaders })).status, 401);
+    assert.equal((await modelPost(monitorHeaders)).status, 401);
+    for (const path of ['/healthz?x=1', '/healthz/', '/HEALTHZ', '/unknown']) {
+      assert.equal((await fetch(`${origin}${path}`, { headers: monitorHeaders })).status, 404);
+    }
+    const method = await fetch(`${origin}/healthz`, { method: 'POST', headers: monitorHeaders });
+    assert.equal(method.status, 405);
+    assert.equal(method.headers.get('allow'), 'GET');
+    assert.equal(healthCalls, 0);
+    assert.equal(modelCalls, 0);
+    const pending = modelPost(modelHeaders);
+    await modelStarted.promise;
+    const reply = await fetch(`${origin}/healthz`, { headers: monitorHeaders });
+    assert.equal(reply.status, 200);
+    assert.deepEqual(await reply.json(), health);
+    assert.equal(healthCalls, 1);
+    assert.equal(modelCalls, 1);
+    modelRelease.resolve();
+    assert.equal((await pending).status, 200);
+  },
+);
+
+test('unconfigured health returns 503 without changing model credential behavior', async (t) => {
+  const server = createGateway({ token: TOKEN, log: () => {} });
+  await new Promise((resolve) => server.listen({ host: '127.0.0.1', port: 0 }, resolve));
+  t.after(() => server.close());
+  const origin = `http://127.0.0.1:${server.address().port}`;
+  assert.equal((await fetch(`${origin}/healthz`, { headers: { Authorization: `Bearer ${TOKEN}` } })).status, 503);
+  assert.equal((await fetch(`${origin}/healthz`, { method: 'POST' })).headers.get('allow'), 'GET');
+});
+
+test('health collector deadline aborts its work and frees the response', async (t) => {
+  let aborted = false;
+  const server = createGateway({
+    token: TOKEN,
+    monitorToken: MONITOR_TOKEN,
+    healthTimeoutMs: 30,
+    log: () => {},
+    collectHealth: ({ signal }) =>
+      new Promise((_, reject) => {
+        signal.addEventListener(
+          'abort',
+          () => {
+            aborted = true;
+            reject(signal.reason);
+          },
+          { once: true },
+        );
+      }),
+  });
+  await new Promise((resolve) => server.listen({ host: '127.0.0.1', port: 0 }, resolve));
+  t.after(() => server.close());
+  const started = Date.now();
+  const response = await fetch(`http://127.0.0.1:${server.address().port}/healthz`, {
+    headers: { Authorization: `Bearer ${MONITOR_TOKEN}` },
+  });
+  assert.equal(response.status, 504);
+  assert.ok(Date.now() - started < 1000);
+  assert.equal(aborted, true);
+});
+
+test('health deadline returns 504 even if an injected collector ignores abort', { timeout: 5000 }, async (t) => {
+  let aborted = false;
+  const server = createGateway({
+    token: TOKEN,
+    monitorToken: MONITOR_TOKEN,
+    healthTimeoutMs: 30,
+    log: () => {},
+    collectHealth: ({ signal }) =>
+      new Promise(() => {
+        signal.addEventListener(
+          'abort',
+          () => {
+            aborted = true;
+          },
+          { once: true },
+        );
+      }),
+  });
+  await new Promise((resolve) => server.listen({ host: '127.0.0.1', port: 0 }, resolve));
+  t.after(() => server.close());
+  const started = Date.now();
+  const response = await fetch(`http://127.0.0.1:${server.address().port}/healthz`, {
+    headers: { Authorization: `Bearer ${MONITOR_TOKEN}` },
+  });
+  assert.equal(response.status, 504);
+  assert.ok(Date.now() - started < 1000);
+  assert.equal(aborted, true);
+  assert.deepEqual(await response.json(), {
+    type: 'error',
+    error: { type: 'api_error', message: 'Health probe timed out' },
+  });
 });

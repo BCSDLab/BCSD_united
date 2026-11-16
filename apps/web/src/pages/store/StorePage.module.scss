@@ -1,13 +1,6 @@
-@use "src/utils/scss/media";
-
 .section {
   width: 1131px;
   margin: 63px auto 0;
-
-  @include media.media-breakpoint(mobile) {
-    width: 100%;
-    margin-top: 16px;
-  }
 }
 
 .header {
@@ -19,10 +12,6 @@
   color: #175c8e;
   text-align: left;
   margin-bottom: 19px;
-
-  @include media.media-breakpoint(mobile) {
-    display: none;
-  }
 }
 
 .category {
@@ -34,16 +23,6 @@
   border-top: 2px #175c8e solid;
   border-bottom: 1px #175c8e solid;
 
-  @include media.media-breakpoint(mobile) {
-    justify-content: center;
-    width: 100%;
-    padding: 10px 0;
-    margin-left: auto;
-    margin-right: auto;
-    height: auto;
-    border: none;
-  }
-
   &__header {
     flex: none;
     display: flex;
@@ -54,10 +33,6 @@
     font-weight: 600;
     letter-spacing: -0.8px;
     width: 182px;
-
-    @include media.media-breakpoint(mobile) {
-      display: none;
-    }
   }
 
   &__wrapper {
@@ -65,10 +40,6 @@
     justify-content: center;
     flex-wrap: wrap;
     width: calc(100% - 182px);
-
-    @include media.media-breakpoint(mobile) {
-      width: 100%;
-    }
   }
 
   &__menu {
@@ -93,11 +64,6 @@
     & span {
       text-align: center;
       width: 100%;
-
-      @include media.media-breakpoint(mobile) {
-        font-size: 10px;
-        font-weight: 400;
-      }
     }
 
     &--selected {
@@ -105,34 +71,17 @@
       font-weight: 700;
     }
 
-    &--disabled {
-      display: none;
-    }
-
-    @media (width >= 577px) {
-      &:hover {
-        color: #f7941e;
-      }
-    }
-
-    @include media.media-breakpoint(mobile) {
-      letter-spacing: -0.8px;
-      width: 55px;
-      padding-top: 11px;
-      margin-right: 2px;
+    &:hover {
+      color: #f7941e;
     }
   }
 
   &__image {
     width: 48px;
     height: 48px;
+    object-fit: contain;
     border-radius: 50%;
     margin: 0 auto 13px;
-
-    @include media.media-breakpoint(mobile) {
-      width: 40px;
-      height: 40px;
-    }
   }
 
   &__benefit {
@@ -153,28 +102,12 @@
   margin-top: 20px;
   justify-content: space-between;
 
-  @include media.media-breakpoint(mobile) {
-    flex-wrap: wrap;
-    margin-top: 24px;
-    margin-left: auto;
-    margin-right: auto;
-    width: calc(100% - 32px);
-    height: auto;
-    display: none;
-  }
-
   &__count {
     flex: none;
     float: left;
     font-size: 12px;
     color: #858585;
     letter-spacing: -0.6px;
-
-    @include media.media-breakpoint(mobile) {
-      width: 100%;
-      margin-bottom: 33px;
-      text-align: left;
-    }
   }
 
   &__checkbox {
@@ -182,13 +115,6 @@
     position: relative;
     width: auto;
     gap: 24px;
-
-    @include media.media-breakpoint(mobile) {
-      width: 100%;
-      display: flex;
-      justify-content: flex-end;
-      height: 24px;
-    }
   }
 }
 
@@ -199,10 +125,6 @@
 
   &--last {
     margin-right: 0;
-  }
-
-  @include media.media-breakpoint(mobile) {
-    margin-bottom: 15px;
   }
 
   &__label {
@@ -285,17 +207,6 @@
   margin-top: 3px; /* 꼬리가 말풍선 위에 붙도록 조정 */
 }
 
-.store-mobile-header {
-  background-color: #f5f5f5;
-  color: #8e8e8e;
-  line-height: 1.46;
-  height: 31px;
-  display: flex;
-  align-items: center;
-  font-size: 13px;
-  padding-left: 16px;
-}
-
 .store-none-open {
   background-color: rgb(4 26 68 / 40%);
   backdrop-filter: blur(3px);
@@ -323,48 +234,5 @@
     font-size: 20px;
     font-weight: 500;
     color: #fff;
-
-    @include media.media-breakpoint(mobile) {
-      font-size: 15px;
-      border-radius: 5px;
-    }
-  }
-}
-
-.filter {
-  display: none;
-  position: relative;
-
-  @include media.media-breakpoint(mobile) {
-    display: flex;
-    width: calc(100vw - 40px);
-    height: 25px;
-    padding: 12px 20px;
-    justify-content: space-between;
-    font-family: Pretendard, sans-serif;
-  }
-
-  &__box {
-    @include media.media-breakpoint(mobile) {
-      position: relative;
-      display: flex;
-      width: 20%;
-      height: 25px;
-      border-radius: 5px;
-      justify-content: center;
-      align-items: center;
-      text-align: center;
-      color: #e1e1e1;
-      font-size: 12px;
-      font-style: normal;
-      font-weight: 400;
-      line-height: 160%;
-      border: 1px solid #e1e1e1;
-    }
-
-    &--activate {
-      border: 1px solid #6dbbdd;
-      color: #6dbbdd;
-    }
   }
 }

@@ -7,7 +7,7 @@ import react from '@vitejs/plugin-react';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import svgr from 'vite-plugin-svgr';
 
-import { isStageBuild } from './scripts/build-target.mjs';
+import { isStageBuild, resolveNaverMapsClientId } from './scripts/build-target.mjs';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
 const publicEnvironmentKeys = [
@@ -75,6 +75,7 @@ export default defineConfig(({ command, mode, isPreview }) => {
   if (env.WORKERS_CI === '1' && branch !== productionBranch && branch !== previewBranch) {
     throw new Error('Automatic web builds only accept KOIN_PRODUCTION_BRANCH or KOIN_PREVIEW_BRANCH.');
   }
+  env.NEXT_PUBLIC_NAVER_MAPS_CLIENT_ID = resolveNaverMapsClientId(env, command === 'build' && env.WORKERS_CI === '1');
   env.NEXT_PUBLIC_API_PATH = '/api';
   const offlineSmoke = env.AUTOFIX_OFFLINE_SMOKE === '1' && env.WORKERS_CI !== '1';
   const devServer = command === 'serve' && !isPreview;
