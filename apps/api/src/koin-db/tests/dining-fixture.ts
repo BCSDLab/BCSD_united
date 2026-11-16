@@ -133,7 +133,7 @@ export function memoryDining(kv?: KVNamespace) {
     coopAlarm: () => coop.alarm(),
     /** alarm 실행: 대기 중인 날짜 스냅샷을 KV에 쓴다. */
     async flush() {
-      for (const name of [...pending]) {
+      for (const name of pending) {
         pending.delete(name);
         const snapshot = stores.get(name)!.pendingSnapshot();
         if (!snapshot || !kv) continue;

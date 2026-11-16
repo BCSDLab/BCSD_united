@@ -255,7 +255,7 @@ async function validateReportImage(env: Bindings, imageUrl: string): Promise<voi
   const key = imageUrl.slice(prefix.length);
   const escaped = key.replace(/%/g, '%25').replace(/ /g, '%20');
   // java.net.URI 경로에 쓸 수 있는 문자(비 ASCII는 제어·공백 문자가 아니면 허용). '?'·'#'은 쿼리·프래그먼트다.
-  const uriPath = /^(?:[A-Za-z0-9\-_.!~*'(),;:$&+=/@]|%[0-9A-Fa-f]{2}|[^\x00-\x7f\p{Cc}\p{Zs}\p{Zl}\p{Zp}])*$/u;
+  const uriPath = /^(?:[A-Za-z0-9\-_.!~*'(),;:$&+=/@]|%[0-9A-Fa-f]{2}|[^\p{ASCII}\p{Cc}\p{Zs}\p{Zl}\p{Zp}])*$/u;
   if (!uriPath.test(escaped) || !key.startsWith('upload/COOP/') || key.endsWith('/')) fail('INVALID_REPORT_IMAGE');
   let response: Response;
   try {

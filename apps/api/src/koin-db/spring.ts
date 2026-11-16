@@ -4,7 +4,10 @@ import { ApiError, type FieldError } from '@api/errors';
 // Spring MVC 인자 변환·Jackson 역직렬화·Bean Validation을 Java 컨트롤러와 같은 오류로 재현한다.
 
 // Character.isWhitespace(StringUtils.trimAllWhitespace). NBSP 계열은 Java에서 공백이 아니다.
-const javaWhitespace = /[\t\n\v\f\r\u001c-\u001f \u1680\u2000-\u2006\u2008-\u200a\u2028\u2029\u205f\u3000]/g;
+const javaWhitespace = new RegExp(
+  String.raw`[\t\n\v\f\r${String.fromCharCode(0x1c, 0x1d, 0x1e, 0x1f)} \u1680\u2000-\u2006\u2008-\u200a\u2028\u2029\u205f\u3000]`,
+  'g',
+);
 
 /** StringUtils.hasText: Character.isWhitespace가 아닌 문자가 하나라도 있는지. */
 export const hasText = (value: string | null | undefined): value is string =>
