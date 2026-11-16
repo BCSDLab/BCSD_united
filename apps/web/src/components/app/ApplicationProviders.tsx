@@ -2,6 +2,8 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { HydrationBoundary, QueryClientProvider, type DehydratedState } from '@tanstack/react-query';
 import { useLocation, useMatches, useRouter } from '@tanstack/react-router';
 
+import type { MessagesResponse } from 'api/language/entity';
+import { languageQueries } from 'api/language/queries';
 import Toast from 'components/feedback/Toast';
 import PortalProvider from 'components/modal/Modal/PortalProvider';
 import Seo from 'components/seo/Seo';
@@ -40,11 +42,20 @@ function AuthGuard({ required }: { required: boolean }) {
 export default function ApplicationProviders({
   children,
   serverRequest,
+  messages,
 }: {
   children: ReactNode;
   serverRequest: ServerRequestContext | null;
+  messages: MessagesResponse | null;
 }) {
-  const [client] = useState(() => (typeof window === 'undefined' ? createQueryClient() : queryClient));
+  const [client] = useState(() => {
+    const nextClient = typeof window === 'undefined' ? createQueryClient() : queryClient;
+    // 서버가 함께 내려준 표시 문구 사전을 첫 렌더 전에 채워, 서버와 브라우저가 같은 문구로 그리게 한다
+    const language = serverRequest?.language;
+    if (messages && language) nextClient.setQueryData(languageQueries.messages(language).queryKey, messages);
+
+    return nextClient;
+  });
   const matches = useMatches();
   const pathname = useLocation({ select: (location) => location.pathname });
   const leaf = matches.at(-1);
