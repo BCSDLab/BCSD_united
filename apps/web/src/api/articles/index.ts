@@ -1,3 +1,5 @@
+import { createServerFn } from '@tanstack/react-start';
+
 import {
   GetLostItemChatroomMessagesV2,
   PostLeaveLostItemChatroomV2,
@@ -26,10 +28,28 @@ import {
   PutLostItemArticle,
   GetLostItemSearch,
 } from './APIDetail';
+import { fetchArticleContent } from './content.server';
+import { getArticleContentUrl } from './contentUrl';
+
+const readArticleContent = createServerFn({ method: 'GET' })
+  .validator((value: unknown) => {
+    if (typeof value !== 'string' || !getArticleContentUrl(value)) {
+      throw new TypeError('Invalid article content URL');
+    }
+
+    return value;
+  })
+  .handler(({ data }) => fetchArticleContent(data));
 
 export const getArticles = (page: string, boardId?: number) => APIClient.of(GetArticles)(page, boardId);
 
-export const getArticle = APIClient.of(GetArticle);
+export const getArticle = async (id: string | undefined) => {
+  const article = await APIClient.of(GetArticle)(id);
+  const contentUrl = getArticleContentUrl(article.content);
+  if (!contentUrl) return article;
+
+  return { ...article, content: await readArticleContent({ data: contentUrl }) };
+};
 
 export const getHotArticles = APIClient.of(GetHotArticles);
 
