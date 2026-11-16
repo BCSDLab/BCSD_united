@@ -1,92 +1,37 @@
 @use "src/utils/scss/media" as media;
 
 .list {
-  padding-left: 13px;
-  overflow: scroll;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 24px;
+  box-sizing: border-box;
+  min-width: 0;
   height: 878px;
-  display: grid;
-  grid-template-columns: repeat(2, 173px);
-  gap: 15px;
-  -ms-overflow-style: none;
+  padding: 4px 4px 4px 13px;
+  overflow: auto;
   scrollbar-width: none;
 
   &::-webkit-scrollbar {
     display: none;
   }
 
+  &__item {
+    flex-shrink: 0;
+    min-width: 0;
+  }
+
   @include media.media-breakpoint(mobile) {
+    flex: auto;
+    gap: 0;
+    height: auto;
     margin-top: 10px;
-    grid-template-columns: repeat(2, 1fr);
-    padding: 0 13px;
-  }
+    padding: 4px;
+    overflow: visible;
 
-  &__link {
-    text-decoration: none;
-  }
-
-  &__box {
-    box-shadow: 0 3px 6px 0 rgb(0 0 0 / 16%);
-    border: 1px #d2dae2 solid;
-
-    &:hover {
-      border: 1px solid #f7941e;
+    &__item {
+      padding: 12px 21px;
+      border-bottom: 1px solid #f0f0f0;
     }
-
-    @include media.media-breakpoint(mobile) {
-      box-shadow: none;
-    }
-  }
-
-  &__name {
-    height: 96px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 16px;
-    font-weight: bold;
-    color: #252525;
-
-    @include media.media-breakpoint(mobile) {
-      height: 61px;
-    }
-  }
-}
-
-.fee {
-  background-color: #f9f9f9;
-  font-size: 12px;
-  color: #858585;
-  padding: 10px;
-
-  &__info {
-    display: grid;
-    grid-template-columns: 50px 1fr;
-    align-items: center;
-
-    span:nth-child(2) {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-  }
-
-  &__monthly {
-    background-color: #4db297;
-    width: 40px;
-    text-align: center;
-    border-radius: 15px;
-    line-height: 2;
-    color: #f3f3f3;
-  }
-
-  &__charter {
-    margin-top: 4px;
-    background-color: #f7941e;
-    width: 40px;
-    text-align: center;
-    margin-right: 9px;
-    border-radius: 15px;
-    line-height: 2;
-    color: #f3f3f3;
   }
 }
