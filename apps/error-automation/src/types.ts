@@ -50,7 +50,32 @@ export interface PullRequestIdentity {
   headSha: string;
   baseSha: string;
 }
-export type QueueIdentity = Identity | PullRequestIdentity;
+export interface RequestIdentity {
+  source: 'slack-request';
+  teamId: string;
+  eventId: string;
+  channelId: string;
+  userId: string;
+  messageTs: string;
+  /** 인증된 요청자의 의도지만 모델에는 비신뢰 자료로만 전달한다. */
+  text: string;
+}
+
+export interface PreparedRequestJob {
+  mode: 'request';
+  identity: RequestIdentity;
+  owner: 'BCSDLab';
+  repository: 'BCSD_united';
+  baseBranch: 'develop';
+  targetBranch: 'develop';
+  baseSha: string;
+  branch: string;
+  domain: '공통';
+  /** Slack 텍스트가 아니라 서버가 고정한 workspace 수정 범위다. */
+  changedFiles: string[];
+}
+
+export type QueueIdentity = Identity | PullRequestIdentity | RequestIdentity;
 
 export interface PreparedPullRequestJob {
   mode: 'pull-request';
@@ -85,7 +110,7 @@ export interface ReviewContext {
     body: string;
   }[];
 }
-export type QueuedJob = PreparedJob | PreparedPullRequestJob;
+export type QueuedJob = PreparedJob | PreparedPullRequestJob | PreparedRequestJob;
 
 export interface PatchManifest {
   version: 1;
@@ -162,6 +187,11 @@ export interface Env {
   /** Comma-separated explicit PR numbers; empty means no PR is accepted. */
   PR_REVIEW_ALLOWED_PRS?: string;
   ERROR_ISSUES: DurableObjectNamespace;
+  SLACK_BOT_SIGNING_SECRET?: string;
+  SLACK_AUTOFIX_TEAM_ID?: string;
+  SLACK_AUTOFIX_BOT_USER_ID?: string;
+  SLACK_AUTOFIX_ALLOWED_USERS?: string;
+  SLACK_AUTOFIX_ALLOWED_CHANNELS?: string;
   AUTOFIX_QUEUE: DurableObjectNamespace<AutofixQueue>;
   AUTOFIX_EXECUTOR_ID: 'koin-rocky-umpc';
   AUTOFIX_EXECUTOR_TOKEN: string;

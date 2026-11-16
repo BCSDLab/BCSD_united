@@ -122,6 +122,14 @@ cat /home/user/.home-butler/koin-omp-gateway/omp-gateway.token | pnpm --dir apps
 
 제한과 해제: 게이트웨이는 공개 주소가 없고 VPC 바인딩을 가진 Worker만 도달하며, bearer가 추가로 접근을 막는다. 게이트웨이 bearer는 연결 인증용 비밀이며 provider 자격증명이 아니다. 해제할 때는 두 유닛을 내리고 토큰 파일을 삭제한 뒤 Worker의 `OMP_GATEWAY_TOKEN`과 VPC 바인딩을 제거한다. 그 시점부터 새 인증 게이트웨이를 설정할 때까지 **모델 처리는 불가능**하며(모델 호출이 설정 오류로 실패), API key를 다시 등록하는 복구 경로는 없다. 게이트웨이는 Rocky와 omp auth-broker 상태에 의존하고, 모델 호출 외의 어떤 Worker 동작(발행·검증·merge)도 바꾸지 않는다.
 
+## Slack 코드 수정 요청 모드 (`mode: 'request'`)
+
+`@삐봇 수정요청 <변경 내용>`은 B-BOT의 Slack HMAC 검증과 error-automation의 원본 서명·workspace/bot/사용자/채널 허용 목록 검증을 거쳐 기존 `AutofixQueue`로 들어간다. 저장소는 고정 `BCSDLab/BCSD_united`, 기준/PR 대상은 모두 `develop`이다. `team/event_id` identity로 durable dedup하고 `fix/slack-request-<sha256>` 브랜치를 만든다. 기존 수동 PR enqueue는 신규 요청이 아니라 PR 리뷰용이며 이 모드는 repository_dispatch를 사용하지 않는다.
+
+claim은 `{mode:'request', identity:{source:'slack-request',teamId,eventId,channelId,userId,messageTs,text}, owner,repository,baseBranch:'develop',targetBranch:'develop',baseSha,branch,domain:'공통',changedFiles}`다. `changedFiles`는 요청문에서 가져온 경로가 아니라 Worker와 실행기가 대조하는 고정 앱/패키지 scope다. 요청 텍스트는 redaction 후 `request-input/request.json`으로만 제공하며 모델은 `claude-opus-5-5`, 기존 PR 모드와 같은 20회/15분 상한을 쓴다. 출력은 리뷰 판정 JSON이 아니라 구현 요약 또는 blocker다.
+
+파일 도구/manifest 정책은 기존 PR 정책을 재사용한다. 소스와 native regression test 변경이 모두 필요하고 보호된 설정·자동화·시크릿은 수정할 수 없다. verifier는 별도 clean develop worktree에서 `request-base-pinned`와 PR 모드의 native fixtures/typecheck/security/lint/build/runtime smoke를 수행한다. 실행기 결과는 기존 `outcome:'verified'`/baseSha/manifestSha256/passedChecks로 제출하며 Worker가 고정 scope·테스트·정확한 proof를 재검증한 뒤 기존 GitHub App publisher로 신규 develop PR만 만든다. request 모드에는 PR 리뷰 판정/auto merge가 없고, 빈 변경·실패·이동한 develop은 PR로 발행하지 않는다. 실행기 trusted image에는 현재 verifier/common/executor-model 정책이 함께 설치되어야 한다.
+
 ## 기존 PR 검토·수정 모드 (`mode: 'pull-request'`)
 
 같은 Worker 큐와 실행기 lease를 쓰는 별도 `mode:'pull-request'` 작업이다. 수동 `/executor/pull-requests/enqueue`는 `PR_REVIEW_ENABLED==='true'`와 명시적 허용 PR 번호가 필요하다. 자동 경로는 `PR_REVIEW_ENABLED==='true'` + `PR_REVIEW_AUTO==='true'` + 서명된 `POST /webhooks/github`의 opened/reopened/synchronize/ready_for_review 이벤트다. Worker는 canonical PR을 조회해 fork/draft/봇/보호 ref와 자동화 자신이 생성한 수정 head SHA를 제외하고 실제 develop tip과 head를 pin한다. develop보다 뒤처진 head는 write 토큰 확보 후 SHA당 최대 3번 update-branch를 시도한다(일시적 실패만 재시도, 409/422 충돌은 한 marker 댓글로 종결). 성공 후 synchronize를 기다린다.

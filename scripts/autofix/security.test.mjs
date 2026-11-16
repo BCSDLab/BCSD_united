@@ -428,6 +428,7 @@ test('B-BOT health smoke config keeps local bindings only and the API gate is re
   "assets": { "directory": ".output/public", "binding": "ASSETS", },
   "kv_namespaces": [{ "binding": "BOT_KV", "id": "kv1" }],
   "ai": { "binding": "AI", "remote": true },
+    "services": [{ "binding": "ERROR_AUTOMATION", "service": "bcsd-error-automation" }],
   "queues": { "producers": [{ "binding": "SLACK_JOBS", "queue": "jobs" }], "consumers": [{ "queue": "jobs" }] },
   "triggers": { "crons": ["* * * * *"] }, "observability": { "enabled": true },
 }`);
@@ -448,6 +449,10 @@ test('B-BOT health smoke config keeps local bindings only and the API gate is re
   assert.equal('ai' in smoke, false);
   assert.equal('build' in smoke, false);
   assert.equal('account_id' in smoke, false);
+  assert.equal('services' in smoke, false);
+  assert.throws(() => smokeConfiguration({
+    ...deployable, services: [{ binding: 'ERROR_AUTOMATION', service: 'other-worker' }],
+  }), /Unreviewed B-BOT service binding/);
   assert.throws(() =>
     smokeConfiguration({ ...deployable, kv_namespaces: [{ binding: 'BOT_KV', id: 'kv1', remote: true }] }),
   );

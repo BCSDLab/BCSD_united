@@ -1,6 +1,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import { autoMergePullRequest, type AutoMergeOutcome } from './auto-merge';
 import { prepare } from './prepare';
+import { prepareRequest, requestKey, validateRequest, validateRequestVerification } from './request';
 import { redact } from './index';
 import { github, installationToken, publish, validateManifest, validateVerification } from './github';
 import {
@@ -33,6 +34,7 @@ import type {
   PullRequestReview,
   PullRequestVerification,
   QueuedJob,
+  RequestIdentity,
   QueueIdentity,
   Verification,
 } from './types';
@@ -50,18 +52,16 @@ const AUTO_MERGE_WINDOW_MS = 30 * 60_000;
  * output reserves the forwarded `max_tokens`. Both are replaced by the
  * provider's usage only when it is trustworthy. Verification budgets are separate and unchanged.
  */
+const REVIEW_BUDGET = {
+  calls: 20, generationMs: 15 * 60_000, inputTokens: 400_000, outputTokens: 32_000, maxTokensPerCall: 8192,
+};
 const MODEL_BUDGET: Record<
   ModelMode,
   { calls: number; generationMs: number; inputTokens: number; outputTokens: number; maxTokensPerCall: number }
 > = {
   error: { calls: 6, generationMs: 4 * 60_000, inputTokens: 50_000, outputTokens: 8_000, maxTokensPerCall: 4096 },
-  'pull-request': {
-    calls: 20,
-    generationMs: 15 * 60_000,
-    inputTokens: 400_000,
-    outputTokens: 32_000,
-    maxTokensPerCall: 8192,
-  },
+  'pull-request': REVIEW_BUDGET,
+  request: REVIEW_BUDGET,
 };
 /**
  * One token per UTF-8 byte avoids undercounting short/random tokens. The extra allowance covers gateway context;
@@ -300,6 +300,11 @@ export class AutofixQueue extends DurableObject<Env> {
       baseSha: identity.baseSha,
     };
     return this.admit(canonical, pullRequestKey(canonical));
+  }
+
+  async enqueueRequest(raw: RequestIdentity): Promise<{ status: 'queued' | 'duplicate'; runId: string }> {
+    const identity = validateRequest(raw, this.env);
+    return this.admit(identity, requestKey(identity));
   }
 
   /** Reserve up to three attempts for transient update-branch failures; completed/conflicted heads stay closed. */
@@ -560,6 +565,10 @@ export class AutofixQueue extends DurableObject<Env> {
         if (identity.source !== 'github-pr' || pullRequestKey(identity) !== row.identity_key)
           throw new Error('Queued pull request identity mismatch');
         job = await preparePullRequest(this.env, identity);
+      } else if (row.identity_key.startsWith('slack-request/')) {
+        const prepared = await prepareRequest(this.env, JSON.parse(row.identity) as RequestIdentity, row.identity_key);
+        job = prepared.job;
+        prUrl = prepared.prUrl;
       } else {
         const prepared = await prepare(this.env, JSON.parse(row.identity) as Identity, row.identity_key);
         job = prepared.job;
@@ -661,10 +670,11 @@ export class AutofixQueue extends DurableObject<Env> {
 
   async model(runId: string, leaseToken: string, request: ModelRequest): Promise<Record<string, unknown>> {
     const leased = await this.leased(runId, leaseToken);
-    const mode: ModelMode = storedJob(leased.prepared!).mode === 'pull-request' ? 'pull-request' : 'error';
+    const storedMode = storedJob(leased.prepared!).mode;
+    const mode: ModelMode = storedMode === 'request' ? 'request' : storedMode === 'pull-request' ? 'pull-request' : 'error';
     const budget = MODEL_BUDGET[mode];
-    const maxMessages = mode === 'pull-request' ? 240 : 80;
-    const maxBytes = mode === 'pull-request' ? 1_000_000 : 256_000;
+    const maxMessages = mode !== 'error' ? 240 : 80;
+    const maxBytes = mode !== 'error' ? 1_000_000 : 256_000;
     if (request.model !== MODEL_BY_MODE[mode]) throw new PolicyRejection('Model tier does not match job mode');
     if (request.maxTokens > budget.maxTokensPerCall)
       throw new PolicyRejection(`Model output limit exceeded (${budget.maxTokensPerCall} tokens per call)`);
@@ -819,9 +829,11 @@ export class AutofixQueue extends DurableObject<Env> {
       return { status: 'recorded', outcome };
     }
     if (row.status !== 'verifying') throw new Error('Verified result requires independent verification phase');
-    validateManifest(payload.manifest, job.context.app);
     const proof: Verification = { ...payload.verification, verifiedManifest: payload.manifest };
-    await validateVerification(job, payload.manifest, proof);
+    if (job.mode === 'request') {
+      try { await validateRequestVerification(job, payload.manifest, proof); }
+      catch { throw new PolicyRejection('Invalid request manifest or independent verification proof'); }
+    } else await validateVerification(job, payload.manifest, proof);
     await this.leased(runId, payload.leaseToken, true);
     const publishingUntil = Date.now() + PUBLISH_MS;
     this.ctx.storage.sql.exec(

@@ -20,6 +20,10 @@ import { applyManifest, assertSnapshotMatchesTree, exportTree, validateManifest 
 import {
   ERROR_CHECKS,
   PR_CHECKS,
+  REQUEST_CHECKS,
+  REQUEST_SCOPE,
+  requestRegressionPath,
+  requestSourcePath,
   SHA,
   isSourcePath,
   jsonFile,
@@ -34,15 +38,21 @@ if (process.argv.length > (offlineSmoke ? 3 : 2)) throw new Error('Unknown verif
 const rawContext = offlineSmoke
   ? { app: 'web', route: '/', baseSha: 'offline-local' }
   : await jsonFile('error-input/context.json');
-// Pull-request verification is an explicit mode; everything else is the
-// unchanged error-repair path (an error context never carries `mode`).
-const prMode = !offlineSmoke && rawContext?.mode === 'pull-request';
+// Scoped verification shares the existing PR checks; a request pins develop rather than a PR head.
+const requestMode = !offlineSmoke && rawContext?.mode === 'request';
+const reviewMode = !offlineSmoke && rawContext?.mode === 'pull-request';
+const prMode = requestMode || reviewMode;
 if (!offlineSmoke && rawContext?.mode !== undefined && !prMode) throw new Error('Unknown verifier context mode');
-const context = prMode ? pullRequestContext(rawContext) : rawContext;
+const context = reviewMode ? pullRequestContext(rawContext) : requestMode ? requestContext(rawContext) : rawContext;
 const policy = prMode ? pullRequestPolicy(context.changedFiles) : undefined;
 const manifest = offlineSmoke
   ? { version: 1, files: [] }
   : validateManifest(await jsonFile('error-patch/patch.json'), policy);
+if (requestMode) {
+  if (!manifest.files.some((file) => requestRegressionPath(file.path) && file.content !== null) ||
+      !manifest.files.some((file) => requestSourcePath(file.path)))
+    throw new Error('A request requires source changes and executable native regression coverage');
+}
 if (!offlineSmoke && !prMode) {
   if (!manifest.files.length) throw new Error('NO_CHANGES: agent produced no fix; no PR will be created');
   if (!manifest.files.some((file) => isSourcePath(file.path))) throw new Error('No source fix was produced');
@@ -77,9 +87,16 @@ function pullRequestContext(value) {
   validateChangedFiles(value.changedFiles);
   return value;
 }
-const profiles = prMode ? runtimeProfiles(context.changedFiles) : new Set([context.app]);
-const related = prMode ? relatedDirectories(context.changedFiles) : new Set();
-const releaseSha = prMode ? context.headSha : context.baseSha;
+function requestContext(value) {
+  if (Object.keys(value).sort().join(',') !== 'baseSha,changedFiles,mode' ||
+      !SHA.test(value.baseSha) || JSON.stringify(value.changedFiles) !== JSON.stringify(REQUEST_SCOPE))
+    throw new Error('Invalid fixed request verification context');
+  return value;
+}
+const runtimeFiles = requestMode ? manifest.files.map((file) => file.path) : context.changedFiles;
+const profiles = prMode ? runtimeProfiles(runtimeFiles) : new Set([context.app]);
+const related = prMode ? relatedDirectories(runtimeFiles) : new Set();
+const releaseSha = reviewMode ? context.headSha : context.baseSha;
 
 // The trusted root is canonical so later candidate scratch/symlink escape checks
 // compare against the real snapshot path (macOS tmpdir /var is itself a symlink).
@@ -127,7 +144,13 @@ if (offlineSmoke) {
     else await copyFile(source, destination);
   }
 } else {
-  if (prMode) pinPullRequestHead();
+  if (reviewMode) pinPullRequestHead();
+  if (requestMode) {
+    if (execFileSync('git', ['rev-parse', 'HEAD']).toString().trim() !== context.baseSha ||
+        execFileSync('git', ['rev-parse', '--verify', `${context.baseSha}^{commit}`]).toString().trim() !== context.baseSha ||
+        execFileSync('git', ['status', '--porcelain', '--untracked-files=no']).toString().trim())
+      throw new Error('Request verifier is not at the clean pinned develop base');
+  }
   // Built from the object database, not `git archive`: a PR head's
   // `.gitattributes` must not be able to drop or rewrite pinned files.
   snapshot = await exportTree(releaseSha, root);
@@ -809,7 +832,7 @@ await writeFile(
           headSha: context.headSha,
           baseSha: context.baseSha,
           sha256: createHash('sha256').update(patch).digest('hex'),
-          checks: PR_CHECKS,
+          checks: requestMode ? REQUEST_CHECKS : PR_CHECKS,
           pullNumber: context.pullNumber,
           profiles: smokeProfiles,
           runId: process.env.GITHUB_RUN_ID,

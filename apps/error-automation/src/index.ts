@@ -16,6 +16,7 @@ import {
   pullRequestPolicy,
   PUBLISHER_LOGIN,
 } from './pull-request';
+import { slackRequest, SlackRequestError } from './request';
 
 interface CloudflareSource {
   accountId: string;
@@ -444,6 +445,7 @@ export function redact(value: unknown, env: Env): string {
     env.SENTRY_READ_TOKEN,
     env.DIAGNOSTICS_READ_TOKEN,
     env.AUTOFIX_EXECUTOR_TOKEN,
+    env.SLACK_BOT_SIGNING_SECRET,
   ]) {
     if (secret) text = text.replaceAll(secret, '[REDACTED]');
   }
@@ -933,6 +935,13 @@ export default {
       if (env.ENVIRONMENT !== 'production')
         throw new RequestError(503, 'Only the fixed production installation is enabled.');
       if (url.pathname.startsWith('/executor/')) return await executorRequest(request, env, url);
+      if (url.pathname === '/slack/requests') {
+        try { return await slackRequest(request, env); }
+        catch (error) {
+          if (error instanceof SlackRequestError) return reply(error.status, { error: error.message });
+          throw error;
+        }
+      }
       const retrieval = url.pathname.startsWith('/diagnostics/');
       if (!retrieval && !['/webhooks/sentry', '/webhooks/cloudflare', '/webhooks/github'].includes(url.pathname))
         return reply(404, { error: 'Not found.' });
