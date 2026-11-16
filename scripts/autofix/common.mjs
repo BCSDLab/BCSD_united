@@ -22,6 +22,47 @@ export const PR_CHECKS = [
 ];
 export const PR_MAX_CHANGED_FILES = 500;
 export const PR_MAX_CHANGED_BYTES = 64_000;
+export const REQUEST_SCOPE = [
+  'apps/web/package.json',
+  'apps/api/package.json',
+  'apps/b-bot/package.json',
+  'packages/telemetry/package.json',
+  'packages/b-bot-ai/package.json',
+  'packages/b-bot-database/package.json',
+];
+export const REQUEST_CHECKS = ['request-base-pinned', 'request-regression-fails-on-base', ...PR_CHECKS.slice(1)];
+
+/** 기존 package.json의 보호된 테스트 명령이 실제 검색하는 회귀 파일만 인정한다. */
+export function requestRegressionPath(path) {
+  return /^(?:apps\/web\/test\/[^/]+\.test\.ts|apps\/api\/(?:src|tests)\/.+\.test\.ts|apps\/api\/scripts\/[^/]+\.test\.mjs|apps\/b-bot\/test\/.+\.test\.ts|packages\/b-bot-ai\/test\/[^/]+\.test\.ts)$/.test(
+    path,
+  );
+}
+
+export function requestSourcePath(path) {
+  return (
+    /^(?:apps\/(?:web|api|b-bot)|packages\/(?:telemetry|b-bot-ai|b-bot-database))\/src\/.+\.(?:[cm]?[jt]sx?|scss|css|json)$/.test(
+      path,
+    ) && !/\.(?:test|spec)\.[cm]?[jt]sx?$/.test(path)
+  );
+}
+
+/** Run protected native commands before applying any candidate production bytes. */
+export async function proveRequestRegression({ runNativeTests, applyRegression, applySource }) {
+  const baseline = runNativeTests();
+  if (baseline.error || baseline.status !== 0) throw new Error('Untouched base native fixture tests failed');
+  await applyRegression();
+  const before = runNativeTests();
+  if (
+    before.error ||
+    before.status !== 1 ||
+    !/\b(?:ERR_ASSERTION|AssertionError)\b/.test(`${before.stdout}${before.stderr}`)
+  )
+    throw new Error(
+      'Request regression must fail with an assertion against the untouched base, not a loader/setup failure',
+    );
+  await applySource();
+}
 
 export function isSourcePath(path) {
   return typeof path === 'string' && /^apps\/(?:web|api)\/src\//.test(path);

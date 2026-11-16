@@ -16,17 +16,19 @@
 
 설정값:
 
-| 이름                                          | 의미                                                                                                                                                 |
-| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SENTRY_ORGANIZATION` / `SENTRY_PROJECT_APPS` | 허용 조직과 `{"koin-united-prod":"web","koin-united-preview":"web"}`처럼 브라우저 프로젝트만 매핑                                                    |
-| `SENTRY_PROJECT_HOSTS`                        | `koreatech.in`/`stage.koreatech.in`과 `koin-web.bcsdlab.workers.dev`/`stage-koin-web.bcsdlab.workers.dev`만 각 프로젝트의 경로 호스트로 허용         |
-| `CLOUDFLARE_SOURCES`                          | 실제 Issues policy의 accountId/policyId/workerName/app 정확한 매핑. 고정 계정의 `koin-web`/`koin-api`만 등록; 미설정이면 `[]`                        |
-| `ERROR_PROJECT_DOMAINS`                       | 프로젝트별 GitHub PR 제목 분류. 허용 값은 `캠퍼스`, `비즈니스`, `유저`, `공통`                                                                       |
-| `ERROR_SOURCE_BRANCHES`                       | 오류 출처별 진단·검증 기준 브랜치: 운영 Sentry/Cloudflare `main`, preview Sentry `develop`; 값은 이 둘만 허용하고 등록 프로젝트 누락 시 503으로 닫힘 |
-| `AUTOFIX_EXECUTOR_ID`                         | `koin-rocky-umpc`만 허용. 이벤트나 요청 본문에서 변경 불가                                                                                           |
-| `PR_REVIEW_ENABLED`                           | 기본 `"false"`. 정확히 `"true"`일 때 PR 리뷰 입력 활성화                                                                                             |
-| `PR_REVIEW_AUTO`                              | 기본 `"false"`. `"true"`이면 서명된 GitHub PR 이벤트에서 허용 목록 없이 자동 등록                                                                    |
-| `PR_REVIEW_ALLOWED_PRS`                       | 기본 `""`. 실행기 수동 enqueue에만 적용하는 쉼표 구분 PR 번호 목록                                                                                   |
+| 이름                                                             | 의미                                                                                                                                                 |
+| ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SENTRY_ORGANIZATION` / `SENTRY_PROJECT_APPS`                    | 허용 조직과 `{"koin-united-prod":"web","koin-united-preview":"web"}`처럼 브라우저 프로젝트만 매핑                                                    |
+| `SENTRY_PROJECT_HOSTS`                                           | `koreatech.in`/`stage.koreatech.in`과 `koin-web.bcsdlab.workers.dev`/`stage-koin-web.bcsdlab.workers.dev`만 각 프로젝트의 경로 호스트로 허용         |
+| `CLOUDFLARE_SOURCES`                                             | 실제 Issues policy의 accountId/policyId/workerName/app 정확한 매핑. 고정 계정의 `koin-web`/`koin-api`만 등록; 미설정이면 `[]`                        |
+| `ERROR_PROJECT_DOMAINS`                                          | 프로젝트별 GitHub PR 제목 분류. 허용 값은 `캠퍼스`, `비즈니스`, `유저`, `공통`                                                                       |
+| `ERROR_SOURCE_BRANCHES`                                          | 오류 출처별 진단·검증 기준 브랜치: 운영 Sentry/Cloudflare `main`, preview Sentry `develop`; 값은 이 둘만 허용하고 등록 프로젝트 누락 시 503으로 닫힘 |
+| `AUTOFIX_EXECUTOR_ID`                                            | `koin-rocky-umpc`만 허용. 이벤트나 요청 본문에서 변경 불가                                                                                           |
+| `PR_REVIEW_ENABLED`                                              | 기본 `"false"`. 정확히 `"true"`일 때 PR 리뷰 입력 활성화                                                                                             |
+| `PR_REVIEW_AUTO`                                                 | 기본 `"false"`. `"true"`이면 서명된 GitHub PR 이벤트에서 허용 목록 없이 자동 등록                                                                    |
+| `PR_REVIEW_ALLOWED_PRS`                                          | 기본 `""`. 실행기 수동 enqueue에만 적용하는 쉼표 구분 PR 번호 목록                                                                                   |
+| `SLACK_AUTOFIX_TEAM_ID` / `SLACK_AUTOFIX_BOT_USER_ID`            | 동일 Slack 앱의 workspace ID와 삐봇 사용자 ID. 기본 빈 값으로 접수 비활성                                                                            |
+| `SLACK_AUTOFIX_ALLOWED_USERS` / `SLACK_AUTOFIX_ALLOWED_CHANNELS` | 명시적 사용자/채널 ID의 쉼표 구분 허용 목록. 빈 값·잘못된 값은 거부                                                                                  |
 
 `CLOUDFLARE_SOURCES`에는 BCSD 계정 `abe06b869950de952decf9df29c6f1a3`의 실제 Issues policy `3bcbfa2a0c04416ca7e3da038f77ac37`와 명시적 `koin-web:web`/`koin-api:api` 쌍만 등록한다. 두 Worker의 발생 1회 규칙은 같은 `KOIN Issues Autofix` destination/policy를 공유한다. 정책·Worker 쌍은 계정 전체에서 유일해야 하며, 서명된 제공자 알림의 정확히 한 `data.issue.services[].name`과 일치하지 않으면 거부한다. `text`/제목/임의 `data` 값에서 Worker를 추측하지 않는다.
 
@@ -41,6 +43,8 @@ pnpm --dir apps/error-automation exec wrangler secret put DIAGNOSTICS_READ_TOKEN
 pnpm --dir apps/error-automation exec wrangler secret put GITHUB_DISPATCH_APP_PRIVATE_KEY
 pnpm --dir apps/error-automation exec wrangler secret put GITHUB_WEBHOOK_SECRET
 pnpm --dir apps/error-automation exec wrangler secret put AUTOFIX_EXECUTOR_TOKEN
+# b-bot이 사용하는 동일 Slack 앱의 signing secret. 다른 앱의 비밀을 재사용하지 않는다.
+pnpm --dir apps/error-automation exec wrangler secret put SLACK_BOT_SIGNING_SECRET
 # 모델 upstream: Rocky omp 게이트웨이. VPC 바인딩 `OMP_GATEWAY`(wrangler.jsonc)와 이 bearer가 함께 있어야 추론이 가능하다.
 pnpm --dir apps/error-automation exec wrangler secret put OMP_GATEWAY_TOKEN
 # 읽기 전용 모니터: ERROR_MONITOR_TOKEN은 attendance와만, OMP_GATEWAY_MONITOR_TOKEN은 Rocky와만 공유한다.
@@ -140,6 +144,20 @@ source + 조직/프로젝트 또는 계정/정책/Worker + sourceId별 진단 DO
 큐는 최대 100건 대기, 동시에 하나의 lease만 허용한다. 기한/heartbeat 상실은 실패로 닫고 모호한 실행을 자동 중복 발행하지 않는다. 결과 응답 유실 시 같은 lease/outcome으로 이미 저장한 결과만 다시 확인할 수 있다. 제공자 marker와 `fix/<source>-<sha256(identityKey)>` 브랜치, 고정 base SHA/트리 검사를 사용한다. 해시에는 source·조직/계정·정책·프로젝트·sourceId가 포함되어 서로 다른 오류 범위가 충돌하지 않는다. GitHub PR 발행 도중 실패하면 운영자가 기존 브랜치·PR을 조사해야 하며 force push하지 않는다.
 
 이슈 없는 계약으로 전환할 때 기존 실행을 완료하고 작업 사이에서 executor polling을 중지한 뒤 Worker와 executor를 함께 갱신하고 재개한다. 이전 `issueNumber` claim은 새 실행기가 수용하지 않는다. SQLite migration은 기존 identity/PR/outcome tombstone을 유지하고 미사용 `issue_number` 열을 제거하며 `reason`을 추가한다. `targetBranch`가 없는 과거 prepared 오류 job은 기존 `baseBranch`/`baseSha`와 lease를 보존한 채 PR 대상만 `develop`으로 해석한다. 기존 GitHub 이슈를 자동으로 닫거나 삭제하지 않고, 과거 오류를 재실행하려고 DO를 초기화하지 않는다. 별도 PR 리뷰 모드의 기존 PR 댓글 기능과 권한은 유지한다.
+
+## Slack 멘션 코드 수정 요청
+
+B-BOT의 `ERROR_AUTOMATION` 서비스 바인딩이 `POST /slack/requests`로 전달한 **원본 Slack 서명 envelope**를 받는다. receiver는 32자 이상 `SLACK_BOT_SIGNING_SECRET`, HMAC, ±5분 timestamp, workspace, bot ID, 명시적 사용자/채널 허용 목록을 검증한다. bot/subtype 이벤트는 제외한다. `app_mention` 텍스트가 `@삐봇 수정요청 <5자 이상의 변경 요청>`으로 시작할 때만 접수하며 `코드수정요청`, `fix-request`도 같은 명령이다. 질문이나 임의 멘션은 실행하지 않는다. 이 명령이 PR 생성에 대한 명시적 요청이며 추가 UI 확인은 없다.
+
+Slack 또는 고정 자동화 설정이 유효하지 않으면 `503`과 `x-slack-autofix-error: not-configured`를 반환하며 `Retry-After`는 붙이지 않는다. B-BOT은 이 명시적 설정 거절만 재전송 없이 종결한다. 큐·저장소·네트워크 접수 장애의 `503`에는 이 표식이 없고 Slack 재시도를 유지한다. 잘못된 UTF-8/JSON은 저장 전에 `400`으로 거절한다.
+
+기존 수동 PR enqueue는 **이미 존재하는 PR의 리뷰** 전용이다. 신규 코드 요청은 같은 `AutofixQueue`에 `slack-request/<team>/<event_id>`로 dedup하고 별도 `mode:'request'` 작업으로 기존 outbound Rocky 실행기가 claim한다. 원문 envelope/Slack 토큰은 저장하지 않고 redaction한 요청문만 비신뢰 모델 자료로 보관한다. 저장소는 `BCSDLab/BCSD_united`, 기준/대상 브랜치는 `develop`, 생성 브랜치는 event identity의 SHA256, 모델은 `claude-opus-5-5`로 고정한다. Slack 텍스트에 쓴 저장소·브랜치·권한·시크릿 지시는 이 계약을 바꾸지 못한다.
+
+수정 범위는 web/api/b-bot 및 telemetry/b-bot-ai/b-bot-database의 소스·native tests·문서이며 기존 PR 수정 정책으로 의존성·설정·배포·자동화·생성물·스키마·비밀을 차단한다. `REQUEST_SCOPE`의 package.json 경로는 related workspace를 지정하는 읽기 전용 anchor이며 실제 쓰기 범위는 해당 앱/패키지의 소스·기존 테스트 디렉터리·문서다. 모델은 `request-input/request.json`을 자료로만 읽는다. 소스 변경과 **기존 보호된 test script가 검색하는 native 회귀 테스트**가 모두 있어야 발행할 수 있다(web `test/*.test.ts`, API `src/tests` 아래 `*.test.ts` 및 `scripts/*.test.mjs`, B-BOT `test/**/*.test.ts`, b-bot-ai `test/*.test.ts`; 테스트 명령 없는 패키지는 관련 앱 suite에서 검증). 독립 verifier가 clean develop base pin, 해당 앱의 native fixtures/typecheck/security/lint/build/runtime smoke를 검증하며 proof의 첫 항목은 `request-base-pinned`다. 검증 중 develop이 이동했거나 이전 PR/서로 다른 branch 내용이 있으면 발행하지 않고 사람 변경을 덮어쓰지 않는다. 이 경로는 PR만 만들며 auto merge·main 승격·배포는 하지 않는다.
+
+요청 검증은 고정 base의 기존 native tests 통과를 먼저 확인하고, 후보 소스를 적용하지 않은 채 회귀 테스트 변경을 적용해 같은 테스트 명령이 종료 코드 1과 `ERR_ASSERTION`으로 실패해야 한다. loader/setup 오류나 수정 전에도 통과하는 테스트는 거절한다. 그 뒤 소스 변경을 적용해 native tests를 다시 통과해야 한다. proof의 정확한 순서는 `request-base-pinned`, `request-regression-fails-on-base`, `native-fixture-tests`, `typecheck`, `autofix-security-tests`, `lint`, `build`, `runtime-route-smoke`이며 base SHA·manifest SHA256과 함께 검증된다. 계약 테스트의 합성 verifier receipt는 실제 Docker 실행 증거가 아니다.
+
+운영 활성화에는 B-BOT의 `app_mention` 이벤트 구독/`app_mentions:read`, 서비스 바인딩, 동일 signing secret, 위 4개 Slack 정책값, 기존 GitHub App/OMP/실행기 설정이 모두 필요하다. Preview에서는 비활성이며 운영 권한을 주지 않는다. 설정 예: `SLACK_AUTOFIX_TEAM_ID=T012ABC`, `SLACK_AUTOFIX_BOT_USER_ID=U012BOT`, `SLACK_AUTOFIX_ALLOWED_USERS=U012DEV,U034DEV`, `SLACK_AUTOFIX_ALLOWED_CHANNELS=C012DEV`. 실제 Slack 전송·모델 호출·PR 생성·배포는 별도 운영 절차다.
 
 ## 고정 저장소 PR 리뷰 모드 (선택적)
 
