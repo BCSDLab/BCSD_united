@@ -878,8 +878,10 @@ export class CoopStore {
     });
   }
 
+  /** 완료 뒤 늦게 도착한 가져오기 페이지는 DO에서 쓴 값을 덮어쓸 수 없다. */
   importDinings(rows: ImportedDining[]): void {
     this.transaction(() => {
+      if (this.imported()) throw new ApiError(409, 'DINING_COOP_ALREADY_IMPORTED', '이미 가져온 학식 상태입니다.');
       for (const row of rows) {
         this.sql.exec(
           `INSERT OR REPLACE INTO coop_dinings (id, date, type, place, sold_out, sold_out_source, image_url, touched_at, version)
@@ -899,6 +901,7 @@ export class CoopStore {
 
   importReports(rows: ImportedReport[]): void {
     this.transaction(() => {
+      if (this.imported()) throw new ApiError(409, 'DINING_COOP_ALREADY_IMPORTED', '이미 가져온 학식 상태입니다.');
       for (const row of rows) {
         this.sql.exec(
           'INSERT OR IGNORE INTO coop_dinings (id, date, type, place, version) VALUES (?, ?, ?, ?, 0)',
@@ -932,6 +935,7 @@ export class CoopStore {
 
   importChanges(rows: ChangeRow[]): void {
     this.transaction(() => {
+      if (this.imported()) throw new ApiError(409, 'DINING_COOP_ALREADY_IMPORTED', '이미 가져온 학식 상태입니다.');
       for (const row of rows) {
         this.sql.exec(
           `INSERT OR REPLACE INTO coop_changes (sequence, report_id, event_type, status, processing_type, processing_id,

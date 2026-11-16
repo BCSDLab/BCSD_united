@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
 import { strFromU8, unzipSync } from 'fflate';
 import { clearCoopOpensCache, diningPushMessage, openedAt } from '@api/koin-db/coop-notify';
+import { CoopObject } from '@api/koin-db/coop-object';
 import {
   encodeImagePath,
   kstOffsetTime,
@@ -477,6 +478,69 @@ test('store: one-shot import, force re-import and versions that keep increasing'
   assert.ok(store.ownedFor(DATE)![0]!.version > version);
 });
 
+test('store: late overlapping import pages cannot overwrite a completed image save', () => {
+  const store = memoryCoopStore();
+  const dining: DiningMeta = { id: 1, date: DATE, type: 'LUNCH', place: 'A코너' };
+  const stale = { ...dining, sold_out: null, sold_out_source: null, image_url: null };
+  value(store.importBegin(false));
+  value(store.importBegin(false));
+  store.importDinings([stale]);
+  value(store.importFinish(0));
+  value(store.saveImage(dining, IMAGE, NOW, false));
+  const owned = store.ownedFor(DATE);
+  assert.equal(owned![0]!.image_url, IMAGE);
+  const pending = store.pendingPushes();
+  for (const latePage of [
+    () => store.importDinings([stale]),
+    () => store.importReports([]),
+    () => store.importChanges([]),
+  ]) {
+    assert.throws(latePage, {
+      name: 'ApiError',
+      status: 409,
+      code: 'DINING_COOP_ALREADY_IMPORTED',
+      message: '이미 가져온 학식 상태입니다.',
+    });
+  }
+  assert.deepEqual(store.ownedFor(DATE), owned);
+  assert.deepEqual(store.pendingPushes(), pending);
+  assert.equal(code(store.importFinish(0)), 'DINING_COOP_ALREADY_IMPORTED');
+});
+
+test('object: failed image metadata publication stays queued until the alarm retries it', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: NOW });
+  const store = memoryCoopStore();
+  value(store.importBegin(false));
+  value(store.importFinish(0));
+  const dining: DiningMeta = { id: 1, date: DATE, type: 'LUNCH', place: 'A코너' };
+  const alarms: number[] = [];
+  let attempts = 0;
+  const object = new CoopObject(
+    store,
+    diningEnv(),
+    (date) => ({
+      applyOwned: async (entries) => {
+        assert.equal(date, DATE);
+        assert.equal(entries![0]!.image_url, IMAGE);
+        if (++attempts === 1) throw new Error('Date object unavailable');
+      },
+    }),
+    async (at) => {
+      alarms.push(at);
+    },
+  );
+  value(await object.saveImage(dining, IMAGE, NOW, false));
+  const owned = store.ownedFor(DATE)!;
+  assert.deepEqual(store.pendingPushes(), [{ date: DATE, version: owned[0]!.version }]);
+  assert.deepEqual(alarms, [NOW + 5000]);
+  await object.alarm();
+  assert.equal(attempts, 2);
+  assert.deepEqual(store.pendingPushes(), []);
+  value(await object.saveImage(dining, IMAGE, NOW + 1000, false));
+  assert.equal(attempts, 2);
+  assert.deepEqual(store.ownedFor(DATE), owned);
+});
+
 test('HTTP: flag off forwards coop paths to Java; before import writes are 503', async (t) => {
   const off = await world(t, { owner: false, imported: false });
   const forwarded = await off.call('/coop/dining/soldout', {
@@ -625,6 +689,35 @@ test('HTTP: coop image save notifies once per date/meal with the old (null) imag
     message: '해당 학기가 존재하지 않습니다. ',
   });
   assert.equal((await dinings(call, await auth(7)))[2]!.image_url, null);
+});
+
+test('HTTP: saved coop image survives a warm KV cache and stale MySQL refresh', async (t) => {
+  const { call, env, objects, kv } = await world(t);
+  await objects.flush();
+  const cacheKey = `koin:dining:v1:${DATE}`;
+  assert.equal(JSON.parse(kv.get(cacheKey)!)[0].image_url, null);
+  const save = await call('/coop/dining/image', {
+    method: 'PATCH',
+    ...json({ menu_id: 1, image_url: IMAGE }, await auth(9)),
+  });
+  assert.equal(save.status, 200);
+  assert.equal(save.headers.get('X-Koin-Backend'), 'workers');
+  const owned = objects.coopStore.ownedFor(DATE)![0]!;
+  assert.equal(owned.image_url, IMAGE);
+  assert.deepEqual(objects.coopStore.pendingPushes(), []);
+  assert.equal((await dinings(call, await auth(7)))[0]!.image_url, IMAGE);
+  await objects.flush();
+  assert.equal((await dinings(call))[0]!.image_url, IMAGE);
+  assert.equal(JSON.parse(kv.get(cacheKey)!)[0].image_url, IMAGE);
+
+  await syncDiningCache(env, new Date(NOW));
+  await objects.flush();
+  const variants: Record<string, string>[] = [await auth(7), {}, { 'X-Koin-Service-Token': BOT_TOKEN }];
+  for (const headers of variants) {
+    const [first] = await dinings(call, headers);
+    assert.deepEqual([first!.image_url, first!.updated_at], [IMAGE, '2026-11-15 03:00:00']);
+  }
+  assert.deepEqual(objects.coopStore.ownedFor(DATE), [owned]);
 });
 
 test('HTTP: student reports validate the image like S3 and follow Java error order', async (t) => {
