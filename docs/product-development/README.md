@@ -158,6 +158,7 @@ pnpm development:matrix "$WORK/matrix.json" "$WORK/coverage.json" "$WORK/coverag
 - 입력은 `schemaVersion: 1`, `sources`, `checks`다. 출처는 `id`, `path`(입력 파일 기준 상대 경로), `platform`, 전체 `sha`, `kind`를 가진다. `kind`는 `web-screen`, `maestro-flow`, `ios-flow`, `api-smoke`, `contract-test`, `journey` 중 하나다.
 - 목표는 고유 `id`, `feature`, `platform`, `level`, `source`(출처 ID 또는 `null`), `scenarios`(필요한 시나리오 ID 목록)를 가진다. 출처를 연결하지 않은 목표는 미검증이지 통과나 구현된 테스트가 아니다.
 - 보고서의 플랫폼·커밋, 성공한 빌드와 일치하는 시나리오 실행을 확인한다. 화면 진입 보고서로 여정·인증·접힘 검증을 채울 수 없다. 나중에 잘못된 증거로 확인한 시나리오는 해당 출처의 `invalidated`에 적어 이전 통과를 철회한다.
+- `journey`·`contract-test` 출처는 보고서의 각 시나리오에 실제 검사한 수준을 `levels` 배열로 명시해야 한다. 목표 파일의 출처 종류만 바꿔 기존 화면 검사 결과를 여정·인증·접힘 통과로 승격할 수 없다.
 - 연결된 목표가 모두 통과해야 exit 0이다. 실패·차단·미검증이 하나라도 있으면 exit 1, 잘못된 입력은 exit 2다. 이 도구는 보고서를 평가할 뿐 서버나 앱을 대신 실행하지 않는다.
 
 ### 작업 보드

@@ -93,3 +93,14 @@ test('a missing scenario does not hide another scenario failure', () => {
   report.steps[1].passed = false;
   assert.equal(evaluateMatrix(matrix, new Map([['web', report]])).checks[0].status, 'failed');
 });
+
+test('relabeling a source cannot upgrade a screen report without producer scope evidence', () => {
+  const { matrix, report } = fixture();
+  matrix.sources[0].kind = 'journey';
+  matrix.checks[0].level = 'journey';
+  assert.equal(evaluateMatrix(matrix, new Map([['web', report]])).checks[0].status, 'unverified');
+  report.scenarios[0].levels = 'journey';
+  assert.equal(evaluateMatrix(matrix, new Map([['web', report]])).checks[0].status, 'unverified');
+  report.scenarios[0].levels = ['journey'];
+  assert.equal(evaluateMatrix(matrix, new Map([['web', report]])).checks[0].status, 'passed');
+});

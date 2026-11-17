@@ -103,6 +103,12 @@ export function evaluateMatrix(matrix, reports) {
       }
       if (scenarios[0].passed !== true || steps.some((step) => step.passed !== true))
         return result('failed', `Scenario failed: ${id}`);
+      if (
+        (source.kind === 'journey' || source.kind === 'contract-test') &&
+        (!Array.isArray(scenarios[0].levels) || !scenarios[0].levels.includes(check.level))
+      ) {
+        missing ??= `Producer did not attest verification level ${check.level}: ${id}`;
+      }
       if (source.invalidated?.includes(id)) missing ??= `Earlier evidence invalidated by a later observation: ${id}`;
     }
     if (missing) return result('unverified', missing);
