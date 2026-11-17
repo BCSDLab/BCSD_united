@@ -225,6 +225,7 @@ iOS:
 
 - `koinUnitTests`를 화면 조작 검증으로 세지 않는다. 현재 Maestro 흐름은 이 저장소에 있으며 화면 문구에 의존한다.
 - `node scripts/development/ios-devices.mjs`로 설치된 Simulator의 이름·UDID·런타임을 조회한다.
+- 별도 설치 없이 `node scripts/development/connect-api.mjs`로 SSH 별칭 `rocky-desktop`·`butler`를 연결한다. Mac의 API 주소는 `http://localhost:18480`이다. 터미널 종료 시 해제되는 임시 검증용 연결이며 `--check`는 응답 확인 후 닫는다.
 - `ios-scenario.mjs --device <UDID 또는 정확한 이름>`은 빌드·설치·Maestro·녹화에 같은 기기를 쓴다. 중복 이름·미설치 기기는 대체하지 않고 거부한다. `--display`는 녹화 화면이며 기본값은 `primary`다.
 - iPhone Duo는 지원 Xcode·런타임이 필요하다. [Apple 기준](https://developer.apple.com/documentation/technologyoverviews/preparing-your-app-for-iphone-duo)에 따라 외부·내부 화면, 부분 접힘·펼침, 회전, 바·시트·팝오버·접힘 영역을 확인한다. 일반 iPhone이나 창 크기 변경으로 대체하지 않는다.
 - 식단 진입도 A/B 배정·로깅을 호출한다. 날짜·데이터·계정·A/B 상태를 고정한다.
