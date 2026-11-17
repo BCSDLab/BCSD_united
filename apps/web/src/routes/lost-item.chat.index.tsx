@@ -1,6 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, useNavigate, useSearch, useParams } from '@tanstack/react-router';
 
+import { lostItemMessageTranslationPath } from 'api/articles/ChatAPIDetailV2';
+import type { LostItemChatroomDetailMessage } from 'api/articles/entity';
+import { articleQueries } from 'api/articles/queries';
 import BlockIcon from 'assets/svg/Articles/block.svg';
 import DefaultPhotoIcon from 'assets/svg/Articles/default-photo.svg';
 import DefaultPhotoUrl from 'assets/svg/Articles/default-photo.svg?url';
@@ -17,6 +21,7 @@ import {
   ChatMessageList,
   ChatRoomList,
   type ChatMessageListGroup,
+  type ChatMessageTranslation,
 } from 'components/ui/Chat';
 import ROUTES from 'static/routes';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
@@ -40,6 +45,8 @@ function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageP
   const isMobile = useMediaQuery();
   const isOnline = useNetworkStatus();
   const { data: userInfo } = useUser();
+  const isLoggedIn = useIsLoggedIn();
+  const queryClient = useQueryClient();
 
   const { imgRef, saveImgFile } = useImageUpload({ domain: 'LOST_ITEMS' });
 
@@ -147,11 +154,42 @@ function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageP
     }),
   );
 
+  // 상대가 보낸 텍스트 쪽지만 번역한다. 기기에 저장해 둔 예전 메시지는 ID가 없어 번역할 수 없다.
+  const getMessageTranslation = (message: LostItemChatroomDetailMessage): ChatMessageTranslation | undefined => {
+    const messageId = message.message_id;
+    // 내 정보를 받기 전에는 내 메시지인지 알 수 없으므로 붙이지 않는다
+    if (messageId == null || userInfo?.id == null || message.user_id === userInfo.id || message.is_image) {
+      return undefined;
+    }
+    if (articleId == null || chatroomId == null) return undefined;
+    const roomArticleId = Number(articleId);
+    const roomId = Number(chatroomId);
+
+    return {
+      resourceType: 'LOST_ITEM_MESSAGE',
+      resourceId: messageId,
+      parentId: roomArticleId,
+      roomId,
+      translatePath: lostItemMessageTranslationPath(roomArticleId, roomId, messageId),
+      sourceVersion: message.translation_source_version,
+      // 원문 버전이 바뀌었으면 쪽지 목록을 다시 받아 같은 메시지의 새 버전을 찾는다
+      refetchSourceVersion: async () => {
+        const latest = await queryClient.query({
+          ...articleQueries.lostItemChatroomMessages(isLoggedIn, roomArticleId, roomId),
+          staleTime: 0,
+        });
+
+        return latest.find((item) => item.message_id === messageId)?.translation_source_version;
+      },
+    };
+  };
+
   const messageGroups = (messages ?? []).reduce<ChatMessageListGroup[]>((groups, message, index) => {
     const dateLabel = formatChatDate(message.timestamp);
     const timeLabel = formatChatTime(message.timestamp);
     const normalizedMessage = {
-      key: `${message.timestamp}-${index}`,
+      key: message.message_id ?? `${message.timestamp}-${index}`,
+      messageId: message.message_id,
       isMine: message.user_id === userInfo?.id,
       content: message.content,
       isImage: message.is_image,
@@ -163,6 +201,7 @@ function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageP
           <PersonIcon />
         </div>
       ),
+      translation: getMessageTranslation(message),
     };
     const lastGroup = groups[groups.length - 1];
 

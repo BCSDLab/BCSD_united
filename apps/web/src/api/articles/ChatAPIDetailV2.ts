@@ -2,6 +2,10 @@ import { type APIRequest, HTTP_METHOD } from 'interfaces/APIRequest';
 
 import type { LostItemChatroomDetailMessagesResponse, LostItemChatroomDetailMessage } from './entity';
 
+/** 분실물 쪽지 번역 요청 경로 */
+export const lostItemMessageTranslationPath = (articleId: number, chatRoomId: number, messageId: number) =>
+  `/v2/chatroom/lost-item/${articleId}/${chatRoomId}/messages/${messageId}/translations`;
+
 export class GetLostItemChatroomMessagesV2<R extends LostItemChatroomDetailMessagesResponse> implements APIRequest<R> {
   method = HTTP_METHOD.GET;
 

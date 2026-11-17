@@ -103,6 +103,15 @@ test('원문이 바뀌었으면(409) 원문 버전을 다시 받아 한 번 더 
   assert.deepEqual(outcome, { kind: 'success', data: { content: 'Hi' }, sourceVersion: 'v2' });
 });
 
+test('원문을 다시 받는 방법이 없으면 409를 실패로 본다', async (t) => {
+  const { translateContent, requested } = await setup(t, [
+    { status: 409, body: { code: 'SOURCE_CHANGED', message: '원문이 변경되었습니다.' } },
+  ]);
+  const outcome = await translateContent({ ...options(), refetchSourceVersion: undefined });
+  assert.deepEqual(outcome, { kind: 'failed' });
+  assert.equal(requested.length, 1);
+});
+
 test('제공할 수 없으면 unavailable, 실패하면 failed를 돌려준다', async (t) => {
   const { translateContent } = await setup(t, [
     { status: 422, body: result('UNAVAILABLE', { translation_id: null, reason_code: 'UNSUPPORTED_CONTENT' }) },

@@ -1,8 +1,19 @@
-import { useRef, type ChangeEvent, type Key, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
+import {
+  useRef,
+  type ChangeEvent,
+  type Key,
+  type KeyboardEvent,
+  type ReactNode,
+  type Ref,
+  type RefObject,
+} from 'react';
 import { Link } from '@tanstack/react-router';
 
 import ImageUploadIcon from 'assets/svg/common/chat-photo.svg';
 import SendIcon from 'assets/svg/common/chat-send.svg';
+import TranslateButton from 'components/translation/TranslateButton';
+import useContentTranslation, { type UseContentTranslationOptions } from 'components/translation/useContentTranslation';
+import useHasBeenVisible from 'utils/hooks/ui/useHasBeenVisible';
 import { parseSearch } from 'utils/routing/search';
 
 import styles from './Chat.module.scss';
@@ -35,7 +46,12 @@ export interface ChatMessageListItem {
   senderId: number;
   senderName?: string;
   senderAvatar?: ReactNode;
+  /** 번역 버튼을 붙일 메시지의 번역 정보. 상대가 보낸 텍스트 쪽지에만 넘긴다. */
+  translation?: ChatMessageTranslation;
 }
+
+/** 쪽지 번역 정보. 메시지가 화면에 처음 보일 때 번역 버튼을 보여줄지 서버에 확인한다. */
+export type ChatMessageTranslation = Omit<UseContentTranslationOptions, 'enabled'>;
 
 export interface ChatMessageListGroup {
   key: Key;
@@ -139,78 +155,149 @@ export function ChatRoomList({ items }: ChatRoomListProps) {
   ));
 }
 
+interface ChatMessageViewProps {
+  message: ChatMessageListItem;
+  showSender: boolean;
+  classNames: ChatMessageListClassNames;
+  /** 말풍선에 보여줄 글. 번역을 보고 있으면 번역문이다. */
+  text: string;
+  /** 상대 메시지의 번역 버튼. PC는 시간 위, 모바일은 말풍선 아래에 둔다. */
+  action?: ReactNode;
+  /** 번역 중이거나 번역문을 보여주는 중이다. 모바일은 말풍선 색을 진하게 한다. */
+  isTranslated?: boolean;
+  itemRef?: Ref<HTMLDivElement>;
+}
+
+function ChatMessageView({
+  message,
+  showSender,
+  classNames,
+  text,
+  action,
+  isTranslated = false,
+  itemRef,
+}: ChatMessageViewProps) {
+  let bubbleClassName = message.isMine
+    ? joinClassNames(styles['message-list__bubble'], styles['message-list__bubble--mine'], classNames.bubbleMine)
+    : joinClassNames(
+        styles['message-list__bubble'],
+        styles['message-list__bubble--other'],
+        isTranslated && styles['message-list__bubble--translated'],
+        classNames.bubbleOthers,
+      );
+  if (message.isImage) bubbleClassName = joinClassNames(styles['message-list__image-bubble'], classNames.imageBubble);
+
+  const bubble = (
+    <div className={bubbleClassName}>
+      {message.isImage ? (
+        // 채팅 이미지의 원본 비율을 유지하고 CSS로 표시 크기를 제한한다.
+        <img src={message.content} alt="전송된 이미지" className={styles['message-list__image']} />
+      ) : (
+        text
+      )}
+    </div>
+  );
+
+  const meta = (
+    <div className={joinClassNames(styles['message-list__meta'], message.isMine && styles['message-list__meta--mine'])}>
+      {(message.unreadCount ?? 0) > 0 && (
+        <span className={styles['message-list__unread-count']}>{message.unreadCount}</span>
+      )}
+      <span className={styles['message-list__time']}>{message.timeLabel}</span>
+    </div>
+  );
+
+  if (message.isMine) {
+    return (
+      <div
+        ref={itemRef}
+        className={joinClassNames(styles['message-list__item'], styles['message-list__item--mine'])}
+        data-message-id={message.messageId}
+      >
+        {meta}
+        {bubble}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      ref={itemRef}
+      className={joinClassNames(
+        styles['message-list__item'],
+        styles['message-list__item--other'],
+        !showSender && styles['message-list__item--consecutive'],
+      )}
+      data-message-id={message.messageId}
+    >
+      {showSender && (
+        <div className={styles['message-list__sender']}>
+          {message.senderAvatar}
+          <span className={styles['message-list__sender-name']}>{message.senderName}</span>
+        </div>
+      )}
+      <div
+        className={joinClassNames(styles['message-list__row'], !!action && styles['message-list__row--with-action'])}
+      >
+        {bubble}
+        {action && <div className={styles['message-list__action']}>{action}</div>}
+        {meta}
+      </div>
+    </div>
+  );
+}
+
+function TranslatableChatMessage({
+  translation,
+  ...props
+}: Omit<ChatMessageViewProps, 'text' | 'action' | 'isTranslated' | 'itemRef'> & {
+  translation: ChatMessageTranslation;
+}) {
+  // 확인 요청이 메시지마다 나가므로, 화면에 보이기 전에는 보내지 않는다
+  const [itemRef, hasBeenVisible] = useHasBeenVisible<HTMLDivElement>();
+  const { canTranslate, state, translated, toggle } = useContentTranslation<{ content: string }>({
+    ...translation,
+    enabled: hasBeenVisible,
+  });
+
+  return (
+    <ChatMessageView
+      {...props}
+      itemRef={itemRef}
+      text={translated?.content ?? props.message.content}
+      isTranslated={state !== 'original'}
+      action={canTranslate && <TranslateButton variant="message" state={state} onClick={toggle} />}
+    />
+  );
+}
+
 export function ChatMessageList({ groups, classNames = {} }: ChatMessageListProps) {
   const renderMessage = (message: ChatMessageListItem, previousMessage?: ChatMessageListItem) => {
     const showSender =
       !previousMessage ||
       message.senderId !== previousMessage.senderId ||
       message.timeLabel !== previousMessage.timeLabel;
-    let bubbleClassName = message.isMine
-      ? joinClassNames(styles['message-list__bubble'], styles['message-list__bubble--mine'], classNames.bubbleMine)
-      : joinClassNames(styles['message-list__bubble'], styles['message-list__bubble--other'], classNames.bubbleOthers);
-    if (message.isImage) bubbleClassName = joinClassNames(styles['message-list__image-bubble'], classNames.imageBubble);
 
-    const bubble = (
-      <div className={bubbleClassName}>
-        {message.isImage ? (
-          // 채팅 이미지의 원본 비율을 유지하고 CSS로 표시 크기를 제한한다.
-          <img src={message.content} alt="전송된 이미지" className={styles['message-list__image']} />
-        ) : (
-          message.content
-        )}
-      </div>
-    );
-
-    const metaContent = (
-      <>
-        {(message.unreadCount ?? 0) > 0 && (
-          <span className={styles['message-list__unread-count']}>{message.unreadCount}</span>
-        )}
-        <span className={styles['message-list__time']}>{message.timeLabel}</span>
-      </>
-    );
-    const meta = (
-      <div
-        className={joinClassNames(styles['message-list__meta'], message.isMine && styles['message-list__meta--mine'])}
-      >
-        {metaContent}
-      </div>
-    );
-
-    if (message.isMine) {
+    if (message.translation) {
       return (
-        <div
+        <TranslatableChatMessage
           key={message.key}
-          className={joinClassNames(styles['message-list__item'], styles['message-list__item--mine'])}
-          data-message-id={message.messageId}
-        >
-          {meta}
-          {bubble}
-        </div>
+          message={message}
+          showSender={showSender}
+          classNames={classNames}
+          translation={message.translation}
+        />
       );
     }
 
     return (
-      <div
+      <ChatMessageView
         key={message.key}
-        className={joinClassNames(
-          styles['message-list__item'],
-          styles['message-list__item--other'],
-          !showSender && styles['message-list__item--consecutive'],
-        )}
-        data-message-id={message.messageId}
-      >
-        {showSender && (
-          <div className={styles['message-list__sender']}>
-            {message.senderAvatar}
-            <span className={styles['message-list__sender-name']}>{message.senderName}</span>
-          </div>
-        )}
-        <div className={styles['message-list__row']}>
-          {bubble}
-          {meta}
-        </div>
-      </div>
+        message={message}
+        showSender={showSender}
+        classNames={classNames}
+        text={message.content}
+      />
     );
   };
 

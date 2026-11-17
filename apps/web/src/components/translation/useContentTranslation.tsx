@@ -10,7 +10,7 @@ import useModalPortal from 'utils/hooks/layout/useModalPortal';
 import { useLanguage } from 'utils/language/useLanguage';
 import { translateContent } from 'utils/translation/translateContent';
 
-interface UseContentTranslationOptions {
+export interface UseContentTranslationOptions {
   /** 번역할 원문의 종류 */
   resourceType: TranslationResourceType;
   resourceId: string | number;
@@ -19,8 +19,8 @@ interface UseContentTranslationOptions {
   translatePath: string;
   /** 원문 조회 응답의 `translation_source_version`. 없으면 버튼을 보여주지 않는다. */
   sourceVersion: string | null | undefined;
-  /** 원문이 바뀌었다는(409) 응답을 받으면 원문을 다시 조회하고 새 `translation_source_version`을 돌려준다 */
-  refetchSourceVersion: () => Promise<string | null | undefined>;
+  refetchSourceVersion?: () => Promise<string | null | undefined>;
+  enabled?: boolean;
 }
 
 interface StoredTranslation<T> {
@@ -63,6 +63,7 @@ export default function useContentTranslation<T>({
   translatePath,
   sourceVersion,
   refetchSourceVersion: refetchVersion,
+  enabled = true,
 }: UseContentTranslationOptions) {
   const { language } = useLanguage();
   const portalManager = useModalPortal();
@@ -108,7 +109,7 @@ export default function useContentTranslation<T>({
     // 원문 언어는 원문 버전이 같으면 바뀌지 않는다
     staleTime: Infinity,
     // 앱 기본값처럼 서버 렌더 중에는 조회하지 않는다. 원문 버전이 없으면 번역을 요청할 수 없으니 조회하지 않는다.
-    enabled: typeof window !== 'undefined' && !!sourceVersion,
+    enabled: enabled && typeof window !== 'undefined' && !!sourceVersion,
   });
 
   // 409로 원문을 다시 받으면 캐시를 따르는 화면은 `sourceVersion`이 번역된 버전으로 바뀌고, 캐시를 따르지 않는 화면은 요청한 버전 그대로다.
