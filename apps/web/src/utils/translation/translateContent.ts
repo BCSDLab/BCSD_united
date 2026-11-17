@@ -49,8 +49,8 @@ interface TranslateContentOptions {
   path: string;
   targetLanguage: string;
   sourceVersion: string;
-  /** 원문이 바뀌었다는(409) 응답을 받으면 원문을 다시 조회하고 새 `translation_source_version`을 돌려준다 */
-  refetchSourceVersion: () => Promise<string | null | undefined>;
+  /** 원문이 바뀌었다는(409) 응답을 받으면 원문을 다시 조회하고 새 `translation_source_version`을 돌려준다. 없으면 409를 실패로 본다. */
+  refetchSourceVersion?: () => Promise<string | null | undefined>;
   wait?: (ms: number) => Promise<void>;
 }
 
@@ -85,7 +85,7 @@ export async function translateContent<T>({
 
       return toOutcome(result);
     } catch (error) {
-      if (errorStatus(error) === 409 && canRefetchSource) {
+      if (errorStatus(error) === 409 && canRefetchSource && refetchSourceVersion) {
         const nextVersion = await refetchSourceVersion().catch(() => null);
         if (nextVersion) return request(nextVersion, false);
       }

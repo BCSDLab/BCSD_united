@@ -238,6 +238,8 @@ export interface TeamChatMessage {
   timestamp: string;
   is_image: boolean;
   unread_count: number;
+  /** 텍스트 쪽지의 번역 원문 버전. 이미지는 `null`이다. */
+  translation_source_version?: string | null;
 }
 
 export type TeamChatMessageListResponse = TeamChatMessage[];

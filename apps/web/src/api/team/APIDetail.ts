@@ -27,6 +27,10 @@ import type {
   TeamRecruitmentUpdateRequest,
 } from './entity';
 
+/** 팀원모집 쪽지 번역 요청 경로 */
+export const teamChatMessageTranslationPath = (recruitmentId: number, chatRoomId: number, messageId: number) =>
+  `/chatroom/team-recruitment/${recruitmentId}/${chatRoomId}/messages/${messageId}/translations`;
+
 export class PostTeamRecruitment<R extends TeamRecruitmentCreateResponse> implements APIRequest<R> {
   method = HTTP_METHOD.POST;
 
