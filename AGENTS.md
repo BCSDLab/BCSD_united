@@ -9,3 +9,18 @@
 - 그런 내용은 커밋 메시지와 PR 본문(수행한 검증, 남은 운영 전제조건)에 남긴다.
 - 기능을 바꾸면 README의 해당 설명을 현재 상태로 고쳐 쓴다. 이전 동작을 덧붙이거나 "이전에는 ~였다"를 남기지 않는다.
 - 수치·근거가 계약을 정하는 데 필요하면 날짜나 작업 경위 없이 현재 사실로만 적는다.
+
+## 문서 지도
+
+이 파일은 목차다. 규칙과 절차는 아래 문서에 두고 여기에 옮겨 적지 않는다.
+
+| 작업                                                      | 먼저 읽을 문서                                                                                         |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| 코드 규칙·검증·커밋·운영 안전                             | [CONTRIBUTING.md](./CONTRIBUTING.md)                                                                   |
+| 신기능·리디자인·에러 대응의 역할과 흐름, UI를 바꾸는 작업 | [docs/product-development](docs/product-development/README.md)                                         |
+| 수락된 디자인 결정                                        | [docs/product-development/decisions](docs/product-development/decisions)                               |
+| 작업 계약, 고정 커밋 실행, 검증·리뷰 상태                 | [docs/product-development의 하니스 절](docs/product-development/README.md#하니스)                      |
+| 오류 자동 수정 Worker와 실행기                            | [apps/error-automation](apps/error-automation/README.md), [scripts/autofix](scripts/autofix/README.md) |
+| 삐봇                                                      | [apps/b-bot](apps/b-bot/README.md)                                                                     |
+
+작업 파일이 있는 작업은 `pnpm development next <작업 파일> <상태 파일>`로 다음 할 일을 확인하고 시작한다. 문서가 가리키는 경로를 옮기거나 지웠으면 `pnpm development:docs`로 확인한다.

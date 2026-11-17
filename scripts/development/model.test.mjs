@@ -2,11 +2,15 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
 import {
+  MAX_FAILED_ROUNDS,
   createState,
+  nextActions,
+  recordHandback,
   recordImplementation,
   recordRelease,
   recordReview,
   recordVerification,
+  requireVerificationRound,
   summarize,
   taskDigest,
   validateTask,
@@ -77,6 +81,25 @@ function finishPlatform(state, task, platform = 'web') {
   recordRelease(state, task, platform, { sha: SHA, evidence: `https://releases.example/${platform}/12` });
 }
 
+function failedReport(task, platform = 'web', sha = SHA) {
+  return {
+    ...reportFor(task, platform, sha),
+    passed: false,
+    status: 'failed',
+    errors: ['One or more commands failed, timed out, or could not start'],
+    steps: [
+      { phase: 'candidate', command: ['node', 'build.mjs'], exitCode: 0, passed: true },
+      {
+        phase: 'candidate',
+        command: ['node', 'check.mjs'],
+        exitCode: 1,
+        passed: false,
+        excerpt: ['TypeError: login is not a function'],
+      },
+    ],
+  };
+}
+
 test('valid tasks support any nonempty subset of the three platforms', () => {
   for (const platforms of [['web'], ['android'], ['ios'], ['web', 'android', 'ios']]) {
     const task = taskFor(platforms);
@@ -86,7 +109,13 @@ test('valid tasks support any nonempty subset of the three platforms', () => {
     assert.equal(state.taskDigest, taskDigest(task));
     assert.deepEqual(Object.keys(state.platforms), platforms);
     for (const entry of Object.values(state.platforms)) {
-      assert.deepEqual(entry, { implementation: null, verification: null, review: null, release: null });
+      assert.deepEqual(entry, {
+        implementation: null,
+        verification: null,
+        review: null,
+        release: null,
+        failedRounds: 0,
+      });
     }
   }
 });
@@ -210,6 +239,9 @@ test('all operations invalidate changed task contracts', () => {
     () => recordVerification(state, task, 'web', reportFor(task)),
     () => recordReview(state, task, 'web', reviewFor(task)),
     () => recordRelease(state, task, 'web', { sha: SHA, evidence: 'Released by a human' }),
+    () => recordHandback(state, task, 'web', { reviewer: 'web-reviewer', note: 'Reviewed by a human' }),
+    () => requireVerificationRound(state, task, 'web'),
+    () => nextActions(state, task),
   ])
     assert.throws(operation, /fresh state/);
 });
@@ -226,6 +258,8 @@ test('partial platform completion never marks the task complete', () => {
     verified: true,
     reviewed: true,
     released: true,
+    failedRounds: 0,
+    escalated: false,
     status: 'released',
   });
   assert.deepEqual(summary.platforms.ios, {
@@ -233,6 +267,8 @@ test('partial platform completion never marks the task complete', () => {
     verified: false,
     reviewed: false,
     released: false,
+    failedRounds: 0,
+    escalated: false,
     status: 'pending',
   });
   finishPlatform(state, task, 'android');
@@ -254,6 +290,7 @@ test('new implementation commits reset verification, review, and release', () =>
     verification: null,
     review: null,
     release: null,
+    failedRounds: 0,
   });
   assert.throws(() => recordVerification(state, task, 'web', reportFor(task)), /SHA/);
   assert.throws(() => recordReview(state, task, 'web', reviewFor(task)), /verification/);
@@ -277,7 +314,13 @@ test('UI implementations must ship a Figma frame version, and a new version inva
   assert.equal(summarize(state, task).complete, true);
   const revised = { ...implementation(task), figma: { url: implementation(task).figma.url, version: '101' } };
   recordImplementation(state, task, 'web', revised);
-  assert.deepEqual(state.platforms.web, { implementation: revised, verification: null, review: null, release: null });
+  assert.deepEqual(state.platforms.web, {
+    implementation: revised,
+    verification: null,
+    review: null,
+    release: null,
+    failedRounds: 0,
+  });
 
   const error = {
     ...taskFor(),
@@ -411,4 +454,156 @@ test('review and release require separate human evidence and preserve attestatio
   recordReview(state, task, 'web', reviewFor(task));
   assert.equal(state.platforms.web.release, null);
   assert.equal(summarize(state, task).complete, false);
+});
+
+test('target paths must be bounded repository-relative prefixes and are part of the digest', () => {
+  const task = taskFor();
+  const digest = taskDigest(task);
+  task.targets.web.paths = ['apps/web/src/routes', 'apps/web/src/api/'];
+  assert.equal(validateTask(task), task);
+  assert.notEqual(taskDigest(task), digest);
+  for (const paths of [
+    [],
+    'apps/web',
+    ['apps/web/../secrets'],
+    ['..'],
+    ['/apps/web'],
+    ['apps\\web'],
+    ['apps/web', ''],
+    [1],
+  ]) {
+    task.targets.web.paths = paths;
+    assert.throws(() => validateTask(task), /task\.targets\.web\.paths/);
+  }
+});
+
+test('only executed failures use up verification rounds, and a new commit does not buy more', () => {
+  const task = taskFor();
+  const state = createState(task);
+  recordImplementation(state, task, 'web', implementation(task));
+  recordVerification(state, task, 'web', { ...failedReport(task), status: 'blocked', steps: [] });
+  assert.equal(state.platforms.web.verification.passed, false);
+  assert.equal(state.platforms.web.failedRounds, 0);
+  recordVerification(state, task, 'web', failedReport(task));
+  assert.equal(state.platforms.web.failedRounds, 1);
+  recordVerification(state, task, 'web', reportFor(task));
+  assert.equal(state.platforms.web.failedRounds, 1);
+  assert.equal(summarize(state, task).platforms.web.escalated, false);
+
+  recordImplementation(state, task, 'web', implementation(task, 'web', NEXT));
+  assert.equal(state.platforms.web.verification, null);
+  assert.equal(state.platforms.web.failedRounds, 1);
+  recordVerification(state, task, 'web', failedReport(task, 'web', NEXT));
+  assert.equal(state.platforms.web.failedRounds, MAX_FAILED_ROUNDS);
+
+  const before = structuredClone(state);
+  const exhausted = /Verification rounds exhausted for web; a human must review and run handback/;
+  assert.throws(() => recordVerification(state, task, 'web', reportFor(task, 'web', NEXT)), exhausted);
+  assert.throws(() => requireVerificationRound(state, task, 'web'), exhausted);
+  assert.deepEqual(state, before);
+  recordImplementation(state, task, 'web', implementation(task));
+  assert.throws(() => recordVerification(state, task, 'web', reportFor(task)), exhausted);
+});
+
+test('an escalated platform is never complete, and older states without a counter start at zero', () => {
+  const task = taskFor();
+  const state = createState(task);
+  finishPlatform(state, task);
+  delete state.platforms.web.failedRounds;
+  let summary = summarize(state, task);
+  assert.equal(summary.complete, true);
+  assert.equal(summary.platforms.web.failedRounds, 0);
+  assert.equal(summary.platforms.web.escalated, false);
+  state.platforms.web.failedRounds = MAX_FAILED_ROUNDS;
+  summary = summarize(state, task);
+  assert.equal(summary.complete, false);
+  assert.deepEqual(summary.pending, ['web']);
+  assert.equal(summary.platforms.web.failedRounds, MAX_FAILED_ROUNDS);
+  assert.equal(summary.platforms.web.escalated, true);
+  state.platforms.web.failedRounds = -1;
+  assert.throws(() => summarize(state, task), /failedRounds/);
+});
+
+test('handback needs the designated reviewer and a note, then reopens verification', () => {
+  const task = taskFor();
+  const state = createState(task);
+  recordImplementation(state, task, 'web', implementation(task));
+  recordVerification(state, task, 'web', failedReport(task));
+  recordVerification(state, task, 'web', failedReport(task));
+  assert.equal(summarize(state, task).platforms.web.escalated, true);
+  assert.throws(
+    () => recordHandback(state, task, 'web', { reviewer: 'someone-else', note: 'Looked at the failure' }),
+    /designated reviewer/,
+  );
+  assert.throws(() => recordHandback(state, task, 'web', { reviewer: 'web-reviewer', note: ' ' }), /note/);
+  assert.equal(state.platforms.web.failedRounds, MAX_FAILED_ROUNDS);
+  assert.equal(state.platforms.web.handbacks, undefined);
+
+  recordHandback(state, task, 'web', { reviewer: 'web-reviewer', note: 'Selector was wrong; one more round' });
+  assert.equal(state.platforms.web.failedRounds, 0);
+  assert.equal(summarize(state, task).platforms.web.escalated, false);
+  const [handback] = state.platforms.web.handbacks;
+  assert.deepEqual(
+    { ...handback, at: null },
+    { reviewer: 'web-reviewer', note: 'Selector was wrong; one more round', at: null, sha: SHA },
+  );
+  assert.equal(new Date(handback.at).toISOString(), handback.at);
+  recordVerification(state, task, 'web', reportFor(task));
+  assert.equal(state.platforms.web.verification.passed, true);
+  recordHandback(state, task, 'web', { reviewer: 'web-reviewer', note: 'Second review' });
+  assert.equal(state.platforms.web.handbacks.length, 2);
+
+  const untouched = createState(task);
+  recordHandback(untouched, task, 'web', { reviewer: 'web-reviewer', note: 'Nothing implemented yet' });
+  assert.equal(untouched.platforms.web.handbacks[0].sha, null);
+});
+
+test('nextActions names the single next step for each platform state', () => {
+  const task = taskFor();
+  const state = createState(task);
+  const action = () => nextActions(state, task).platforms[0];
+  const fix = {
+    platform: 'web',
+    action: 'fix',
+    error: 'One or more commands failed, timed out, or could not start',
+    excerpt: ['TypeError: login is not a function'],
+  };
+  assert.deepEqual(action(), { platform: 'web', action: 'implement' });
+  recordImplementation(state, task, 'web', implementation(task));
+  assert.deepEqual(action(), { platform: 'web', action: 'verify', sha: SHA });
+  recordVerification(state, task, 'web', failedReport(task));
+  assert.deepEqual(action(), fix);
+  recordVerification(state, task, 'web', failedReport(task));
+  assert.deepEqual(action(), {
+    platform: 'web',
+    action: 'escalated',
+    failedRounds: MAX_FAILED_ROUNDS,
+    reviewer: 'web-reviewer',
+  });
+  recordHandback(state, task, 'web', { reviewer: 'web-reviewer', note: 'Reviewed the failure' });
+  assert.deepEqual(action(), fix);
+  recordVerification(state, task, 'web', reportFor(task));
+  assert.deepEqual(action(), { platform: 'web', action: 'review', reviewer: 'web-reviewer' });
+  recordReview(state, task, 'web', reviewFor(task));
+  assert.deepEqual(action(), { platform: 'web', action: 'release' });
+  recordRelease(state, task, 'web', { sha: SHA, evidence: 'Human confirmed production release' });
+  assert.deepEqual(action(), { platform: 'web', action: 'done' });
+  assert.deepEqual(nextActions(state, task).blocked, []);
+});
+
+test('nextActions follows task platform order and lists only blocked dependencies', () => {
+  const task = taskFor(['android', 'web']);
+  task.dependencies = [
+    { id: 'api', status: 'blocked', detail: 'API contract unavailable' },
+    { id: 'design', status: 'ready', detail: 'Design approved' },
+  ];
+  const state = createState(task);
+  implementAndVerify(state, task, 'web');
+  assert.deepEqual(nextActions(state, task), {
+    platforms: [
+      { platform: 'android', action: 'implement' },
+      { platform: 'web', action: 'fix', error: 'Dependency is blocked: api', excerpt: [] },
+    ],
+    blocked: [{ id: 'api', detail: 'API contract unavailable' }],
+  });
 });

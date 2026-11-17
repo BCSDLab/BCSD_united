@@ -11,7 +11,13 @@
     "web": {
       "repository": "BCSDLab/BCSD_united",
       "baseSha": "8025c98443a572ea8df988c013150947934742d5",
-      "reviewer": "unassigned"
+      "reviewer": "unassigned",
+      "paths": [
+        "apps/web/src/components/cafeteria",
+        "apps/web/src/routes",
+        "apps/web/src/api/dinings",
+        "apps/web/src/api/coopshop"
+      ]
     },
     "android": {
       "repository": "BCSDLab/KOIN_ANDROID",

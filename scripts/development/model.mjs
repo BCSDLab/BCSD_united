@@ -8,6 +8,8 @@ const REPOSITORIES = {
 };
 const SHA = /^[a-fA-F0-9]{40}$/;
 const STAGES = ['implementation', 'verification', 'review', 'release'];
+// 검증 실패가 이 횟수에 이르면 자동 재시도를 멈추고 사람에게 넘긴다.
+export const MAX_FAILED_ROUNDS = 2;
 
 function object(value, name) {
   if (
@@ -30,6 +32,21 @@ function text(value, name) {
 function sha(value, name) {
   if (typeof value !== 'string' || !SHA.test(value)) {
     throw new Error(`${name} must be a 40-character hexadecimal SHA`);
+  }
+}
+
+function pathPrefixes(value, name) {
+  if (!Array.isArray(value) || value.length === 0) throw new Error(`${name} must be a nonempty array`);
+  for (const [index, prefix] of value.entries()) {
+    if (
+      typeof prefix !== 'string' ||
+      prefix.length === 0 ||
+      prefix.includes('\\') ||
+      prefix.startsWith('/') ||
+      prefix.split('/').includes('..')
+    ) {
+      throw new Error(`${name}[${index}] must be a repository-relative POSIX path prefix`);
+    }
   }
 }
 
@@ -98,6 +115,7 @@ export function validateTask(task) {
     }
     sha(target.baseSha, `task.targets.${platform}.baseSha`);
     text(target.reviewer, `task.targets.${platform}.reviewer`);
+    if (target.paths !== undefined) pathPrefixes(target.paths, `task.targets.${platform}.paths`);
   }
   for (const name of ['figma', 'api']) {
     if (task[name] !== undefined) {
@@ -147,6 +165,7 @@ export function createState(task) {
           verification: null,
           review: null,
           release: null,
+          failedRounds: 0,
         },
       ]),
     ),
@@ -171,6 +190,12 @@ function checkState(state, task) {
     for (const stage of STAGES) {
       if (entry[stage] !== null) object(entry[stage], `state.platforms.${platform}.${stage}`);
     }
+    if (entry.failedRounds !== undefined && !(Number.isInteger(entry.failedRounds) && entry.failedRounds >= 0)) {
+      throw new Error(`state.platforms.${platform}.failedRounds must be a nonnegative integer`);
+    }
+    if (entry.handbacks !== undefined && !Array.isArray(entry.handbacks)) {
+      throw new Error(`state.platforms.${platform}.handbacks must be an array`);
+    }
   }
 }
 
@@ -180,6 +205,21 @@ function platformState(state, task, platform) {
     throw new Error(`Platform is not a task target: ${String(platform)}`);
   }
   return state.platforms[platform];
+}
+
+// 이전 형식의 상태 파일에는 횟수가 없으므로 0으로 읽는다.
+function failedRounds(entry) {
+  return entry.failedRounds ?? 0;
+}
+
+function requireRound(entry, platform) {
+  if (failedRounds(entry) >= MAX_FAILED_ROUNDS) {
+    throw new Error(`Verification rounds exhausted for ${platform}; a human must review and run handback`);
+  }
+}
+
+export function requireVerificationRound(state, task, platform) {
+  requireRound(platformState(state, task, platform), platform);
 }
 
 function sameSha(left, right) {
@@ -223,6 +263,11 @@ function validateReport(report, task, platform, implementation) {
         throw new Error(`report.steps[${index}].phase must be baseline or candidate`);
       if (step.exitCode !== null && !Number.isInteger(step.exitCode))
         throw new Error(`report.steps[${index}].exitCode must be an integer or null`);
+      if (
+        step.excerpt !== undefined &&
+        !(Array.isArray(step.excerpt) && step.excerpt.every((line) => typeof line === 'string'))
+      )
+        throw new Error(`report.steps[${index}].excerpt must be an array of strings`);
     }
   }
   if (report.errors !== undefined && !Array.isArray(report.errors)) throw new Error('report.errors must be an array');
@@ -276,6 +321,7 @@ export function recordImplementation(state, task, platform, record) {
     }
     text(record.figma.version, 'implementation.figma.version');
   }
+  // 새 커밋·새 Figma 버전은 검증·리뷰·출시만 무효화한다. failedRounds는 그대로 두어 재시도 횟수를 늘리지 못하게 한다.
   const previous = entry.implementation;
   if (
     !previous ||
@@ -293,6 +339,7 @@ export function recordImplementation(state, task, platform, record) {
 
 export function recordVerification(state, task, platform, report) {
   const entry = platformState(state, task, platform);
+  requireRound(entry, platform);
   validateReport(report, task, platform, entry.implementation);
   const failures = verificationFailures(report, task);
   entry.verification = {
@@ -301,6 +348,8 @@ export function recordVerification(state, task, platform, report) {
     status: failures.length === 0 ? 'passed' : 'failed',
     failures,
   };
+  // 아무것도 실행하지 못한 blocked 보고는 구현 실패가 아니므로 횟수에 넣지 않는다.
+  if (report.passed === false && report.status === 'failed') entry.failedRounds = failedRounds(entry) + 1;
   entry.review = null;
   entry.release = null;
   return state;
@@ -352,6 +401,37 @@ export function recordRelease(state, task, platform, record) {
   return state;
 }
 
+function released(entry, task, platform) {
+  return (
+    reviewed(entry, task, platform) &&
+    entry.release !== null &&
+    sameSha(entry.release.sha, entry.implementation.sha) &&
+    typeof entry.release.evidence === 'string' &&
+    entry.release.evidence.trim().length > 0
+  );
+}
+
+export function recordHandback(state, task, platform, record) {
+  const entry = platformState(state, task, platform);
+  object(record, 'handback');
+  text(record.reviewer, 'handback.reviewer');
+  text(record.note, 'handback.note');
+  if (record.reviewer !== task.targets[platform].reviewer) {
+    throw new Error('Handback requires the designated reviewer');
+  }
+  entry.handbacks = [
+    ...(entry.handbacks ?? []),
+    {
+      reviewer: record.reviewer,
+      note: record.note,
+      at: new Date().toISOString(),
+      sha: entry.implementation?.sha ?? null,
+    },
+  ];
+  entry.failedRounds = 0;
+  return state;
+}
+
 export function summarize(state, task) {
   checkState(state, task);
   const platforms = {};
@@ -361,18 +441,17 @@ export function summarize(state, task) {
     const implemented = entry.implementation !== null;
     const isVerified = verified(entry, task, platform);
     const isReviewed = reviewed(entry, task, platform);
-    const released =
-      isReviewed &&
-      entry.release !== null &&
-      sameSha(entry.release.sha, entry.implementation.sha) &&
-      typeof entry.release.evidence === 'string' &&
-      entry.release.evidence.trim().length > 0;
+    const isReleased = released(entry, task, platform);
+    const rounds = failedRounds(entry);
+    const escalated = rounds >= MAX_FAILED_ROUNDS;
     platforms[platform] = {
       implemented,
       verified: isVerified,
       reviewed: isReviewed,
-      released,
-      status: released
+      released: isReleased,
+      failedRounds: rounds,
+      escalated,
+      status: isReleased
         ? 'released'
         : isReviewed
           ? 'reviewed'
@@ -382,7 +461,38 @@ export function summarize(state, task) {
               ? 'implemented'
               : 'pending',
     };
-    if (!released) pending.push(platform);
+    if (!isReleased || escalated) pending.push(platform);
   }
   return { complete: pending.length === 0, platforms, pending };
+}
+
+/** 세션을 시작할 때 플랫폼마다 지금 해야 할 한 가지를 정한다. */
+export function nextActions(state, task) {
+  checkState(state, task);
+  const platforms = Object.keys(task.targets).map((platform) => {
+    const entry = state.platforms[platform];
+    const { reviewer } = task.targets[platform];
+    const rounds = failedRounds(entry);
+    if (rounds >= MAX_FAILED_ROUNDS) return { platform, action: 'escalated', failedRounds: rounds, reviewer };
+    if (!entry.implementation) return { platform, action: 'implement' };
+    const { verification } = entry;
+    if (!verification || !sameSha(verification.sha, entry.implementation.sha)) {
+      return { platform, action: 'verify', sha: entry.implementation.sha };
+    }
+    if (!verified(entry, task, platform)) {
+      return {
+        platform,
+        action: 'fix',
+        error: String(verification.errors?.[0] ?? verification.failures?.[0] ?? 'Verification report failed'),
+        excerpt: verification.steps?.find((step) => step.passed === false)?.excerpt ?? [],
+      };
+    }
+    if (!reviewed(entry, task, platform)) return { platform, action: 'review', reviewer };
+    if (!released(entry, task, platform)) return { platform, action: 'release' };
+    return { platform, action: 'done' };
+  });
+  const blocked = task.dependencies
+    .filter((dependency) => dependency.status === 'blocked')
+    .map(({ id, detail }) => ({ id, detail }));
+  return { platforms, blocked };
 }

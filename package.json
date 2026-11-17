@@ -6,6 +6,7 @@
     "prepare": "husky",
     "development": "node scripts/development/cli.mjs",
     "development:board": "node scripts/development/board.mjs",
+    "development:docs": "node scripts/development/docs-check.mjs AGENTS.md docs/product-development/README.md",
     "test:development": "node --test scripts/development/*.test.mjs",
     "dev": "pnpm --parallel --filter @koin/web --filter @koin/api dev",
     "dev:web": "pnpm --filter @koin/web dev",

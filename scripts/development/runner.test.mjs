@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { existsSync } from 'node:fs';
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -70,6 +71,23 @@ function run(f, overrides = {}) {
     outputDir: f.outputDir,
     ...overrides,
   });
+}
+
+async function commit(f, files) {
+  for (const file of files) {
+    await mkdir(path.dirname(path.join(f.checkout, file)), { recursive: true });
+    await writeFile(path.join(f.checkout, file), 'scoped change');
+  }
+  git(f.checkout, 'add', ...files);
+  git(f.checkout, 'commit', '-m', 'fixture scope');
+  f.sha = git(f.checkout, 'rev-parse', 'HEAD');
+}
+
+function marking(f) {
+  const marker = path.join(f.root, 'executed.txt');
+  const command = node(`require("node:fs").writeFileSync(${JSON.stringify(marker)}, "ran")`);
+  f.profile.steps = [{ ...build, command }, scenario];
+  return marker;
 }
 
 test('a successful build alone cannot satisfy missing scenario evidence', async (t) => {
@@ -155,4 +173,78 @@ test('error tasks reproduce the expected failure in a separate clean base checko
   assert.equal(report.steps[0].exitCode, 7);
   assert.equal(report.steps[0].passed, true);
   assert.equal(report.steps[1].kind, 'build');
+});
+
+test('a commit touching files outside the task paths is blocked before any step runs', async (t) => {
+  const f = await fixture(t);
+  const marker = marking(f);
+  const stray = Array.from({ length: 11 }, (_, index) => `srcx/${String(index + 1).padStart(2, '0')}.txt`);
+  await commit(f, ['src/app/page.txt', ...stray]);
+  f.task.targets.web.paths = ['fixture.txt', 'src'];
+  const report = await run(f);
+  assert.equal(report.passed, false);
+  assert.equal(report.status, 'blocked');
+  assert.deepEqual(report.steps, []);
+  assert.equal(existsSync(marker), false);
+  assert.deepEqual(report.scope, { paths: ['fixture.txt', 'src'], changed: 13, outside: stray });
+  assert.deepEqual(report.errors, [`Changes outside the task scope: ${stray.slice(0, 10).join(', ')} (+1 more)`]);
+});
+
+test('a file moved into the task paths still reports the path it left', async (t) => {
+  const f = await fixture(t);
+  const marker = marking(f);
+  await mkdir(path.join(f.checkout, 'src'));
+  git(f.checkout, 'mv', '.gitignore', 'src/.gitignore');
+  git(f.checkout, 'commit', '-m', 'fixture move');
+  f.sha = git(f.checkout, 'rev-parse', 'HEAD');
+  f.task.targets.web.paths = ['fixture.txt', 'src'];
+  const report = await run(f);
+  assert.equal(report.status, 'blocked');
+  assert.deepEqual(report.scope.outside, ['.gitignore']);
+  assert.equal(existsSync(marker), false);
+});
+
+test('a commit inside the task paths runs normally and records an empty scope violation list', async (t) => {
+  const f = await fixture(t);
+  const marker = marking(f);
+  await commit(f, ['src/app/page.txt', 'lib/util.txt']);
+  f.task.targets.web.paths = ['fixture.txt', 'src', 'lib/'];
+  const report = await run(f);
+  assert.equal(report.passed, true, report.errors.join('\n'));
+  assert.equal(report.status, 'passed');
+  assert.equal(existsSync(marker), true);
+  assert.deepEqual(report.scope, { paths: ['fixture.txt', 'src', 'lib/'], changed: 3, outside: [] });
+  delete f.task.targets.web.paths;
+  const unscoped = await run(f, { outputDir: path.join(f.root, 'unscoped') });
+  assert.equal(unscoped.passed, true, unscoped.errors.join('\n'));
+  assert.equal(Object.hasOwn(unscoped, 'scope'), false);
+});
+
+test('failed steps carry a bounded log excerpt and passing steps carry none', async (t) => {
+  const f = await fixture(t);
+  f.profile.steps = [
+    build,
+    {
+      ...scenario,
+      command: node(
+        'console.log("out first"); console.log(""); console.log("out last"); console.error("err first"); console.error("err last"); process.exit(9)',
+      ),
+    },
+    {
+      id: 'noisy',
+      kind: 'build',
+      command: node(
+        'for (let i = 1; i <= 25; i += 1) console.error(`line ${i} ${"x".repeat(400)}`); console.log("not needed"); process.exit(1)',
+      ),
+    },
+  ];
+  const report = await run(f);
+  assert.equal(report.status, 'failed');
+  assert.equal(Object.hasOwn(report.steps[0], 'excerpt'), false);
+  assert.deepEqual(report.steps[1].excerpt, ['err first', 'err last', 'out first', 'out last']);
+  const noisy = report.steps[2].excerpt;
+  assert.equal(noisy.length, 20);
+  assert.ok(noisy.every((line) => line.length === 300));
+  assert.match(noisy[0], /^line 6 x/);
+  assert.match(noisy.at(-1), /^line 25 x/);
 });

@@ -7,6 +7,9 @@ import path from 'node:path';
 const SHA = /^[a-f\d]{40}$/i;
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
 const MAX_TIMEOUT_MS = 60 * 60 * 1000;
+const EXCERPT_LINES = 20;
+const EXCERPT_LINE_LENGTH = 300;
+const EXCERPT_TAIL_BYTES = 64 * 1024;
 
 function requireValue(condition, message) {
   if (!condition) throw new Error(message);
@@ -108,6 +111,30 @@ async function verifyCheckout(checkout, repository, baseSha, sha) {
   return directory;
 }
 
+// 빌드 로그는 매우 커질 수 있으므로 파일 끝부분만 읽는다.
+async function tailLines(filename, limit) {
+  if (limit <= 0) return [];
+  const file = await open(filename, 'r');
+  try {
+    const { size } = await file.stat();
+    const length = Math.min(size, EXCERPT_TAIL_BYTES);
+    if (length === 0) return [];
+    const { buffer } = await file.read(Buffer.alloc(length), 0, length, size - length);
+    const lines = buffer.toString('utf8').split(/[\r\n]+/);
+    if (length < size) lines.shift();
+    return lines
+      .filter((line) => line.trim().length > 0)
+      .slice(-limit)
+      .map((line) => line.slice(0, EXCERPT_LINE_LENGTH));
+  } finally {
+    await file.close();
+  }
+}
+
+function inScope(file, paths) {
+  return paths.some((prefix) => file === prefix || file.startsWith(prefix.endsWith('/') ? prefix : `${prefix}/`));
+}
+
 async function runCommand({ command, cwd, outputDir, prefix, timeoutMs, expectedExitCode, ...metadata }) {
   const stdout = `${prefix}.stdout.log`;
   const stderr = `${prefix}.stderr.log`;
@@ -152,6 +179,10 @@ async function runCommand({ command, cwd, outputDir, prefix, timeoutMs, expected
   } finally {
     await out.close();
     if (err) await err.close();
+  }
+  if (!result.passed) {
+    const lines = await tailLines(path.join(outputDir, stderr), EXCERPT_LINES);
+    result.excerpt = [...lines, ...(await tailLines(path.join(outputDir, stdout), EXCERPT_LINES - lines.length))];
   }
   result.completedAt = new Date().toISOString();
   return result;
@@ -216,6 +247,13 @@ export async function runProfile({ task, platform, profile, sha, outputDir }) {
       'baseSha must be a full 40-character commit hash',
     );
     requireValue(typeof sha === 'string' && SHA.test(sha), 'sha must be a full 40-character commit hash');
+    requireValue(
+      target.paths === undefined ||
+        (Array.isArray(target.paths) &&
+          target.paths.length > 0 &&
+          target.paths.every((prefix) => typeof prefix === 'string' && prefix.length > 0)),
+      'Target paths must be a nonempty array of path prefixes',
+    );
     requireValue(profile && profile.repository === target.repository, 'Profile repository must match the task target');
     requireValue(Array.isArray(profile.steps) && profile.steps.length > 0, 'Profile must define executable steps');
     const timeoutMs = profile.timeoutMs ?? DEFAULT_TIMEOUT_MS;
@@ -251,6 +289,21 @@ export async function runProfile({ task, platform, profile, sha, outputDir }) {
       'Profile artifacts must be an array',
     );
     const candidate = await verifyCheckout(profile.checkout, target.repository, target.baseSha, sha);
+    if (target.paths !== undefined) {
+      let changed = [];
+      if (sha.toLowerCase() !== target.baseSha.toLowerCase()) {
+        // 이름 변경을 한 줄로 합치면 범위 밖 원본 경로가 목록에서 사라지므로 삭제·추가로 나눠 받는다.
+        const diff = await git(candidate, ['diff', '--name-only', '--no-renames', '-z', target.baseSha, sha]);
+        requireValue(diff.code === 0, 'Changed files could not be listed for the scope check');
+        changed = diff.text.split('\0').filter(Boolean);
+      }
+      const outside = changed.filter((file) => !inScope(file, target.paths));
+      report.scope = { paths: [...target.paths], changed: changed.length, outside };
+      requireValue(
+        outside.length === 0,
+        `Changes outside the task scope: ${outside.slice(0, 10).join(', ')}${outside.length > 10 ? ` (+${outside.length - 10} more)` : ''}`,
+      );
+    }
     let baseline;
     if (task.kind === 'error') {
       requireValue(
