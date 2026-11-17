@@ -5,7 +5,11 @@
   "goal": "세 클라이언트의 현재 식단 조회를 같은 작업 단위로 실행하고 증거를 반환한다",
   "scenarios": [
     { "id": "dining-view", "expected": "식단 화면에 진입하면 아침·점심·저녁 끼니가 표시된다" },
-    { "id": "dining-meal-change", "expected": "끼니를 바꾸면 해당 끼니의 식단 영역으로 전환된다" }
+    { "id": "dining-meal-change", "expected": "끼니를 바꾸면 해당 끼니의 식단 영역으로 전환된다" },
+    {
+      "id": "dining-date-change",
+      "expected": "날짜를 바꾸면 해당 날짜의 식단 영역으로 전환되고, 식단이 없는 날은 빈 상태가 표시된다"
+    }
   ],
   "targets": {
     "web": {

@@ -61,19 +61,19 @@ KOIN 웹·Android·iOS의 신기능, 통일성 리디자인, 에러 대응을 PM
 
 아래는 공용 코드가 있는 위치다. 결정 기록으로 수락 여부가 정해지기 전까지 이 위치의 컴포넌트와 토큰을 임시 범위로 쓴다. 특정 기능 전용 컴포넌트(로그인 유도 모달, 사용자 정보 모달 등)는 다른 화면의 기준으로 쓰지 않는다.
 
-| 플랫폼  | 위치                                  | 내용                                                                                                                                     |
-| ------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| 웹      | `apps/web/src/components/ui`          | 컴포넌트 16개(Button, Badge, Selector, SearchBar, PageHeader, BottomModal, DatePicker, DatePickerModal, Image, IconBox, Chat, Banner 등) |
-| 웹      | `apps/web/src/utils/scss`             | `order-palette`(모바일 상점·주문 화면 전용 색·그림자), `media`(576px 모바일 분기). 전역 색·글자 크기·모서리 토큰은 없다                  |
-| Android | `KOIN_ANDROID`의 `core/designsystem`  | 디자인 시스템 모듈. 별도 저장소 `KOIN_ANDROID_DESIGNSYSTEM`과의 관계는 정해지지 않았다                                                   |
-| iOS     | `KOIN_iOS`의 `Koin/Core/DesignSystem` | Color(`ColorSystem`), Font(`Typography`), RadioButton, Toast                                                                             |
-| 문구    | `KOIN_STRINGS`                        | 공용 문구·용어집·생성기. `BCSD_united` 웹은 참조하지 않는다                                                                              |
+| 플랫폼  | 위치                                  | 내용                                                                                                                                      |
+| ------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| 웹      | `apps/web/src/components/ui`          | 컴포넌트 16개(Button, Badge, Selector, SearchBar, PageHeader, BottomModal, DatePicker, DatePickerModal, Image, IconBox, Chat, Banner 등)  |
+| 웹      | `apps/web/src/utils/scss`             | `tokens.scss`가 전역 색·글자 크기·굵기·모서리의 진입점이다. 기존 `order-palette`를 그대로 내보내며 `media`는 576px 모바일 분기를 제공한다 |
+| Android | `KOIN_ANDROID`의 `core/designsystem`  | 디자인 시스템 모듈. 별도 저장소 `KOIN_ANDROID_DESIGNSYSTEM`과의 관계는 정해지지 않았다                                                    |
+| iOS     | `KOIN_iOS`의 `Koin/Core/DesignSystem` | Color(`ColorSystem`), Font(`Typography`), RadioButton, Toast                                                                              |
+| 문구    | `KOIN_STRINGS`                        | 공용 문구·용어집·생성기. `BCSD_united` 웹은 참조하지 않는다                                                                               |
 
-웹은 전역 토큰이 없으므로 다음 임시 규칙을 쓴다.
+웹 스타일은 `@use "src/utils/scss/tokens" as tokens;`로 토큰을 읽는다.
 
-- 색·글자 크기·모서리 값은 웹 코드에서 이미 쓰이는 값을 쓴다. 이 경우 작업을 멈추지 않으며, PR에 사용한 값을 토큰 후보로 적는다.
-- 웹 코드 어디에도 없는 새 값은 위 결정 표를 따른다. 한 화면 전용이면 그 화면에 두고, 여러 화면이 쓸 값이면 새 토큰으로 낸다.
-- 웹 전역 토큰(색·글자 크기·모서리) 정의는 PE가 맡는 디자인 시스템 변경이다. 토큰이 정의된 영역부터 이 임시 규칙 대신 토큰을 쓴다.
+- `components/ui`는 원시 hex 색을 Stylelint로 거부한다. 없는 값은 같은 변경에서 토큰에 추가한다.
+- 기존 화면의 값은 정확히 같은 값의 토큰으로만 치환한다. 가까운 색이나 크기로 합치는 것은 별도의 디자인 변경이다.
+- `pnpm development:tokens report apps/web/src`로 원시 값과 토큰 사용률을 확인하고, `apply <디렉터리>`로 정확히 일치하는 값만 치환한다.
 
 ### 규칙
 
@@ -230,18 +230,46 @@ iOS:
 | --------- | ------------------ | ---------------------------------------------------------------------------- | -------------------------------------------- |
 | 식단 진입 | `web-scenario.mjs` | `.maestro/dining.yaml`                                                       | `flows/ios-dining-view.yaml` (미실행)        |
 | 끼니 변경 | `web-scenario.mjs` | 미검증. `.maestro/dining.yaml`이 점심을 누르지만 전환 결과를 확인하지 않는다 | `flows/ios-dining-meal-change.yaml` (미실행) |
-| 날짜 변경 | 없음               | 없음                                                                         | 없음                                         |
+| 날짜 변경 | `web-scenario.mjs` | 없음                                                                         | 없음                                         |
 
-날짜 변경 흐름이 없으므로 어느 플랫폼도 기준 시나리오 전체를 완료할 수 없다. 예시 작업 파일은 식단 진입과 끼니 변경만 시나리오로 담고, 날짜 변경은 미확인 항목으로 둔다.
+식단은 상태 전환 검증의 예시이며 전체 화면 검증을 대신하지 않는다. 웹 예시 작업은 세 시나리오를 담는다. Android·iOS의 날짜 변경은 미검증이다.
+
+### 웹 전체 화면
+
+`scripts/development/screens/web.json`은 사용자 화면 라우트 전체의 목록이다. 공개 화면은 데스크톱·모바일에서 실행하고, 로그인 화면은 비로그인 리다이렉트만 검사한 뒤 기능 자체는 미검증으로 남긴다. 비활성 주문 화면은 사유와 함께 건너뛴다. API·루트 셸은 사용자 화면 목록에서 제외한다.
+
+```sh
+pnpm development:web --sha <전체 SHA> --checkout <웹 체크아웃 절대 경로> --reviewer <리뷰어> --work "$WORK"
+pnpm development run "$WORK/web.task.json" web "$WORK/web.profile.json" <전체 SHA> "$WORK/out"
+```
+
+한 번 띄운 개발 서버에서 화면 전체를 순회한다. 공개 화면마다 문서 오류·오류 경계·예외·console.error·같은 Origin API의 5xx를 검사하고 두 뷰포트의 캡처를 남긴다. 예상된 404 안내 화면은 목록에 명시한다. 화면 진입 성공은 검색·작성·결제 같은 사용자 여정 전체의 성공이 아니다. 상세 화면 ID와 테스트 데이터가 바뀌면 목록의 근거와 값을 함께 갱신한다.
 
 ### 회귀 실행 준비
 
-디자인 시스템 회귀는 실행하지 않는다. 아래는 호스트별 준비 항목이다.
+`visual-diff.mjs`는 기준 캡처와 실제 캡처를 비교한다. 기준 디렉터리는 체크아웃 밖에 두며, 같은 커밋·기기·뷰포트·언어·데이터·시각 조건을 고정한다. 기준 이미지는 자동 갱신하지 않고 사람이 변경을 승인한다.
 
 | 호스트     | 대상                                           | 준비 항목                                                                                                                      |
 | ---------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | Mac Studio | iOS Simulator 시나리오, iOS 디자인 시스템 회귀 | Xcode, Maestro, `KOIN_iOS` 체크아웃, `Debug.xcconfig`·`GoogleService-Info-Stage.plist`, `profiles/ios.mac-studio.example.json` |
 | 5500GT     | 웹 디자인 시스템 회귀(후보, 대상 미정)         | Node·pnpm, Chrome, `BCSD_united` 체크아웃, `profiles/web.example.json`                                                         |
+
+```sh
+pnpm development:visual --baseline "$WORK/baseline" --actual apps/web/.wrangler/harness/screens --out apps/web/.wrangler/harness/diff
+```
+
+프로필의 시나리오 단계에 이 명령을 넣고 `diff/result.json`을 증거 목록에 추가한다. 이미지 누락·추가·크기 변경은 실패다. PNG는 8비트 RGB/RGBA 비인터레이스만 지원한다. `--threshold`는 채널 차이 허용치, `--max-ratio`는 다른 픽셀 비율 허용치다. 픽셀 비교는 기능 검증이나 Figma 디자인 QA를 대체하지 않는다.
+
+### Android 전체 흐름
+
+`android-suite.mjs`는 지정 런의 `Maestro <flow>` job 전체를 작업 파일과 프로필로 만든다. 성공한 흐름만 고르지 않는다.
+
+```sh
+pnpm development:android --run-id <런 ID> --sha <전체 SHA> --checkout <Android 체크아웃 절대 경로> --reviewer <리뷰어> --work "$WORK"
+pnpm development run "$WORK/android.task.json" android "$WORK/android.profile.json" <전체 SHA> "$WORK/out"
+```
+
+job 성공은 YAML에 적힌 검사만 증명한다. 기능 전체의 검증으로 확대 해석하지 않는다. 원격 앱을 새로 실행하지 않고 기존 런을 읽는다.
 
 ## 자동화 경계
 
@@ -279,14 +307,13 @@ iOS:
 
 만들어야 하는 것:
 
-- 웹 전역 토큰 파일. 색·글자 크기·모서리 값은 대부분 SCSS에 직접 적혀 있다.
-- 디자인 시스템 카탈로그 화면과 화면·상태 단위 시각 회귀.
-- 에이전트용 제품 디자인 지침(스킬)과 디자인 규칙 린트.
+- 공용 컴포넌트 카탈로그 화면. 시각 비교 도구는 있지만 모든 컴포넌트 상태의 기준 캡처는 아직 없다.
+- `components/ui` 밖의 토큰 전환과 디자인 규칙 린트 적용 확대.
 - 코드 토큰을 Figma로 내보내는 도구, Figma 프레임을 자동으로 만드는 연결.
 - 프리뷰 화면의 요소·버전 단위 댓글 연결.
 - 하니스가 쓸 수 있는 macOS 실행 호스트, 실행으로 확인된 iOS UI 자동화, `KOIN_iOS`의 접근성 식별자.
-- 세 플랫폼의 날짜 변경 시나리오, Android 끼니 전환 결과 검증.
-- 식단 외 시나리오의 Android·iOS 흐름, Android 로그인 흐름 복구.
+- Android·iOS의 날짜 변경 시나리오와 Android 끼니 전환 결과 검증.
+- iOS의 식단 외 사용자 여정과 Android 공통 홈 진입 실패 원인 해소.
 - Android·iOS에서 기준 커밋의 실패를 재현하는 수단.
 - `BCSD_united` 웹과 `KOIN_STRINGS`의 연결.
 
@@ -313,9 +340,9 @@ iOS:
 | [OpenAI Harness engineering](https://openai.com/index/harness-engineering)                                                                                                                                     | AGENTS.md는 목차만 두고 내용은 `docs/`에 둔다. 문서가 낡았는지 기계로 검사한다. 오류 메시지에 고치는 방법을 적는다. 에이전트가 앱을 직접 띄워 조작한다                                        | `AGENTS.md`의 문서 지도, `pnpm development:docs`, 웹 시나리오의 Chrome 조작                                                       |
 | [Martin Fowler 사이트의 하니스 글](https://martinfowler.com/articles/harness-engineering.html)                                                                                                                 | 실행 전에 방향을 잡는 안내와 실행 후에 잡아내는 검사를 나누고, 각각 기계적인 것과 모델 판단인 것을 구분한다                                                                                   | 아래 표                                                                                                                           |
 
-|              | 기계적                                                             | 모델 판단                                             |
-| ------------ | ------------------------------------------------------------------ | ----------------------------------------------------- |
-| 실행 전 안내 | 작업 파일, 프로필, `AGENTS.md` 문서 지도, 결정 기록                | 없음 (에이전트용 디자인 지침이 없다)                  |
-| 실행 후 검사 | 린트·타입 검사, 범위 검사, 고정 커밋 시나리오 실행, 문서 경로 검사 | `koin-qa`의 Figma 비교 (이 저장소에서 실행한 적 없음) |
+|              | 기계적                                                             | 모델 판단                                                 |
+| ------------ | ------------------------------------------------------------------ | --------------------------------------------------------- |
+| 실행 전 안내 | 작업 파일, 프로필, `AGENTS.md` 문서 지도, 결정 기록                | `.agents/skills/product-design/SKILL.md`와 화면·상태 참조 |
+| 실행 후 검사 | 린트·타입 검사, 범위 검사, 고정 커밋 시나리오 실행, 문서 경로 검사 | `koin-qa`의 Figma 비교 (이 저장소에서 실행한 적 없음)     |
 
 가져오지 않은 것: 에이전트가 사람 리뷰 없이 병합하는 흐름, 실행마다 새로 만드는 원격 개발 환경, 수백 개 도구를 모은 중앙 도구 서버, 변경 내용을 모델이 심사하는 단계. 범위를 벗어난 변경은 모델 심사 대신 경로 검사로만 잡는다.

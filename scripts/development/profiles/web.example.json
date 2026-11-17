@@ -39,6 +39,21 @@
       ]
     },
     {
+      "id": "dining-date-change",
+      "kind": "scenario",
+      "scenarioId": "dining-date-change",
+      "command": [
+        "node",
+        "/절대/경로/BCSD_united/scripts/development/web-scenario.mjs",
+        "--checkout",
+        "/절대/경로/BCSD_united",
+        "--scenario",
+        "dining-date-change",
+        "--out",
+        "apps/web/.wrangler/harness/dining-date-change"
+      ]
+    },
+    {
       "id": "dining-view-design-qa",
       "kind": "scenario",
       "scenarioId": "dining-view",
@@ -66,6 +81,9 @@
     "apps/web/.wrangler/harness/dining-meal-change/dining-meal-change-before.png",
     "apps/web/.wrangler/harness/dining-meal-change/dining-meal-change-after.png",
     "apps/web/.wrangler/harness/dining-meal-change/result.json",
+    "apps/web/.wrangler/harness/dining-date-change/dining-date-change-before.png",
+    "apps/web/.wrangler/harness/dining-date-change/dining-date-change-after.png",
+    "apps/web/.wrangler/harness/dining-date-change/result.json",
     "apps/web/.wrangler/harness/design-qa/report.json",
     "apps/web/.wrangler/harness/design-qa/report.md"
   ]

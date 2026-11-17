@@ -24,3 +24,5 @@
 | 삐봇                                                      | [apps/b-bot](apps/b-bot/README.md)                                                                     |
 
 작업 파일이 있는 작업은 `pnpm development next <작업 파일> <상태 파일>`로 다음 할 일을 확인하고 시작한다. 문서가 가리키는 경로를 옮기거나 지웠으면 `pnpm development:docs`로 확인한다.
+
+`apps/web`의 화면·컴포넌트·스타일·문구·UI 상태를 바꾸거나 리뷰할 때는 [.agents/skills/product-design/SKILL.md](.agents/skills/product-design/SKILL.md)를 먼저 읽는다. API·Worker·스크립트만 바꾸는 작업에는 로드하지 않는다.

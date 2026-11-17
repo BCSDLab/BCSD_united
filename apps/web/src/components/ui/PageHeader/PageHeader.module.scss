@@ -1,3 +1,5 @@
+@use "src/utils/scss/tokens" as tokens;
+
 .header {
   --header-side-width: 24px;
 
@@ -28,10 +30,10 @@
   &__title {
     width: 100%;
     overflow: hidden;
-    font-size: 18px;
-    font-weight: 500;
+    font-size: tokens.$font-size-18;
+    font-weight: tokens.$font-weight-medium;
     line-height: 1.6;
-    color: #000;
+    color: tokens.$neutral-800;
     margin: 0;
     text-align: center;
     text-overflow: ellipsis;
