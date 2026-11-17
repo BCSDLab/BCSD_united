@@ -248,3 +248,20 @@ test('failed steps carry a bounded log excerpt and passing steps carry none', as
   assert.match(noisy[0], /^line 6 x/);
   assert.match(noisy.at(-1), /^line 25 x/);
 });
+
+test('missing recordings do not hide the failed build or completed scenario verdicts', async (t) => {
+  const f = await fixture(t);
+  f.profile.steps = [
+    { ...build, command: node('console.error("compiler: missing build configuration"); process.exit(65)') },
+    scenario,
+  ];
+  f.profile.artifacts = ['build-output/missing-recording.mp4'];
+  const report = await run(f);
+  assert.equal(report.status, 'failed');
+  assert.equal(report.passed, false);
+  assert.match(report.errors[0], /successful build/);
+  assert.ok(report.errors.some((error) => /ENOENT/.test(error)));
+  assert.equal(report.steps[0].exitCode, 65);
+  assert.ok(report.steps[0].excerpt.some((line) => line.includes('missing build configuration')));
+  assert.equal(report.scenarios[0].passed, true);
+});

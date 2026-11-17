@@ -365,9 +365,6 @@ export async function runProfile({ task, platform, profile, sha, outputDir }) {
       report.steps.push(result);
     }
     await verifyCheckout(candidate, target.repository, target.baseSha, sha);
-    for (const [index, source] of (profile.artifacts ?? []).entries()) {
-      report.artifacts.push(await collectArtifact(candidate, output, source, index));
-    }
     for (const scenario of report.scenarios) {
       scenario.passed = report.steps.some(
         (step) =>
@@ -381,6 +378,9 @@ export async function runProfile({ task, platform, profile, sha, outputDir }) {
       report.errors.push('Every task scenario requires successful matching command evidence');
     if (report.steps.some((step) => !step.passed))
       report.errors.push('One or more commands failed, timed out, or could not start');
+    for (const [index, source] of (profile.artifacts ?? []).entries()) {
+      report.artifacts.push(await collectArtifact(candidate, output, source, index));
+    }
     report.passed = report.errors.length === 0;
     report.status = report.passed ? 'passed' : 'failed';
   } catch (error) {
