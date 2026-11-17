@@ -23,6 +23,9 @@ import {
   validateReview,
   publishPullRequest,
   reviewComment,
+  publishReviewComment,
+  isPublisherComment,
+  reviewMarker,
 } from './pull-request';
 import type {
   Env,
@@ -986,7 +989,7 @@ export class AutofixQueue extends DurableObject<Env> {
     if (payload.outcome === 'failed') {
       if (typeof payload.reason !== 'string' || payload.reason.length < 1 || payload.reason.length > 500)
         throw new PolicyRejection('Invalid failure reason');
-      const safe = `자동 리뷰 실행 또는 독립 검증에 실패하여 PR head \`${job.headSha}\`를 변경하지 않았습니다. 수동으로 리뷰해 주세요.`;
+      const safe = `<!-- pr-review-status:${job.pullNumber} -->\n\n자동 리뷰 실행 또는 독립 검증에 실패하여 PR head \`${job.headSha}\`를 변경하지 않았습니다. 수동으로 리뷰해 주세요.`;
       const token = await installationToken(this.env, 'publish');
       await this.leased(runId, payload.leaseToken, true);
       const reportingUntil = Date.now() + REPORT_MS;
@@ -998,7 +1001,7 @@ export class AutofixQueue extends DurableObject<Env> {
       await this.scheduleAlarm();
       await this.ctx.storage.sync();
       try {
-        await github(this.env, token, `/issues/${job.pullNumber}/comments`, 'POST', { body: safe });
+        await publishReviewComment(this.env, token, job.pullNumber, safe);
         const current = this.ctx.storage.sql
           .exec<{ status: Status }>('SELECT status FROM jobs WHERE run_id = ?', runId)
           .toArray()[0];
@@ -1114,41 +1117,30 @@ export class AutofixQueue extends DurableObject<Env> {
       outcome = { status: 'pending-checks', reason: 'GitHub 응답을 확인할 수 없어 제한 시간 내에 재확인합니다.' };
     }
     const id = /#issuecomment-([1-9][0-9]*)$/.exec(published.commentUrl)?.[1];
-    const marker = `<!-- pr-auto-merge:${job.pullNumber}:${job.headSha}:${job.baseSha}:${proof.manifestSha256} -->`;
     const report = `### 자동 merge\n\n- ${outcome.status}: ${outcome.reason}\n`;
-    let updated = false;
-    if (id) {
-      try {
-        const token = await installationToken(this.env, 'publish');
-        await github(this.env, token, `/issues/comments/${id}`, 'PATCH', {
-          body: `${reviewComment(job, review, manifest, proof, published.publishedHeadSha)}\n${report}`,
-        });
-        updated = true;
-      } catch {
-        // A follow-up marker comment is the fallback if GitHub refuses to edit the review comment.
-      }
-    }
-    if (!updated) {
-      try {
-        const token = await installationToken(this.env, 'publish');
-        const comments = await github<
-          { body?: string; user?: { login?: string; type?: string }; performed_via_github_app?: { id?: number } }[]
-        >(this.env, token, `/issues/${job.pullNumber}/comments?per_page=100`);
-        if (
-          !comments.some(
-            (comment) =>
-              comment.body?.includes(marker) &&
-              comment.user?.login === 'bcsd-united-error-publisher[bot]' &&
-              comment.user.type === 'Bot' &&
-              comment.performed_via_github_app?.id === 5522353,
-          )
-        )
-          await github(this.env, token, `/issues/${job.pullNumber}/comments`, 'POST', {
-            body: `${marker}\n\n${report}`,
-          });
-      } catch {
-        // The authenticated durable receipt remains available when GitHub comments are unavailable.
-      }
+    if (!id) return { ...outcome, reason: `${outcome.reason} 기존 리뷰 댓글 ID를 확인할 수 없습니다.` };
+    try {
+      const token = await installationToken(this.env, 'publish');
+      const comment = await github<{
+        body?: unknown;
+        user?: { login?: unknown; type?: unknown };
+        performed_via_github_app?: { id?: unknown } | null;
+      }>(this.env, token, `/issues/comments/${id}`);
+      // 이전 작업의 alarm이 최신 리뷰로 갱신된 댓글을 덮어쓰지 않는다.
+      if (
+        !isPublisherComment(comment) ||
+        typeof comment.body !== 'string' ||
+        !comment.body.includes(reviewMarker(job, proof))
+      )
+        return outcome;
+      await github(this.env, token, `/issues/comments/${id}`, 'PATCH', {
+        body: `${reviewComment(job, review, manifest, proof, published.publishedHeadSha)}\n${report}`,
+      });
+    } catch {
+      return {
+        ...outcome,
+        reason: `${outcome.reason} 기존 리뷰 댓글 갱신에 실패했으며 새 댓글은 생성하지 않았습니다.`,
+      };
     }
     return outcome;
   }

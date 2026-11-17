@@ -5,6 +5,7 @@ import { dirname, join, resolve, sep } from 'node:path';
 import { jsonFile } from './common.mjs';
 import { delay, migrateWebApi, readJsonResponse, startProcess, stopProcess } from './local-api.mjs';
 import { applicationGraph, matchesRoute, sourceFiles, webSmokeRoute } from './source-graph.mjs';
+import { waitForRenderedApplication } from './browser-readiness.mjs';
 
 const graph = applicationGraph('web');
 const context = await jsonFile('/input/context.json');
@@ -100,6 +101,7 @@ await migrateWebApi();
 let server;
 let browser;
 let socket;
+let desktopDiagnostics;
 let mobileDiagnostics;
 let browserProfile;
 try {
@@ -292,10 +294,14 @@ try {
   )
     failures.push('Browser gateway did not return the real local D1 categories response');
   await waitUntil(() => inFlightRequests.size === 0, 'Desktop route requests');
-  const dom = await send('Runtime.evaluate', {
-    expression:
-      '({ path: location.pathname, text: document.body.innerText, elements: document.body.querySelectorAll("*").length })',
-    returnByValue: true,
+  const dom = await waitForRenderedApplication(() => {
+    server.assertRunning();
+    browser.assertRunning();
+    return send('Runtime.evaluate', {
+      expression:
+        '({ path: location.pathname, text: document.body.innerText, elements: document.body.querySelectorAll("*").length })',
+      returnByValue: true,
+    });
   });
   const value = dom.result?.value;
   if (
@@ -309,7 +315,18 @@ try {
   server.assertRunning();
   browser.assertRunning();
   if (/\[ERROR\]|uncaught|unhandled rejection/i.test(server.log)) failures.push('Web Worker emitted runtime errors');
-  if (failures.length) throw new Error([...new Set(failures)].join('; '));
+  if (failures.length) {
+    desktopDiagnostics = JSON.stringify({
+      path: value?.path,
+      elements: value?.elements,
+      hasText: Boolean(value?.text?.trim()),
+      domEvaluationException: Boolean(dom.exceptionDetails),
+      routeErrorLabel: Boolean(value?.text?.includes('페이지를 불러오지 못했습니다')),
+      genericErrorLabel: /something went wrong|internal server error/i.test(value?.text ?? ''),
+      inFlight: [...inFlightRequests.values()].slice(0, 12),
+    });
+    throw new Error([...new Set(failures)].join('; '));
+  }
   assertApiHealthy(server.log, homeUnavailable);
   process.stdout.write(
     `Real local API/D1 smoke passed: SSR ${route}, browser ${route}, gateway /api/shops/categories\n`,
@@ -348,11 +365,15 @@ try {
   await waitUntil(() => inFlightRequests.size === 0, 'Mobile route requests');
   let mobile;
   for (let attempt = 0; attempt < 40; attempt += 1) {
-    const dom = await send('Runtime.evaluate', {
-      expression:
-        '(() => { const heading = document.getElementById("home-greeting-title"); const mealHeading = document.getElementById("today-menu-title"); const mealSection = mealHeading?.closest("section"); const mealList = Array.from(mealSection?.querySelectorAll("[aria-label]") ?? []).find((node) => node.getAttribute("aria-label") === "오늘의 식단 목록"); return { path: location.pathname, width: innerWidth, mobile: matchMedia("(max-width: 600px)").matches, text: document.body.innerText, elements: document.body.querySelectorAll("*").length, greeting: heading?.getClientRects().length ? heading.innerText : null, meal: mealList ? { count: mealList.querySelectorAll("h3").length, text: mealSection.innerText } : null }; })()',
-      returnByValue: true,
-    });
+    const dom = await waitForRenderedApplication(
+      () =>
+        send('Runtime.evaluate', {
+          expression:
+            '(() => { const heading = document.getElementById("home-greeting-title"); const mealHeading = document.getElementById("today-menu-title"); const mealSection = mealHeading?.closest("section"); const mealList = Array.from(mealSection?.querySelectorAll("[aria-label]") ?? []).find((node) => node.getAttribute("aria-label") === "오늘의 식단 목록"); return { path: location.pathname, width: innerWidth, mobile: matchMedia("(max-width: 600px)").matches, text: document.body.innerText, elements: document.body.querySelectorAll("*").length, greeting: heading?.getClientRects().length ? heading.innerText : null, meal: mealList ? { count: mealList.querySelectorAll("h3").length, text: mealSection.innerText } : null }; })()',
+          returnByValue: true,
+        }),
+      { attempts: 40 },
+    );
     if (dom.exceptionDetails) {
       failures.push('Mobile DOM evaluation failed');
       break;
@@ -449,6 +470,7 @@ try {
   process.stdout.write(`Mobile local API/D1 smoke passed: ${route} at 390px, gateway /api/shops/categories\n`);
 } catch (error) {
   if (server) process.stderr.write(server.log.slice(-8000));
+  if (desktopDiagnostics) process.stderr.write(`Desktop smoke diagnostics ${desktopDiagnostics}\n`);
   if (mobileDiagnostics) process.stderr.write(`Mobile smoke diagnostics ${mobileDiagnostics}\n`);
   throw error;
 } finally {

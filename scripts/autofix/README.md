@@ -102,6 +102,10 @@ heartbeat 실패 원인(원인 체인의 오류 코드 포함)과 중단·실패
 2. 새 `tests/autofix/*.test.mjs`는 수정 전 실제 assertion 실패, 수정 후 통과해야 한다. loader/setup 실패는 재현이 아니다. 오류 모드에서는 고정 base의 기존 native fixtures를 후보 적용 **전과 후** 모두 실행해 이미 통과하던 테스트를 보존한다. API 후보는 `@koin/api...`, 웹 후보는 추가로 `@koin/web...` 의존성 범위의 기존 native fixtures·타입·빌드를 검사하고 autofix 보안 테스트와 해당 범위 lint를 수행한다. B-BOT의 별도 PostgreSQL 런타임은 이 자동 수정 대상이 아니며 저장소 전체 검증에서 따로 검사한다. 기존 fixture/test 파일은 패치에서 수정할 수 없다.
 3. 웹은 정적 route/import graph에서 모든 변경 소스가 관측 경로에 도달하는지 확인한다. 오류 작업은 인증된 관측 경로를 그대로 사용하며, PR/단독 오프라인 스모크만 홈 `/`를 사용한다. 웹 검증 전 로컬 D1 migration을 적용하고, Vite 빌드에 검증 전용 `koin-api` auxiliary Worker를 포함하여 SSR service binding과 브라우저 gateway가 동일한 실제 로컬 API/D1을 사용하게 한다. API smoke는 별도 실제 Wrangler Worker에서 관측된 GET endpoint 실행과 2xx/JSON을 확인한다. 배포 설정의 레거시 Worker API는 `API_ENABLED` 기본 비활성(`"false"`)이므로, `local-api.mjs`는 격리 Miniflare에만 `API_ENABLED`를 `"true"`로 명시한다(`wrangler dev --var API_ENABLED:true`, auxiliary Worker 사본의 `vars` 치환). 이 값은 로컬 프로세스에만 적용되며 원격 Worker·D1·Queue 설정을 바꾸지 않는다. `SOURCE_SYNC_ENABLED`는 그대로 `"false"`이고 검증기가 별도 게이트를 추가하지 않는다. 데스크톱 SSR/Chromium 후 문서를 떠나 `requestContext.ts`의 모바일 분류와 일치하는 Android Mobile UA로 **같은 관측 경로**의 SSR/390px Chromium을 새로 열고, 문서·gateway 응답, 앱 DOM, console.error·예외·hydration 경고·HTTP 오류를 확인한다. 홈에서는 실제 인사·식단 위젯과 SSR의 로컬 API 요청도 확인하되, 정적 경로에 존재하지 않는 API 요청을 강요하지 않는다. 빈 로컬 D1에서 `/weather` 503과 `/coopshop/1` 404는 정확한 API 오류 코드와 명시적 unavailable/빈 식단 UI를 모두 확인한 경우에만 허용한다. 임시 entrypoint·registry·브라우저 프로필·프로세스·컨테이너·source snapshot을 정리한다. mutating 요청/인증/필수 query/운영 데이터 의존은 자동 재생하지 않으며 운영 데이터나 가짜 fallback을 사용하지 않는다.
 
+격리 API/D1 스모크는 standalone·보조 Worker 사본의 `KOIN_DB_ENABLED`를 `"false"`로 고정하여 실제 레거시 D1 핸들러를 실행한다. 운영 AWS 원본 인증값을 주입하거나 gateway의 응답을 흉내 내지 않는다. 따라서 이 검증은 AWS gateway·bridge·원격 Java API의 동작 증거가 아니며, 원본 `wrangler.jsonc`의 gateway 설정은 변경하지 않는다.
+
+Chromium의 load·네트워크 유휴 이벤트만으로 렌더 완료를 판단하지 않는다. 데스크톱과 모바일 모두 실제 본문·DOM이 나타날 때까지 제한 시간 안에서 기다린 뒤 기존 경로·오류 문구·식단 위젯 검증을 그대로 적용한다. 끝까지 빈 화면이면 실패한다.
+
 ## omp 게이트웨이 (Rocky 상주)
 
 Worker의 **유일한** 모델 인증 경로다. 직접 Anthropic API key 호출 경로는 제거되었고 복원용 fallback도 없다. Worker는 Workers VPC 바인딩 `OMP_GATEWAY`와 secret `OMP_GATEWAY_TOKEN`이 모두 설정된 경우에만 고정 system/tools/model 본문을 바인딩의 `POST /v1/messages`에 `Authorization: Bearer <OMP_GATEWAY_TOKEN>`으로 보내며 redirect를 따르지 않는다. 둘 중 하나라도 없으면 모델 호출은 설정 오류로 실패하고 작업은 종료된다. Rocky에서는 `scripts/autofix/local-omp-gateway.mjs`가 `127.0.0.1:43129`에만 바인딩되어 요청마다 공식 `omp auth-gateway stdio` 자식 한 개를 띄워 추론만 위임한다. omp 자식은 Rocky의 기존 omp auth-broker(`127.0.0.1:8766`)로 인증하며, access/refresh token·API key를 읽거나 복사하거나 내보내지 않고, 계정 회전이나 한도 우회를 하지 않는다. omp 한도가 소진되면 요청은 그대로 실패한다.
@@ -242,7 +246,7 @@ node scripts/autofix/verify.mjs --offline-smoke
 
 ### Rocky 실행기 이미지 갱신과 실제 PR 작업 투입
 
-두 이미지의 `/automation`·`/opt/autofix` 검증 스크립트 SHA256(`verify.mjs`, `patch.mjs`, `common.mjs`, `local-api.mjs`, `smoke.mjs`, `api-smoke.mjs`, `bbot-smoke.mjs`, `crawler-smoke.mjs`, `security.test.mjs`, `source-graph.mjs`)이 일치해야 claim이 진행된다. 실행기 서비스가 사용하는 호스트에서 같은 커밋으로 둘 다 다시 빌드한다(`--pull=never`이므로 레지스트리 없이 로컬 태그만 쓴다).
+두 이미지의 `/automation`·`/opt/autofix` 검증 스크립트 SHA256(`verify.mjs`, `patch.mjs`, `common.mjs`, `local-api.mjs`, `smoke.mjs`, `browser-readiness.mjs`, `api-smoke.mjs`, `bbot-smoke.mjs`, `bbot-build.mjs`, `crawler-smoke.mjs`, `security.test.mjs`, `source-graph.mjs`, `workspace-typecheck.mjs`)이 일치해야 claim이 진행된다. 실행기 서비스가 사용하는 호스트에서 같은 커밋으로 둘 다 다시 빌드한다(`--pull=never`이므로 레지스트리 없이 로컬 태그만 쓴다).
 
 ```sh
 docker build --tag koin-error-verifier --file scripts/autofix/Dockerfile scripts/autofix
