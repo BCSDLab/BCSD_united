@@ -11,6 +11,7 @@
     "development:visual": "node scripts/development/visual-diff.mjs",
     "development:android": "node scripts/development/android-suite.mjs",
     "development:web": "node scripts/development/web-suite.mjs",
+    "development:matrix": "node scripts/development/verify-matrix.mjs",
     "test:development": "node --test scripts/development/*.test.mjs",
     "dev": "pnpm --parallel --filter @koin/web --filter @koin/api dev",
     "dev:web": "pnpm --filter @koin/web dev",

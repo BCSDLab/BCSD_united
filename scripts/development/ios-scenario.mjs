@@ -16,6 +16,7 @@ const { values, positionals } = parseArgs({
     flow: { type: 'string' },
     out: { type: 'string' },
     device: { type: 'string', default: 'iPhone 17 Pro' },
+    display: { type: 'string', default: 'primary' },
     scheme: { type: 'string', default: 'koin-stage' },
     bundle: { type: 'string', default: 'com.bcsdlab.koin.stage' },
   },
@@ -85,9 +86,13 @@ await run('xcrun', ['simctl', 'boot', device.udid]);
 if ((await run('xcrun', ['simctl', 'bootstatus', device.udid, '-b'])) !== 0) fail('Simulator 부팅에 실패했다');
 if ((await run('xcrun', ['simctl', 'install', device.udid, join(products, app)])) !== 0) fail('앱 설치에 실패했다');
 
-const recorder = spawn('xcrun', ['simctl', 'io', device.udid, 'recordVideo', '--force', join(out, 'recording.mp4')], {
-  stdio: 'ignore',
-});
+const recorder = spawn(
+  'xcrun',
+  ['simctl', 'io', device.udid, 'recordVideo', `--display=${values.display}`, '--force', join(out, 'recording.mp4')],
+  {
+    stdio: 'ignore',
+  },
+);
 let code = 1;
 try {
   code = await run(

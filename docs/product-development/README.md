@@ -147,6 +147,19 @@ flowchart LR
 | `next`              | 플랫폼마다 다음에 할 일 한 줄과 마지막 실패 요약을 출력한다. 작업을 이어받을 때 먼저 실행한다 |
 | `handback`          | 검증 실패 횟수 한도에 걸린 플랫폼을 지정 리뷰어가 확인하고 다시 열어 준다                     |
 
+### 기능·플랫폼 통합 판정
+
+`verify-matrix.mjs`는 기능별 검증 목표와 실행 보고서를 연결한다. 화면 진입(`render`), Maestro 흐름(`flow`), API 기동 검사(`api-smoke`), 계약(`contract`), 사용자 여정(`journey`), 인증(`auth`), 빈 상태·오류(`empty-error`), 접힘(`posture`), 상태 보존(`continuity`)을 구분한다.
+
+```sh
+pnpm development:matrix "$WORK/matrix.json" "$WORK/coverage.json" "$WORK/coverage.md"
+```
+
+- 입력은 `schemaVersion: 1`, `sources`, `checks`다. 출처는 `id`, `path`(입력 파일 기준 상대 경로), `platform`, 전체 `sha`, `kind`를 가진다. `kind`는 `web-screen`, `maestro-flow`, `ios-flow`, `api-smoke`, `contract-test`, `journey` 중 하나다.
+- 목표는 고유 `id`, `feature`, `platform`, `level`, `source`(출처 ID 또는 `null`), `scenarios`(필요한 시나리오 ID 목록)를 가진다. 출처를 연결하지 않은 목표는 미검증이지 통과나 구현된 테스트가 아니다.
+- 보고서의 플랫폼·커밋, 성공한 빌드와 일치하는 시나리오 실행을 확인한다. 화면 진입 보고서로 여정·인증·접힘 검증을 채울 수 없다. 나중에 잘못된 증거로 확인한 시나리오는 해당 출처의 `invalidated`에 적어 이전 통과를 철회한다.
+- 연결된 목표가 모두 통과해야 exit 0이다. 실패·차단·미검증이 하나라도 있으면 exit 1, 잘못된 입력은 exit 2다. 이 도구는 보고서를 평가할 뿐 서버나 앱을 대신 실행하지 않는다.
+
 ### 작업 보드
 
 기획은 Notion, 디자인은 Figma, 구현은 저장소별 GitHub, QA는 Notion의 회차별 표에 따로 있다. `board.mjs`는 기능 목록(`examples/board.features.example.json`)을 읽어 기능 하나의 상태를 한 문서로 모으고 빠진 연결을 표시한다. 읽기 전용이다.
