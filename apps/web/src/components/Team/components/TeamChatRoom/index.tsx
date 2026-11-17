@@ -82,7 +82,20 @@ export default function TeamChatRoom({ recruitmentId, chatRoomId }: TeamChatRoom
   }));
 
   const isTeamRoom = chatRoom.room_type === 'TEAM';
-  const messageGroups = mapTeamChatMessageGroups(mergedMessages, user?.id);
+  // 위로 스크롤해 받은 이전 메시지는 다시 받지 않으므로, 원문이 바뀌었다는(409) 응답을 받으면 그 메시지 하나를 다시 받아 새 버전을 찾는다
+  const refetchMessageVersion = async (messageId: number) => {
+    const fetched = await queryClient.query({
+      ...teamQueries.chatMessages(isLoggedIn, recruitmentId, chatRoomId, { beforeMessageId: messageId + 1, limit: 1 }),
+      staleTime: 0,
+    });
+
+    return fetched.find((message) => message.message_id === messageId)?.translation_source_version;
+  };
+  const messageGroups = mapTeamChatMessageGroups(mergedMessages, user?.id, {
+    recruitmentId,
+    chatRoomId,
+    refetchMessageVersion,
+  });
   const memberCount = isTeamRoom && (
     <span
       className={cn({
