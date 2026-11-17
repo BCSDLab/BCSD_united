@@ -221,6 +221,8 @@ iOS:
 - `KOIN_iOS`의 CI는 `koinUnitTests`만 실행한다. 화면 조작 검증으로 취급하지 않는다.
 - Maestro 흐름은 이 저장소에 있고 `KOIN_iOS` 변경과 함께 관리되지 않는다. `KOIN_iOS`에는 접근성 식별자가 거의 없어 흐름이 화면 문구에 의존한다.
 - 식단은 진입 시 A/B 배정과 로깅을 호출한다. 비로그인 화면이라도 외부 쓰기가 없다고 가정하지 않고, 날짜·데이터·계정·A/B 상태를 통제한다.
+- `node scripts/development/ios-devices.mjs`로 실제 설치된 iOS Simulator의 이름·UDID·런타임을 조회한다. `ios-scenario.mjs --device <UDID 또는 정확한 이름>`은 같은 기기를 빌드·설치·녹화·Maestro에 사용한다. 이름이 여러 런타임에 있거나 요청 기기가 없으면 다른 기기로 대체하지 않고 실패한다.
+- iPhone Duo는 해당 기기를 지원하는 Xcode와 Simulator 런타임이 필요하다. [Apple 검증 기준](https://developer.apple.com/documentation/technologyoverviews/preparing-your-app-for-iphone-duo)에 따라 외부·내부 화면, 완전 펼침·부분 접힘, 회전, 바·시트·팝오버와 접힘 영역을 각각 확인한다. 일반 iPhone이나 창 크기 변경으로 이 검증을 대신하지 않는다.
 
 ### 기준 시나리오
 

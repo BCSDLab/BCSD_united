@@ -7,6 +7,7 @@ import { spawn } from 'node:child_process';
 import { mkdir, readdir } from 'node:fs/promises';
 import { isAbsolute, join, resolve, sep } from 'node:path';
 import { parseArgs } from 'node:util';
+import { readIosDeviceCatalog, resolveIosDevice } from './ios-devices.mjs';
 
 const { values, positionals } = parseArgs({
   allowPositionals: true,
@@ -41,6 +42,7 @@ if (!['build', 'scenario'].includes(mode) || !values.checkout) {
   fail('usage: ios-scenario.mjs build --checkout DIR | scenario --checkout DIR --flow FILE --out build/harness/<name>');
 }
 const checkout = resolve(values.checkout);
+const device = resolveIosDevice(await readIosDeviceCatalog(), values.device);
 
 if (mode === 'build') {
   const code = await run(
@@ -54,7 +56,7 @@ if (mode === 'build') {
       '-configuration',
       'Debug',
       '-destination',
-      `platform=iOS Simulator,name=${values.device}`,
+      `platform=iOS Simulator,id=${device.udid}`,
       '-derivedDataPath',
       DERIVED,
       '-clonedSourcePackagesDirPath',
@@ -79,24 +81,35 @@ const app = (await readdir(products).catch(() => [])).find((name) => name.endsWi
 if (!app) fail('빌드된 Simulator 앱이 없다. 먼저 build를 실행한다');
 
 // 이미 부팅된 기기는 boot가 실패하므로 종료 코드를 보지 않고 bootstatus로 준비를 확인한다.
-await run('xcrun', ['simctl', 'boot', values.device]);
-if ((await run('xcrun', ['simctl', 'bootstatus', values.device, '-b'])) !== 0) fail('Simulator 부팅에 실패했다');
-if ((await run('xcrun', ['simctl', 'install', values.device, join(products, app)])) !== 0) fail('앱 설치에 실패했다');
+await run('xcrun', ['simctl', 'boot', device.udid]);
+if ((await run('xcrun', ['simctl', 'bootstatus', device.udid, '-b'])) !== 0) fail('Simulator 부팅에 실패했다');
+if ((await run('xcrun', ['simctl', 'install', device.udid, join(products, app)])) !== 0) fail('앱 설치에 실패했다');
 
-const recorder = spawn('xcrun', ['simctl', 'io', values.device, 'recordVideo', '--force', join(out, 'recording.mp4')], {
+const recorder = spawn('xcrun', ['simctl', 'io', device.udid, 'recordVideo', '--force', join(out, 'recording.mp4')], {
   stdio: 'ignore',
 });
 let code = 1;
 try {
   code = await run(
     'maestro',
-    ['test', resolve(values.flow), '--format', 'junit', '--output', join(out, 'junit.xml'), '--test-output-dir', out],
+    [
+      '--device',
+      device.udid,
+      'test',
+      resolve(values.flow),
+      '--format',
+      'junit',
+      '--output',
+      join(out, 'junit.xml'),
+      '--test-output-dir',
+      out,
+    ],
     { cwd: checkout, env: { ...process.env, MAESTRO_APP_ID: values.bundle } },
   );
 } finally {
   // recordVideo는 SIGINT를 받아야 파일을 마무리한다.
   recorder.kill('SIGINT');
   await new Promise((done) => recorder.on('exit', done));
-  await run('xcrun', ['simctl', 'terminate', values.device, values.bundle]);
+  await run('xcrun', ['simctl', 'terminate', device.udid, values.bundle]);
 }
 process.exit(code);
