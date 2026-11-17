@@ -4,6 +4,9 @@
   "type": "module",
   "scripts": {
     "prepare": "husky",
+    "development": "node scripts/development/cli.mjs",
+    "development:board": "node scripts/development/board.mjs",
+    "test:development": "node --test scripts/development/*.test.mjs",
     "dev": "pnpm --parallel --filter @koin/web --filter @koin/api dev",
     "dev:web": "pnpm --filter @koin/web dev",
     "dev:api": "pnpm --filter @koin/api dev",

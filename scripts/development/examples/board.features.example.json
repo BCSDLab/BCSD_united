@@ -1,0 +1,34 @@
+[
+  {
+    "id": "bokdeokbang",
+    "name": "복덕방 MVP 개편",
+    "keywords": ["복덕방"],
+    "repos": {
+      "web": "BCSDLab/BCSD_united",
+      "android": "BCSDLab/KOIN_ANDROID",
+      "ios": "BCSDLab/KOIN_iOS",
+      "api": "BCSDLab/KOIN_API_V2"
+    },
+    "notion": {
+      "pages": [
+        { "role": "plan", "id": "NOTION_PAGE_ID" },
+        { "role": "spec", "id": "NOTION_PAGE_ID" }
+      ],
+      "databases": [{ "role": "qa", "id": "NOTION_DATABASE_ID" }]
+    },
+    "figma": [{ "role": "design", "url": "https://www.figma.com/design/FILE_KEY/NAME?node-id=1-2" }]
+  },
+  {
+    "id": "multilingual",
+    "name": "다국어 지원",
+    "keywords": ["다국어", "문자열"],
+    "repos": {
+      "web": "BCSDLab/BCSD_united",
+      "android": "BCSDLab/KOIN_ANDROID",
+      "ios": "BCSDLab/KOIN_iOS",
+      "api": "BCSDLab/KOIN_API_V2"
+    },
+    "notion": { "pages": [{ "role": "plan", "id": "NOTION_PAGE_ID" }], "databases": [] },
+    "figma": []
+  }
+]

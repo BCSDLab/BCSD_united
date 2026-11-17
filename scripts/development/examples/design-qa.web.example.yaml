@@ -1,0 +1,20 @@
+# KOIN_DESIGN_QA_AGENT 설정. 하니스가 고정 커밋에서 찍은 식단 캡처를 Figma 프레임과 비교한다.
+# file_key·node_id는 구현 기록에 남긴 Figma 프레임의 값으로 바꾼다.
+platform: web
+driver:
+  url: http://localhost:3000/
+comparison:
+  ocr_language: kor+eng
+vision:
+  model: gpt-6-luna
+screens:
+  - id: cafeteria
+    match_url: '/cafeteria'
+    figma:
+      file_key: YOUR_FIGMA_FILE_KEY
+      node_id: '1:2'
+      # version: 구현 기록에 남긴 Figma 버전 ID. 생략하면 실행 시점 버전으로 고정된다.
+    requirements: [] # 작업 파일의 인수 조건 중 화면에서 확인할 문장
+    required_text: []
+    forbidden_text: ['undefined', 'NaN']
+    ignore_boxes: [] # 날짜·식단처럼 매일 바뀌는 영역 (Figma 프레임 픽셀 좌표)

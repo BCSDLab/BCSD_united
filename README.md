@@ -113,4 +113,8 @@ API gateway는 원문 `/api` 접두사를 검증하며 인코딩된 다른 접�
 - 브라우저 오류·세션 리플레이: Sentry (`koin-united-prod`, `koin-united-preview`)
 - 자동 수정: [apps/error-automation](apps/error-automation/README.md)
 
+## 제품 개발 운영
+
+신기능·통일성 리디자인·에러 대응의 역할, 디자인 시스템 규칙, 플랫폼 실행 하니스는 [docs/product-development](docs/product-development/README.md)를 따릅니다.
+
 기여 방법은 [CONTRIBUTING.md](./CONTRIBUTING.md)를 참고하세요.
