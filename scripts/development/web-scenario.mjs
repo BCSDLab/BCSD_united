@@ -564,13 +564,17 @@ function summarize(label, messages) {
 }
 
 /** 공개 화면의 실패 사유. 하나라도 있으면 그 뷰포트는 실패다. */
-function publicFailures(screen, origin, { record, state, navigationError }) {
+export function publicFailures(screen, origin, { record, state, navigationError }) {
   const expectNotFound = screen.expect === 'not-found';
   return [
     navigationError && `navigation failed: ${navigationError}`,
     record.documentStatus === null && 'no document response was received',
     record.documentStatus >= 400 && `document response status ${record.documentStatus}`,
     !(state?.ready && state.hydrated) && `the page did not load and hydrate within ${STEP_TIMEOUT_MS}ms`,
+    state?.url &&
+      screen.path !== '/' &&
+      new URL(state.url).pathname === '/' &&
+      'requested screen redirected to home; target screen was not verified',
     state?.notFound && !expectNotFound && 'the NotFound page was rendered',
     state && !state.notFound && expectNotFound && 'the NotFound page was not rendered',
     ...(state?.errorBoundaries ?? []).map((text) => `an error boundary was rendered: ${text}`),
@@ -857,10 +861,12 @@ async function main() {
   }
 }
 
-main().then(
-  () => process.exit(0),
-  (error) => {
-    console.error(`web-scenario failed: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(1);
-  },
-);
+if (import.meta.main) {
+  main().then(
+    () => process.exit(0),
+    (error) => {
+      console.error(`web-scenario failed: ${error instanceof Error ? error.message : String(error)}`);
+      process.exit(1);
+    },
+  );
+}
