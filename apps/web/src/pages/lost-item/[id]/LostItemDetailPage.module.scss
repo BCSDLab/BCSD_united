@@ -45,7 +45,7 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
   padding: 24px 0;
   font-size: 28px;
   font-weight: 500;
@@ -54,6 +54,7 @@
   @include media.media-breakpoint(mobile) {
     width: 100%;
     box-sizing: border-box;
+    gap: 8px;
     border-top: 0;
     padding: 15px 24px;
     border-bottom: 6px solid #f5f5f5;
@@ -64,9 +65,11 @@
     justify-content: space-between;
     align-items: center;
     gap: 12px;
+    padding-right: 24px;
 
     @include media.media-breakpoint(mobile) {
       align-items: flex-end;
+      padding-right: 0;
     }
   }
 
