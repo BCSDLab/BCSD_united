@@ -114,28 +114,9 @@ export async function fetchChatMessageCache(
       }
     } while (page.length === CHAT_MESSAGE_LIMIT);
 
-    // 새 메시지가 없어도 현재 보관한 대화의 읽음 수와 퇴장 표시를 다시 가져온다.
-    const oldestId = messages[0]?.message_id;
-    let pageToRefresh = await fetchMessages({ limit: CHAT_MESSAGE_LIMIT });
-    messages = mergeChatMessages(messages, pageToRefresh);
-    while (
-      oldestId &&
-      pageToRefresh.length === CHAT_MESSAGE_LIMIT &&
-      compareMessageIds(pageToRefresh[0].message_id, oldestId) > 0
-    ) {
-      const before = pageToRefresh[0].message_id;
-      pageToRefresh = await fetchMessages({
-        before_message_id: before,
-        limit: CHAT_MESSAGE_LIMIT,
-      });
-      if (pageToRefresh.length && compareMessageIds(pageToRefresh[0].message_id, before) >= 0) {
-        throw new Error('메시지 상태 갱신이 진행되지 않았습니다.');
-      }
-      messages = mergeChatMessages(
-        messages,
-        pageToRefresh.filter((message) => compareMessageIds(message.message_id, oldestId) >= 0),
-      );
-    }
+    // 읽음 수와 퇴장 표시는 최근 100개만 갱신하고, 이전 대화는 해당 페이지를 다시 조회할 때 갱신한다.
+    const latest = await fetchMessages({ limit: CHAT_MESSAGE_LIMIT });
+    messages = mergeChatMessages(messages, latest);
   }
 
   return {
