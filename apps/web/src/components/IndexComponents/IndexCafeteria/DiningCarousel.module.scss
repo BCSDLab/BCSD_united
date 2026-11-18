@@ -42,6 +42,8 @@
   &__viewport {
     display: flex;
     gap: 12px;
+    box-sizing: border-box;
+    padding-inline: max(0px, calc((100% - 280px) / 2));
     overflow-x: auto;
     scroll-snap-type: x proximity;
     scrollbar-width: none;
