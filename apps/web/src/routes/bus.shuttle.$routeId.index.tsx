@@ -148,10 +148,10 @@ function ShuttleDetailPage() {
 
               <div className={styles['time-table__number']}>승하차장명</div>
 
-              {shuttleTimetableDetail.node_info.map(({ name, detail }) => (
+              {shuttleTimetableDetail.node_info.map(({ name, display_name: displayName, detail }) => (
                 <div key={name} className={styles['time-table__node-wrapper']}>
                   <div className={styles['time-table__node']}>
-                    <div>{name}</div>
+                    <div>{displayName ?? name}</div>
                     {detail && <div className={styles['time-table__node-detail']}>{detail}</div>}
                   </div>
                 </div>
@@ -176,9 +176,9 @@ function ShuttleDetailPage() {
 
           <div className={styles['time-table']} style={{ gridTemplateRows: `repeat(${rowLength}, 1fr)` }}>
             <div className={styles['time-table__number']}>승하차장명</div>
-            {shuttleTimetableDetail.node_info.map(({ name, detail }) => (
+            {shuttleTimetableDetail.node_info.map(({ name, display_name: displayName, detail }) => (
               <div key={name} className={`${styles['time-table__node']} ${styles['time-table__node--long']}`}>
-                <div>{name}</div>
+                <div>{displayName ?? name}</div>
                 {detail && <div className={styles['time-table__node-detail']}>{detail}</div>}
               </div>
             ))}

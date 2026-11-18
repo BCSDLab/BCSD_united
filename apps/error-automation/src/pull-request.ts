@@ -357,7 +357,10 @@ export function allowedPullRequestPath(path: string, changed: readonly string[])
   return true;
 }
 
-export function validatePullRequestManifest(manifest: PatchManifest, job: PreparedPullRequestJob): void {
+export function validatePullRequestManifest(
+  manifest: PatchManifest,
+  job: Pick<PreparedPullRequestJob, 'changedFiles'>,
+): void {
   if (manifest?.version !== 1 || !Array.isArray(manifest.files) || manifest.files.length > 24)
     throw new Error('Invalid correction manifest');
   const names = new Set<string>();

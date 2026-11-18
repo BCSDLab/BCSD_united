@@ -265,9 +265,11 @@ function CallvanChatRoomContent({ room, userId }: CallvanChatRoomContentProps) {
         </button>
         <div className={styles['chat-room__header-center']}>
           <div className={styles['chat-room__title-row']}>
-            <span className={styles['chat-room__route-text']}>{postDetail.departure}</span>
+            <span className={styles['chat-room__route-text']}>
+              {postDetail.display_departure ?? postDetail.departure}
+            </span>
             <span>-</span>
-            <span className={styles['chat-room__route-text']}>{postDetail.arrival}</span>
+            <span className={styles['chat-room__route-text']}>{postDetail.display_arrival ?? postDetail.arrival}</span>
             <span>{postDetail.departure_time}</span>
           </div>
           <div className={styles['chat-room__header-count']}>
