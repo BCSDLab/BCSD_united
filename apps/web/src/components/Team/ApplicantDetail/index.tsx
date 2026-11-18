@@ -76,7 +76,7 @@ export default function ApplicantDetail() {
   );
 
   const { mutate: createDirectChatRoom, isPending: isCreatingChat } = useMutation(
-    teamMutations.createDirectChatRoom(Number(recruitmentId)),
+    teamMutations.createDirectChatRoom(queryClient, Number(recruitmentId)),
   );
 
   const [decisionAction, setDecisionAction] = useState<TeamRecruitmentApplicationDecision | null>(null);

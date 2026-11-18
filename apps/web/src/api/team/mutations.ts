@@ -1,6 +1,7 @@
 import { captureError } from '@koin/telemetry/runtime';
 import { mutationOptions, type QueryClient } from '@tanstack/react-query';
 
+import { invalidateChatRooms } from 'api/chat/mutations';
 import { isKoinError } from 'interfaces/APIError';
 import showToast from 'utils/ts/showToast';
 
@@ -35,10 +36,12 @@ export const teamMutations = {
   createRecruitment: (queryClient: QueryClient) =>
     mutationOptions({
       mutationFn: (data: TeamRecruitmentUpdateRequest) => createTeamRecruitment(data),
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: teamQueryKeys.myCreatedRoot });
-        queryClient.invalidateQueries({ queryKey: teamQueryKeys.listRoot });
-      },
+      onSuccess: (recruitment) =>
+        Promise.all([
+          queryClient.invalidateQueries({ queryKey: teamQueryKeys.myCreatedRoot }),
+          queryClient.invalidateQueries({ queryKey: teamQueryKeys.listRoot }),
+          invalidateChatRooms(queryClient, 'TEAM_RECRUITMENT', recruitment.id),
+        ]),
     }),
 
   deleteRecruitment: (queryClient: QueryClient) =>
@@ -52,7 +55,10 @@ export const teamMutations = {
       mutationFn: (data: TeamRecruitmentUpdateRequest) => updateTeamRecruitment(recruitmentId, data),
       onSuccess: async (recruitment) => {
         queryClient.setQueryData(teamQueryKeys.detail(recruitmentId, isLoggedIn), recruitment);
-        await invalidateRecruitmentList(queryClient);
+        await Promise.all([
+          invalidateRecruitmentList(queryClient),
+          invalidateChatRooms(queryClient, 'TEAM_RECRUITMENT', recruitmentId),
+        ]);
       },
     }),
 
@@ -85,9 +91,10 @@ export const teamMutations = {
       },
     }),
 
-  createDirectChatRoom: (recruitmentId: number) =>
+  createDirectChatRoom: (queryClient: QueryClient, recruitmentId: number) =>
     mutationOptions({
       mutationFn: (applicationId: number) => createTeamRecruitmentDirectChatRoom(recruitmentId, applicationId),
+      onSuccess: () => invalidateChatRooms(queryClient, 'TEAM_RECRUITMENT', recruitmentId),
       onError: (error) => {
         if (isKoinError(error)) {
           showToast('error', error.message);
@@ -138,8 +145,15 @@ export const teamMutations = {
     mutationOptions({
       mutationFn: ({ applicationId, status }: { applicationId: string; status: TeamRecruitmentApplicationDecision }) =>
         updateTeamRecruitmentApplicationStatus(recruitmentId, applicationId, { status }),
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: teamQueryKeys.applicantsRoot(recruitmentId) });
+      onSuccess: (_response, { status }) => {
+        const invalidations = [
+          queryClient.invalidateQueries({ queryKey: teamQueryKeys.applicantsRoot(recruitmentId) }),
+        ];
+        if (status === 'ACCEPTED') {
+          invalidations.push(invalidateChatRooms(queryClient, 'TEAM_RECRUITMENT', Number(recruitmentId)));
+        }
+
+        return Promise.all(invalidations);
       },
       onError: (error) => {
         if (isKoinError(error)) {

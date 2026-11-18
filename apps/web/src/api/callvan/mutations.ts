@@ -1,5 +1,7 @@
 import { mutationOptions, type QueryClient } from '@tanstack/react-query';
 
+import { invalidateChatRooms } from 'api/chat/mutations';
+
 import type { CallvanReportRequest, CreateCallvanRequest, SendChatRequest } from './entity';
 import {
   cancelCallvan,
@@ -26,19 +28,22 @@ export const callvanMutations = {
   create: (queryClient: QueryClient) =>
     mutationOptions({
       mutationFn: (data: CreateCallvanRequest) => createCallvan(data),
-      onSuccess: () => invalidateCallvanInfiniteList(queryClient),
+      onSuccess: (post) =>
+        Promise.all([invalidateCallvanInfiniteList(queryClient), invalidateChatRooms(queryClient, 'CALLVAN', post.id)]),
     }),
 
   join: (queryClient: QueryClient) =>
     mutationOptions({
       mutationFn: (postId: number) => joinCallvan(postId),
-      onSuccess: () => invalidateCallvanInfiniteList(queryClient),
+      onSuccess: (_response, postId) =>
+        Promise.all([invalidateCallvanInfiniteList(queryClient), invalidateChatRooms(queryClient, 'CALLVAN', postId)]),
     }),
 
   cancel: (queryClient: QueryClient) =>
     mutationOptions({
       mutationFn: (postId: number) => cancelCallvan(postId),
-      onSuccess: () => invalidateCallvanInfiniteList(queryClient),
+      onSuccess: (_response, postId) =>
+        Promise.all([invalidateCallvanInfiniteList(queryClient), invalidateChatRooms(queryClient, 'CALLVAN', postId)]),
     }),
 
   close: (queryClient: QueryClient) =>

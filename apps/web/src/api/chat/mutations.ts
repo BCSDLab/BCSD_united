@@ -1,6 +1,7 @@
 import { captureError } from '@koin/telemetry/runtime';
 import { isCancelledError, mutationOptions, type QueryClient } from '@tanstack/react-query';
 
+import { authQueries } from 'api/auth/queries';
 import { isHttpError, isKoinError } from 'interfaces/APIError';
 import showToast from 'utils/ts/showToast';
 
@@ -12,7 +13,7 @@ import {
   mergeChatMessages,
   type ChatMessageCache,
 } from './cache';
-import type { ChatMessageSendRequest } from './entity';
+import type { ChatDomainType, ChatMessageSendRequest, ChatRoomListResponse } from './entity';
 import { markChatRead, sendChatMessage } from './index';
 import { chatQueries, chatQueryKeys } from './queries';
 
@@ -36,6 +37,30 @@ function invalidateChatRoom(queryClient: QueryClient, userId: number | null, roo
   void queryClient.invalidateQueries({ queryKey: chatQueryKeys.roomsRoot(userId) });
   void queryClient.invalidateQueries({ queryKey: chatQueryKeys.room(userId, roomId), exact: true });
   void queryClient.invalidateQueries({ queryKey: chatQueryKeys.messages(userId, roomId), exact: true });
+}
+
+export async function invalidateChatRooms(
+  queryClient: QueryClient,
+  domainType: ChatDomainType,
+  contextId: number,
+): Promise<void> {
+  const userId = queryClient.getQueryData(authQueries.userInfo(true).queryKey)?.id;
+  if (userId === undefined) return;
+
+  const cachedRooms = queryClient
+    .getQueriesData<ChatRoomListResponse>({ queryKey: chatQueryKeys.roomsRoot(userId) })
+    .flatMap(([, rooms]) => rooms ?? [])
+    .filter((room) => room.domain_type === domainType && room.context_id === contextId);
+  // room_id는 서버가 반환한 값을 사용하고, 해당 글의 방만 갱신한다.
+  const roomIds = new Set(cachedRooms.map((room) => room.room_id));
+
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: chatQueryKeys.rooms(userId, domainType), exact: true }),
+    queryClient.invalidateQueries({ queryKey: chatQueryKeys.rooms(userId), exact: true }),
+    ...Array.from(roomIds, (roomId) =>
+      queryClient.invalidateQueries({ queryKey: chatQueryKeys.roomRoot(userId, roomId) }),
+    ),
+  ]);
 }
 
 export const chatMutations = {
