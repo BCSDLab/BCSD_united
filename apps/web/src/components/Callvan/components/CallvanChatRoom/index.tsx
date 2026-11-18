@@ -5,7 +5,7 @@ import { useRouter } from '@tanstack/react-router';
 import { callvanQueries } from 'api/callvan/queries';
 import type { ChatMessageResponse, ChatRoomResponse } from 'api/chat/entity';
 import { chatMutations } from 'api/chat/mutations';
-import { chatQueries, chatQueryKeys } from 'api/chat/queries';
+import { chatQueries } from 'api/chat/queries';
 import ArrowBackIcon from 'assets/svg/Callvan/arrow-back.svg';
 import PeopleIcon from 'assets/svg/Callvan/people.svg';
 import ImageUploadIcon from 'assets/svg/common/image-upload.svg';
@@ -121,7 +121,7 @@ function CallvanChatRoomContent({ room, userId }: CallvanChatRoomContentProps) {
     chatMutations.loadPreviousMessages(queryClient, userId, roomId),
   );
 
-  const { mutate: sendMessage, isPending: isSending } = useSendCallvanChat(postId);
+  const { mutate: sendMessage, isPending: isSending } = useSendCallvanChat(userId, roomId);
   const [inputValue, setInputValue] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -195,10 +195,6 @@ function CallvanChatRoomContent({ room, userId }: CallvanChatRoomContentProps) {
     }
   };
 
-  const invalidateMessages = () => {
-    queryClient.invalidateQueries({ queryKey: chatQueryKeys.messages(userId, roomId), exact: true });
-  };
-
   const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -206,7 +202,7 @@ function CallvanChatRoomContent({ room, userId }: CallvanChatRoomContentProps) {
     try {
       const { file_url } = await uploadFile({ domain: 'CALLVAN_CHAT', file });
       if (file_url) {
-        sendMessage({ is_image: true, content: file_url }, { onSuccess: invalidateMessages });
+        sendMessage({ is_image: true, content: file_url });
       }
     } finally {
       e.target.value = '';
@@ -225,7 +221,6 @@ function CallvanChatRoomContent({ room, userId }: CallvanChatRoomContentProps) {
       { is_image: false, content },
       {
         onSuccess: () => {
-          invalidateMessages();
           setInputValue('');
           if (textareaRef.current) {
             textareaRef.current.style.height = 'auto';
