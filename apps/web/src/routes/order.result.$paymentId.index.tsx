@@ -10,7 +10,7 @@ import OrderResultPage from 'components/Order/OrderResultPage';
 import OrderResultHeader from 'components/Order/OrderResultPage/components/OrderResultHeader';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
-import { isNotFoundKoinError } from 'utils/ts/edgeCache';
+import { isNotFoundKoinError } from 'utils/ts/httpError';
 
 // useNaverMapsLoaded가 붙이는 지도 스크립트와 같은 주소(미리 받기용)
 const NAVER_MAPS_CLIENT_ID = process.env.NEXT_PUBLIC_NAVER_MAPS_CLIENT_ID;

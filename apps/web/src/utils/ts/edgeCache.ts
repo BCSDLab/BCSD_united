@@ -11,10 +11,6 @@ export const ROOM_EDGE_CACHE_SECONDS = 60 * 60;
 const STATIC_FETCH_RETRY_ATTEMPTS = 2;
 const STATIC_FETCH_RETRY_DELAY_MS = 300;
 
-export function isNotFoundKoinError(error: unknown): boolean {
-  return isKoinError(error) && error.status === 404;
-}
-
 function isRetryableStaticFetchError(error: unknown): boolean {
   if (isKoinError(error)) {
     return error.status === 429 || error.status >= 500;

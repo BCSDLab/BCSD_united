@@ -12,7 +12,8 @@ import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useScrollToTop from 'utils/hooks/ui/useScrollToTop';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
-import { isNotFoundKoinError, ROOM_EDGE_CACHE_SECONDS, withStaticFetchRetry } from 'utils/ts/edgeCache';
+import { ROOM_EDGE_CACHE_SECONDS, withStaticFetchRetry } from 'utils/ts/edgeCache';
+import { isNotFoundKoinError } from 'utils/ts/httpError';
 
 import styles from 'pages/room/[id]/RoomDetailPage.module.scss';
 

@@ -13,7 +13,8 @@ import { isNewArticle } from 'components/Articles/utils/setArticleRegisteredDate
 import { SSRLayout } from 'components/layout';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
-import { ARTICLE_DETAIL_EDGE_CACHE_SECONDS, isNotFoundKoinError, withStaticFetchRetry } from 'utils/ts/edgeCache';
+import { ARTICLE_DETAIL_EDGE_CACHE_SECONDS, withStaticFetchRetry } from 'utils/ts/edgeCache';
+import { isNotFoundKoinError } from 'utils/ts/httpError';
 import { parseQueryId } from 'utils/ts/parseServerSideParams';
 
 function ArticlesDetailPage({ article, hotArticles }: { article: ArticleResponseWithNew; hotArticles?: HotArticle[] }) {
