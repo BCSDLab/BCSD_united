@@ -55,8 +55,13 @@ export async function invalidateChatRooms(
   const roomIds = new Set(cachedRooms.map((room) => room.room_id));
 
   await Promise.all([
-    queryClient.invalidateQueries({ queryKey: chatQueryKeys.rooms(userId, domainType), exact: true }),
-    queryClient.invalidateQueries({ queryKey: chatQueryKeys.rooms(userId), exact: true }),
+    // 비활성 목록 캐시도 즉시 다시 받아 새로 생성된 방으로 이동할 때 목록에 반영되도록 한다.
+    queryClient.invalidateQueries({
+      queryKey: chatQueryKeys.rooms(userId, domainType),
+      exact: true,
+      refetchType: 'all',
+    }),
+    queryClient.invalidateQueries({ queryKey: chatQueryKeys.rooms(userId), exact: true, refetchType: 'all' }),
     ...Array.from(roomIds, (roomId) =>
       queryClient.invalidateQueries({ queryKey: chatQueryKeys.roomRoot(userId, roomId) }),
     ),
