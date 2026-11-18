@@ -1,7 +1,6 @@
 import { type APIRequest, HTTP_METHOD } from 'interfaces/APIRequest';
 
 import type {
-  CallvanChatResponse,
   CallvanListRequest,
   CallvanListResponse,
   CallvanNotificationsResponse,
@@ -10,7 +9,6 @@ import type {
   CallvanReportRequest,
   CreateCallvanRequest,
   CreateCallvanResponse,
-  SendChatRequest,
 } from './entity';
 
 export class GetCallvanList<R extends CallvanListResponse> implements APIRequest<R> {
@@ -138,37 +136,6 @@ export class DeleteCancelCallvan<R extends object> implements APIRequest<R> {
 
   constructor(postId: number) {
     this.path = `/callvan/posts/${postId}/participants`;
-  }
-}
-
-export class GetCallvanChat<R extends CallvanChatResponse> implements APIRequest<R> {
-  method = HTTP_METHOD.GET;
-
-  path: string;
-
-  response!: R;
-
-  auth = true;
-
-  constructor(postId: number) {
-    this.path = `/callvan/posts/${postId}/chat`;
-  }
-}
-
-export class PostCallvanChat<R extends object> implements APIRequest<R> {
-  method = HTTP_METHOD.POST;
-
-  path: string;
-
-  data: SendChatRequest;
-
-  response!: R;
-
-  auth = true;
-
-  constructor(postId: number, data: SendChatRequest) {
-    this.path = `/callvan/posts/${postId}/chat`;
-    this.data = data;
   }
 }
 

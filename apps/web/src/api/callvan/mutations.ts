@@ -2,7 +2,7 @@ import { mutationOptions, type QueryClient } from '@tanstack/react-query';
 
 import { invalidateChatRooms } from 'api/chat/mutations';
 
-import type { CallvanReportRequest, CreateCallvanRequest, SendChatRequest } from './entity';
+import type { CallvanReportRequest, CreateCallvanRequest } from './entity';
 import {
   cancelCallvan,
   closeCallvanPost,
@@ -14,7 +14,6 @@ import {
   markNotificationRead,
   reopenCallvanPost,
   reportCallvanParticipant,
-  sendCallvanChat,
 } from './index';
 import { callvanQueryKeys } from './queries';
 
@@ -86,11 +85,5 @@ export const callvanMutations = {
     mutationOptions({
       mutationFn: () => deleteAllNotifications(),
       onSuccess: () => invalidateCallvanNotifications(queryClient),
-    }),
-
-  sendChat: (queryClient: QueryClient, postId: number) =>
-    mutationOptions({
-      mutationFn: (data: SendChatRequest) => sendCallvanChat(postId, data),
-      onSuccess: () => queryClient.invalidateQueries({ queryKey: callvanQueryKeys.chat(postId) }),
     }),
 };
