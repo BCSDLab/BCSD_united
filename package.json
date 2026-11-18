@@ -20,7 +20,7 @@
     "typecheck": "pnpm -r --if-present typecheck",
     "lint": "pnpm lint:oxlint && pnpm --filter @koin/web lint",
     "lint:oxlint": "oxlint apps scripts --deny-warnings",
-    "test": "pnpm -r --if-present test && node --test scripts/autofix/security.test.mjs",
+    "test": "pnpm -r --if-present test && node --test scripts/autofix/security.test.mjs scripts/autofix/local-api.test.mjs",
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check ."
   },

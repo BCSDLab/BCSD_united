@@ -36,6 +36,7 @@ const TRUSTED_FILES = [
   'common.mjs',
   'local-api.mjs',
   'smoke.mjs',
+  'browser-readiness.mjs',
   'api-smoke.mjs',
   'bbot-smoke.mjs',
   'crawler-smoke.mjs',
