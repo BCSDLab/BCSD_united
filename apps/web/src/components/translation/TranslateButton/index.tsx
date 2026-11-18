@@ -67,8 +67,9 @@ export default function TranslateButton({ state, onClick, size = 'large', classN
         [styles[`button--${size}`]]: true,
         [className ?? '']: !!className,
       })}
-      onClick={onClick}
-      disabled={state === 'translating'}
+      onClick={state === 'translating' ? undefined : onClick}
+      // disabled를 걸면 번역 중에 키보드 포커스가 사라지므로 aria-disabled를 쓴다
+      aria-disabled={state === 'translating'}
       aria-busy={state === 'translating'}
     >
       <Icon

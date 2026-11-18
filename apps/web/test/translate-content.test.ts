@@ -145,3 +145,62 @@ test('Retry-After가 0이어도 최소 1초는 기다린다', async (t) => {
   assert.equal(outcome.kind, 'success');
   assert.deepEqual(waited, [1000]);
 });
+
+test('다음 조회 시점이 기한을 넘기면 기한까지만 기다렸다가 한 번 더 조회한다', async (t) => {
+  const { translateContent, requested } = await setup(t, [
+    { status: 202, body: result('PENDING'), headers: { 'Retry-After': '10' } },
+    { status: 200, body: result('SUCCESS', { data: { content: 'Hi' } }) },
+  ]);
+  // 기한 30초 중 첫 요청에 25초가 걸려, Retry-After 10초 대신 남은 5초만 기다린다
+  let now = 25_000;
+  let started = false;
+  t.mock.method(Date, 'now', () => {
+    if (started) return now;
+    started = true;
+
+    return 0;
+  });
+  const waited: number[] = [];
+  const outcome = await translateContent({
+    ...options(),
+    wait: async (ms: number) => {
+      waited.push(ms);
+      now += ms;
+    },
+  });
+  assert.equal(outcome.kind, 'success');
+  assert.deepEqual(waited, [5000]);
+  assert.equal(requested.length, 2);
+});
+
+test('화면을 떠나 요청을 멈추면 더 조회하지 않는다', async (t) => {
+  const { translateContent, requested } = await setup(t, [
+    { status: 202, body: result('PENDING'), headers: { 'Retry-After': '2' } },
+  ]);
+  const controller = new AbortController();
+  const outcome = await translateContent({
+    ...options(),
+    signal: controller.signal,
+    wait: async () => {
+      controller.abort();
+    },
+  });
+  assert.deepEqual(outcome, { kind: 'aborted' });
+  assert.deepEqual(requested, ['POST /articles/lost-item/1/translations']);
+});
+
+test('원문을 다시 받는 동안 요청을 멈추면 다시 요청하지 않는다', async (t) => {
+  const { translateContent, requested } = await setup(t, [
+    { status: 409, body: { code: 'SOURCE_CHANGED', message: '원문이 변경되었습니다.' } },
+  ]);
+  const controller = new AbortController();
+  const outcome = await translateContent({
+    ...options(async () => {
+      controller.abort();
+      return 'v2';
+    }),
+    signal: controller.signal,
+  });
+  assert.deepEqual(outcome, { kind: 'aborted' });
+  assert.equal(requested.length, 1);
+});

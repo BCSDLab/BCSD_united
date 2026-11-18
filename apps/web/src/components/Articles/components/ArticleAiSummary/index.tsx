@@ -15,7 +15,7 @@ interface ArticleAiSummaryProps {
 
 export default function ArticleAiSummary({ articleId, aiSummary }: ArticleAiSummaryProps) {
   const isNonSuccessStatus = aiSummary.status !== 'SUCCESS';
-  const translation = useContentTranslation<{ items: ArticleAiSummaryItem[] }>({
+  const translation = useContentTranslation<{ items?: ArticleAiSummaryItem[] | null }>({
     resourceType: 'ARTICLE_SUMMARY',
     resourceId: articleId,
     translatePath: `/v2/articles/${articleId}/ai-summary/translations`,
@@ -24,8 +24,9 @@ export default function ArticleAiSummary({ articleId, aiSummary }: ArticleAiSumm
     refetchSourceVersion: async () => (await getArticle(String(articleId))).ai_summary.translation_source_version,
   });
   // 번역을 보여주는 동안에만 요약 문장을 번역문으로 바꾼다. 아이콘은 같은 순서의 원문 아이콘을 쓴다.
-  const items = translation.translated
-    ? translation.translated.items.map((item, index) => ({ ...item, icon: aiSummary.items[index]?.icon ?? item.icon }))
+  const translatedItems = translation.translated?.items;
+  const items = translatedItems
+    ? translatedItems.map((item, index) => ({ ...item, icon: aiSummary.items[index]?.icon ?? item.icon }))
     : aiSummary.items;
 
   return (

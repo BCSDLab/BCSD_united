@@ -76,13 +76,16 @@ export default function useContentTranslation<T>({
   // 409로 원문을 다시 받으면 요청 중에 `sourceVersion`이 바뀌므로, 진행 중 표시는 원문·언어로만 구분한다
   const activeKey = `${resourceKey}|${language}`;
   const activeKeyRef = useRef<string | null>(activeKey);
-  // 렌더가 반영되기 전에 버튼이 두 번 눌려도 요청을 한 번만 보낸다
-  const inFlightRef = useRef(false);
+  // 렌더가 반영되기 전에 버튼이 두 번 눌려도 요청을 한 번만 보낸다. 다른 글로 옮기면 그 글은 바로 번역할 수 있게 원문·언어별로 막는다.
+  const inFlightKeyRef = useRef<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
   useEffect(() => {
     activeKeyRef.current = activeKey;
 
     return () => {
       activeKeyRef.current = null;
+      abortRef.current?.abort();
+      abortRef.current = null;
     };
   }, [activeKey]);
 
@@ -136,7 +139,7 @@ export default function useContentTranslation<T>({
   };
 
   const toggle = async () => {
-    if (state === 'translating' || inFlightRef.current || !sourceVersion) return;
+    if (state === 'translating' || inFlightKeyRef.current === activeKey || !sourceVersion) return;
     if (state === 'translated') {
       setShownKey(null);
 
@@ -149,17 +152,21 @@ export default function useContentTranslation<T>({
     }
 
     const requestedKey = activeKey;
-    inFlightRef.current = true;
+    const controller = new AbortController();
+    abortRef.current = controller;
+    inFlightKeyRef.current = requestedKey;
     setTranslatingKey(requestedKey);
     const outcome = await translateContent<T>({
       path: translatePath,
       targetLanguage: language,
       sourceVersion,
       refetchSourceVersion: refetchVersion,
+      signal: controller.signal,
     });
-    inFlightRef.current = false;
+    if (inFlightKeyRef.current === requestedKey) inFlightKeyRef.current = null;
+    if (abortRef.current === controller) abortRef.current = null;
     setTranslatingKey((key) => (key === requestedKey ? null : key));
-    if (activeKeyRef.current !== requestedKey) return;
+    if (outcome.kind === 'aborted' || activeKeyRef.current !== requestedKey) return;
 
     if (outcome.kind === 'success') {
       setStored({

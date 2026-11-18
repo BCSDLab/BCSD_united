@@ -22,6 +22,9 @@ export class SourceLanguage<R extends TranslationResult<SourceLanguageData>> imp
 
   response!: R;
 
+  // 비로그인도 보는 상세 화면을 열 때 사용자가 누르지 않아도 나가는 확인이다
+  authOptional = true;
+
   constructor(public data: SourceLanguageRequest) {}
 }
 
@@ -34,6 +37,7 @@ export class RequestTranslation<R extends TranslationResult<unknown>> implements
   constructor(
     public path: string,
     public data: TranslationRequest,
+    public signal?: AbortSignal,
   ) {}
 
   parse(result: APIResult<R>): R {
@@ -48,7 +52,10 @@ export class TranslationById<R extends TranslationResult<unknown>> implements AP
 
   response!: R;
 
-  constructor(translationId: string) {
+  constructor(
+    translationId: string,
+    public signal?: AbortSignal,
+  ) {
     this.path = `/translations/${encodeURIComponent(translationId)}`;
   }
 

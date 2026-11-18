@@ -63,6 +63,14 @@
   flex-shrink: 0;
   gap: 12px;
   align-items: center;
+
+  // 모바일은 `.summary-row`를 `display: contents`로 풀어 이 칸에도 간격이 붙는다.
+  // 「지원자 관리」는 모바일에서 숨기므로, 그 버튼만 있으면 칸째 숨긴다.
+  @include media.media-breakpoint(mobile) {
+    &:has(> .manage-button:only-child) {
+      display: none;
+    }
+  }
 }
 
 .summary {
