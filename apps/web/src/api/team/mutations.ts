@@ -7,7 +7,6 @@ import showToast from 'utils/ts/showToast';
 
 import type {
   PostTeamRecruitmentApplicationRequest,
-  TeamChatMessageSendRequest,
   TeamRecruitmentApplicationDecision,
   TeamRecruitmentUpdateRequest,
 } from './entity';
@@ -22,7 +21,6 @@ import {
   submitTeamRecruitmentApplication,
   updateTeamRecruitmentApplicationStatus,
   updateTeamRecruitment,
-  sendTeamRecruitmentChatMessage,
 } from './index';
 import { teamQueryKeys } from './queries';
 
@@ -78,17 +76,6 @@ export const teamMutations = {
     mutationOptions({
       mutationFn: () => deleteAllTeamRecruitmentNotifications(),
       onSuccess: () => invalidateNotifications(queryClient),
-    }),
-
-  sendChatMessage: (queryClient: QueryClient, isLoggedIn: boolean, recruitmentId: number, chatRoomId: number) =>
-    mutationOptions({
-      mutationFn: (data: TeamChatMessageSendRequest) => sendTeamRecruitmentChatMessage(recruitmentId, chatRoomId, data),
-      onSuccess: () => {
-        queryClient.invalidateQueries({
-          queryKey: teamQueryKeys.chatMessagesRoot(isLoggedIn, recruitmentId, chatRoomId),
-        });
-        queryClient.invalidateQueries({ queryKey: teamQueryKeys.chatRoomList(isLoggedIn) });
-      },
     }),
 
   createDirectChatRoom: (queryClient: QueryClient, recruitmentId: number) =>
