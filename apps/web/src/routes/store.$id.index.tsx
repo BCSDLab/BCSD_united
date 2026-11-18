@@ -29,10 +29,10 @@ import useScrollToTop from 'utils/hooks/ui/useScrollToTop';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { createPageLoader, definePageLoad, STORE_PUBLIC_SSR_CACHE_CONTROL } from 'utils/ssr/pageLoader';
 import { copyToClipboard } from 'utils/ts/copyToClipboard';
+import { isNotFoundKoinError } from 'utils/ts/edgeCache';
 import { isomorphicSessionStorage } from 'utils/ts/env';
 import getDayOfWeek from 'utils/ts/getDayOfWeek';
 import getElapsedSeconds from 'utils/ts/getElapsedSeconds';
-import { isNotFoundKoinError } from 'utils/ts/isr';
 import { parseQueryId } from 'utils/ts/parseServerSideParams';
 import showToast from 'utils/ts/showToast';
 

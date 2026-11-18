@@ -12,7 +12,7 @@ import { isMobileView } from 'utils/hooks/layout/useMobileView';
 import useMount from 'utils/hooks/state/useMount';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
-import { isNotFoundKoinError } from 'utils/ts/isr';
+import { isNotFoundKoinError } from 'utils/ts/edgeCache';
 
 function AddReviewComponent({ id }: { id: string }) {
   const { storeDetail } = useStoreDetail(id);

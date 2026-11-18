@@ -8,6 +8,7 @@ import checkFile from 'eslint-plugin-check-file';
 import eslintComments from '@eslint-community/eslint-plugin-eslint-comments';
 import stylistic from '@stylistic/eslint-plugin';
 import tanstackQuery from '@tanstack/eslint-plugin-query';
+import tanstackRouter from '@tanstack/eslint-plugin-router';
 import eslintConfigPrettier from 'eslint-config-prettier';
 import globals from 'globals';
 
@@ -39,6 +40,7 @@ export default [
   jsxA11y.flatConfigs.recommended,
   ...tseslint.configs.recommended,
   ...tanstackQuery.configs['flat/recommended'],
+  ...tanstackRouter.configs['flat/recommended'],
   {
     files: ['test/**/*.{ts,tsx}'],
     settings: { 'import/resolver': { typescript: {} } },
@@ -205,55 +207,6 @@ export default [
           selector:
             "MemberExpression[optional=false][object.type='MemberExpression'][object.object.name='window'][object.property.name='webkit']",
           message: 'window.webkit 접근에는 optional chaining을 사용하세요 (window.webkit?.xxx).',
-        },
-        {
-          // CLAUDE.md 규칙 5: 라우팅 경로는 ROUTES 헬퍼로만 참조한다.
-          // 외부 URL(슬래시로 시작하지 않음)이나 hash/query-only 이동(슬래시로 시작하지 않는 값)은 대상이 아니다.
-          // esquery의 정규식 리터럴 파서가 '/'를 델리미터로만 인식해 문자 클래스([/])도 못 쓰므로 \x2F로 우회한다.
-          selector:
-            "CallExpression[callee.object.name='router'][callee.property.name=/^(push|replace|prefetch)$/][arguments.0.type='Literal'][arguments.0.value=/^\\x2F/]",
-          message: '라우팅 경로를 문자열로 직접 쓰지 마세요. static/routes 의 ROUTES 헬퍼를 사용하세요.',
-        },
-        {
-          selector:
-            "CallExpression[callee.object.name='router'][callee.property.name=/^(push|replace|prefetch)$/][arguments.0.type='TemplateLiteral'][arguments.0.quasis.0.value.raw=/^\\x2F/]",
-          message: '라우팅 경로를 문자열로 직접 쓰지 마세요. static/routes 의 ROUTES 헬퍼를 사용하세요.',
-        },
-        {
-          // router.push({ pathname: '/...' }) 형태. Next.js 동적 라우트 패턴([id] 등)은 ROUTES가 다루는
-          // 실제 목적지 문자열이 아니므로 제외한다.
-          selector:
-            "CallExpression[callee.object.name='router'][callee.property.name=/^(push|replace|prefetch)$/] Property[key.name='pathname'][value.type='Literal'][value.value=/^\\x2F(?!.*\\[)/]",
-          message: '라우팅 경로를 문자열로 직접 쓰지 마세요. static/routes 의 ROUTES 헬퍼를 사용하세요.',
-        },
-        {
-          selector:
-            "CallExpression[callee.object.name='router'][callee.property.name=/^(push|replace|prefetch)$/] Property[key.name='pathname'][value.type='TemplateLiteral'][value.quasis.0.value.raw=/^\\x2F(?!.*\\[)/]",
-          message: '라우팅 경로를 문자열로 직접 쓰지 마세요. static/routes 의 ROUTES 헬퍼를 사용하세요.',
-        },
-        {
-          selector: "JSXOpeningElement[name.name='Link'] > JSXAttribute[name.name='href'] > Literal[value=/^\\x2F/]",
-          message: '라우팅 경로를 문자열로 직접 쓰지 마세요. static/routes 의 ROUTES 헬퍼를 사용하세요.',
-        },
-        {
-          selector:
-            "JSXOpeningElement[name.name='Link'] > JSXAttribute[name.name='href'] > JSXExpressionContainer > Literal[value=/^\\x2F/]",
-          message: '라우팅 경로를 문자열로 직접 쓰지 마세요. static/routes 의 ROUTES 헬퍼를 사용하세요.',
-        },
-        {
-          selector:
-            "JSXOpeningElement[name.name='Link'] > JSXAttribute[name.name='href'] > JSXExpressionContainer > TemplateLiteral[quasis.0.value.raw=/^\\x2F/]",
-          message: '라우팅 경로를 문자열로 직접 쓰지 마세요. static/routes 의 ROUTES 헬퍼를 사용하세요.',
-        },
-        {
-          selector:
-            "JSXOpeningElement[name.name='Link'] JSXAttribute[name.name='href'] Property[key.name='pathname'][value.type='Literal'][value.value=/^\\x2F(?!.*\\[)/]",
-          message: '라우팅 경로를 문자열로 직접 쓰지 마세요. static/routes 의 ROUTES 헬퍼를 사용하세요.',
-        },
-        {
-          selector:
-            "JSXOpeningElement[name.name='Link'] JSXAttribute[name.name='href'] Property[key.name='pathname'][value.type='TemplateLiteral'][value.quasis.0.value.raw=/^\\x2F(?!.*\\[)/]",
-          message: '라우팅 경로를 문자열로 직접 쓰지 마세요. static/routes 의 ROUTES 헬퍼를 사용하세요.',
         },
       ],
 

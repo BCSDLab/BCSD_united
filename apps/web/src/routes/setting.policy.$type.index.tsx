@@ -112,10 +112,10 @@ const pageLoader = createPageLoader(getPageData, loadPage);
 
 export const Route = createFileRoute('/setting/policy/$type/')({
   validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
+  loaderDeps: ({ search }) => ({ search }),
   beforeLoad: ({ params }) => {
     if (!isPolicyType(params.type)) throw notFound();
   },
-  loaderDeps: ({ search }) => ({ search }),
   loader: ({ params, deps, context }) => pageLoader({ params, search: deps.search }, context),
   staticData: { hasPageSeo: true },
   component: RouteComponent,
