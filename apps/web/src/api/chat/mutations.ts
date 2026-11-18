@@ -55,8 +55,13 @@ export async function invalidateChatRooms(
   const roomIds = new Set(cachedRooms.map((room) => room.room_id));
 
   await Promise.all([
-    queryClient.invalidateQueries({ queryKey: chatQueryKeys.rooms(userId, domainType), exact: true }),
-    queryClient.invalidateQueries({ queryKey: chatQueryKeys.rooms(userId), exact: true }),
+    // 방 생성 후 이동할 때 비활성 캐시의 이전 목록을 읽지 않도록 재조회까지 기다린다.
+    queryClient.invalidateQueries({
+      queryKey: chatQueryKeys.rooms(userId, domainType),
+      exact: true,
+      refetchType: 'all',
+    }),
+    queryClient.invalidateQueries({ queryKey: chatQueryKeys.rooms(userId), exact: true, refetchType: 'all' }),
     ...Array.from(roomIds, (roomId) =>
       queryClient.invalidateQueries({ queryKey: chatQueryKeys.roomRoot(userId, roomId) }),
     ),
