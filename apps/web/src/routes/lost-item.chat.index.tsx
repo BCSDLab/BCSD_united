@@ -9,6 +9,7 @@ import { useChatLogger } from 'components/Articles/hooks/useChatLogger';
 import ChatHeaderMenu from 'components/Articles/LostItemChatPage/components/ChatHeaderMenu';
 import DeleteModal from 'components/Articles/LostItemChatPage/components/DeleteModal';
 import useChatPolling from 'components/Articles/LostItemChatPage/hooks/useChatPolling';
+import LoadingSpinner from 'components/feedback/LoadingSpinner';
 import Layout from 'components/layout';
 import MobilePageHeader from 'components/layout/MobilePageHeader';
 import {
@@ -72,6 +73,7 @@ function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageP
     chatroomDetail,
     chatroomList,
     messages,
+    isLoadingChat,
     hasPreviousMessages,
     isLoadingPreviousMessages,
     loadPreviousMessages,
@@ -87,7 +89,7 @@ function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageP
     isOnline,
     autoSelectFirst: requestedDetail,
   });
-  const showDetail = !isMobile || (requestedDetail && articleId !== null && chatroomId !== null);
+  const showDetail = !isMobile || (requestedDetail && (isLoadingChat || (articleId !== null && chatroomId !== null)));
   const showList = !isMobile || !showDetail;
   const isChatroomOpen = showDetail && !!chatroomDetail;
 
@@ -307,14 +309,19 @@ function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageP
         >
           {showDetail && (
             <>
-              {!(chatroomDetail && messages) && (
+              {isLoadingChat && (
+                <div className={styles.chat__empty} role="status" aria-label="채팅방을 불러오는 중입니다.">
+                  <LoadingSpinner size="50px" />
+                </div>
+              )}
+              {!isLoadingChat && !(chatroomDetail && messages) && (
                 <div className={styles.chat__empty}>
                   선택된 채팅방이 없습니다.
                   <br />
                   왼쪽 리스트에서 채팅방을 선택해주세요.🙇‍♂️
                 </div>
               )}
-              {chatroomDetail && messages && (
+              {!isLoadingChat && chatroomDetail && messages && (
                 <>
                   <div className={styles['chat-view--header']}>
                     <div>

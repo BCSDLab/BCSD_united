@@ -59,7 +59,7 @@ const useChatPolling = ({
     hasReportedError: false,
   });
 
-  const { data: rooms } = useQuery({
+  const { data: rooms, isPending: isRoomsPending } = useQuery({
     ...chatQueries.rooms(userId, 'LOST_ITEM'),
     enabled: userId !== null && isOnline,
     staleTime: isOnline ? 0 : Infinity,
@@ -117,7 +117,7 @@ const useChatPolling = ({
     });
   }, [queryClient, numericArticleId, numericChatroomId, defaultArticleId, defaultChatroomId, isLoggedIn]);
 
-  const { data: roomDetail } = useQuery({
+  const { data: roomDetail, isPending: isRoomPending } = useQuery({
     ...chatQueries.room(userId, roomId),
     enabled: userId !== null && !!matchedRoom && isOnline,
   });
@@ -134,13 +134,15 @@ const useChatPolling = ({
     queryKey: articleQueryKeys.lostItemChatroomMessages(defaultArticleId, defaultChatroomId, isLoggedIn),
     queryFn: skipToken,
   });
-  const { data: messageCache } = useQuery({
+  const { data: messageCache, isPending: isMessagesPending } = useQuery({
     ...chatQueries.messages(queryClient, userId, roomId),
     enabled: userId !== null && !!roomId && isOnline,
     refetchInterval: isOnline && roomId ? POLLING_INTERVAL_MS : false,
     refetchIntervalInBackground: false,
   });
   const messages = messageCache?.messages ?? offlineMessages;
+  const isLoadingChat =
+    isOnline && (isRoomsPending || (!!matchedRoom && (isRoomPending || (isMessagesPending && !messages))));
   const { mutateAsync: loadPreviousMessages, isPending: isLoadingPreviousMessages } = useMutation(
     chatMutations.loadPreviousMessages(queryClient, userId, roomId),
   );
@@ -230,6 +232,7 @@ const useChatPolling = ({
     chatroomList,
     chatroomDetail,
     messages,
+    isLoadingChat,
     hasPreviousMessages: messageCache?.hasPreviousMessages ?? false,
     isLoadingPreviousMessages,
     loadPreviousMessages,
