@@ -10,6 +10,7 @@ import type { Portal } from 'components/modal/Modal/PortalProvider';
 import { DINING_TYPE_MAP } from 'static/cafeteria';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useModalPortal from 'utils/hooks/layout/useModalPortal';
+import useServerMessage from 'utils/language/useServerMessage';
 
 import styles from './PCDiningBlocks.module.scss';
 
@@ -19,6 +20,7 @@ interface PCDiningBlocksProps {
 }
 
 export default function PCDiningBlocks({ diningType, isThisWeek }: PCDiningBlocksProps) {
+  const message = useServerMessage();
   const logger = useLogger();
   const portalManager = useModalPortal();
   const { date } = useCafeteriaParams();
@@ -72,7 +74,9 @@ export default function PCDiningBlocks({ diningType, isThisWeek }: PCDiningBlock
               {!!dining.price_card && !!dining.price_cash && `${dining.price_card}원/${dining.price_cash}원`}
             </div>
             {dining.soldout_at && (
-              <span className={`${styles.header__chip} ${styles['header__chip--sold-out']}`}>품절</span>
+              <span className={`${styles.header__chip} ${styles['header__chip--sold-out']}`}>
+                {message('status', 'SOLD_OUT', '품절')}
+              </span>
             )}
             {!dining.soldout_at && dining.changed_at && (
               <span className={`${styles.header__chip} ${styles['header__chip--changed']}`}>변경됨</span>

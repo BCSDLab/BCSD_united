@@ -19,6 +19,9 @@ export interface UpdateMyLanguageRequest {
   language: string;
 }
 
+/** `그룹.값` 키로 찾는 서버 값 표시 문구 사전. 예: `recruitment.status.RECRUITING`, `lost_item.category.카드` */
+export type MessagesResponse = Record<string, string>;
+
 export type PolicyType = 'privacy' | 'terms';
 
 export interface PolicySection {

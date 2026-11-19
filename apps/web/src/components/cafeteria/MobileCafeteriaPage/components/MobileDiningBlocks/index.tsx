@@ -9,6 +9,7 @@ import type { Portal } from 'components/modal/Modal/PortalProvider';
 import { DINING_TYPE_MAP, SOLDOUT_REPORT_PLACES } from 'static/cafeteria';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useModalPortal from 'utils/hooks/layout/useModalPortal';
+import useServerMessage from 'utils/language/useServerMessage';
 
 import styles from './MobileDiningBlocks.module.scss';
 
@@ -18,6 +19,7 @@ interface MobileDiningBlocksProps {
 }
 
 export default function MobileDiningBlocks({ diningType, onReportSoldout }: MobileDiningBlocksProps) {
+  const message = useServerMessage();
   const logger = useLogger();
   const portalManager = useModalPortal();
   const { date } = useCafeteriaParams();
@@ -56,7 +58,9 @@ export default function MobileDiningBlocks({ diningType, onReportSoldout }: Mobi
                     <SoldoutReportIcon />
                   </button>
                 )}
-                {dining.soldout_at && <span className={styles['category__block--sold-out']}>품절</span>}
+                {dining.soldout_at && (
+                  <span className={styles['category__block--sold-out']}>{message('status', 'SOLD_OUT', '품절')}</span>
+                )}
                 {!dining.soldout_at && dining.changed_at && (
                   <span className={styles['category__block--changed']}>변경됨</span>
                 )}

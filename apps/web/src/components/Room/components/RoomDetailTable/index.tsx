@@ -1,3 +1,5 @@
+import useServerMessage from 'utils/language/useServerMessage';
+
 import styles from './RoomDetailTable.module.scss';
 
 interface RoomDetailTableProps {
@@ -30,12 +32,13 @@ function RoomDetailTable({
   size,
   phone,
 }: RoomDetailTableProps) {
+  const message = useServerMessage();
   const tableData: TableData[] = [
     {
       leftTitle: '월세',
       leftValue: monthlyFee,
       rightTitle: '방 종류',
-      rightValue: roomType,
+      rightValue: message('land.room_type', roomType),
     },
     {
       leftTitle: '전세',

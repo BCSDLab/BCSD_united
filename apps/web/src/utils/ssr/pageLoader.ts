@@ -2,6 +2,7 @@ import type { DehydratedState, QueryClient } from '@tanstack/react-query';
 
 import { WebSession } from 'api/auth/APIDetail';
 import { authQueries, SESSION_STALE_TIME } from 'api/auth/queries';
+import type { MessagesResponse } from 'api/language/entity';
 import { isHttpError } from 'interfaces/APIError';
 import { ANONYMOUS_SESSION, SESSION_QUERY_KEY, type Session } from 'utils/auth/session';
 import { isConfirmedSession, prepareSessionFetch, sessionCookie } from 'utils/auth/sessionConfirmation';
@@ -44,6 +45,8 @@ export type PageData<Props extends object> = Props & {
 export interface RootSnapshot {
   serverRequest: ServerRequestContext;
   hasSession: boolean;
+  /** 서버 렌더에서만 채우는 표시 문구 사전. 페이지 이동 때는 이미 받은 사전을 그대로 쓴다. */
+  messages?: MessagesResponse | null;
 }
 
 const CLIENT_CACHE_CONTROL: PageCacheControl = { enablePublicCache: () => {} };

@@ -8,6 +8,7 @@ import ChatBubbleIcon from 'assets/svg/Team/chat-bubble.svg';
 import LoadingSpinner from 'components/feedback/LoadingSpinner';
 import MobilePageHeader from 'components/layout/MobilePageHeader';
 import RecruitmentCard from 'components/Team/components/RecruitmentCard';
+import useRecruitmentLabels from 'components/Team/utils/useRecruitmentLabels';
 import ROUTES from 'static/routes';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
@@ -17,6 +18,7 @@ import styles from './ApplicantManagement.module.scss';
 
 export default function ApplicantManagement() {
   const router = useRouter();
+  const labels = useRecruitmentLabels();
   const routeParams = useParams({ strict: false });
   const isLoggedIn = useIsLoggedIn();
   const isMobile = useMediaQuery();
@@ -65,9 +67,7 @@ export default function ApplicantManagement() {
                 recruitment={data.recruitment}
                 rightSlot={
                   isMobile ? (
-                    <span className={styles['recruitment-status']}>
-                      {data.recruitment.status === 'RECRUITING' ? '모집 중' : '모집완료'}
-                    </span>
+                    <span className={styles['recruitment-status']}>{labels.status(data.recruitment.status, null)}</span>
                   ) : (
                     groupChatButton
                   )
