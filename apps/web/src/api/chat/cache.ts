@@ -16,7 +16,6 @@ export function createChatMessageCache(): ChatMessageCache {
   return { messages: [], initialized: false, hasPreviousMessages: false };
 }
 
-// 서버의 ID 오름차순을 유지한다. int64 ID는 Number로 변환하면 정밀도를 잃을 수 있다.
 export function compareMessageIds(left: string, right: string): number {
   const leftId = BigInt(left);
   const rightId = BigInt(right);
@@ -39,7 +38,6 @@ function laterMessageId(left?: string, right?: string): string | undefined {
   return compareMessageIds(left, right) >= 0 ? left : right;
 }
 
-// 폴링 도중 전송이나 이전 페이지 조회가 끝나도 추가된 기록과 조회 기준을 보존한다.
 export function mergeChatMessageCache(
   previous: ChatMessageCache | undefined,
   next: ChatMessageCache,
@@ -71,14 +69,14 @@ export async function fetchChatMessageCache(
   let messages = cache.messages;
   let cursor = cache.lastFetchedMessageId;
   let hasPreviousMessages = cache.hasPreviousMessages;
+  const latest = await fetchMessages({ limit: CHAT_MESSAGE_LIMIT });
+  const latestCursor = latest.at(-1)?.message_id;
+  const oldestLatestMessageId = latest[0]?.message_id;
+  messages = mergeChatMessages(messages, latest);
 
   if (!cursor) {
-    const latest = await fetchMessages({ limit: CHAT_MESSAGE_LIMIT });
-    const latestCursor = latest.at(-1)?.message_id;
-    messages = mergeChatMessages(messages, latest);
     hasPreviousMessages = latest.length === CHAT_MESSAGE_LIMIT;
 
-    // 빈 방을 본 뒤 생긴 메시지는 최신 페이지 이전까지 복구한 다음 조회 기준을 확정한다.
     if (cache.initialized && latestCursor) {
       let page = latest;
       while (page.length === CHAT_MESSAGE_LIMIT) {
@@ -95,9 +93,7 @@ export async function fetchChatMessageCache(
       hasPreviousMessages = false;
     }
     cursor = latestCursor;
-  }
-
-  if (cursor && cache.initialized) {
+  } else if (oldestLatestMessageId && compareMessageIds(oldestLatestMessageId, cursor) > 0) {
     let page: ChatMessageResponse[];
     do {
       page = await fetchMessages({
@@ -113,10 +109,8 @@ export async function fetchChatMessageCache(
         cursor = nextCursor;
       }
     } while (page.length === CHAT_MESSAGE_LIMIT);
-
-    // 읽음 수와 퇴장 표시는 최근 100개만 갱신하고, 이전 대화는 해당 페이지를 다시 조회할 때 갱신한다.
-    const latest = await fetchMessages({ limit: CHAT_MESSAGE_LIMIT });
-    messages = mergeChatMessages(messages, latest);
+  } else {
+    cursor = laterMessageId(cursor, latestCursor);
   }
 
   return {
