@@ -45,12 +45,12 @@ export default function MobileDiningBlocks({ diningType, onReportSoldout }: Mobi
           <div className={styles['category__menu-list-row']}>
             <div className={styles.category__type}>
               <div className={styles['category__type--title']}>
-                {dining.place}
+                {dining.display_place ?? dining.place}
                 {onReportSoldout && SOLDOUT_REPORT_PLACES.includes(dining.place) && (
                   <button
                     type="button"
                     className={styles['category__report-button']}
-                    aria-label={`${dining.place} 품절 제보하기`}
+                    aria-label={`${dining.display_place ?? dining.place} 품절 제보하기`}
                     onClick={() => onReportSoldout(dining.place)}
                   >
                     <SoldoutReportIcon />

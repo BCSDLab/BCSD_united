@@ -86,7 +86,7 @@ export default function StoreDetailPage({ id }: StoreDetailPageProps) {
 
   return (
     <div className={styles.page}>
-      <DetailHeader name={shopInfoSummary.name} targetRef={targetRef} />
+      <DetailHeader name={shopInfoSummary.display_name ?? shopInfoSummary.name} targetRef={targetRef} />
       <ImageCarousel images={shopInfoSummary.images} targetRef={targetRef} shopName={shopInfoSummary.name} />
       <ShopSummary
         shopInfoSummary={shopInfoSummary}

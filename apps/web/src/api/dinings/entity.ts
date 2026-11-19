@@ -11,6 +11,8 @@ export interface OriginalDining {
   date: string;
   type: DiningType;
   place: DiningPlace;
+  /** 화면 언어로 번역한 식당 이름. 정렬·비교는 `place`를 쓴다. */
+  display_place?: string;
   price_card: number | null;
   price_cash: number | null;
   kcal: number;

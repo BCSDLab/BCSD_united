@@ -4,6 +4,8 @@
 # Required for Slack requests and queue consumers.
 SLACK_BOT_TOKEN=
 SLACK_BOT_SIGNING_SECRET=
+# 코드 수정 요청은 wrangler.jsonc의 ERROR_AUTOMATION 서비스 바인딩을 사용한다(문자열 환경값 아님).
+# 수신 error-automation에는 동일 signing secret과 SLACK_AUTOFIX_* 허용 목록을 별도로 설정한다.
 # 공개 CI 알림 웹훅(/api/*)의 Bearer 인증 키.
 WEBHOOK_SECRET=
 
