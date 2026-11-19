@@ -9,12 +9,13 @@
   background-color: #ffa928;
   color: #fff;
   padding: 4px 8px;
+  white-space: nowrap;
 
   @include media.media-breakpoint(mobile) {
     padding: 2px 4px;
     font-size: 12px;
     height: 23px;
-    width: 40px;
+    min-width: 40px;
     background-color: #7d08a4;
   }
 
@@ -29,7 +30,7 @@
   }
 
   &--xs {
-    width: 47px;
+    min-width: 47px;
     height: 21px;
     font-size: 14px;
   }
@@ -38,6 +39,6 @@
     font-weight: 700;
     font-size: 26px;
     height: 39px;
-    width: 84px;
+    min-width: 84px;
   }
 }
