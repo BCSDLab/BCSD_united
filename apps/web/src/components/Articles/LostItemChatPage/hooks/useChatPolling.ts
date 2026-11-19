@@ -9,6 +9,7 @@ import { chatQueries, chatQueryKeys } from 'api/chat/queries';
 import { isKoinError } from 'interfaces/APIError';
 import { getCachedMessages, cacheMessages, clearChatroomCache, type CachedChatMessage } from 'utils/db/chatDB';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
+import { getErrorStatus } from 'utils/ts/httpError';
 import showToast from 'utils/ts/showToast';
 
 const POLLING_INTERVAL_MS = 10_000;
@@ -51,6 +52,12 @@ const useChatPolling = ({
   const queryClient = useQueryClient();
   const visible = useSyncExternalStore(subscribeToVisibility, isVisible, getServerVisibility);
   const presenceRequestRef = useRef<Promise<unknown>>(Promise.resolve());
+  const presenceStateRef = useRef({
+    userId,
+    roomId: '',
+    stopped: false,
+    hasReportedError: false,
+  });
 
   const { data: rooms } = useQuery({
     ...chatQueries.rooms(userId, 'LOST_ITEM'),
@@ -210,33 +217,55 @@ const useChatPolling = ({
   });
 
   useEffect(() => {
-    if (userId === null || !roomId || !isOnline || !visible) return;
+    if (presenceStateRef.current.userId !== userId || presenceStateRef.current.roomId !== roomId) {
+      presenceStateRef.current = { userId, roomId, stopped: false, hasReportedError: false };
+    }
+
+    // 탭 숨김이나 네트워크 전환만으로 재시도 중단 상태를 초기화하지 않는다.
+    const presenceState = presenceStateRef.current;
+    if (userId === null || !roomId || !isOnline || !visible || presenceState.stopped) return;
+
     let active = true;
     let refreshing = false;
 
+    const handlePresenceError = (error: unknown, fallbackMessage: string) => {
+      const status = getErrorStatus(error);
+      if (status === 403 || status === 404) {
+        presenceState.stopped = true;
+        window.clearInterval(interval);
+      }
+      if (presenceState.hasReportedError) return;
+
+      presenceState.hasReportedError = true;
+      reportPresenceError(error, fallbackMessage);
+    };
+
     const refreshPresence = () => {
-      if (refreshing) return;
+      if (refreshing || presenceState.stopped) return;
       refreshing = true;
       presenceRequestRef.current = presenceRequestRef.current
-        .then(() => {
-          if (active && isVisible()) return touchChatPresence(roomId);
+        .then(async () => {
+          if (!active || !isVisible() || presenceState.stopped) return;
+
+          await touchChatPresence(roomId);
+          presenceState.hasReportedError = false;
         })
         .catch((error: unknown) => {
-          reportPresenceError(error, '채팅방 접속 상태를 갱신하지 못했습니다.');
+          handlePresenceError(error, '채팅방 접속 상태를 갱신하지 못했습니다.');
         })
         .finally(() => {
           refreshing = false;
         });
     };
 
-    refreshPresence();
     const interval = window.setInterval(refreshPresence, PRESENCE_INTERVAL_MS);
+    refreshPresence();
 
     return () => {
       active = false;
       window.clearInterval(interval);
       void leaveRoom(roomId).catch((error: unknown) => {
-        reportPresenceError(error, '채팅방 퇴장을 실패하였습니다');
+        handlePresenceError(error, '채팅방 퇴장을 실패하였습니다');
       });
     };
   }, [userId, roomId, isOnline, visible, leaveRoom]);

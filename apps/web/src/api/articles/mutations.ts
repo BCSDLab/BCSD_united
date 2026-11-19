@@ -28,7 +28,11 @@ const invalidateLostItemChatroomAll = async (queryClient: QueryClient) => {
   if (userId === undefined) return;
 
   await Promise.all([
-    queryClient.invalidateQueries({ queryKey: chatQueryKeys.rooms(userId, 'LOST_ITEM'), exact: true, refetchType: 'all' }),
+    queryClient.invalidateQueries({
+      queryKey: chatQueryKeys.rooms(userId, 'LOST_ITEM'),
+      exact: true,
+      refetchType: 'all',
+    }),
     queryClient.invalidateQueries({ queryKey: chatQueryKeys.rooms(userId), exact: true, refetchType: 'all' }),
   ]);
 };
