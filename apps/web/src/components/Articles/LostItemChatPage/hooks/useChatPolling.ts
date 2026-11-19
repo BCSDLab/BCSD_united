@@ -223,7 +223,7 @@ const useChatPolling = ({
           presenceState.hasReportedError = false;
         })
         .catch((error: unknown) => {
-          handlePresenceError(error, '채팅방 접속 상태를 갱신하지 못했습니다.');
+          handlePresenceError(error, '알 수 없는 오류가 발생했습니다.');
         })
         .finally(() => {
           refreshing = false;

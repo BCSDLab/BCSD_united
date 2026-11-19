@@ -29,7 +29,7 @@ function reportChatError(error: unknown): void {
 
     return;
   }
-  showToast('error', '채팅 요청을 처리하지 못했어요. 다시 시도해 주세요.');
+  showToast('error', '알 수 없는 오류가 발생했습니다.');
   captureError(error);
 }
 
