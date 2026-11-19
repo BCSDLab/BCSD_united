@@ -13,7 +13,7 @@
     "build": "vite build && node scripts/generate-sitemap.mjs",
     "lint": "pnpm lint:eslint && pnpm lint:stylelint",
     "lint:eslint": "eslint src/ test/ --max-warnings 0",
-    "lint:stylelint": "stylelint \"src/**/*.{css,scss}\" --config .stylelint.json",
+    "lint:stylelint": "stylelint \"src/**/*.{scss,module.css}\" --config .stylelint.json",
     "dev": "vite --port 3000"
   },
   "dependencies": {
