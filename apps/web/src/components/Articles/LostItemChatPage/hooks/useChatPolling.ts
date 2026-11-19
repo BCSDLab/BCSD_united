@@ -4,8 +4,9 @@ import { skipToken, useMutation, useQuery, useQueryClient } from '@tanstack/reac
 
 import { articleQueryKeys } from 'api/articles/queries';
 import { leaveChatPresence, touchChatPresence } from 'api/chat';
+import type { ChatMessageCache } from 'api/chat/cache';
 import { chatMutations } from 'api/chat/mutations';
-import { chatQueries } from 'api/chat/queries';
+import { chatQueries, chatQueryKeys } from 'api/chat/queries';
 import { isKoinError } from 'interfaces/APIError';
 import { getCachedMessages, cacheMessages, type CachedChatMessage } from 'utils/db/chatDB';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
@@ -147,6 +148,11 @@ const useChatPolling = ({
     chatMutations.loadPreviousMessages(queryClient, userId, roomId),
   );
 
+  const getCachedOldestMessageId = useCallback(
+    () => queryClient.getQueryData<ChatMessageCache>(chatQueryKeys.messages(userId, roomId))?.messages[0]?.message_id,
+    [queryClient, userId, roomId],
+  );
+
   const { mutate: markRead } = useMutation(chatMutations.markRead(queryClient, userId, roomId));
   const markVisibleMessagesRead = useCallback(
     (messageId: string) => {
@@ -236,6 +242,7 @@ const useChatPolling = ({
     hasPreviousMessages: messageCache?.hasPreviousMessages ?? false,
     isLoadingPreviousMessages,
     loadPreviousMessages,
+    getCachedOldestMessageId,
     defaultChatroomId,
     defaultArticleId,
     sendMessage,

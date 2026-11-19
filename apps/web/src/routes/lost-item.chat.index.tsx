@@ -37,6 +37,13 @@ interface LostItemChatPageProps {
   chatRoomIdParam: string | null;
 }
 
+interface PreviousMessagesScrollSnapshot {
+  roomKey: string;
+  oldestMessageId: string | undefined;
+  anchorTop: number | undefined;
+  scrollTop: number;
+}
+
 function findLastVisibleMessageId(container: HTMLDivElement): string | undefined {
   const bounds = container.getBoundingClientRect();
   const visibleTop = Math.max(bounds.top, 0);
@@ -59,6 +66,7 @@ function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageP
   const isMobile = useMediaQuery();
   const isOnline = useNetworkStatus();
   const { data: userInfo } = useUser();
+  const userId = userInfo?.id ?? null;
 
   const { imgRef, saveImgFile } = useImageUpload({ domain: 'LOST_ITEMS' });
 
@@ -77,13 +85,14 @@ function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageP
     hasPreviousMessages,
     isLoadingPreviousMessages,
     loadPreviousMessages,
+    getCachedOldestMessageId,
     defaultChatroomId: chatroomId,
     defaultArticleId: articleId,
     sendMessage: sendChatMessage,
     sendMessageAsync: sendChatMessageAsync,
     markVisibleMessagesRead,
   } = useChatPolling({
-    userId: userInfo?.id ?? null,
+    userId,
     articleId: articleIdParam,
     chatroomId: chatRoomIdParam,
     isOnline,
@@ -95,13 +104,15 @@ function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageP
 
   const prevMessagesLengthRef = useRef(0);
   const previousRoomKeyRef = useRef<string | null>(null);
-  const roomKey = `${articleId}:${chatroomId}`;
-  const previousMessagesScrollRef = useRef<{
-    roomKey: string;
-    oldestMessageId: string | undefined;
-    scrollHeight: number;
-    scrollTop: number;
-  } | null>(null);
+  const roomKey = `${userId}:${articleId}:${chatroomId}`;
+  const previousMessagesScrollRef = useRef<PreviousMessagesScrollSnapshot | null>(null);
+
+  useLayoutEffect(() => {
+    return () => {
+      // 방이나 사용자가 바뀐 뒤에는 이전 요청의 완료 처리가 현재 화면에 적용되지 않는다.
+      previousMessagesScrollRef.current = null;
+    };
+  }, [roomKey]);
 
   const loadPreviousMessagesOnScroll = async (event: React.UIEvent<HTMLDivElement>) => {
     const container = event.currentTarget;
@@ -118,19 +129,24 @@ function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageP
     const scrollSnapshot = {
       roomKey,
       oldestMessageId: messages?.[0]?.message_id,
-      scrollHeight: container.scrollHeight,
+      anchorTop: container.querySelector<HTMLElement>('[data-message-id]')?.getBoundingClientRect().top,
       scrollTop: container.scrollTop,
     };
     previousMessagesScrollRef.current = scrollSnapshot;
 
     try {
-      const page = await loadPreviousMessages();
-      if (!page?.messages.length && previousMessagesScrollRef.current === scrollSnapshot) {
-        previousMessagesScrollRef.current = null;
-      }
+      await loadPreviousMessages();
     } catch {
       // 조회 오류는 공통 mutation에서 표시하고, 다음 스크롤에서 다시 시도할 수 있게 한다.
-      if (previousMessagesScrollRef.current === scrollSnapshot) previousMessagesScrollRef.current = null;
+    } finally {
+      // 앞쪽 메시지가 캐시에 추가됐으면 다음 렌더의 layout effect가 위치를 보정하고 스냅샷을 해제한다.
+      // 캐시가 없거나 앞쪽 메시지가 추가되지 않았으면 보정할 대상이 없으므로 여기서 해제한다.
+      if (previousMessagesScrollRef.current === scrollSnapshot) {
+        const cachedOldestId = getCachedOldestMessageId();
+        if (cachedOldestId === undefined || cachedOldestId === scrollSnapshot.oldestMessageId) {
+          previousMessagesScrollRef.current = null;
+        }
+      }
     }
   };
 
@@ -177,15 +193,23 @@ function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageP
     const hasNewMessages = currentLength > prevMessagesLengthRef.current;
     prevMessagesLengthRef.current = currentLength;
     const container = chatContainerRef.current;
-    if (!container) return;
+    if (!container) {
+      previousMessagesScrollRef.current = null;
+
+      return;
+    }
     const hasRoomChanged = previousRoomKeyRef.current !== roomKey;
     previousRoomKeyRef.current = roomKey;
 
     const scrollSnapshot = previousMessagesScrollRef.current;
     if (scrollSnapshot?.roomKey === roomKey) {
       if (messages?.[0]?.message_id !== scrollSnapshot.oldestMessageId) {
-        // 이전 대화가 앞에 추가된 높이만큼 보정해 보고 있던 메시지의 위치를 유지한다.
-        container.scrollTop = scrollSnapshot.scrollTop + container.scrollHeight - scrollSnapshot.scrollHeight;
+        const anchor = container.querySelector<HTMLElement>(`[data-message-id="${scrollSnapshot.oldestMessageId}"]`);
+        if (anchor && scrollSnapshot.anchorTop !== undefined) {
+          // 뒤에 새 메시지가 추가돼도 기존 메시지의 위치를 기준으로 보정한다.
+          container.scrollTop =
+            scrollSnapshot.scrollTop + anchor.getBoundingClientRect().top - scrollSnapshot.anchorTop;
+        }
         previousMessagesScrollRef.current = null;
       }
 
