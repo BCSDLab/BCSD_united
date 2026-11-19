@@ -3,11 +3,13 @@ import { captureError } from '@koin/telemetry/runtime';
 import { skipToken, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { articleQueryKeys } from 'api/articles/queries';
+import { authQueries } from 'api/auth/queries';
 import { leaveChatPresence, touchChatPresence } from 'api/chat';
 import type { ChatMessageCache } from 'api/chat/cache';
 import { chatMutations } from 'api/chat/mutations';
 import { chatQueries, chatQueryKeys } from 'api/chat/queries';
 import { isKoinError } from 'interfaces/APIError';
+import { SESSION_QUERY_KEY, type Session } from 'utils/auth/session';
 import { getCachedMessages, cacheMessages, type CachedChatMessage } from 'utils/db/chatDB';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import { getErrorStatus } from 'utils/ts/httpError';
@@ -109,20 +111,42 @@ const useChatPolling = ({
   const numericArticleId = defaultArticleId != null ? Number(defaultArticleId) : null;
   const numericChatroomId = defaultChatroomId != null ? Number(defaultChatroomId) : null;
 
+  const isCurrentUser = useCallback(() => {
+    const session = queryClient.getQueryData<Session>(SESSION_QUERY_KEY);
+    const user = queryClient.getQueryData(authQueries.userInfo(true).queryKey);
+
+    return session?.status === 'authenticated' && user?.id === userId;
+  }, [queryClient, userId]);
+
   // indexedDB 진입
   useEffect(() => {
     if (userId === null || numericArticleId == null || numericChatroomId == null) return;
 
     const queryKey = articleQueryKeys.lostItemChatroomMessages(defaultArticleId, defaultChatroomId, isLoggedIn);
     const existing = queryClient.getQueryData(queryKey);
-    if (existing) return;
+    const query = queryClient.getQueryCache().find({ queryKey, exact: true });
+    if (existing || !query) return;
 
     getCachedMessages(numericArticleId, numericChatroomId).then((cached) => {
-      if (cached && cached.length > 0) {
+      if (
+        cached &&
+        cached.length > 0 &&
+        isCurrentUser() &&
+        queryClient.getQueryCache().find({ queryKey, exact: true }) === query
+      ) {
         queryClient.setQueryData(queryKey, cached);
       }
     });
-  }, [queryClient, userId, numericArticleId, numericChatroomId, defaultArticleId, defaultChatroomId, isLoggedIn]);
+  }, [
+    queryClient,
+    userId,
+    numericArticleId,
+    numericChatroomId,
+    defaultArticleId,
+    defaultChatroomId,
+    isLoggedIn,
+    isCurrentUser,
+  ]);
 
   const { data: roomDetail, isPending: isRoomPending } = useQuery({
     ...chatQueries.room(userId, roomId),
@@ -171,10 +195,12 @@ const useChatPolling = ({
 
   // 폴링 응답 도착 시 indexedDB 캐시
   useEffect(() => {
+    if (!isCurrentUser()) return;
+
     if (messages && messages.length > 0 && numericArticleId != null && numericChatroomId != null) {
       cacheMessages(numericArticleId, numericChatroomId, messages);
     }
-  }, [messages, numericArticleId, numericChatroomId]);
+  }, [messages, numericArticleId, numericChatroomId, isCurrentUser]);
 
   const { mutate: sendMessage, mutateAsync: sendMessageAsync } = useMutation(
     chatMutations.sendMessage(queryClient, userId, roomId),

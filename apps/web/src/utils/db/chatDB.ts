@@ -143,6 +143,8 @@ export async function clearChatroomCache(articleId: number, chatroomId: number):
 }
 
 export async function clearAllChatCache(): Promise<void | null> {
+  if (typeof indexedDB === 'undefined') return;
+
   try {
     const db = await getDB();
     await db.clear(STORE_NAME);
@@ -153,4 +155,4 @@ export async function clearAllChatCache(): Promise<void | null> {
   }
 }
 
-cleanupExpiredCache();
+if (typeof indexedDB !== 'undefined') cleanupExpiredCache();
