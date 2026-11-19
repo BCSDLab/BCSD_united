@@ -34,7 +34,7 @@ function CallvanChatPage() {
 
   return (
     <Suspense fallback={null}>
-      <CallvanChatRoom postId={postId} />
+      <CallvanChatRoom key={postId} postId={postId} />
     </Suspense>
   );
 }

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { cn } from '@bcsdlab/utils';
 import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 
@@ -8,6 +8,7 @@ import { chatQueries } from 'api/chat/queries';
 import { TEAM_CHAT_POLLING_INTERVAL } from 'api/team/queries';
 import DefaultPhotoIcon from 'assets/svg/Team/default-photo.svg';
 import PeopleIcon from 'assets/svg/Team/people.svg';
+import LoadingSpinner from 'components/feedback/LoadingSpinner';
 import MobilePageHeader from 'components/layout/MobilePageHeader';
 import TeamChatSendBar from 'components/Team/components/TeamChatSendBar';
 import { ChatLayout, ChatMessageList, ChatRoomList } from 'components/ui/Chat';
@@ -60,12 +61,37 @@ function findLastVisibleMessageId(container: HTMLDivElement): string | undefined
 export default function TeamChatRoom({ recruitmentId, chatRoomId }: TeamChatRoomProps) {
   const { data: user } = useUser();
   const userId = user?.id ?? null;
-  const { data: chatRooms } = useSuspenseQuery({
+  const [hasCheckedRoom, setHasCheckedRoom] = useState(false);
+  const {
+    data: chatRooms,
+    error,
+    refetch,
+  } = useSuspenseQuery({
     ...chatQueries.rooms(userId, 'TEAM_RECRUITMENT'),
     refetchInterval: TEAM_CHAT_POLLING_INTERVAL,
   });
   const selectedRoom = chatRooms.find((room) => room.context_id === recruitmentId && room.chat_room_id === chatRoomId);
-  if (!selectedRoom) throw new Error('채팅방을 찾을 수 없습니다.');
+
+  useEffect(() => {
+    if (selectedRoom || hasCheckedRoom) return;
+
+    let active = true;
+    // 다른 사용자나 기기에서 생성한 방이 캐시에 없을 수 있어 한 번 재조회한다.
+    void refetch({ cancelRefetch: false }).then(() => {
+      if (active) setHasCheckedRoom(true);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [selectedRoom, hasCheckedRoom, refetch]);
+
+  if (!selectedRoom) {
+    if (!hasCheckedRoom) return <LoadingSpinner size="50px" />;
+    if (error) throw error;
+
+    throw new Error('채팅방을 찾을 수 없습니다.');
+  }
 
   return (
     <TeamChatRoomDetail key={selectedRoom.room_id} selectedRoom={selectedRoom} chatRooms={chatRooms} userId={userId} />

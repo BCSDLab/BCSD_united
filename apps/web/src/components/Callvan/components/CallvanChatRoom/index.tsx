@@ -13,6 +13,7 @@ import SendIcon from 'assets/svg/common/send.svg';
 import { ParticipantAvatarIcon } from 'components/Callvan/components/ParticipantsList/ParticipantAvatarIcon';
 import useSendCallvanChat from 'components/Callvan/hooks/useSendCallvanChat';
 import { getParticipantColor } from 'components/Callvan/utils/participantColor';
+import LoadingSpinner from 'components/feedback/LoadingSpinner';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import { useUser } from 'utils/hooks/state/useUser';
@@ -93,9 +94,30 @@ function formatKoreanDateString(dateStr: string): string {
 export default function CallvanChatRoom({ postId }: CallvanChatRoomProps) {
   const { data: user } = useUser();
   const userId = user?.id ?? null;
-  const { data: rooms } = useSuspenseQuery(chatQueries.rooms(userId, 'CALLVAN'));
+  const [hasCheckedRoom, setHasCheckedRoom] = useState(false);
+  const { data: rooms, error, refetch } = useSuspenseQuery(chatQueries.rooms(userId, 'CALLVAN'));
   const room = rooms.find((candidate) => candidate.context_id === postId);
-  if (!room) throw new Error('채팅방을 찾을 수 없습니다.');
+
+  useEffect(() => {
+    if (room || hasCheckedRoom) return;
+
+    let active = true;
+    // 다른 기기에서 참여한 방이 캐시에 없을 수 있어 한 번 재조회한다.
+    void refetch({ cancelRefetch: false }).then(() => {
+      if (active) setHasCheckedRoom(true);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [room, hasCheckedRoom, refetch]);
+
+  if (!room) {
+    if (!hasCheckedRoom) return <LoadingSpinner size="50px" />;
+    if (error) throw error;
+
+    throw new Error('채팅방을 찾을 수 없습니다.');
+  }
 
   return <CallvanChatRoomContent key={room.room_id} room={room} userId={userId} />;
 }
