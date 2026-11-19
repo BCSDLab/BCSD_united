@@ -25,9 +25,13 @@ interface CallvanChatRoomProps {
   postId: number;
 }
 
+interface AuthenticatedCallvanChatRoomProps extends CallvanChatRoomProps {
+  userId: number;
+}
+
 interface CallvanChatRoomContentProps {
   room: ChatRoomResponse;
-  userId: number | null;
+  userId: number;
 }
 
 interface CallvanMessageView extends ChatMessageResponse {
@@ -91,9 +95,14 @@ function formatKoreanDateString(dateStr: string): string {
   return dateStr;
 }
 
-export default function CallvanChatRoom({ postId }: CallvanChatRoomProps) {
+export default function CallvanChatRoom(props: CallvanChatRoomProps) {
   const { data: user } = useUser();
-  const userId = user?.id ?? null;
+  if (user === null) return null;
+
+  return <AuthenticatedCallvanChatRoom key={user.id} {...props} userId={user.id} />;
+}
+
+function AuthenticatedCallvanChatRoom({ postId, userId }: AuthenticatedCallvanChatRoomProps) {
   const [hasCheckedRoom, setHasCheckedRoom] = useState(false);
   const { data: rooms, error, refetch } = useSuspenseQuery(chatQueries.rooms(userId, 'CALLVAN'));
   const room = rooms.find((candidate) => candidate.context_id === postId);

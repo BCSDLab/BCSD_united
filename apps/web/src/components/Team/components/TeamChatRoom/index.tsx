@@ -25,10 +25,14 @@ interface TeamChatRoomProps {
   chatRoomId: number;
 }
 
+interface AuthenticatedTeamChatRoomProps extends TeamChatRoomProps {
+  userId: number;
+}
+
 interface TeamChatRoomDetailProps {
   selectedRoom: ChatRoomResponse;
   chatRooms: ChatRoomResponse[];
-  userId: number | null;
+  userId: number;
 }
 
 const PREVIOUS_MESSAGE_LOAD_THRESHOLD = 80;
@@ -58,9 +62,14 @@ function findLastVisibleMessageId(container: HTMLDivElement): string | undefined
   return undefined;
 }
 
-export default function TeamChatRoom({ recruitmentId, chatRoomId }: TeamChatRoomProps) {
+export default function TeamChatRoom(props: TeamChatRoomProps) {
   const { data: user } = useUser();
-  const userId = user?.id ?? null;
+  if (user === null) return null;
+
+  return <AuthenticatedTeamChatRoom key={user.id} {...props} userId={user.id} />;
+}
+
+function AuthenticatedTeamChatRoom({ recruitmentId, chatRoomId, userId }: AuthenticatedTeamChatRoomProps) {
   const [hasCheckedRoom, setHasCheckedRoom] = useState(false);
   const {
     data: chatRooms,
@@ -180,7 +189,7 @@ function TeamChatRoomDetail({ selectedRoom, chatRooms, userId }: TeamChatRoomDet
   }));
 
   const isTeamRoom = chatRoom.room_type === 'GROUP';
-  const messageGroups = mapTeamChatMessageGroups(messages, userId ?? undefined);
+  const messageGroups = mapTeamChatMessageGroups(messages, userId);
   const memberCount = isTeamRoom && chatRoom.member_count !== null && chatRoom.max_member_count !== null && (
     <span
       className={cn({
