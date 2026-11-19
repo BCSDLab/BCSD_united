@@ -14,7 +14,7 @@ import type { Portal } from 'components/modal/Modal/PortalProvider';
 import type { TranslateButtonState } from 'components/translation/TranslateButton';
 import TranslationErrorModal from 'components/translation/TranslationErrorModal';
 import useModalPortal from 'utils/hooks/layout/useModalPortal';
-import { useLanguage } from 'utils/language/useLanguage';
+import { useIsLanguageSettled, useLanguage } from 'utils/language/useLanguage';
 import { TranslationRequestError } from 'utils/translation/translateContent';
 
 /** 원문이 바뀌었다는(409) 응답을 받았을 때 원문을 다시 받아 새 버전을 찾는 방법. `translationSource`로 만든다. */
@@ -62,6 +62,7 @@ export default function useContentTranslation<T>({
   source,
 }: UseContentTranslationOptions) {
   const { language } = useLanguage();
+  const isLanguageSettled = useIsLanguageSettled();
   const queryClient = useQueryClient();
   const portalManager = useModalPortal();
   // 경로 파라미터만 바뀌면 화면 컴포넌트가 재사용되므로, 보고 있는 번역과 진행 중인 요청을 원문·화면 언어로 구분한다
@@ -82,8 +83,8 @@ export default function useContentTranslation<T>({
       },
       sourceVersion,
     ),
-    // 앱 기본값처럼 서버 렌더 중에는 조회하지 않는다. 원문 버전이 없으면 번역을 요청할 수 없으니 조회하지 않는다.
-    enabled: typeof window !== 'undefined' && !!sourceVersion,
+    // 화면 언어가 정해지기 전에 조회하면 바뀌기 전 언어로 한 번 더 나간다. 원문 버전이 없으면 번역을 요청할 수 없으니 조회하지 않는다.
+    enabled: isLanguageSettled && !!sourceVersion,
   });
 
   const contentQuery = (version: string) =>
