@@ -11,6 +11,7 @@ import { isKoinError } from 'interfaces/APIError';
 import { getCachedMessages, cacheMessages, type CachedChatMessage } from 'utils/db/chatDB';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import { getErrorStatus } from 'utils/ts/httpError';
+import { parseQueryId } from 'utils/ts/parseServerSideParams';
 import showToast from 'utils/ts/showToast';
 
 const POLLING_INTERVAL_MS = 10_000;
@@ -86,8 +87,13 @@ const useChatPolling = ({
   const matchedRoom = findMatchedRoom();
   const roomId = matchedRoom?.room_id ?? '';
 
-  const defaultChatroomId = matchedRoom?.chat_room_id ?? null;
-  const defaultArticleId = matchedRoom?.context_id ?? null;
+  const offlineArticleId = !isOnline && articleId != null ? parseQueryId(String(articleId)) : null;
+  const offlineChatroomId = !isOnline && chatroomId != null ? parseQueryId(String(chatroomId)) : null;
+  const hasOfflineRoom = offlineArticleId !== null && offlineChatroomId !== null;
+
+  // 오프라인에서는 두 ID가 모두 있는 URL로 저장된 대화를 찾고, 서버 room_id는 만들지 않는다.
+  const defaultChatroomId = matchedRoom?.chat_room_id ?? (hasOfflineRoom ? offlineChatroomId : null);
+  const defaultArticleId = matchedRoom?.context_id ?? (hasOfflineRoom ? offlineArticleId : null);
 
   // 조회 전환을 독립적으로 적용하기 위해 화면이 사용하던 필드 이름을 여기서 유지한다.
   const chatroomList = rooms?.map((room) => ({
@@ -105,7 +111,7 @@ const useChatPolling = ({
 
   // indexedDB 진입
   useEffect(() => {
-    if (numericArticleId == null || numericChatroomId == null) return;
+    if (userId === null || numericArticleId == null || numericChatroomId == null) return;
 
     const queryKey = articleQueryKeys.lostItemChatroomMessages(defaultArticleId, defaultChatroomId, isLoggedIn);
     const existing = queryClient.getQueryData(queryKey);
@@ -116,7 +122,7 @@ const useChatPolling = ({
         queryClient.setQueryData(queryKey, cached);
       }
     });
-  }, [queryClient, numericArticleId, numericChatroomId, defaultArticleId, defaultChatroomId, isLoggedIn]);
+  }, [queryClient, userId, numericArticleId, numericChatroomId, defaultArticleId, defaultChatroomId, isLoggedIn]);
 
   const { data: roomDetail, isPending: isRoomPending } = useQuery({
     ...chatQueries.room(userId, roomId),
@@ -143,7 +149,9 @@ const useChatPolling = ({
   });
   const messages = messageCache?.messages ?? offlineMessages;
   const isLoadingChat =
-    isOnline && (isRoomsPending || (!!matchedRoom && (isRoomPending || (isMessagesPending && !messages))));
+    userId !== null &&
+    isOnline &&
+    (isRoomsPending || (!!matchedRoom && (isRoomPending || (isMessagesPending && !messages))));
   const { mutateAsync: loadPreviousMessages, isPending: isLoadingPreviousMessages } = useMutation(
     chatMutations.loadPreviousMessages(queryClient, userId, roomId),
   );

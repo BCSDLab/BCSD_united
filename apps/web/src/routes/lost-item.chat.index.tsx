@@ -101,6 +101,7 @@ function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageP
   const showDetail = !isMobile || (requestedDetail && (isLoadingChat || (articleId !== null && chatroomId !== null)));
   const showList = !isMobile || !showDetail;
   const isChatroomOpen = showDetail && !!chatroomDetail;
+  const showChatContent = messages !== undefined && (chatroomDetail !== undefined || !isOnline);
 
   const prevMessagesLengthRef = useRef(0);
   const previousRoomKeyRef = useRef<string | null>(null);
@@ -338,36 +339,38 @@ function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageP
                   <LoadingSpinner size="50px" />
                 </div>
               )}
-              {!isLoadingChat && !(chatroomDetail && messages) && (
+              {!isLoadingChat && !showChatContent && (
                 <div className={styles.chat__empty}>
                   선택된 채팅방이 없습니다.
                   <br />
                   왼쪽 리스트에서 채팅방을 선택해주세요.🙇‍♂️
                 </div>
               )}
-              {!isLoadingChat && chatroomDetail && messages && (
+              {!isLoadingChat && showChatContent && (
                 <>
-                  <div className={styles['chat-view--header']}>
-                    <div>
-                      {chatroomDetail.chat_partner_profile_image ? (
-                        <img
-                          src={chatroomDetail.chat_partner_profile_image}
-                          alt="분실물 이미지"
-                          className={styles['chat-list--item-profile']}
-                          onError={addErrorImage}
-                        />
-                      ) : (
-                        <div className={styles['chat-list--item-profile']}>
-                          <DefaultPhotoIcon />
-                        </div>
-                      )}
-                      <div className={styles['chat-view--title']}>{chatroomDetail.article_title}</div>
+                  {chatroomDetail && (
+                    <div className={styles['chat-view--header']}>
+                      <div>
+                        {chatroomDetail.chat_partner_profile_image ? (
+                          <img
+                            src={chatroomDetail.chat_partner_profile_image}
+                            alt="분실물 이미지"
+                            className={styles['chat-list--item-profile']}
+                            onError={addErrorImage}
+                          />
+                        ) : (
+                          <div className={styles['chat-list--item-profile']}>
+                            <DefaultPhotoIcon />
+                          </div>
+                        )}
+                        <div className={styles['chat-view--title']}>{chatroomDetail.article_title}</div>
+                      </div>
+                      <button type="button" className={styles['chat-block']} onClick={openDeleteModal}>
+                        <BlockIcon />
+                        <div>차단하기</div>
+                      </button>
                     </div>
-                    <button type="button" className={styles['chat-block']} onClick={openDeleteModal}>
-                      <BlockIcon />
-                      <div>차단하기</div>
-                    </button>
-                  </div>
+                  )}
 
                   <div
                     className={styles['message-container']}
