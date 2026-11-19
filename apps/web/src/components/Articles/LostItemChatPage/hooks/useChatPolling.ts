@@ -3,11 +3,11 @@ import { captureError } from '@koin/telemetry/runtime';
 import { skipToken, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { articleQueryKeys } from 'api/articles/queries';
-import { leaveChatPresence, sendChatMessage, touchChatPresence } from 'api/chat';
+import { leaveChatPresence, touchChatPresence } from 'api/chat';
 import { chatMutations } from 'api/chat/mutations';
-import { chatQueries, chatQueryKeys } from 'api/chat/queries';
+import { chatQueries } from 'api/chat/queries';
 import { isKoinError } from 'interfaces/APIError';
-import { getCachedMessages, cacheMessages, clearChatroomCache, type CachedChatMessage } from 'utils/db/chatDB';
+import { getCachedMessages, cacheMessages, type CachedChatMessage } from 'utils/db/chatDB';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import { getErrorStatus } from 'utils/ts/httpError';
 import showToast from 'utils/ts/showToast';
@@ -160,32 +160,9 @@ const useChatPolling = ({
     }
   }, [messages, numericArticleId, numericChatroomId]);
 
-  const { mutate: sendMessage, mutateAsync: sendMessageAsync } = useMutation({
-    mutationFn: ({ content, isImage = false }: { content: string; isImage?: boolean }) => {
-      if (!matchedRoom) {
-        return Promise.reject(new Error('채팅방 정보가 없습니다.'));
-      }
-
-      return sendChatMessage(matchedRoom.room_id, {
-        content,
-        is_image: isImage,
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: chatQueryKeys.messages(userId, roomId),
-      });
-      queryClient.invalidateQueries({ queryKey: chatQueryKeys.roomsRoot(userId) });
-    },
-    onError: (error) => {
-      if (isKoinError(error)) {
-        showToast('error', error.message || '메시지 전송을 실패하였습니다');
-      } else {
-        showToast('error', '메시지 전송을 실패하였습니다');
-        captureError(error);
-      }
-    },
-  });
+  const { mutate: sendMessage, mutateAsync: sendMessageAsync } = useMutation(
+    chatMutations.sendMessage(queryClient, userId, roomId),
+  );
 
   // 진행 중인 갱신 뒤에 해제 요청을 보내야 늦은 갱신이 접속 상태를 되살리지 않는다.
   const leaveRoom = useCallback((targetRoomId: string) => {
@@ -194,27 +171,6 @@ const useChatPolling = ({
 
     return request;
   }, []);
-
-  const { mutateAsync: leaveChatroom } = useMutation({
-    mutationFn: () => {
-      if (!roomId) {
-        return Promise.reject(new Error('채팅방 정보가 없습니다.'));
-      }
-
-      return leaveRoom(roomId);
-    },
-    onSuccess: () => {
-      if (numericArticleId != null && numericChatroomId != null) {
-        clearChatroomCache(numericArticleId, numericChatroomId);
-      }
-      queryClient.invalidateQueries({
-        queryKey: chatQueryKeys.roomsRoot(userId),
-      });
-    },
-    onError: (error) => {
-      reportPresenceError(error, '채팅방 퇴장을 실패하였습니다');
-    },
-  });
 
   useEffect(() => {
     if (presenceStateRef.current.userId !== userId || presenceStateRef.current.roomId !== roomId) {
@@ -270,18 +226,6 @@ const useChatPolling = ({
     };
   }, [userId, roomId, isOnline, visible, leaveRoom]);
 
-  const invalidateChatroomList = useCallback(() => {
-    queryClient.invalidateQueries({
-      queryKey: chatQueryKeys.roomsRoot(userId),
-    });
-  }, [queryClient, userId]);
-
-  const invalidateMessages = useCallback(() => {
-    queryClient.invalidateQueries({
-      queryKey: chatQueryKeys.messages(userId, roomId),
-    });
-  }, [queryClient, userId, roomId]);
-
   return {
     chatroomList,
     chatroomDetail,
@@ -293,9 +237,6 @@ const useChatPolling = ({
     defaultArticleId,
     sendMessage,
     sendMessageAsync,
-    leaveChatroom,
-    invalidateChatroomList,
-    invalidateMessages,
     markVisibleMessagesRead,
   };
 };

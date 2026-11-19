@@ -143,7 +143,7 @@ function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageP
       const imageUrlList = await saveImgFile();
       for (const imageUrl of imageUrlList) {
         try {
-          await sendChatMessageAsync({ content: imageUrl, isImage: true });
+          await sendChatMessageAsync({ content: imageUrl, is_image: true });
         } catch {
           continue;
         }
@@ -160,7 +160,7 @@ function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageP
       return false;
     }
 
-    sendChatMessage({ content: inputValue });
+    sendChatMessage({ content: inputValue, is_image: false });
     setInputValue('');
 
     return true;
