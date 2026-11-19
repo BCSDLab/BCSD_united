@@ -174,12 +174,13 @@ export default class APIClient {
     };
     request.signal?.addEventListener('abort', cancel, { once: true });
     if (request.signal?.aborted) cancel();
-    if (this.timeout > 0) {
+    const timeoutMs = request.timeout ?? this.timeout;
+    if (timeoutMs > 0) {
       timeout = setTimeout(() => {
         // 본문 읽기의 AbortError가 시간 초과를 덮지 않도록 먼저 실패시킨다.
-        reject(new HttpError(`timeout of ${this.timeout}ms exceeded`, { code: 'TIMEOUT' }));
+        reject(new HttpError(`timeout of ${timeoutMs}ms exceeded`, { code: 'TIMEOUT' }));
         controller.abort();
-      }, this.timeout);
+      }, timeoutMs);
     }
 
     try {

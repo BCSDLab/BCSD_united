@@ -15,6 +15,11 @@ const withRetryAfter = <R extends TranslationResult<unknown>>({ data, headers }:
   retryAfterSeconds: parseRetryAfter(headers.get('Retry-After')),
 });
 
+export interface TranslationRequestOptions {
+  signal?: AbortSignal;
+  timeout?: number;
+}
+
 export class SourceLanguage<R extends TranslationResult<SourceLanguageData>> implements APIRequest<R> {
   method = HTTP_METHOD.POST;
 
@@ -34,11 +39,18 @@ export class RequestTranslation<R extends TranslationResult<unknown>> implements
 
   response!: R;
 
+  signal?: AbortSignal;
+
+  timeout?: number;
+
   constructor(
     public path: string,
     public data: TranslationRequest,
-    public signal?: AbortSignal,
-  ) {}
+    { signal, timeout }: TranslationRequestOptions = {},
+  ) {
+    this.signal = signal;
+    this.timeout = timeout;
+  }
 
   parse(result: APIResult<R>): R {
     return withRetryAfter(result);
@@ -52,11 +64,14 @@ export class TranslationById<R extends TranslationResult<unknown>> implements AP
 
   response!: R;
 
-  constructor(
-    translationId: string,
-    public signal?: AbortSignal,
-  ) {
+  signal?: AbortSignal;
+
+  timeout?: number;
+
+  constructor(translationId: string, { signal, timeout }: TranslationRequestOptions = {}) {
     this.path = `/translations/${encodeURIComponent(translationId)}`;
+    this.signal = signal;
+    this.timeout = timeout;
   }
 
   parse(result: APIResult<R>): R {

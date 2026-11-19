@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { registerHooks } from 'node:module';
 import { test, type TestContext } from 'node:test';
 
-type Reply = { status: number; body: unknown; headers?: Record<string, string> };
+type Reply = { status: number; body: unknown; headers?: Record<string, string> } | { hang: true };
 
 async function setup(t: TestContext, replies: Reply[]) {
   Object.defineProperty(globalThis, 'window', {
@@ -33,6 +33,11 @@ async function setup(t: TestContext, replies: Reply[]) {
     requested.push(`${request.method} ${new URL(request.url).pathname}`);
     const reply = queue.shift();
     if (!reply) throw new Error('unexpected request');
+    if ('hang' in reply) {
+      return new Promise<Response>((_, reject) => {
+        request.signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+      });
+    }
     return new Response(JSON.stringify(reply.body), {
       status: reply.status,
       headers: { 'Content-Type': 'application/json', ...reply.headers },
@@ -112,6 +117,33 @@ test('제공할 수 없으면 unavailable, 실패하면 failed를 돌려준다',
   assert.deepEqual(await translateContent(options()), { kind: 'unavailable' });
   assert.deepEqual(await translateContent(options()), { kind: 'failed' });
   assert.deepEqual(await translateContent(options()), { kind: 'unavailable' });
+});
+
+test('번역 결과 형식의 오류 응답은 HTTP 상태보다 본문 status를 따른다', async (t) => {
+  const { translateContent } = await setup(t, [
+    { status: 422, body: result('FAILED', { translation_id: null, retryable: true }) },
+    { status: 404, body: { code: 'NOT_FOUND', message: '원문이 없습니다.' } },
+  ]);
+  assert.deepEqual(await translateContent(options()), { kind: 'failed' });
+  assert.deepEqual(await translateContent(options()), { kind: 'failed' });
+});
+
+test('번역 요청은 기한까지 남은 시간만 기다린다', async (t) => {
+  const { translateContent, requested } = await setup(t, [{ hang: true }]);
+  // 기한 30초 중 29.95초가 지난 뒤 나간 요청은 응답이 없어도 남은 50ms만 기다리고 끝낸다
+  let started = false;
+  t.mock.method(Date, 'now', () => {
+    if (started) return 29_950;
+    started = true;
+
+    return 0;
+  });
+  const startedAt = performance.now();
+  const outcome = await translateContent(options());
+  assert.deepEqual(outcome, { kind: 'failed' });
+  assert.equal(requested.length, 1);
+  // 기본 timeout(20초)까지 기다리지 않는다
+  assert.ok(performance.now() - startedAt < 5_000);
 });
 
 test('진행 중 상태가 30초를 넘기면 실패로 본다', async (t) => {
