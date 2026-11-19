@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { useSuspenseQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate, useRouter, notFound } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
@@ -22,7 +22,7 @@ import usePostLostItemChatroom from 'components/Articles/LostItemDetailPage/hook
 import { SSRLayout } from 'components/layout';
 import LoginRequiredModal from 'components/modal/LoginRequiredModal';
 import TranslateButton from 'components/translation/TranslateButton';
-import useContentTranslation, { refetchSourceVersion } from 'components/translation/useContentTranslation';
+import useContentTranslation, { translationSource } from 'components/translation/useContentTranslation';
 import { isKoinError } from 'interfaces/APIError';
 import ROUTES from 'static/routes';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
@@ -89,13 +89,15 @@ function LostItemDetailPage({ articleId }: LostItemDetailPageProps) {
   } = article;
   const typeLabel = type === 'FOUND' ? '[습득물]' : '[분실물]';
 
-  const queryClient = useQueryClient();
   const translation = useContentTranslation<{ found_place: string; content: string }>({
     resourceType: 'LOST_ITEM',
     resourceId: articleId,
     translatePath: `/articles/lost-item/${articleId}/translations`,
     sourceVersion: article.translation_source_version,
-    refetchSourceVersion: () => refetchSourceVersion(queryClient, articleQueries.lostItemDetail(isLoggedIn, articleId)),
+    source: translationSource(
+      articleQueries.lostItemDetail(isLoggedIn, articleId),
+      (data) => data.translation_source_version,
+    ),
   });
   // 번역을 보여주는 동안에만 습득 장소와 내용을 번역문으로 바꾼다
   const shownPlace = translation.translated?.found_place ?? found_place;

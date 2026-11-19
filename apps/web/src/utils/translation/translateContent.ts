@@ -9,6 +9,12 @@ export type TranslationOutcome<T> =
   | { kind: 'failed' }
   | { kind: 'aborted' };
 
+export class TranslationRequestError extends Error {
+  constructor(public readonly kind: Exclude<TranslationOutcome<unknown>['kind'], 'success'>) {
+    super(`translation ${kind}`);
+  }
+}
+
 // 서버는 번역을 25초 안에 끝내거나 실패로 돌려준다. 첫 요청부터 진행 중 결과를 다시 조회하는 시간까지 이 안으로 묶는다.
 const MAX_TOTAL_MS = 30_000;
 const DEFAULT_RETRY_AFTER_SECONDS = 2;

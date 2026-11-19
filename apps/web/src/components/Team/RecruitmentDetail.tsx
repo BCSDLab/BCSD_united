@@ -17,7 +17,7 @@ import OwnerActionMenu from 'components/Team/components/OwnerActionMenu';
 import { RecruitmentBadges } from 'components/Team/components/RecruitmentCard';
 import { formatRecruitmentDate, MEETING_TYPE_LABEL } from 'components/Team/utils/recruitmentDisplay';
 import TranslateButton from 'components/translation/TranslateButton';
-import useContentTranslation, { refetchSourceVersion } from 'components/translation/useContentTranslation';
+import useContentTranslation, { translationSource } from 'components/translation/useContentTranslation';
 import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
@@ -83,7 +83,6 @@ function DetailContent({ recruitment, onEdit, onDelete }: DetailContentProps) {
   const isActionDisabled = primaryAction.type === 'disabled';
   const isClosed = recruitment.status !== 'RECRUITING';
   const canManage = recruitment.is_author || recruitment.can_manage_applicants;
-  const queryClient = useQueryClient();
   const isLoggedIn = useIsLoggedIn();
   const translation = useContentTranslation<{
     title?: string | null;
@@ -94,7 +93,10 @@ function DetailContent({ recruitment, onEdit, onDelete }: DetailContentProps) {
     resourceId: recruitment.id,
     translatePath: `/team-recruitments/${recruitment.id}/translations`,
     sourceVersion: recruitment.translation_source_version,
-    refetchSourceVersion: () => refetchSourceVersion(queryClient, teamQueries.detail(recruitment.id, isLoggedIn)),
+    source: translationSource(
+      teamQueries.detail(recruitment.id, isLoggedIn),
+      (data) => data.translation_source_version,
+    ),
   });
   // 번역을 보여주는 동안에만 제목·소개·지원 자격을 번역문으로 바꾼다
   const { translated } = translation;
