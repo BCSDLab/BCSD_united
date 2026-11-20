@@ -3,13 +3,7 @@ import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
 import { getViewerScope } from 'utils/ts/getViewerScope';
 
 import type { CallvanListRequest } from './entity';
-import {
-  getCallvanChat,
-  getCallvanList,
-  getCallvanNotifications,
-  getCallvanPostDetail,
-  getCallvanRestriction,
-} from './index';
+import { getCallvanList, getCallvanNotifications, getCallvanPostDetail, getCallvanRestriction } from './index';
 
 const CALLVAN_LIST_LIMIT = 10;
 
@@ -27,7 +21,6 @@ export const callvanQueryKeys = {
   restriction: (isLoggedIn?: boolean) => ['callvan', 'restriction', getViewerScope(isLoggedIn)] as const,
   postDetail: (postId: number, isLoggedIn?: boolean) =>
     ['callvan', 'post-detail', postId, getViewerScope(isLoggedIn)] as const,
-  chat: (postId: number, isLoggedIn?: boolean) => ['callvan', 'chat', postId, getViewerScope(isLoggedIn)] as const,
 };
 
 export const callvanQueries = {
@@ -75,13 +68,5 @@ export const callvanQueries = {
       queryKey: callvanQueryKeys.postDetail(postId, isLoggedIn),
       queryFn: () => getCallvanPostDetail(postId),
       staleTime: 60000,
-    }),
-
-  chat: (postId: number, isLoggedIn?: boolean) =>
-    queryOptions({
-      queryKey: callvanQueryKeys.chat(postId, isLoggedIn),
-      queryFn: () => getCallvanChat(postId),
-      staleTime: 0,
-      refetchInterval: 1000,
     }),
 };

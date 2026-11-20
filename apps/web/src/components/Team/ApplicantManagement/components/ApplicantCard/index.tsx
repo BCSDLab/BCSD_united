@@ -1,5 +1,5 @@
 import { cn } from '@bcsdlab/utils';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useRouter } from '@tanstack/react-router';
 
 import type { TeamRecruitmentApplicant } from 'api/team/entity';
@@ -28,6 +28,7 @@ interface ApplicantCardProps {
 }
 
 export default function ApplicantCard({ applicant, recruitmentId }: ApplicantCardProps) {
+  const queryClient = useQueryClient();
   const router = useRouter();
   const logger = useLogger();
   const isMobile = useMediaQuery();
@@ -41,7 +42,7 @@ export default function ApplicantCard({ applicant, recruitmentId }: ApplicantCar
   } = applicant;
 
   const { mutate: createDirectChatRoom, isPending: isCreatingChat } = useMutation(
-    teamMutations.createDirectChatRoom(Number(recruitmentId)),
+    teamMutations.createDirectChatRoom(queryClient, Number(recruitmentId)),
   );
 
   const handleCardClick = () => {

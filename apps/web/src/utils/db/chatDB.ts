@@ -1,6 +1,6 @@
 import { openDB, type IDBPDatabase } from 'idb';
 
-import type { LostItemChatroomDetailMessage } from 'api/articles/entity';
+import type { ChatMessageResponse } from 'api/chat/entity';
 
 const DB_NAME = 'koin-chat';
 const DB_VERSION = 1;
@@ -21,11 +21,19 @@ const STORE_NAME = 'chatroom-messages';
 const MAX_MESSAGES_PER_ROOM = 50;
 const CACHE_TTL_MS = 3 * 24 * 60 * 60 * 1000;
 
+export interface CachedChatMessage extends Pick<
+  ChatMessageResponse,
+  'user_id' | 'user_nickname' | 'content' | 'timestamp' | 'is_image'
+> {
+  // 기존 저장 기록에는 메시지 ID가 없을 수 있다.
+  message_id?: string;
+}
+
 interface CachedChatroom {
   key: string;
   articleId: number;
   chatroomId: number;
-  messages: LostItemChatroomDetailMessage[];
+  messages: CachedChatMessage[];
   updatedAt: number;
 }
 
@@ -78,10 +86,7 @@ function buildKey(articleId: number, chatroomId: number): string {
   return `${articleId}:${chatroomId}`;
 }
 
-export async function getCachedMessages(
-  articleId: number,
-  chatroomId: number,
-): Promise<LostItemChatroomDetailMessage[] | null> {
+export async function getCachedMessages(articleId: number, chatroomId: number): Promise<CachedChatMessage[] | null> {
   try {
     const db = await getDB();
     const key = buildKey(articleId, chatroomId);
@@ -106,7 +111,7 @@ export async function getCachedMessages(
 export async function cacheMessages(
   articleId: number,
   chatroomId: number,
-  messages: LostItemChatroomDetailMessage[],
+  messages: CachedChatMessage[],
 ): Promise<void | null> {
   try {
     const db = await getDB();
@@ -138,6 +143,8 @@ export async function clearChatroomCache(articleId: number, chatroomId: number):
 }
 
 export async function clearAllChatCache(): Promise<void | null> {
+  if (typeof indexedDB === 'undefined') return;
+
   try {
     const db = await getDB();
     await db.clear(STORE_NAME);
@@ -148,4 +155,4 @@ export async function clearAllChatCache(): Promise<void | null> {
   }
 }
 
-cleanupExpiredCache();
+if (typeof indexedDB !== 'undefined') cleanupExpiredCache();

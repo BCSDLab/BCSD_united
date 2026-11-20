@@ -1,6 +1,8 @@
 import { mutationOptions, type QueryClient } from '@tanstack/react-query';
 
-import type { CallvanReportRequest, CreateCallvanRequest, SendChatRequest } from './entity';
+import { invalidateChatRooms } from 'api/chat/mutations';
+
+import type { CallvanReportRequest, CreateCallvanRequest } from './entity';
 import {
   cancelCallvan,
   closeCallvanPost,
@@ -12,7 +14,6 @@ import {
   markNotificationRead,
   reopenCallvanPost,
   reportCallvanParticipant,
-  sendCallvanChat,
 } from './index';
 import { callvanQueryKeys } from './queries';
 
@@ -26,19 +27,22 @@ export const callvanMutations = {
   create: (queryClient: QueryClient) =>
     mutationOptions({
       mutationFn: (data: CreateCallvanRequest) => createCallvan(data),
-      onSuccess: () => invalidateCallvanInfiniteList(queryClient),
+      onSuccess: (post) =>
+        Promise.all([invalidateCallvanInfiniteList(queryClient), invalidateChatRooms(queryClient, 'CALLVAN', post.id)]),
     }),
 
   join: (queryClient: QueryClient) =>
     mutationOptions({
       mutationFn: (postId: number) => joinCallvan(postId),
-      onSuccess: () => invalidateCallvanInfiniteList(queryClient),
+      onSuccess: (_response, postId) =>
+        Promise.all([invalidateCallvanInfiniteList(queryClient), invalidateChatRooms(queryClient, 'CALLVAN', postId)]),
     }),
 
   cancel: (queryClient: QueryClient) =>
     mutationOptions({
       mutationFn: (postId: number) => cancelCallvan(postId),
-      onSuccess: () => invalidateCallvanInfiniteList(queryClient),
+      onSuccess: (_response, postId) =>
+        Promise.all([invalidateCallvanInfiniteList(queryClient), invalidateChatRooms(queryClient, 'CALLVAN', postId)]),
     }),
 
   close: (queryClient: QueryClient) =>
@@ -81,11 +85,5 @@ export const callvanMutations = {
     mutationOptions({
       mutationFn: () => deleteAllNotifications(),
       onSuccess: () => invalidateCallvanNotifications(queryClient),
-    }),
-
-  sendChat: (queryClient: QueryClient, postId: number) =>
-    mutationOptions({
-      mutationFn: (data: SendChatRequest) => sendCallvanChat(postId, data),
-      onSuccess: () => queryClient.invalidateQueries({ queryKey: callvanQueryKeys.chat(postId) }),
     }),
 };

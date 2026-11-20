@@ -10,12 +10,6 @@ import type {
   TeamRecruitmentApplicantDetailResponse,
   TeamRecruitmentDetailResponse,
   TeamChatDirectRoomResponse,
-  TeamChatMessage,
-  TeamChatMessageListRequest,
-  TeamChatMessageListResponse,
-  TeamChatMessageSendRequest,
-  TeamChatRoomListResponse,
-  TeamChatRoomResponse,
   TeamRecruitmentApplicantListRequest,
   TeamRecruitmentApplicantListResponse,
   TeamRecruitmentApplicationStatusUpdateRequest,
@@ -87,8 +81,6 @@ export class PutTeamRecruitment<R extends TeamRecruitmentDetailResponse> impleme
     this.path = `/team-recruitments/${recruitmentId}`;
   }
 }
-
-const TEAM_CHAT_MESSAGE_DEFAULT_LIMIT = 100;
 
 export class GetTeamRecruitmentList<R extends TeamRecruitmentListResponse> implements APIRequest<R> {
   method = HTTP_METHOD.GET;
@@ -233,69 +225,6 @@ export class GetMyCreatedTeamRecruitments<R extends MyCreatedTeamRecruitmentList
       page: params.page ?? 1,
       limit: params.limit ?? 10,
     };
-  }
-}
-
-export class GetTeamRecruitmentChatRoom<R extends TeamChatRoomResponse> implements APIRequest<R> {
-  method = HTTP_METHOD.GET;
-
-  path: string;
-
-  response!: R;
-
-  auth = true;
-
-  constructor(recruitmentId: number, chatRoomId: number) {
-    this.path = `/chatroom/team-recruitment/${recruitmentId}/${chatRoomId}`;
-  }
-}
-
-export class GetTeamRecruitmentChatRoomList<R extends TeamChatRoomListResponse> implements APIRequest<R> {
-  method = HTTP_METHOD.GET;
-
-  path = '/chatroom/team-recruitment';
-
-  response!: R;
-
-  auth = true;
-}
-
-export class GetTeamRecruitmentChatMessages<R extends TeamChatMessageListResponse> implements APIRequest<R> {
-  method = HTTP_METHOD.GET;
-
-  path: string;
-
-  response!: R;
-
-  auth = true;
-
-  params: TeamChatMessageListRequest;
-
-  constructor(recruitmentId: number, chatRoomId: number, params: TeamChatMessageListRequest = {}) {
-    this.path = `/chatroom/team-recruitment/${recruitmentId}/${chatRoomId}/messages`;
-
-    this.params = {
-      ...(params.afterMessageId && { afterMessageId: params.afterMessageId }),
-      ...(params.beforeMessageId && { beforeMessageId: params.beforeMessageId }),
-      limit: params.limit ?? TEAM_CHAT_MESSAGE_DEFAULT_LIMIT,
-    };
-  }
-}
-
-export class PostTeamRecruitmentChatMessage<R extends TeamChatMessage> implements APIRequest<R> {
-  method = HTTP_METHOD.POST;
-
-  path: string;
-
-  response!: R;
-
-  auth = true;
-
-  data: TeamChatMessageSendRequest;
-
-  constructor(recruitmentId: number, chatRoomId: number, data: TeamChatMessageSendRequest) {
-    this.path = `/chatroom/team-recruitment/${recruitmentId}/${chatRoomId}/messages`;
-    this.data = data;
   }
 }
 

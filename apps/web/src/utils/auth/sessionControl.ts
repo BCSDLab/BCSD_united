@@ -1,3 +1,4 @@
+import { clearAllChatCache } from 'utils/db/chatDB';
 import { redirectToLogin } from 'utils/ts/auth';
 import { queryClient } from 'utils/ts/queryClient';
 
@@ -16,5 +17,8 @@ export function markSessionExpired({ authOptional }: { authOptional?: boolean })
   const wasAuthenticated = queryClient.getQueryData<Session>(SESSION_QUERY_KEY)?.status === 'authenticated';
   if (wasAuthenticated) queryClient.clear();
   queryClient.setQueryData(SESSION_QUERY_KEY, ANONYMOUS_SESSION);
-  if (!authOptional && typeof window !== 'undefined') redirectToLogin();
+  const clearingChatCache = clearAllChatCache();
+  if (!authOptional && typeof window !== 'undefined') {
+    void clearingChatCache.then(() => redirectToLogin());
+  }
 }

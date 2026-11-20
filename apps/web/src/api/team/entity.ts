@@ -189,36 +189,9 @@ export interface MyTeamRecruitmentApplicationListResponse extends APIResponse {
   current_page: number;
 }
 
-export type TeamChatRoomType = 'TEAM' | 'DIRECT';
-
-export interface TeamChatRoomListItem {
-  recruitment_id: number;
-  chat_room_id: number;
-  room_name: string;
-  room_type: TeamChatRoomType;
-  counterpart_id: number | null;
-  counterpart_nickname: string | null;
-  last_message_id: number | null;
-  last_message_content: string | null;
-  last_message_at: string | null;
-  last_message_is_image: boolean | null;
-  unread_message_count: number;
-}
-
-export type TeamChatRoomListResponse = TeamChatRoomListItem[];
-
 export interface TeamChatCounterpart {
   id: number;
   nickname: string;
-}
-
-export interface TeamChatRoomResponse extends APIResponse {
-  chat_room_id: number;
-  room_name: string;
-  room_type: TeamChatRoomType;
-  member_count: number;
-  max_member_count: number;
-  counterpart: TeamChatCounterpart | null;
 }
 
 export interface TeamChatDirectRoomResponse extends APIResponse {
@@ -226,30 +199,6 @@ export interface TeamChatDirectRoomResponse extends APIResponse {
   room_name: string;
   room_type: 'DIRECT';
   counterpart: TeamChatCounterpart;
-}
-
-export interface TeamChatMessage {
-  message_id: number;
-  user_id: number;
-  user_nickname: string;
-  content: string;
-  timestamp: string;
-  is_image: boolean;
-  unread_count: number;
-}
-
-export type TeamChatMessageListResponse = TeamChatMessage[];
-
-export interface TeamChatMessageListRequest {
-  [key: string]: unknown;
-  afterMessageId?: number;
-  beforeMessageId?: number;
-  limit?: number;
-}
-
-export interface TeamChatMessageSendRequest {
-  content: string;
-  is_image: boolean;
 }
 
 export interface TeamRecruitmentApplicantManagementRecruitment extends TeamRecruitmentCard {
