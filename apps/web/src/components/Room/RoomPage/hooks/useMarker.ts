@@ -1,27 +1,27 @@
 import { useEffect, useRef } from 'react';
 import { useRouter } from '@tanstack/react-router';
 
-import type { LandListResponse } from 'api/room/entity';
+import type { LandList } from 'api/room/entity';
 import MarkerIcon from 'components/Room/components/MarkerIcon';
 import ROUTES from 'static/routes';
 
 interface MarkerProps {
   getMap: () => naver.maps.Map | null;
-  roomList: LandListResponse | undefined;
+  lands: LandList[] | undefined;
 }
 
-function useMarker({ getMap, roomList }: MarkerProps) {
+function useMarker({ getMap, lands }: MarkerProps) {
   const markersRef = useRef<naver.maps.Marker[]>([]);
   const router = useRouter();
 
   useEffect(() => {
     const map = getMap();
-    if (!map || !roomList || !window.naver) return;
+    if (!map || !lands || !window.naver) return;
 
     markersRef.current.forEach((m) => m.setMap(null));
     markersRef.current = [];
 
-    const created = (roomList.lands ?? []).flatMap((land) => {
+    const created = lands.flatMap((land) => {
       if (land.latitude == null || land.longitude == null || land.latitude === 0 || land.longitude === 0) return [];
 
       const marker = new window.naver.maps.Marker({
@@ -44,7 +44,7 @@ function useMarker({ getMap, roomList }: MarkerProps) {
       markersRef.current.forEach((m) => m.setMap(null));
       markersRef.current = [];
     };
-  }, [getMap, roomList, router]);
+  }, [getMap, lands, router]);
 
   const getMarkerArray = () => markersRef.current;
 

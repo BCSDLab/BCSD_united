@@ -1,5 +1,83 @@
 @use "src/utils/scss/media" as media;
 
+.panel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+  height: 878px;
+
+  @include media.media-breakpoint(mobile) {
+    gap: 0;
+    height: auto;
+    margin-top: 10px;
+  }
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 4px 0 13px;
+
+  &__count {
+    color: #1f1f1f;
+    font-size: 28px;
+    font-weight: 500;
+    line-height: 1.6;
+  }
+
+  @include media.media-breakpoint(mobile) {
+    gap: 0;
+    padding: 0;
+
+    &__count {
+      display: flex;
+      align-items: center;
+      box-sizing: border-box;
+      min-height: 66px;
+      padding: 12px 32px 0;
+      color: #323232;
+      font-size: 18px;
+      font-weight: 600;
+    }
+  }
+}
+
+.filters {
+  display: flex;
+  gap: 14px;
+
+  &__button {
+    padding: 8px 16px;
+    border-color: #b611f5;
+    border-radius: 24px;
+    box-shadow: none;
+    font-size: 15px;
+    line-height: 1.6;
+
+    &:focus-visible {
+      outline: 2px solid #b611f5;
+      outline-offset: 3px;
+    }
+  }
+
+  @include media.media-breakpoint(mobile) {
+    gap: 8px;
+    padding: 12px 24px 8px;
+
+    &__button {
+      box-sizing: border-box;
+      min-width: 62px;
+      height: 34px;
+      padding: 0 12px;
+      border-radius: 16px;
+      font-size: 14px;
+    }
+  }
+}
+
 .list {
   display: flex;
   flex: 1;
@@ -7,7 +85,6 @@
   gap: 24px;
   box-sizing: border-box;
   min-width: 0;
-  height: 878px;
   padding: 4px 4px 4px 13px;
   overflow: auto;
   scrollbar-width: none;
@@ -17,15 +94,11 @@
   }
 
   &__item {
-    flex-shrink: 0;
     min-width: 0;
   }
 
   @include media.media-breakpoint(mobile) {
-    flex: auto;
     gap: 0;
-    height: auto;
-    margin-top: 10px;
     padding: 4px;
     overflow: visible;
 

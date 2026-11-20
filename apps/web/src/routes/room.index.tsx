@@ -1,10 +1,11 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
 import { roomQueries } from 'api/room/queries';
 import { SSRLayout } from 'components/layout';
-import RoomList from 'components/Room/components/RoomList';
+import RoomList, { type RoomRentType } from 'components/Room/components/RoomList';
 import useMarker from 'components/Room/RoomPage/hooks/useMarker';
 import useNaverMap from 'components/Room/RoomPage/hooks/useNaverMap';
 import useNaverMapScript from 'components/Room/RoomPage/hooks/useNaverMapScript';
@@ -21,9 +22,16 @@ const LOCATION = { latitude: 36.764617, longitude: 127.283154 };
 function RoomPage() {
   const isMobile = useMediaQuery();
   const { data: roomList } = useQuery(roomQueries.list());
+  const [rentType, setRentType] = useState<RoomRentType>('all');
+  const lands = roomList?.lands.filter((room) => {
+    if (rentType === 'monthly') return room.is_monthly_available;
+    if (rentType === 'charter') return room.is_charter_available;
+
+    return true;
+  });
   const isMapLoaded = useNaverMapScript();
   const { getMap } = useNaverMap(LOCATION.latitude, LOCATION.longitude, isMapLoaded);
-  useMarker({ getMap, roomList });
+  useMarker({ getMap, lands });
   useScrollToTop();
 
   return (
@@ -31,7 +39,7 @@ function RoomPage() {
       <h1 className={isMobile ? styles.hidden : styles.title}>복덕방</h1>
       <div className={styles.content}>
         <div id="map" className={styles.map} />
-        <RoomList lands={roomList?.lands} />
+        <RoomList lands={lands} rentType={rentType} onRentTypeChange={setRentType} />
       </div>
     </div>
   );
