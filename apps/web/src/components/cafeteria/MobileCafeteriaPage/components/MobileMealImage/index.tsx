@@ -1,8 +1,5 @@
-import { cn } from '@bcsdlab/utils';
-
 import type { Dining } from 'api/dinings/entity';
 import NoMeals from 'assets/svg/no-meals-mobile.svg';
-import NoPhoto from 'assets/svg/no-photography-mobile.svg';
 import Image from 'components/ui/Image';
 
 import styles from './MobileMealImage.module.css';
@@ -18,14 +15,13 @@ export default function MobileMealImage({ dining, handleImageClick }: MobileMeal
   const isBreakfast = dining.type === 'BREAKFAST';
   const isBoxVisible = isABC && (!isBreakfast || hasImage);
   if (!isBoxVisible) return null;
+  if (!hasImage) return <span className={styles['no-image']}>사진 미등록</span>;
 
   return (
     <button
       type="button"
-      className={cn({
-        [styles.image]: true,
-        [styles['image--no-image']]: !hasImage,
-      })}
+      className={styles.image}
+      aria-label={`${dining.place} 식단 사진 보기`}
       onClick={() => handleImageClick(dining)}
     >
       {dining.soldout_at && (
@@ -34,18 +30,14 @@ export default function MobileMealImage({ dining, handleImageClick }: MobileMeal
           품절된 메뉴입니다.
         </span>
       )}
-      {hasImage ? (
-        <Image
-          className={styles.image__img}
-          src={dining.image_url!}
-          alt="식단 사진"
-          width={310}
-          height={222}
-          sizes="310px"
-        />
-      ) : (
-        <NoPhoto />
-      )}
+      <Image
+        className={styles.image__img}
+        src={dining.image_url!}
+        alt={`${dining.place} 식단 사진`}
+        width={310}
+        height={222}
+        sizes="calc(100vw - 66px)"
+      />
     </button>
   );
 }

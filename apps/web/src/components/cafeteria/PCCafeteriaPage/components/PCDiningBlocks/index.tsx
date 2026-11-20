@@ -1,5 +1,3 @@
-import { useEffect, useRef } from 'react';
-
 import type { Dining, DiningType } from 'api/dinings/entity';
 import { useCafeteriaParams } from 'components/cafeteria/hooks/useCafeteriaParams';
 import useDinings from 'components/cafeteria/hooks/useDinings';
@@ -24,7 +22,6 @@ export default function PCDiningBlocks({ diningType, isThisWeek }: PCDiningBlock
   const { date } = useCafeteriaParams();
   const { dinings } = useDinings(date.current());
   const filteredDinings = filterDinings(dinings, diningType);
-  const boxRef = useRef<HTMLDivElement>(null);
 
   const handleImageClick = (dining: Dining) => {
     if (!dining.image_url) return;
@@ -38,30 +35,8 @@ export default function PCDiningBlocks({ diningType, isThisWeek }: PCDiningBlock
     portalManager.open((portalOption: Portal) => <DetailModal dining={dining} closeModal={portalOption.close} />);
   };
 
-  useEffect(() => {
-    const box = boxRef.current;
-    if (!box) return;
-
-    // 읽기(clientHeight)와 쓰기(style.transform)를 한 루프에서 번갈아 하면, 쓰기 직후의
-    // 읽기마다 브라우저가 레이아웃을 강제로 다시 계산한다(forced synchronous layout).
-    // 블록 수만큼 반복되는 불필요한 리플로우라 먼저 전부 읽고, 그다음 전부 쓴다.
-    const blocks = Array.from(box.children) as HTMLElement[];
-    const blockHeights = blocks.map((block) => block.clientHeight);
-
-    const columnHeights = [0, 0, 0];
-    blocks.forEach((block, index) => {
-      const columnIndex = index % columnHeights.length;
-      const x = columnIndex * (276 + 16); // 열 인덱스에 따라 x 위치 계산
-      const y = columnHeights[columnIndex]; // 현재 열의 높이에서 시작
-      block.style.transform = `translate(${x}px, ${y}px)`;
-      columnHeights[columnIndex] += blockHeights[index] + 16; // 열 높이 업데이트
-    });
-
-    box.style.height = `${Math.max(...columnHeights)}px`; // 컨테이너의 높이 업데이트
-  }, [filteredDinings]);
-
   return (
-    <div ref={boxRef}>
+    <div className={styles.grid}>
       {filteredDinings.map((dining) => (
         <div className={styles.block} key={dining.id}>
           <div className={styles.header}>

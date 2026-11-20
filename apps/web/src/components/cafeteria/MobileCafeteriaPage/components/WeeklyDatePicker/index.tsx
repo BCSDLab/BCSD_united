@@ -36,6 +36,9 @@ export default function WeeklyDatePicker() {
                   [styles['picker__button--today']]: dateFormat(day) === dateFormat(),
                 })}
                 type="button"
+                aria-label={`${dateFormat(day)} ${WEEK[kstDayOfWeek(day)]}요일`}
+                aria-pressed={dateFormat(day) === dateFormat(date.current())}
+                aria-current={dateFormat(day) === dateFormat() ? 'date' : undefined}
                 onClick={() => date.set(day)}
               >
                 {dateFormat(day) === dateFormat() && <div className={styles['picker__button--selector']} />}

@@ -1,33 +1,35 @@
 .type-select {
   display: flex;
-  justify-content: space-around;
-  margin: 0;
-  padding: 0;
-  border-bottom: 1px solid #e1e1e1;
+  gap: 4px;
+  margin: 12px 16px 0;
+  padding: 4px;
+  border: 1px solid #e6e6e6;
+  border-radius: 14px;
   background-color: #fff;
 }
 
 .type-select__button {
-  width: 100%;
-  height: 100%;
-  padding: 16px 16px 12px;
-  border-radius: 0;
+  flex: 1;
+  min-height: 40px;
+  padding: 10px 8px;
+  border-radius: 10px;
   background-color: transparent;
   border: none;
   font-size: 14px;
-  color: #e1e1e1;
+  font-weight: 500;
+  color: #727272;
 }
 
 .type-select__button--selected {
-  border-bottom: 2px solid #b611f5;
-  color: #b611f5;
+  background-color: #f5ebff;
+  color: #980ac9;
 }
 
 .blocks {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 16px 24px;
+  padding: 16px;
 }
 
 .blocks--empty {
@@ -40,11 +42,11 @@
 }
 
 .blocks__caution {
-  color: #cacaca;
+  color: #8e8e8e;
   font-family: Pretendard, sans-serif;
   font-size: 13px;
   font-weight: 500;
-  line-height: 15.51px;
+  line-height: 1.6;
 }
 
 .cafeteria-info {
@@ -64,19 +66,25 @@
 }
 
 .recommend-banner {
-  padding: 8px 24px;
+  padding: 12px 16px;
   background-color: #fff;
   color: #4b4b4b;
+  border: 1px solid #e6e6e6;
   border-radius: 16px;
   display: flex;
   align-items: center;
-  box-shadow:
-    0 2px 4px rgb(0 0 0 / 4%),
-    0 1px 1px rgb(0 0 0 / 2%);
+  gap: 12px;
+  text-align: left;
+}
+
+.recommend-banner > svg:first-child {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
 }
 
 .recommend-banner__text {
-  margin-left: 16px;
+  min-width: 0;
 }
 
 .recommend-banner__text-main {
@@ -86,11 +94,15 @@
 }
 
 .recommend-banner__text-sub {
-  color: #d47415;
+  color: #980ac9;
+  font-size: 14px;
   line-height: 160%;
   font-weight: 600;
 }
 
 .recommend-banner__arrow {
   margin-left: auto;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
 }
