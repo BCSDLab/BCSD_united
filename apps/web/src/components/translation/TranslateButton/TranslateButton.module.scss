@@ -1,0 +1,74 @@
+.button {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 8px;
+  align-items: center;
+  box-sizing: border-box;
+  color: #175c8e;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+
+  &[aria-disabled="true"] {
+    cursor: default;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #175c8e;
+    outline-offset: 2px;
+  }
+
+  &--large {
+    padding: 8px 12px;
+    border: 1px solid #4590bb;
+    border-radius: 9999px;
+    background: #fff;
+    font-size: 18px;
+    line-height: 1.6;
+
+    &:hover:not([aria-disabled="true"]) {
+      border-color: #175c8e;
+      background: rgb(69 144 187 / 20%);
+    }
+  }
+
+  &--small {
+    gap: 4px;
+    padding: 0;
+    border: none;
+    background: none;
+    font-size: 12px;
+    line-height: 1.6;
+
+    &:hover:not([aria-disabled="true"]) {
+      text-decoration: underline;
+    }
+  }
+
+  &__icon {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+
+    &--spin {
+      animation: spin 1.2s linear infinite;
+    }
+  }
+
+  &--small &__icon {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button__icon--spin {
+    animation: none;
+  }
+}

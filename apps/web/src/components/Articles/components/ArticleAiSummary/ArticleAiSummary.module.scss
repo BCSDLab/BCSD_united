@@ -24,6 +24,13 @@
   }
 }
 
+.heading-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
 .heading {
   @include media.media-breakpoint(mobile) {
     display: flex;

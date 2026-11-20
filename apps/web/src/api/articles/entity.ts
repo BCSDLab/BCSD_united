@@ -68,6 +68,8 @@ export interface ArticleAiSummaryItem {
 export interface ArticleAiSummary {
   status: ArticleAiSummaryStatus;
   items: ArticleAiSummaryItem[];
+  /** 요약 번역 원문 버전. 번역 요청의 `expected_source_version`으로 넘긴다. */
+  translation_source_version?: string | null;
 }
 
 export interface ArticleResponse extends Article, APIResponse {
@@ -154,6 +156,8 @@ export interface SingleLostItemArticleResponseDTO extends APIResponse {
   next_id: number | null;
   registered_at: string; // yyyy-MM-dd
   updated_at: string; // yyyy-MM-dd HH:mm:ss
+  /** 습득 장소·내용의 번역 원문 버전. 번역 요청의 `expected_source_version`으로 넘긴다. */
+  translation_source_version?: string | null;
 }
 
 export interface LostItemResponse extends APIResponse {
