@@ -16,10 +16,13 @@ export default function useDetailMarker({ getMap, latitude, longitude }: DetailM
     if (!map || latitude == null || longitude == null || !window.naver) return;
     if (latitude === 0 || longitude === 0) return;
 
-    if (markerRef.current) {
-      markerRef.current.setMap(null);
-      markerRef.current = null;
-    }
+    const clearMarker = () => {
+      if (markerRef.current) {
+        markerRef.current.setMap(null);
+        markerRef.current = null;
+      }
+    };
+    clearMarker();
 
     const marker = new naver.maps.Marker({
       position: new naver.maps.LatLng(latitude, longitude),
@@ -28,12 +31,7 @@ export default function useDetailMarker({ getMap, latitude, longitude }: DetailM
     });
     markerRef.current = marker;
 
-    return () => {
-      if (markerRef.current) {
-        markerRef.current.setMap(null);
-        markerRef.current = null;
-      }
-    };
+    return clearMarker;
   }, [getMap, latitude, longitude]);
 
   const getMarker = () => markerRef.current;

@@ -18,8 +18,11 @@ function useMarker({ getMap, lands }: MarkerProps) {
     const map = getMap();
     if (!map || !lands || !window.naver) return;
 
-    markersRef.current.forEach((m) => m.setMap(null));
-    markersRef.current = [];
+    const clearMarkers = () => {
+      markersRef.current.forEach((marker) => marker.setMap(null));
+      markersRef.current = [];
+    };
+    clearMarkers();
 
     const created = lands.flatMap((land) => {
       if (land.latitude == null || land.longitude == null || land.latitude === 0 || land.longitude === 0) return [];
@@ -40,10 +43,7 @@ function useMarker({ getMap, lands }: MarkerProps) {
 
     markersRef.current = created;
 
-    return () => {
-      markersRef.current.forEach((m) => m.setMap(null));
-      markersRef.current = [];
-    };
+    return clearMarkers;
   }, [getMap, lands, router]);
 
   const getMarkerArray = () => markersRef.current;
