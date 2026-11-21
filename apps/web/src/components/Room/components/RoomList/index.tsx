@@ -4,6 +4,7 @@ import type { RefObject } from 'react';
 import type { LandList } from 'api/room/entity';
 import RoomCard from 'components/Room/components/RoomCard';
 import Button from 'components/ui/Button';
+import SearchEmptyState from 'components/ui/SearchEmptyState';
 import useLogger from 'utils/hooks/analytics/useLogger';
 
 import useRoomPanelDrag from './hooks/useRoomPanelDrag';
@@ -67,22 +68,26 @@ function RoomList(props: RoomListProps) {
           ))}
         </div>
       </div>
-      <ul id={listId} className={styles.list}>
-        {lands?.map((room) => (
-          <li className={styles.list__item} key={room.id}>
-            <RoomCard
-              room={room}
-              onClick={() =>
-                logger.actionEventClick({
-                  event_name: 'DA1',
-                  event_label: 'real_estate__room_list__room_detail__entry__click',
-                  value: room.name,
-                })
-              }
-            />
-          </li>
-        ))}
-      </ul>
+      {lands?.length === 0 ? (
+        <SearchEmptyState id={listId} className={styles.empty} />
+      ) : (
+        <ul id={listId} className={styles.list}>
+          {lands?.map((room) => (
+            <li className={styles.list__item} key={room.id}>
+              <RoomCard
+                room={room}
+                onClick={() =>
+                  logger.actionEventClick({
+                    event_name: 'DA1',
+                    event_label: 'real_estate__room_list__room_detail__entry__click',
+                    value: room.name,
+                  })
+                }
+              />
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }
