@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "alpha-dining",
+  "kind": "feature",
+  "goal": "세 클라이언트의 현재 식단 조회를 같은 작업 단위로 실행하고 증거를 반환한다",
+  "scenarios": [
+    { "id": "dining-view", "expected": "식단 화면에 진입하면 아침·점심·저녁 끼니가 표시된다" },
+    { "id": "dining-meal-change", "expected": "끼니를 바꾸면 해당 끼니의 식단 영역으로 전환된다" },
+    {
+      "id": "dining-date-change",
+      "expected": "날짜를 바꾸면 해당 날짜의 식단 영역으로 전환되고, 식단이 없는 날은 빈 상태가 표시된다"
+    }
+  ],
+  "targets": {
+    "web": {
+      "repository": "BCSDLab/BCSD_united",
+      "baseSha": "8025c98443a572ea8df988c013150947934742d5",
+      "reviewer": "unassigned",
+      "paths": [
+        "apps/web/src/components/cafeteria",
+        "apps/web/src/routes",
+        "apps/web/src/api/dinings",
+        "apps/web/src/api/coopshop"
+      ]
+    },
+    "android": {
+      "repository": "BCSDLab/KOIN_ANDROID",
+      "baseSha": "678ec9ebc8a125641b1549a9ba9567a60b67d3a0",
+      "reviewer": "unassigned"
+    },
+    "ios": {
+      "repository": "BCSDLab/KOIN_iOS",
+      "baseSha": "e1507998c159dc7de63cedfa2e938d6ea74a9e4d",
+      "reviewer": "unassigned"
+    }
+  },
+  "dependencies": [],
+  "feature": { "acceptance": "대상 플랫폼마다 실제 앱에서 두 시나리오가 실행되고 캡처·영상·결과가 남는다" }
+}

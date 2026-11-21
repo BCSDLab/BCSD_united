@@ -1,4 +1,5 @@
 @use "utils/scss/media.scss" as media;
+@use "src/utils/scss/tokens" as tokens;
 
 @mixin inherit-text-style {
   font-family: inherit;
@@ -9,7 +10,7 @@
 
 @mixin scrollbar($width) {
   scrollbar-width: thin;
-  scrollbar-color: #d9d9d9 transparent;
+  scrollbar-color: tokens.$star-empty transparent;
 
   &::-webkit-scrollbar {
     width: $width;
@@ -21,8 +22,8 @@
 
   &::-webkit-scrollbar-thumb {
     height: 65px;
-    border-radius: 5px;
-    background: #d9d9d9;
+    border-radius: tokens.$radius-5;
+    background: tokens.$star-empty;
   }
 }
 
@@ -30,10 +31,10 @@
   position: relative;
   display: inline-block;
   width: 100%;
-  border-radius: 5px;
+  border-radius: tokens.$radius-5;
 
   @include media.media-breakpoint(mobile) {
-    font-size: 13px;
+    font-size: tokens.$font-size-13;
   }
 
   @include inherit-text-style;
@@ -54,7 +55,7 @@
     position: relative;
     width: 100%;
     padding: 16px 24px;
-    border-radius: 5px;
+    border-radius: tokens.$radius-5;
     box-sizing: border-box;
     display: flex;
     justify-content: space-between;
@@ -62,20 +63,20 @@
 
     @include inherit-text-style;
 
-    background-color: #fff;
+    background-color: tokens.$white;
     color: inherit;
     cursor: pointer;
 
     &--white-background {
-      border: 1px solid #e1e1e1;
+      border: 1px solid tokens.$neutral-300;
     }
 
     &:hover {
-      background-color: #eee;
+      background-color: tokens.$neutral-150;
     }
 
     &:active {
-      background-color: #e1e1e1;
+      background-color: tokens.$neutral-300;
     }
 
     @include media.media-breakpoint(mobile) {
@@ -91,8 +92,8 @@
     width: max-content;
     min-width: 100%;
     max-width: 100%;
-    box-shadow: 0 8px 32px 0 #00000014;
-    background-color: #fafafa;
+    box-shadow: 0 8px 32px 0 tokens.$black-alpha-8;
+    background-color: tokens.$neutral-50;
     overflow: auto;
     transition:
       transform 0.3s ease,
@@ -101,14 +102,14 @@
     @include scrollbar(8px);
 
     &::-webkit-scrollbar-thumb {
-      border: 3px solid #fff;
+      border: 3px solid tokens.$white;
       background-clip: padding-box;
     }
 
     &--white-background {
       min-width: calc(100% - 2px);
-      border: 1px solid #cacaca;
-      border-radius: 5px;
+      border: 1px solid tokens.$neutral-400;
+      border-radius: tokens.$radius-5;
     }
   }
 
@@ -119,24 +120,24 @@
     padding: 16px 0 16px 24px;
     width: 100%;
     box-sizing: border-box;
-    background-color: #fafafa;
-    color: #8e8e8e;
+    background-color: tokens.$neutral-50;
+    color: tokens.$neutral-450;
 
     @include inherit-text-style;
 
     cursor: pointer;
 
     &[aria-selected="true"] {
-      color: #175c8e;
+      color: tokens.$blue-500;
     }
 
     &:hover {
-      background-color: #eee;
-      border-radius: 5px;
+      background-color: tokens.$neutral-150;
+      border-radius: tokens.$radius-5;
     }
 
     &:active {
-      background-color: #e1e1e1;
+      background-color: tokens.$neutral-300;
     }
   }
 }

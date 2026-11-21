@@ -1,22 +1,23 @@
 @use "src/utils/scss/order-palette" as palette;
+@use "src/utils/scss/tokens" as tokens;
 
 .button {
   display: flex;
   align-items: center;
   justify-content: center;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: tokens.$radius-8;
   box-shadow: palette.$shadow-1;
   font-family: inherit;
-  font-size: 15px;
-  font-weight: 600;
+  font-size: tokens.$font-size-15;
+  font-weight: tokens.$font-weight-semibold;
   cursor: pointer;
 
   &--sm {
     height: fit-content;
     padding: 6px 12px;
-    border-radius: 9999px;
-    font-size: 14px;
+    border-radius: tokens.$radius-full;
+    font-size: tokens.$font-size-14;
     line-height: 20px;
   }
 
@@ -35,24 +36,24 @@
   &--primary {
     border-color: palette.$primary-500;
     background-color: palette.$primary-500;
-    color: #fff;
+    color: tokens.$white;
   }
 
   &--neutral {
     border-color: palette.$neutral-200;
-    background-color: #fff;
+    background-color: tokens.$white;
     color: palette.$primary-500;
   }
 
   &--gray {
     border-color: palette.$neutral-300;
-    background-color: #fff;
+    background-color: tokens.$white;
     color: palette.$neutral-500;
   }
 
   &--white {
     border-color: palette.$neutral-200;
-    background-color: #fff;
+    background-color: tokens.$white;
     color: palette.$neutral-500;
   }
 
@@ -64,7 +65,7 @@
 
   &--disabled {
     background-color: palette.$neutral-300;
-    color: #fff;
+    color: tokens.$white;
     cursor: not-allowed;
     pointer-events: none;
   }

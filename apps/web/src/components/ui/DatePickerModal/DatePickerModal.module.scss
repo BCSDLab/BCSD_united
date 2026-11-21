@@ -1,4 +1,5 @@
 @use "src/utils/scss/media" as media;
+@use "src/utils/scss/tokens" as tokens;
 
 .modal-background {
   width: 100%;
@@ -16,8 +17,8 @@
   left: 50%;
   transform: translate(-50%, -50%);
   border: none;
-  border-radius: 16px;
-  background: #fff;
+  border-radius: tokens.$radius-16;
+  background: tokens.$white;
   padding: 24px;
   margin: 0;
   font-family: Pretendard, sans-serif;
@@ -31,7 +32,7 @@
 
 .picker {
   background: white;
-  border-radius: 12px;
+  border-radius: tokens.$radius-12;
   width: 100%;
   padding: 10px;
 }
@@ -47,7 +48,7 @@
   button {
     background: none;
     border: none;
-    font-size: 16px;
+    font-size: tokens.$font-size-16;
     cursor: pointer;
   }
 }
@@ -58,8 +59,8 @@
   text-align: center;
 
   th {
-    color: #999;
-    font-size: 12px;
+    color: tokens.$neutral-425;
+    font-size: tokens.$font-size-12;
     padding: 4px;
   }
 
@@ -67,16 +68,16 @@
     &.button {
       width: 32px;
       height: 32px;
-      border-radius: 50%;
+      border-radius: tokens.$radius-circle;
       border: none;
       background: none;
       cursor: pointer;
-      font-size: 14px;
-      color: #000;
+      font-size: tokens.$font-size-14;
+      color: tokens.$neutral-800;
     }
 
     &.inactive {
-      color: #ccc !important;
+      color: tokens.$neutral-350 !important;
     }
 
     &.sunday {
@@ -88,13 +89,13 @@
     }
 
     &.selected {
-      background-color: #ff5a5f;
+      background-color: tokens.$danger-500;
       color: white;
       font-weight: bold;
     }
 
     &:hover {
-      background-color: #eee;
+      background-color: tokens.$neutral-150;
     }
   }
 }

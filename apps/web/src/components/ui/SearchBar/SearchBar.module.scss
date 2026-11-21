@@ -1,4 +1,5 @@
 @use "src/utils/scss/media" as media;
+@use "src/utils/scss/tokens" as tokens;
 
 .search-bar {
   display: flex;
@@ -11,14 +12,14 @@
   padding: 0 20px;
   box-sizing: border-box;
   border-radius: 40px;
-  background: #fff;
+  background: tokens.$white;
 
   &:focus-within {
-    outline: 2px solid #175c8e;
+    outline: 2px solid tokens.$blue-500;
     outline-offset: 2px;
 
     @include media.media-breakpoint(mobile) {
-      outline-color: #b611f5;
+      outline-color: tokens.$primary-500;
     }
   }
 
@@ -31,14 +32,14 @@
     min-width: 0;
     border: 0;
     background: none;
-    color: #000;
+    color: tokens.$neutral-800;
     font-family: inherit;
-    font-size: 12px;
+    font-size: tokens.$font-size-12;
     line-height: 160%;
     outline: none;
 
     &::placeholder {
-      color: #727272;
+      color: tokens.$neutral-500;
     }
   }
 
