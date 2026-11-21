@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
@@ -23,6 +23,7 @@ const LOCATION = { latitude: 36.764617, longitude: 127.283154 };
 function RoomPage() {
   const { data: roomList } = useQuery(roomQueries.list());
   const [rentType, setRentType] = useState<RoomRentType>('all');
+  const mapControlsRef = useRef<HTMLDivElement>(null);
   const lands = roomList?.lands.filter((room) => {
     if (rentType === 'monthly') return room.is_monthly_available;
     if (rentType === 'charter') return room.is_charter_available;
@@ -30,7 +31,9 @@ function RoomPage() {
     return true;
   });
   const isMapLoaded = useNaverMapScript();
-  const { getMap } = useNaverMap(LOCATION.latitude, LOCATION.longitude, isMapLoaded, { zoomControl: false });
+  const { getMap } = useNaverMap(LOCATION.latitude, LOCATION.longitude, isMapLoaded, {
+    zoomControl: false,
+  });
   useMarker({ getMap, lands });
   useScrollToTop();
 
@@ -40,8 +43,10 @@ function RoomPage() {
       <h1 className={styles.title}>복덕방</h1>
       <div className={styles.content}>
         <div id="map" className={styles.map} />
-        <RoomList lands={lands} rentType={rentType} onRentTypeChange={setRentType} />
-        <RoomMapControls className={styles['map-controls']} onZoom={(delta) => getMap()?.zoomBy(delta)} />
+        <RoomList lands={lands} rentType={rentType} onRentTypeChange={setRentType} mapControlsRef={mapControlsRef} />
+        <div ref={mapControlsRef} className={styles['map-controls']}>
+          <RoomMapControls onZoom={(delta) => getMap()?.zoomBy(delta)} />
+        </div>
       </div>
     </div>
   );

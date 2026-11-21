@@ -1,8 +1,12 @@
+import { useId } from 'react';
+import type { RefObject } from 'react';
+
 import type { LandList } from 'api/room/entity';
 import RoomCard from 'components/Room/components/RoomCard';
 import Button from 'components/ui/Button';
 import useLogger from 'utils/hooks/analytics/useLogger';
 
+import useRoomPanelDrag from './hooks/useRoomPanelDrag';
 import styles from './RoomList.module.scss';
 
 export type RoomRentType = 'all' | 'monthly' | 'charter';
@@ -18,17 +22,35 @@ interface RoomListProps {
   lands: LandList[] | undefined;
   rentType: RoomRentType;
   onRentTypeChange: (rentType: RoomRentType) => void;
+  mapControlsRef: RefObject<HTMLDivElement | null>;
 }
 
 function RoomList(props: RoomListProps) {
-  const { lands, rentType, onRentTypeChange } = props;
+  const { lands, rentType, onRentTypeChange, mapControlsRef } = props;
   const logger = useLogger();
+  const listId = useId();
+  const { panelRef, isMobile, isExpanded, handleToggle, dragHandlers } = useRoomPanelDrag(mapControlsRef);
+  const listTitle = `${RENT_TYPE_LABELS[rentType]}(${lands?.length ?? 0})`;
 
   return (
-    <section className={styles.panel} aria-label="건물 목록">
+    <section ref={panelRef} className={styles.panel} aria-label="건물 목록">
       <div className={styles.header}>
         <h2 className={styles.header__count} aria-live="polite">
-          {RENT_TYPE_LABELS[rentType]}({lands?.length ?? 0})
+          {isMobile ? (
+            <button
+              type="button"
+              className={styles['header__drag-handle']}
+              aria-label={`${listTitle} 목록 ${isExpanded ? '접기' : '펼치기'}`}
+              aria-expanded={isExpanded}
+              aria-controls={listId}
+              onClick={handleToggle}
+              {...dragHandlers}
+            >
+              {listTitle}
+            </button>
+          ) : (
+            listTitle
+          )}
         </h2>
         <div className={styles.filters} role="group" aria-label="매물 종류">
           {RENT_TYPES.map((type) => (
@@ -45,7 +67,7 @@ function RoomList(props: RoomListProps) {
           ))}
         </div>
       </div>
-      <ul className={styles.list}>
+      <ul id={listId} className={styles.list}>
         {lands?.map((room) => (
           <li className={styles.list__item} key={room.id}>
             <RoomCard

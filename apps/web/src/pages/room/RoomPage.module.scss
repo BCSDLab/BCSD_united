@@ -32,21 +32,16 @@
 }
 
 .content {
-  --room-panel-width: 464px;
-  --room-panel-right: 30px;
-  --room-panel-bottom: 41px;
-
   position: relative;
   height: 869px;
   margin-top: 48px;
 
   @include media.media-breakpoint(mobile) {
-    --room-panel-height: 414px;
-
     flex: 1;
     min-height: 0;
     height: auto;
     margin-top: 0;
+    overflow: hidden;
   }
 }
 
@@ -65,11 +60,11 @@
 
 .map-controls {
   position: absolute;
-  right: calc(var(--room-panel-right) + var(--room-panel-width) + 22px);
-  bottom: var(--room-panel-bottom);
+  right: 516px;
+  bottom: 41px;
 
   @include media.media-breakpoint(mobile) {
     right: 12px;
-    bottom: calc(var(--room-panel-height) + 12px);
+    bottom: 426px;
   }
 }
