@@ -1,0 +1,83 @@
+.gallery,
+.empty {
+  position: relative;
+  flex-shrink: 0;
+  height: 209px;
+  overflow: hidden;
+}
+
+.photo {
+  object-fit: cover;
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: #f8f8f8;
+  color: #727272;
+  font-size: 14px;
+  line-height: 1.6;
+
+  svg {
+    width: 98px;
+    height: 75px;
+  }
+}
+
+.arrow {
+  position: absolute;
+  top: calc(50% - 12px);
+  display: flex;
+  border-radius: 50%;
+  background: #fff;
+
+  path {
+    fill: #727272;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  &--previous {
+    left: 22px;
+    transform: rotate(180deg);
+  }
+
+  &--next {
+    right: 22px;
+  }
+}
+
+.count {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  padding: 4px 8px;
+  border-radius: 14px;
+  background: rgb(0 0 0 / 50%);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.6;
+}
+
+.expand {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 14px;
+  background: #fff;
+  color: #1f1f1f;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.6;
+}

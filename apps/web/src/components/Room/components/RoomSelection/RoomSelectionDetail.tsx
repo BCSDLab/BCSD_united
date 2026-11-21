@@ -1,0 +1,98 @@
+import { useEffect, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { notFound } from '@tanstack/react-router';
+
+import type { LandList } from 'api/room/entity';
+import { roomQueries } from 'api/room/queries';
+import { RoomRentBadge } from 'components/Room/components/RoomCard/RoomCardContent';
+import useLogger from 'utils/hooks/analytics/useLogger';
+import { copyToClipboard } from 'utils/ts/copyToClipboard';
+import { isNotFoundKoinError } from 'utils/ts/isr';
+import showToast from 'utils/ts/showToast';
+
+import RoomSelectionImages from './RoomSelectionImages';
+import styles from './RoomSelection.module.scss';
+
+export default function RoomSelectionDetail({ room }: { room: LandList }) {
+  const { data: detail, error } = useQuery(roomQueries.detail(String(room.id)));
+  const logger = useLogger();
+  const hasLoggedEntry = useRef(false);
+
+  useEffect(() => {
+    if (!detail || detail.is_deleted || hasLoggedEntry.current) return;
+    hasLoggedEntry.current = true;
+    logger.actionEventClick({
+      event_name: 'DA1',
+      event_label: 'real_estate__room_list__room_detail__entry__click',
+      value: room.name,
+    });
+  }, [detail, logger, room.name]);
+
+  if (error) {
+    if (isNotFoundKoinError(error)) throw notFound();
+    throw error;
+  }
+  if (detail?.is_deleted) throw notFound();
+  const phone = detail?.phone;
+
+  const copyPhone = async (phone: string) => {
+    await copyToClipboard(phone);
+    showToast('info', '전화번호가 복사되었습니다.');
+  };
+
+  return (
+    <>
+      <div className={styles.header}>
+        {(room.is_monthly_available || room.is_charter_available) && (
+          <div className={styles.badges}>
+            {room.is_monthly_available && <RoomRentBadge type="monthly" />}
+            {room.is_charter_available && <RoomRentBadge type="charter" />}
+          </div>
+        )}
+        <h2 className={styles.name}>{detail?.name ?? room.name}</h2>
+      </div>
+      {detail ? (
+        <>
+          <RoomSelectionImages imageUrls={detail.image_urls} name={detail.name} />
+          <div className={styles.info}>
+            <h3>원룸 정보</h3>
+            <dl>
+              <dt>월세 | 전세</dt>
+              <dd>별도 문의</dd>
+              <dt>보증금 | 관리비</dt>
+              <dd>별도 문의</dd>
+              <dt>방크기</dt>
+              <dd>{detail.size ? `${detail.size}평` : '-'}</dd>
+              <dt>방종류</dt>
+              <dd>{detail.room_type || '-'}</dd>
+            </dl>
+          </div>
+          <div className={styles.info}>
+            <h3>위치 정보</h3>
+            <dl>
+              <dt>주소</dt>
+              <dd>{detail.address || '-'}</dd>
+              <dt>연락처</dt>
+              <dd>
+                {phone ? (
+                  <button
+                    type="button"
+                    className={styles.phone}
+                    aria-label={`${phone} 복사`}
+                    onClick={() => copyPhone(phone)}
+                  >
+                    {phone}
+                  </button>
+                ) : (
+                  '연락처가 비어 있습니다.'
+                )}
+              </dd>
+            </dl>
+          </div>
+        </>
+      ) : (
+        <p role="status">건물 정보를 불러오는 중입니다.</p>
+      )}
+    </>
+  );
+}

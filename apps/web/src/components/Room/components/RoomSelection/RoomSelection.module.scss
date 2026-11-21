@@ -1,0 +1,54 @@
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-right: 24px;
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.name {
+  font-size: 28px;
+  font-weight: 500;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  h3 {
+    font-size: 22px;
+    font-weight: 500;
+    line-height: 26px;
+  }
+
+  dl {
+    display: grid;
+    grid-template-columns: 132px minmax(0, 1fr);
+    align-items: start;
+    gap: 8px;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+
+  dt {
+    color: #727272;
+  }
+
+  dd {
+    overflow-wrap: anywhere;
+  }
+}
+
+.phone {
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
