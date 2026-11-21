@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 import MarkerIcon from 'components/Room/components/MarkerIcon';
+import hasValidCoordinates from 'components/Room/utils/hasValidCoordinates';
 
 interface DetailMarkerProps {
   getMap: () => naver.maps.Map | null;
@@ -13,8 +14,8 @@ export default function useDetailMarker({ getMap, latitude, longitude }: DetailM
 
   useEffect(() => {
     const map = getMap();
-    if (!map || latitude == null || longitude == null || !window.naver) return;
-    if (latitude === 0 || longitude === 0) return;
+    const coordinates = { latitude, longitude };
+    if (!map || !hasValidCoordinates(coordinates) || !window.naver) return;
 
     const clearMarker = () => {
       if (markerRef.current) {
@@ -25,7 +26,7 @@ export default function useDetailMarker({ getMap, latitude, longitude }: DetailM
     clearMarker();
 
     const marker = new naver.maps.Marker({
-      position: new naver.maps.LatLng(latitude, longitude),
+      position: new naver.maps.LatLng(coordinates.latitude, coordinates.longitude),
       map,
       icon: { content: MarkerIcon() },
     });

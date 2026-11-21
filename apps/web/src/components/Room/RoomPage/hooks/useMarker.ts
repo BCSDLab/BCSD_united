@@ -3,6 +3,7 @@ import { useRouter } from '@tanstack/react-router';
 
 import type { LandList } from 'api/room/entity';
 import MarkerIcon from 'components/Room/components/MarkerIcon';
+import hasValidCoordinates from 'components/Room/utils/hasValidCoordinates';
 import ROUTES from 'static/routes';
 
 interface MarkerProps {
@@ -25,7 +26,7 @@ function useMarker({ getMap, lands }: MarkerProps) {
     clearMarkers();
 
     const created = lands.flatMap((land) => {
-      if (land.latitude == null || land.longitude == null || land.latitude === 0 || land.longitude === 0) return [];
+      if (!hasValidCoordinates(land)) return [];
 
       const marker = new window.naver.maps.Marker({
         position: new window.naver.maps.LatLng(land.latitude, land.longitude),

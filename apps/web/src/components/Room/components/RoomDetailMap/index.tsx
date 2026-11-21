@@ -1,6 +1,7 @@
 import useDetailMarker from 'components/Room/RoomDetailPage/hooks/useDetailMarker';
 import useNaverMap from 'components/Room/RoomPage/hooks/useNaverMap';
 import useNaverMapScript from 'components/Room/RoomPage/hooks/useNaverMapScript';
+import hasValidCoordinates from 'components/Room/utils/hasValidCoordinates';
 
 import styles from './RoomDetailMap.module.scss';
 
@@ -15,7 +16,7 @@ function RoomDetailMap({ latitude, longitude, address }: RoomDetailMapProps) {
   const { getMap } = useNaverMap(latitude, longitude, isMapLoaded);
   useDetailMarker({ getMap, latitude, longitude });
 
-  const hasCoordinates = latitude != null && longitude != null && latitude !== 0 && longitude !== 0;
+  const hasCoordinates = hasValidCoordinates({ latitude, longitude });
 
   return (
     <div className={styles['map-container']}>

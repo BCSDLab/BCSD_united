@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react';
 
+import hasValidCoordinates from 'components/Room/utils/hasValidCoordinates';
+
 function useNaverMap(
   latitude: number | null,
   longitude: number | null,
@@ -10,11 +12,12 @@ function useNaverMap(
 
   useEffect(() => {
     if (!isLoaded || !window.naver?.maps) return;
-    if (latitude == null || longitude == null || latitude === 0 || longitude === 0) return;
+    const coordinates = { latitude, longitude };
+    if (!hasValidCoordinates(coordinates)) return;
     if (!document.getElementById('map')) return;
 
     const mapInstance = new window.naver.maps.Map('map', {
-      center: new window.naver.maps.LatLng(latitude, longitude),
+      center: new window.naver.maps.LatLng(coordinates.latitude, coordinates.longitude),
       maxZoom: 20,
       minZoom: 15,
       logoControl: false,
@@ -36,9 +39,10 @@ function useNaverMap(
   }, [isLoaded, latitude, longitude, zoomControl]);
 
   useEffect(() => {
-    if (!mapRef.current || latitude == null || longitude == null || latitude === 0 || longitude === 0) return;
+    const coordinates = { latitude, longitude };
+    if (!mapRef.current || !hasValidCoordinates(coordinates)) return;
 
-    mapRef.current.setCenter(new window.naver.maps.LatLng(latitude, longitude));
+    mapRef.current.setCenter(new window.naver.maps.LatLng(coordinates.latitude, coordinates.longitude));
   }, [latitude, longitude]);
 
   const getMap = () => mapRef.current;
