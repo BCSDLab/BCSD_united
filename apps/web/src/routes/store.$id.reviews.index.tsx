@@ -11,7 +11,7 @@ import ROUTES from 'static/routes';
 import { isMobileView } from 'utils/hooks/layout/useMobileView';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { createPageLoader, definePageLoad, STORE_PUBLIC_SSR_CACHE_CONTROL } from 'utils/ssr/pageLoader';
-import { isNotFoundKoinError } from 'utils/ts/isr';
+import { isNotFoundKoinError } from 'utils/ts/httpError';
 import { parseQueryId } from 'utils/ts/parseServerSideParams';
 
 interface Props {

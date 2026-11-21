@@ -13,7 +13,8 @@ import { isNewArticle } from 'components/Articles/utils/setArticleRegisteredDate
 import { SSRLayout } from 'components/layout';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
-import { ARTICLE_DETAIL_ISR_REVALIDATE_SECONDS, isNotFoundKoinError, withStaticFetchRetry } from 'utils/ts/isr';
+import { ARTICLE_DETAIL_EDGE_CACHE_SECONDS, withStaticFetchRetry } from 'utils/ts/edgeCache';
+import { isNotFoundKoinError } from 'utils/ts/httpError';
 import { parseQueryId } from 'utils/ts/parseServerSideParams';
 
 function ArticlesDetailPage({ article, hotArticles }: { article: ArticleResponseWithNew; hotArticles?: HotArticle[] }) {
@@ -37,9 +38,7 @@ function ArticlesDetailPage({ article, hotArticles }: { article: ArticleResponse
 const loadPage = definePageLoad(async ({ params }, cacheControl, serverRequest) => {
   const { id } = params;
   if (parseQueryId(id) === null) {
-    cacheControl.enablePublicCache(
-      `public, s-maxage=${ARTICLE_DETAIL_ISR_REVALIDATE_SECONDS}, stale-while-revalidate=300`,
-    );
+    cacheControl.enablePublicCache(`public, s-maxage=${ARTICLE_DETAIL_EDGE_CACHE_SECONDS}, stale-while-revalidate=300`);
     throw notFound();
   }
 
@@ -61,15 +60,13 @@ const loadPage = definePageLoad(async ({ params }, cacheControl, serverRequest) 
       }),
     );
 
-    cacheControl.enablePublicCache(
-      `public, s-maxage=${ARTICLE_DETAIL_ISR_REVALIDATE_SECONDS}, stale-while-revalidate=300`,
-    );
+    cacheControl.enablePublicCache(`public, s-maxage=${ARTICLE_DETAIL_EDGE_CACHE_SECONDS}, stale-while-revalidate=300`);
 
     return { article: articleWithNew, hotArticles };
   } catch (error) {
     if (isNotFoundKoinError(error)) {
       cacheControl.enablePublicCache(
-        `public, s-maxage=${ARTICLE_DETAIL_ISR_REVALIDATE_SECONDS}, stale-while-revalidate=300`,
+        `public, s-maxage=${ARTICLE_DETAIL_EDGE_CACHE_SECONDS}, stale-while-revalidate=300`,
       );
       throw notFound();
     }

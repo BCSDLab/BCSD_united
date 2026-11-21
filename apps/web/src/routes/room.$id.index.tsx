@@ -12,7 +12,8 @@ import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useScrollToTop from 'utils/hooks/ui/useScrollToTop';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
-import { isNotFoundKoinError, ROOM_ISR_REVALIDATE_SECONDS, withStaticFetchRetry } from 'utils/ts/isr';
+import { ROOM_EDGE_CACHE_SECONDS, withStaticFetchRetry } from 'utils/ts/edgeCache';
+import { isNotFoundKoinError } from 'utils/ts/httpError';
 
 import styles from 'pages/room/[id]/RoomDetailPage.module.scss';
 
@@ -68,7 +69,7 @@ function RoomDetailPage({ id }: RoomDetailPageProps) {
 const loadPage = definePageLoad(async ({ params, queryClient }, cacheControl) => {
   const { id } = params;
   if (!id) {
-    cacheControl.enablePublicCache(`public, s-maxage=${ROOM_ISR_REVALIDATE_SECONDS}, stale-while-revalidate=300`);
+    cacheControl.enablePublicCache(`public, s-maxage=${ROOM_EDGE_CACHE_SECONDS}, stale-while-revalidate=300`);
     throw notFound();
   }
 
@@ -76,13 +77,13 @@ const loadPage = definePageLoad(async ({ params, queryClient }, cacheControl) =>
     await withStaticFetchRetry('room.detail', () => queryClient.fetchQuery(roomQueries.detail(id)));
   } catch (error) {
     if (isNotFoundKoinError(error)) {
-      cacheControl.enablePublicCache(`public, s-maxage=${ROOM_ISR_REVALIDATE_SECONDS}, stale-while-revalidate=300`);
+      cacheControl.enablePublicCache(`public, s-maxage=${ROOM_EDGE_CACHE_SECONDS}, stale-while-revalidate=300`);
       throw notFound();
     }
     throw error;
   }
 
-  cacheControl.enablePublicCache(`public, s-maxage=${ROOM_ISR_REVALIDATE_SECONDS}, stale-while-revalidate=300`);
+  cacheControl.enablePublicCache(`public, s-maxage=${ROOM_EDGE_CACHE_SECONDS}, stale-while-revalidate=300`);
 
   return { id };
 });
