@@ -5,7 +5,6 @@ import type { LandList } from 'api/room/entity';
 import RoomCard from 'components/Room/components/RoomCard';
 import Button from 'components/ui/Button';
 import SearchEmptyState from 'components/ui/SearchEmptyState';
-import useLogger from 'utils/hooks/analytics/useLogger';
 
 import useRoomPanelDrag from './hooks/useRoomPanelDrag';
 import styles from './RoomList.module.scss';
@@ -24,11 +23,11 @@ interface RoomListProps {
   rentType: RoomRentType;
   onRentTypeChange: (rentType: RoomRentType) => void;
   mapControlsRef: RefObject<HTMLDivElement | null>;
+  onSelectRoom: (room: LandList) => void;
 }
 
 function RoomList(props: RoomListProps) {
-  const { lands, rentType, onRentTypeChange, mapControlsRef } = props;
-  const logger = useLogger();
+  const { lands, rentType, onRentTypeChange, onSelectRoom, mapControlsRef } = props;
   const listId = useId();
   const { panelRef, isMobile, isExpanded, handleToggle, dragHandlers } = useRoomPanelDrag(mapControlsRef);
   const listTitle = `${RENT_TYPE_LABELS[rentType]}(${lands?.length ?? 0})`;
@@ -74,16 +73,7 @@ function RoomList(props: RoomListProps) {
         <ul id={listId} className={styles.list}>
           {lands?.map((room) => (
             <li className={styles.list__item} key={room.id}>
-              <RoomCard
-                room={room}
-                onClick={() =>
-                  logger.actionEventClick({
-                    event_name: 'DA1',
-                    event_label: 'real_estate__room_list__room_detail__entry__click',
-                    value: room.name,
-                  })
-                }
-              />
+              <RoomCard room={room} onClick={() => onSelectRoom(room)} />
             </li>
           ))}
         </ul>

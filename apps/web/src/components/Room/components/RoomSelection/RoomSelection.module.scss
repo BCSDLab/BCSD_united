@@ -1,3 +1,88 @@
+@use "src/utils/scss/media" as media;
+
+.panel {
+  position: absolute;
+  top: 38px;
+  right: 19px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  box-sizing: border-box;
+  width: 475px;
+  max-height: calc(100% - 79px);
+  padding: 24px 32px;
+  overflow: auto;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow:
+    0 1px 4px rgb(0 0 0 / 4%),
+    0 4px 10px rgb(0 0 0 / 8%);
+  color: #1f1f1f;
+
+  @include media.media-breakpoint(mobile) {
+    top: auto;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    min-height: 196px;
+    max-height: 100%;
+    padding: 20px 24px max(34px, env(safe-area-inset-bottom));
+    border-radius: 32px 32px 0 0;
+    box-shadow:
+      0 8px 20px rgb(0 0 0 / 6%),
+      0 24px 60px rgb(0 0 0 / 12%);
+    color: #323232;
+  }
+}
+
+.close {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  display: flex;
+
+  path {
+    fill: #000;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #b611f5;
+    outline-offset: 3px;
+  }
+
+  @include media.media-breakpoint(mobile) {
+    top: 20px;
+  }
+}
+
+.summary {
+  flex: none;
+  gap: 12px;
+  padding-right: 32px;
+}
+
+.detail {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: 38px;
+  padding: 8px;
+  border-radius: 8px;
+  background: #b611f5;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.6;
+  text-decoration: none;
+
+  &:focus-visible {
+    outline: 2px solid #7d08a4;
+    outline-offset: 3px;
+  }
+}
+
 .header {
   display: flex;
   flex-direction: column;

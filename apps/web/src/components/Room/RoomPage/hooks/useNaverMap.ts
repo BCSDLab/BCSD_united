@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import hasValidCoordinates from 'components/Room/utils/hasValidCoordinates';
 
@@ -8,7 +8,7 @@ function useNaverMap(
   isLoaded: boolean = true,
   { zoomControl = true }: { zoomControl?: boolean } = {},
 ) {
-  const mapRef = useRef<naver.maps.Map | null>(null);
+  const [map, setMap] = useState<naver.maps.Map | null>(null);
 
   useEffect(() => {
     if (!isLoaded || !window.naver?.maps) return;
@@ -26,26 +26,29 @@ function useNaverMap(
       draggable: true,
       zoomControlOptions: { position: window.naver.maps.Position.TOP_LEFT },
     });
-    mapRef.current = mapInstance;
+    const initListener = window.naver.maps.Event.once(mapInstance, 'init', () => {
+      setMap(mapInstance);
+    });
 
     return () => {
+      window.naver.maps.Event.removeListener(initListener);
       try {
         mapInstance.destroy();
       } catch {
         // Naver Maps SDK 내부 _clearSwipe 타이밍 이슈 방어
       }
-      mapRef.current = null;
+      setMap(null);
     };
   }, [isLoaded, latitude, longitude, zoomControl]);
 
   useEffect(() => {
     const coordinates = { latitude, longitude };
-    if (!mapRef.current || !hasValidCoordinates(coordinates)) return;
+    if (!map || !hasValidCoordinates(coordinates)) return;
 
-    mapRef.current.setCenter(new window.naver.maps.LatLng(coordinates.latitude, coordinates.longitude));
-  }, [latitude, longitude]);
+    map.setCenter(new window.naver.maps.LatLng(coordinates.latitude, coordinates.longitude));
+  }, [map, latitude, longitude]);
 
-  const getMap = () => mapRef.current;
+  const getMap = useCallback(() => map, [map]);
 
   return { getMap };
 }

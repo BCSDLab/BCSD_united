@@ -1,16 +1,19 @@
-import { useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
+import type { LandList } from 'api/room/entity';
 import { roomQueries } from 'api/room/queries';
 import { SSRLayout } from 'components/layout';
 import MobilePageHeader from 'components/layout/MobilePageHeader';
 import RoomList, { type RoomRentType } from 'components/Room/components/RoomList';
 import RoomMapControls from 'components/Room/components/RoomMapControls';
+import RoomSelection from 'components/Room/components/RoomSelection';
 import useMarker from 'components/Room/RoomPage/hooks/useMarker';
 import useNaverMap from 'components/Room/RoomPage/hooks/useNaverMap';
 import useNaverMapScript from 'components/Room/RoomPage/hooks/useNaverMapScript';
+import hasValidCoordinates from 'components/Room/utils/hasValidCoordinates';
 import useScrollToTop from 'utils/hooks/ui/useScrollToTop';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
@@ -23,18 +26,29 @@ const LOCATION = { latitude: 36.764617, longitude: 127.283154 };
 function RoomPage() {
   const { data: roomList } = useQuery(roomQueries.list());
   const [rentType, setRentType] = useState<RoomRentType>('all');
+  const [selectedRoom, setSelectedRoom] = useState<LandList | null>(null);
   const mapControlsRef = useRef<HTMLDivElement>(null);
-  const lands = roomList?.lands?.filter((room) => {
-    if (rentType === 'monthly') return room.is_monthly_available;
-    if (rentType === 'charter') return room.is_charter_available;
+  const lands = useMemo(
+    () =>
+      roomList?.lands?.filter((room) => {
+        if (rentType === 'monthly') return room.is_monthly_available;
+        if (rentType === 'charter') return room.is_charter_available;
 
-    return true;
-  });
+        return true;
+      }),
+    [roomList, rentType],
+  );
   const isMapLoaded = useNaverMapScript();
   const { getMap } = useNaverMap(LOCATION.latitude, LOCATION.longitude, isMapLoaded, {
     zoomControl: false,
   });
-  useMarker({ getMap, lands });
+  useEffect(() => {
+    const map = getMap();
+    if (!map || !selectedRoom || !hasValidCoordinates(selectedRoom)) return;
+    map.setCenter(new window.naver.maps.LatLng(selectedRoom.latitude, selectedRoom.longitude));
+  }, [getMap, selectedRoom]);
+  useMarker({ getMap, lands, onSelect: setSelectedRoom, selectedRoomId: selectedRoom?.id });
+
   useScrollToTop();
 
   return (
@@ -43,7 +57,22 @@ function RoomPage() {
       <h1 className={styles.title}>복덕방</h1>
       <div className={styles.content}>
         <div id="map" className={styles.map} />
-        <RoomList lands={lands} rentType={rentType} onRentTypeChange={setRentType} mapControlsRef={mapControlsRef} />
+        {selectedRoom ? (
+          <RoomSelection
+            key={selectedRoom.id}
+            room={selectedRoom}
+            onClose={() => setSelectedRoom(null)}
+            mapControlsRef={mapControlsRef}
+          />
+        ) : (
+          <RoomList
+            lands={lands}
+            rentType={rentType}
+            onRentTypeChange={setRentType}
+            onSelectRoom={setSelectedRoom}
+            mapControlsRef={mapControlsRef}
+          />
+        )}
         <div ref={mapControlsRef} className={styles['map-controls']}>
           <RoomMapControls onZoom={(delta) => getMap()?.zoomBy(delta)} />
         </div>
