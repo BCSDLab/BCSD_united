@@ -1,10 +1,9 @@
+import { cn } from '@bcsdlab/utils';
 import { useRouter } from '@tanstack/react-router';
 
 import type { DiningType } from 'api/dinings/entity';
 import ArrowBackNewIcon from 'assets/svg/arrow-back-new.svg';
-import LowerArrow from 'assets/svg/lower-angle-bracket.svg';
 import StoreCtaIcon from 'assets/svg/Store/store-cta-icon.svg';
-import UpperArrow from 'assets/svg/upper-angle-bracket.svg';
 import { useCafeteriaLiveNow } from 'components/cafeteria/hooks/useCafeteriaLiveNow';
 import { useCafeteriaParams } from 'components/cafeteria/hooks/useCafeteriaParams';
 import Suspense from 'components/ssr/SSRSuspense';
@@ -12,15 +11,12 @@ import { DAYS, DINING_TYPES, DINING_TYPE_MAP } from 'static/cafeteria';
 import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import { useSessionLogger } from 'utils/hooks/analytics/useSessionLogger';
-import useBooleanState from 'utils/hooks/state/useBooleanState';
-import { useEscapeKeyDown } from 'utils/hooks/ui/useEscapeKeyDown';
-import { useOutsideClick } from 'utils/hooks/ui/useOutsideClick';
 import useScrollToTop from 'utils/hooks/ui/useScrollToTop';
 import { kstDateKey, kstDayOfWeek } from 'utils/ts/calendar';
 
 import DateNavigator from './components/DateNavigator';
 import PCDiningBlocks from './components/PCDiningBlocks';
-import styles from './PCCafeteriaPage.module.scss';
+import styles from './PCCafeteriaPage.module.css';
 
 const getWeekAgo = (now: Date) => {
   const twoWeeksAgoSunday = new Date(`${kstDateKey(now)}T00:00:00Z`);
@@ -32,11 +28,9 @@ const getWeekAgo = (now: Date) => {
 function PCCafeteriaComponent() {
   const { date, diningType, setDiningType } = useCafeteriaParams();
   const today = useCafeteriaLiveNow();
-  const [dropdownOpen, , closeDropdown, toggleDropdown] = useBooleanState(false);
   const logger = useLogger();
   const router = useRouter();
   const sessionLogger = useSessionLogger();
-  const { containerRef } = useOutsideClick({ onOutsideClick: closeDropdown });
 
   const handleDiningTypeChange = (value: DiningType) => {
     logger.actionEventClick({
@@ -46,7 +40,6 @@ function PCCafeteriaComponent() {
       event_category: 'select',
     });
     setDiningType(value);
-    toggleDropdown();
   };
 
   const handleDiningToStore = () => {
@@ -75,31 +68,26 @@ function PCCafeteriaComponent() {
   };
 
   useScrollToTop();
-  useEscapeKeyDown({ onEscape: closeDropdown });
 
   return (
     <div className={styles.container}>
       <div className={styles['type-selector']}>
-        {formatDiningDate()}
-        <div className={styles['dropdown-wrapper']} ref={containerRef}>
-          <button id="dropdown-button" className={styles.dropdown} type="button" onClick={toggleDropdown}>
-            {`${DINING_TYPE_MAP[diningType]}식단`}
-            {dropdownOpen ? <UpperArrow /> : <LowerArrow />}
-          </button>
-          {dropdownOpen && (
-            <div className={styles.dropdown__box}>
-              {DINING_TYPES.map((type: DiningType) => (
-                <button
-                  key={type}
-                  className={styles.dropdown__type}
-                  type="button"
-                  onClick={() => handleDiningTypeChange(type)}
-                >
-                  {`${DINING_TYPE_MAP[type]}식단`}
-                </button>
-              ))}
-            </div>
-          )}
+        <h1>{formatDiningDate()}의 식단</h1>
+        <div className={styles['meal-tabs']} role="group" aria-label="끼니 선택">
+          {DINING_TYPES.map((type: DiningType) => (
+            <button
+              key={type}
+              className={cn({
+                [styles['meal-tabs__button']]: true,
+                [styles['meal-tabs__button--selected']]: diningType === type,
+              })}
+              type="button"
+              aria-pressed={diningType === type}
+              onClick={() => handleDiningTypeChange(type)}
+            >
+              {DINING_TYPE_MAP[type]}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -118,7 +106,7 @@ function PCCafeteriaComponent() {
           </div>
         </button>
       </>
-      <div className={styles['pc-menu-blocks']}>
+      <div>
         <Suspense fallback={<div />}>
           <PCDiningBlocks diningType={diningType} isThisWeek={isThisWeek} />
         </Suspense>

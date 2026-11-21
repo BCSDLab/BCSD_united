@@ -16,7 +16,7 @@ import useScrollToTop from 'utils/hooks/ui/useScrollToTop';
 import CafeteriaInfoWidget from './components/CafeteriaInfoWidget';
 import MobileDiningBlocks from './components/MobileDiningBlocks';
 import WeeklyDatePicker from './components/WeeklyDatePicker';
-import styles from './MobileCafeteriaPage.module.scss';
+import styles from './MobileCafeteriaPage.module.css';
 
 interface MobileCafeteriaPageProps {
   onReportSoldout?: (initialPlace?: DiningPlace) => void;
@@ -86,6 +86,7 @@ export default function MobileCafeteriaPage({ onReportSoldout }: MobileCafeteria
             })}
             key={dining}
             type="button"
+            aria-pressed={dining === diningType}
             onClick={() => handleDiningTypeChange(dining)}
           >
             {DINING_TYPE_MAP[dining]}
@@ -96,7 +97,7 @@ export default function MobileCafeteriaPage({ onReportSoldout }: MobileCafeteria
         <button type="button" className={styles['recommend-banner']} onClick={handleDiningToStore}>
           <StoreCtaIcon />
           <div className={styles['recommend-banner__text']}>
-            <p className={styles['recommend-banner__text-main']}>오늘의 학식이 별로라면?</p>
+            <p className={styles['recommend-banner__text-main']}>다른 메뉴를 찾고 있나요?</p>
             <p className={styles['recommend-banner__text-sub']}>내 주변 음식점 보기</p>
           </div>
           <ArrowBackNewIcon className={styles['recommend-banner__arrow']} />

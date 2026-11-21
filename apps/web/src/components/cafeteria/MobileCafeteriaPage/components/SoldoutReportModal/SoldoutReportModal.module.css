@@ -21,26 +21,26 @@
   padding: 16px 20px;
   border-radius: 8px;
   background: #fff;
+}
 
-  &__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-  }
+.container__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
 
-  &__title {
-    font-size: 18px;
-    font-weight: 600;
-    color: #1f1f1f;
-    line-height: 1.6;
-  }
+.container__title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f1f1f;
+  line-height: 1.6;
+}
 
-  &__close {
-    display: flex;
-    width: 24px;
-    height: 24px;
-  }
+.container__close {
+  display: flex;
+  width: 24px;
+  height: 24px;
 }
 
 .section {
@@ -49,13 +49,13 @@
   align-items: flex-start;
   gap: 12px;
   width: 100%;
+}
 
-  &__label {
-    font-size: 15px;
-    font-weight: 600;
-    color: #1f1f1f;
-    line-height: 1.6;
-  }
+.section__label {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1f1f1f;
+  line-height: 1.6;
 }
 
 .chips {
@@ -77,16 +77,16 @@
   font-weight: 600;
   color: #727272;
   white-space: nowrap;
+}
 
-  &--selected {
-    border-color: #b611f5;
-    color: #b611f5;
-  }
+.chip--selected {
+  border-color: #b611f5;
+  color: #b611f5;
+}
 
-  &--soldout {
-    color: #e1e1e1;
-    cursor: not-allowed;
-  }
+.chip--soldout {
+  color: #e1e1e1;
+  cursor: not-allowed;
 }
 
 .photo {
@@ -94,30 +94,30 @@
   align-items: flex-start;
   justify-content: center;
   gap: 12px;
+}
 
-  &__guide {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    width: 158px;
-    height: 168px;
-    box-sizing: border-box;
-    padding: 0 4px;
-    border: 1px solid #e1e1e1;
-    border-radius: 8px;
+.photo__guide {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 158px;
+  height: 168px;
+  box-sizing: border-box;
+  padding: 0 4px;
+  border: 1px solid #e1e1e1;
+  border-radius: 8px;
+}
 
-    ul {
-      margin: 0;
-      padding-left: 18px;
-      list-style: disc;
-    }
+.photo__guide ul {
+  margin: 0;
+  padding-left: 18px;
+  list-style: disc;
+}
 
-    li {
-      font-size: 12px;
-      color: #727272;
-      line-height: 1.6;
-    }
-  }
+.photo__guide li {
+  font-size: 12px;
+  color: #727272;
+  line-height: 1.6;
 }
 
 .submit {
@@ -137,9 +137,9 @@
   font-weight: 600;
   line-height: 1.6;
   cursor: not-allowed;
+}
 
-  &--active {
-    background: #b611f5;
-    cursor: pointer;
-  }
+.submit--active {
+  background: #b611f5;
+  cursor: pointer;
 }
