@@ -4,7 +4,6 @@ import type { MouseEvent, PointerEvent, RefObject } from 'react';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 
 const PANEL_BASE_HEIGHT = 414;
-const PANEL_TOP_GAP = 9;
 const MAP_CONTROLS_GAP = 12;
 
 interface HeightRange {
@@ -24,7 +23,7 @@ interface PanelDrag {
 }
 
 function getHeightRange(container: HTMLElement): HeightRange {
-  const max = Math.max(0, container.clientHeight - PANEL_TOP_GAP);
+  const max = container.getBoundingClientRect().height;
 
   return { min: Math.min(PANEL_BASE_HEIGHT, max), max };
 }
