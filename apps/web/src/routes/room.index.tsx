@@ -5,11 +5,12 @@ import { createServerFn } from '@tanstack/react-start';
 
 import { roomQueries } from 'api/room/queries';
 import { SSRLayout } from 'components/layout';
+import MobilePageHeader from 'components/layout/MobilePageHeader';
 import RoomList, { type RoomRentType } from 'components/Room/components/RoomList';
+import RoomMapControls from 'components/Room/components/RoomMapControls';
 import useMarker from 'components/Room/RoomPage/hooks/useMarker';
 import useNaverMap from 'components/Room/RoomPage/hooks/useNaverMap';
 import useNaverMapScript from 'components/Room/RoomPage/hooks/useNaverMapScript';
-import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useScrollToTop from 'utils/hooks/ui/useScrollToTop';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
@@ -20,7 +21,6 @@ import styles from 'pages/room/RoomPage.module.scss';
 const LOCATION = { latitude: 36.764617, longitude: 127.283154 };
 
 function RoomPage() {
-  const isMobile = useMediaQuery();
   const { data: roomList } = useQuery(roomQueries.list());
   const [rentType, setRentType] = useState<RoomRentType>('all');
   const lands = roomList?.lands.filter((room) => {
@@ -30,16 +30,18 @@ function RoomPage() {
     return true;
   });
   const isMapLoaded = useNaverMapScript();
-  const { getMap } = useNaverMap(LOCATION.latitude, LOCATION.longitude, isMapLoaded);
+  const { getMap } = useNaverMap(LOCATION.latitude, LOCATION.longitude, isMapLoaded, { zoomControl: false });
   useMarker({ getMap, lands });
   useScrollToTop();
 
   return (
     <div className={styles.template}>
-      <h1 className={isMobile ? styles.hidden : styles.title}>복덕방</h1>
+      <MobilePageHeader title="복덕방" className={styles['mobile-header']} />
+      <h1 className={styles.title}>복덕방</h1>
       <div className={styles.content}>
         <div id="map" className={styles.map} />
         <RoomList lands={lands} rentType={rentType} onRentTypeChange={setRentType} />
+        <RoomMapControls className={styles['map-controls']} onZoom={(delta) => getMap()?.zoomBy(delta)} />
       </div>
     </div>
   );
@@ -68,5 +70,9 @@ export const Route = createFileRoute('/room/')({
 function RouteComponent() {
   const page = <RoomPage />;
 
-  return <SSRLayout>{page}</SSRLayout>;
+  return (
+    <SSRLayout mobileHeader="page" fitViewport>
+      {page}
+    </SSRLayout>
+  );
 }

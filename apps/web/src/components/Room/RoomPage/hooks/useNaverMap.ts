@@ -1,6 +1,11 @@
 import { useEffect, useRef } from 'react';
 
-function useNaverMap(latitude: number | null, longitude: number | null, isLoaded: boolean = true) {
+function useNaverMap(
+  latitude: number | null,
+  longitude: number | null,
+  isLoaded: boolean = true,
+  { zoomControl = true }: { zoomControl?: boolean } = {},
+) {
   const mapRef = useRef<naver.maps.Map | null>(null);
 
   useEffect(() => {
@@ -13,7 +18,7 @@ function useNaverMap(latitude: number | null, longitude: number | null, isLoaded
       maxZoom: 20,
       minZoom: 15,
       logoControl: false,
-      zoomControl: true,
+      zoomControl,
       scrollWheel: false,
       draggable: true,
       zoomControlOptions: { position: window.naver.maps.Position.TOP_LEFT },
@@ -28,7 +33,7 @@ function useNaverMap(latitude: number | null, longitude: number | null, isLoaded
       }
       mapRef.current = null;
     };
-  }, [isLoaded, latitude, longitude]);
+  }, [isLoaded, latitude, longitude, zoomControl]);
 
   useEffect(() => {
     if (!mapRef.current || latitude == null || longitude == null || latitude === 0 || longitude === 0) return;

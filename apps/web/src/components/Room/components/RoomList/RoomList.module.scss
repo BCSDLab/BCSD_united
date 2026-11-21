@@ -1,17 +1,35 @@
 @use "src/utils/scss/media" as media;
 
 .panel {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
+  position: absolute;
+  top: 38px;
+  right: var(--room-panel-right);
+  bottom: var(--room-panel-bottom);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 24px;
-  min-width: 0;
-  height: 878px;
+  box-sizing: border-box;
+  width: var(--room-panel-width);
+  padding: 24px 32px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow:
+    0 1px 4px rgb(0 0 0 / 4%),
+    0 4px 10px rgb(0 0 0 / 8%);
 
   @include media.media-breakpoint(mobile) {
+    top: auto;
+    right: 0;
+    bottom: 0;
     gap: 0;
-    height: auto;
-    margin-top: 10px;
+    width: 100%;
+    height: var(--room-panel-height);
+    max-height: 100%;
+    padding: 0 0 env(safe-area-inset-bottom);
+    border-radius: 32px 32px 0 0;
+    box-shadow:
+      0 8px 10px rgb(0 0 0 / 6%),
+      0 24px 30px rgb(0 0 0 / 12%);
   }
 }
 
@@ -19,7 +37,6 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 4px 4px 0 13px;
 
   &__count {
     color: #1f1f1f;
@@ -30,7 +47,6 @@
 
   @include media.media-breakpoint(mobile) {
     gap: 0;
-    padding: 0;
 
     &__count {
       display: flex;
@@ -50,7 +66,9 @@
   gap: 14px;
 
   &__button {
-    padding: 8px 16px;
+    box-sizing: border-box;
+    height: 40px;
+    padding: 0 16px;
     border-color: #b611f5;
     border-radius: 24px;
     box-shadow: none;
@@ -68,7 +86,6 @@
     padding: 12px 24px 8px;
 
     &__button {
-      box-sizing: border-box;
       min-width: 62px;
       height: 34px;
       padding: 0 12px;
@@ -80,12 +97,14 @@
 
 .list {
   display: flex;
-  flex: 1;
   flex-direction: column;
   gap: 24px;
   box-sizing: border-box;
   min-width: 0;
-  padding: 4px 4px 4px 13px;
+
+  // 카드의 키보드 포커스 테두리가 스크롤 영역에 잘리지 않도록 여유를 둔다.
+  margin: -6px;
+  padding: 6px;
   overflow: auto;
   scrollbar-width: none;
 
@@ -99,12 +118,13 @@
 
   @include media.media-breakpoint(mobile) {
     gap: 0;
-    padding: 4px;
-    overflow: visible;
+    margin: 0;
+    padding: 0;
+    overscroll-behavior-y: contain;
 
     &__item {
-      padding: 12px 21px;
-      border-bottom: 1px solid #f0f0f0;
+      padding: 8px 24px;
+      border-block: 1px solid #f5f5f5;
     }
   }
 }

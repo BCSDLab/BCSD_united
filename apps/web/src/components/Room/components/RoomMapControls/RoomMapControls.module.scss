@@ -1,0 +1,25 @@
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  border: 0.5px solid #cacaca;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow:
+    0 1px 4px rgb(0 0 0 / 4%),
+    0 4px 10px rgb(0 0 0 / 8%);
+
+  &__button {
+    display: flex;
+
+    &:focus-visible {
+      outline: 2px solid #b611f5;
+      outline-offset: 2px;
+    }
+  }
+
+  &__plus path {
+    stroke: #1f1f1f;
+  }
+}
