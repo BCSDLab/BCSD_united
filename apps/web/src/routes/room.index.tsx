@@ -24,7 +24,7 @@ function RoomPage() {
   const { data: roomList } = useQuery(roomQueries.list());
   const [rentType, setRentType] = useState<RoomRentType>('all');
   const mapControlsRef = useRef<HTMLDivElement>(null);
-  const lands = roomList?.lands.filter((room) => {
+  const lands = roomList?.lands?.filter((room) => {
     if (rentType === 'monthly') return room.is_monthly_available;
     if (rentType === 'charter') return room.is_charter_available;
 
