@@ -105,7 +105,7 @@ function RouteComponent() {
   const page = <RoomPage />;
 
   return (
-    <SSRLayout mobileHeader="page" fitViewport>
+    <SSRLayout className={styles.layout} mobileHeader="page" fitViewport>
       {page}
     </SSRLayout>
   );

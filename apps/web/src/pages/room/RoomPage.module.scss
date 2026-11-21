@@ -1,5 +1,11 @@
 @use "src/utils/scss/media" as media;
 
+.layout {
+  @include media.media-breakpoint(mobile) {
+    min-width: 0;
+  }
+}
+
 .template {
   width: 1136px;
   margin: 50px auto;
