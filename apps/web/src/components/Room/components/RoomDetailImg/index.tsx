@@ -18,11 +18,24 @@ function RoomDetailImg({ imgUrl }: RoomDetailImgProps) {
   const { imgIndex, clickRightArrow, clickLeftArrow } = useClickArrow(imgUrl.length);
   const logger = useLogger();
   const portal = useModalPortal();
+  const logImageSlide = (value: '이전' | '다음') => {
+    logger.actionEventClick({
+      event_name: 'DA1',
+      event_label: 'real_estate__room_detail__photo_view__slide__click',
+      value,
+    });
+  };
   const previousImage = () => {
-    if (imgIndex > 0) clickLeftArrow();
+    if (imgIndex > 0) {
+      logImageSlide('이전');
+      clickLeftArrow();
+    }
   };
   const nextImage = () => {
-    if (imgIndex < imgUrl.length - 1) clickRightArrow();
+    if (imgIndex < imgUrl.length - 1) {
+      logImageSlide('다음');
+      clickRightArrow();
+    }
   };
   const openImage = () => {
     portal.open((option: Portal) => (
@@ -49,11 +62,7 @@ function RoomDetailImg({ imgUrl }: RoomDetailImgProps) {
           className={styles['img-slider__img-arrow']}
           type="button"
           onClick={() => {
-            logger.actionEventClick({
-              event_name: 'DA1',
-              event_label: 'real_estate__room_detail__photo_view__slide__click',
-              value: '이전',
-            });
+            logImageSlide('이전');
             clickLeftArrow();
           }}
         >
@@ -110,11 +119,7 @@ function RoomDetailImg({ imgUrl }: RoomDetailImgProps) {
           className={styles['img-slider__img-arrow']}
           type="button"
           onClick={() => {
-            logger.actionEventClick({
-              event_name: 'DA1',
-              event_label: 'real_estate__room_detail__photo_view__slide__click',
-              value: '다음',
-            });
+            logImageSlide('다음');
             clickRightArrow();
           }}
         >
