@@ -87,6 +87,17 @@
   padding: 16px;
 }
 
+.content--empty > :not(.empty) {
+  visibility: hidden;
+}
+
+.content > .empty {
+  position: absolute;
+  inset: 0;
+  justify-content: flex-start;
+  padding-top: 272px;
+}
+
 .map-controls {
   position: absolute;
   right: 516px;

@@ -10,6 +10,7 @@ import RoomCardContent from 'components/Room/components/RoomCard/RoomCardContent
 import RoomSearchField from 'components/Room/components/RoomSearchField';
 import useRoomSearch from 'components/Room/RoomPage/hooks/useRoomSearch';
 import HeaderIconButton from 'components/ui/PageHeader/HeaderIconButton';
+import SearchEmptyState from 'components/ui/SearchEmptyState';
 import ROUTES from 'static/routes';
 import { isMobileView } from 'utils/hooks/layout/useMobileView';
 import useGoBack from 'utils/hooks/routing/useGoBack';
@@ -44,20 +45,26 @@ function RoomSearchPage() {
         <div className={styles.search}>
           <RoomSearchField key={keyword} keyword={keyword} rooms={rooms} onSearch={searchRooms} inputRef={inputRef} />
         </div>
-        <section className={styles.results} aria-label="건물 검색 결과">
-          <p className={styles.count} aria-live="polite">
-            전체({results?.length ?? 0})
-          </p>
-          <ul>
-            {results?.map((room) => (
-              <li key={room.id}>
-                <Link to={ROUTES.RoomDetail({ id: String(room.id) })} className={styles.result}>
-                  <RoomCardContent room={room} showArrow />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
+        {results?.length === 0 ? (
+          <SearchEmptyState className={styles.empty} />
+        ) : (
+          results && (
+            <section className={styles.results} aria-label="건물 검색 결과">
+              <p className={styles.count} aria-live="polite">
+                전체({results.length})
+              </p>
+              <ul>
+                {results.map((room) => (
+                  <li key={room.id}>
+                    <Link to={ROUTES.RoomDetail({ id: String(room.id) })} className={styles.result}>
+                      <RoomCardContent room={room} showArrow />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )
+        )}
       </main>
     </>
   );

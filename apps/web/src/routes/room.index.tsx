@@ -16,6 +16,7 @@ import useMarker from 'components/Room/RoomPage/hooks/useMarker';
 import useNaverMap from 'components/Room/RoomPage/hooks/useNaverMap';
 import useNaverMapScript from 'components/Room/RoomPage/hooks/useNaverMapScript';
 import useRoomSearch from 'components/Room/RoomPage/hooks/useRoomSearch';
+import SearchEmptyState from 'components/ui/SearchEmptyState';
 import ROUTES from 'static/routes';
 import useScrollToTop from 'utils/hooks/ui/useScrollToTop';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
@@ -28,6 +29,7 @@ const LOCATION = { latitude: 36.764617, longitude: 127.283154 };
 
 function RoomPage() {
   const { rooms, results, keyword, searchRooms } = useRoomSearch();
+  const isSearchEmpty = !!keyword && results?.length === 0;
   const [rentType, setRentType] = useState<RoomRentType>('all');
   const [selectedRoom, setSelectedRoom] = useState<LandList | null>(null);
   const [returnFocusRoomId, setReturnFocusRoomId] = useState<number | null>(null);
@@ -82,7 +84,7 @@ function RoomPage() {
         className={styles['desktop-search']}
         searchIcon={<DesktopSearchIcon className={styles['desktop-search-icon']} aria-hidden />}
       />
-      <div className={styles.content}>
+      <div className={`${styles.content} ${isSearchEmpty ? styles['content--empty'] : ''}`}>
         {hasMapError ? (
           <p className={styles['map-error']} role="status">
             지도를 불러오지 못했어요
@@ -111,6 +113,7 @@ function RoomPage() {
         <div ref={mapControlsRef} className={styles['map-controls']}>
           {!hasMapError && <RoomMapControls onZoom={(delta) => getMap()?.zoomBy(delta)} />}
         </div>
+        {isSearchEmpty && <SearchEmptyState className={styles.empty} />}
       </div>
     </div>
   );
