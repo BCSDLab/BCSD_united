@@ -11,6 +11,7 @@ import SearchEmptyState from 'components/ui/SearchEmptyState';
 import ROUTES from 'static/routes';
 import { isMobileView } from 'utils/hooks/layout/useMobileView';
 import useGoBack from 'utils/hooks/routing/useGoBack';
+import { stringifySearch } from 'utils/routing/search';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
 import { ROOM_ISR_REVALIDATE_SECONDS, withStaticFetchRetry } from 'utils/ts/isr';
@@ -53,8 +54,10 @@ function RoomSearchPage() {
   );
 }
 
-const loadPage = definePageLoad(async ({ queryClient }, cacheControl, serverRequest) => {
-  if (!isMobileView(serverRequest.device)) throw redirect({ href: ROUTES.Room(), statusCode: 302 });
+const loadPage = definePageLoad(async ({ queryClient, search }, cacheControl, serverRequest) => {
+  if (!isMobileView(serverRequest.device)) {
+    throw redirect({ href: ROUTES.Room() + stringifySearch(search), statusCode: 302 });
+  }
   await withStaticFetchRetry('room.list', () => queryClient.fetchQuery(roomQueries.list()));
   cacheControl.enablePublicCache(`public, s-maxage=${ROOM_ISR_REVALIDATE_SECONDS}, stale-while-revalidate=300`);
 
@@ -75,9 +78,14 @@ export const Route = createFileRoute('/room/search/')({
 
 function RouteComponent() {
   const { serverRequest } = Route.useLoaderData();
+  const search = Route.useSearch();
 
   return (
-    <MobileOnlyPage device={serverRequest.device} desktopHref={ROUTES.Room()} className={styles.layout}>
+    <MobileOnlyPage
+      device={serverRequest.device}
+      desktopHref={ROUTES.Room() + stringifySearch(search)}
+      className={styles.layout}
+    >
       <RoomSearchPage />
     </MobileOnlyPage>
   );

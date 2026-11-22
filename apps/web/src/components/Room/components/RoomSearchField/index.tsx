@@ -23,7 +23,12 @@ export default function RoomSearchField({ keyword, rooms, onSearch, className, s
   const [isOpen, openCandidates, closeCandidates] = useBooleanState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const { containerRef } = useOutsideClick({ onOutsideClick: closeCandidates });
-  useEscapeKeyDown({ onEscape: closeCandidates });
+  useEscapeKeyDown({
+    onEscape: () => {
+      if (isOpen && containerRef.current?.contains(document.activeElement)) inputRef.current?.focus();
+      closeCandidates();
+    },
+  });
   const candidates = useMemo(() => filterRoomsByName(rooms, value), [rooms, value]);
 
   const confirmSearch = (name: string) => {
@@ -62,7 +67,12 @@ export default function RoomSearchField({ keyword, rooms, onSearch, className, s
 
             return (
               <li key={room.id}>
-                <button type="button" className={styles.candidate} onClick={() => confirmSearch(room.name)}>
+                <button
+                  type="button"
+                  className={styles.candidate}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => confirmSearch(room.name)}
+                >
                   {room.name.slice(0, matchIndex)}
                   <span className={styles.match}>{value}</span>
                   {room.name.slice(matchIndex + value.length)}
