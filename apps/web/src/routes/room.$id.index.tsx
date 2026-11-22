@@ -107,7 +107,7 @@ function RoomDetailPage({ id }: RoomDetailPageProps) {
             phone={roomDetail?.phone}
           />
         )}
-        {roomDetail?.image_urls ? (
+        {roomDetail?.image_urls?.length ? (
           <RoomDetailImg imgUrl={roomDetail?.image_urls} />
         ) : (
           <div className={styles['info__img-slider__img--empty']}>
