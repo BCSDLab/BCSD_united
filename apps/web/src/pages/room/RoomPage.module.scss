@@ -37,6 +37,29 @@
   padding: 0 24px;
 }
 
+.search-link {
+  display: flex;
+
+  path {
+    fill: #000;
+  }
+}
+
+.template .desktop-search {
+  margin-top: 40px;
+  height: 42px;
+  border: 1px solid #e1e1e1;
+  border-radius: 8px;
+
+  @include media.media-breakpoint(mobile) {
+    display: none;
+  }
+}
+
+.desktop-search-icon path {
+  stroke: #414148;
+}
+
 .content {
   position: relative;
   height: 869px;

@@ -1,10 +1,12 @@
 import { useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
 import type { LandList } from 'api/room/entity';
 import { roomQueries } from 'api/room/queries';
+import SearchIcon from 'assets/svg/Articles/search.svg';
+import DesktopSearchIcon from 'assets/svg/search-01.svg';
 import { SSRLayout } from 'components/layout';
 import MobilePageHeader from 'components/layout/MobilePageHeader';
 import RoomList, { type RoomRentType } from 'components/Room/components/RoomList';
@@ -13,6 +15,8 @@ import RoomSelection from 'components/Room/components/RoomSelection';
 import useMarker from 'components/Room/RoomPage/hooks/useMarker';
 import useNaverMap from 'components/Room/RoomPage/hooks/useNaverMap';
 import useNaverMapScript from 'components/Room/RoomPage/hooks/useNaverMapScript';
+import SearchBar from 'components/ui/SearchBar';
+import ROUTES from 'static/routes';
 import useScrollToTop from 'utils/hooks/ui/useScrollToTop';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
@@ -25,6 +29,7 @@ const LOCATION = { latitude: 36.764617, longitude: 127.283154 };
 function RoomPage() {
   const { data: roomList } = useQuery(roomQueries.list());
   const [rentType, setRentType] = useState<RoomRentType>('all');
+  const [searchValue, setSearchValue] = useState('');
   const [selectedRoom, setSelectedRoom] = useState<LandList | null>(null);
   const [returnFocusRoomId, setReturnFocusRoomId] = useState<number | null>(null);
   const mapControlsRef = useRef<HTMLDivElement>(null);
@@ -53,8 +58,25 @@ function RoomPage() {
 
   return (
     <div className={styles.template}>
-      <MobilePageHeader title="복덕방" className={styles['mobile-header']} />
+      <MobilePageHeader
+        title="복덕방"
+        className={styles['mobile-header']}
+        rightAction={
+          <Link to={ROUTES.RoomSearch()} className={styles['search-link']} aria-label="건물 검색">
+            <SearchIcon aria-hidden />
+          </Link>
+        }
+      />
       <h1 className={styles.title}>복덕방</h1>
+      <SearchBar
+        value={searchValue}
+        onChange={setSearchValue}
+        className={styles['desktop-search']}
+        clearable
+        label="건물명 검색"
+        placeholder="건물 명을 입력해주세요."
+        searchIcon={<DesktopSearchIcon className={styles['desktop-search-icon']} aria-hidden />}
+      />
       <div className={styles.content}>
         {hasMapError ? (
           <p className={styles['map-error']} role="status">

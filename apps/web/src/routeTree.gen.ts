@@ -56,6 +56,7 @@ import { Route as OrderCartIndexRouteImport } from './routes/order.cart.index'
 import { Route as OrderCheckoutIndexRouteImport } from './routes/order.checkout.index'
 import { Route as OrderOrdersIndexRouteImport } from './routes/order.orders.index'
 import { Route as RoomIdIndexRouteImport } from './routes/room.$id.index'
+import { Route as RoomSearchIndexRouteImport } from './routes/room.search.index'
 import { Route as SettingLanguageIndexRouteImport } from './routes/setting.language.index'
 import { Route as StoreIdIndexRouteImport } from './routes/store.$id.index'
 import { Route as StoreSearchIndexRouteImport } from './routes/store.search.index'
@@ -342,6 +343,11 @@ const OrderOrdersIndexRoute = OrderOrdersIndexRouteImport.update({
 const RoomIdIndexRoute = RoomIdIndexRouteImport.update({
   id: '/room/$id/',
   path: '/room/$id/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RoomSearchIndexRoute = RoomSearchIndexRouteImport.update({
+  id: '/room/search/',
+  path: '/room/search/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingLanguageIndexRoute = SettingLanguageIndexRouteImport.update({
@@ -666,6 +672,7 @@ export interface FileRoutesByFullPath {
   '/order/checkout/': typeof OrderCheckoutIndexRoute
   '/order/orders/': typeof OrderOrdersIndexRoute
   '/room/$id/': typeof RoomIdIndexRoute
+  '/room/search/': typeof RoomSearchIndexRoute
   '/setting/language/': typeof SettingLanguageIndexRoute
   '/store/$id/': typeof StoreIdIndexRoute
   '/store/search/': typeof StoreSearchIndexRoute
@@ -766,6 +773,7 @@ export interface FileRoutesByTo {
   '/order/checkout': typeof OrderCheckoutIndexRoute
   '/order/orders': typeof OrderOrdersIndexRoute
   '/room/$id': typeof RoomIdIndexRoute
+  '/room/search': typeof RoomSearchIndexRoute
   '/setting/language': typeof SettingLanguageIndexRoute
   '/store/$id': typeof StoreIdIndexRoute
   '/store/search': typeof StoreSearchIndexRoute
@@ -867,6 +875,7 @@ export interface FileRoutesById {
   '/order/checkout/': typeof OrderCheckoutIndexRoute
   '/order/orders/': typeof OrderOrdersIndexRoute
   '/room/$id/': typeof RoomIdIndexRoute
+  '/room/search/': typeof RoomSearchIndexRoute
   '/setting/language/': typeof SettingLanguageIndexRoute
   '/store/$id/': typeof StoreIdIndexRoute
   '/store/search/': typeof StoreSearchIndexRoute
@@ -969,6 +978,7 @@ export interface FileRouteTypes {
     | '/order/checkout/'
     | '/order/orders/'
     | '/room/$id/'
+    | '/room/search/'
     | '/setting/language/'
     | '/store/$id/'
     | '/store/search/'
@@ -1069,6 +1079,7 @@ export interface FileRouteTypes {
     | '/order/checkout'
     | '/order/orders'
     | '/room/$id'
+    | '/room/search'
     | '/setting/language'
     | '/store/$id'
     | '/store/search'
@@ -1169,6 +1180,7 @@ export interface FileRouteTypes {
     | '/order/checkout/'
     | '/order/orders/'
     | '/room/$id/'
+    | '/room/search/'
     | '/setting/language/'
     | '/store/$id/'
     | '/store/search/'
@@ -1270,6 +1282,7 @@ export interface RootRouteChildren {
   OrderCheckoutIndexRoute: typeof OrderCheckoutIndexRoute
   OrderOrdersIndexRoute: typeof OrderOrdersIndexRoute
   RoomIdIndexRoute: typeof RoomIdIndexRoute
+  RoomSearchIndexRoute: typeof RoomSearchIndexRoute
   SettingLanguageIndexRoute: typeof SettingLanguageIndexRoute
   StoreIdIndexRoute: typeof StoreIdIndexRoute
   StoreSearchIndexRoute: typeof StoreSearchIndexRoute
@@ -1652,6 +1665,13 @@ declare module '@tanstack/react-router' {
       path: '/room/$id'
       fullPath: '/room/$id/'
       preLoaderRoute: typeof RoomIdIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/room/search/': {
+      id: '/room/search/'
+      path: '/room/search'
+      fullPath: '/room/search/'
+      preLoaderRoute: typeof RoomSearchIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/setting/language/': {
@@ -2062,6 +2082,7 @@ const rootRouteChildren: RootRouteChildren = {
   OrderCheckoutIndexRoute: OrderCheckoutIndexRoute,
   OrderOrdersIndexRoute: OrderOrdersIndexRoute,
   RoomIdIndexRoute: RoomIdIndexRoute,
+  RoomSearchIndexRoute: RoomSearchIndexRoute,
   SettingLanguageIndexRoute: SettingLanguageIndexRoute,
   StoreIdIndexRoute: StoreIdIndexRoute,
   StoreSearchIndexRoute: StoreSearchIndexRoute,
