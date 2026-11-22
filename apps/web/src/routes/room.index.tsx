@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
@@ -13,7 +13,6 @@ import RoomSelection from 'components/Room/components/RoomSelection';
 import useMarker from 'components/Room/RoomPage/hooks/useMarker';
 import useNaverMap from 'components/Room/RoomPage/hooks/useNaverMap';
 import useNaverMapScript from 'components/Room/RoomPage/hooks/useNaverMapScript';
-import hasValidCoordinates from 'components/Room/utils/hasValidCoordinates';
 import useScrollToTop from 'utils/hooks/ui/useScrollToTop';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
@@ -51,11 +50,6 @@ function RoomPage() {
   const { getMap } = useNaverMap(LOCATION.latitude, LOCATION.longitude, isMapLoaded, {
     zoomControl: false,
   });
-  useEffect(() => {
-    const map = getMap();
-    if (!map || !selectedRoom || !hasValidCoordinates(selectedRoom)) return;
-    map.setCenter(new window.naver.maps.LatLng(selectedRoom.latitude, selectedRoom.longitude));
-  }, [getMap, selectedRoom]);
   useMarker({ getMap, lands, onSelect: handleSelectMarker, selectedRoomId: selectedRoom?.id });
 
   useScrollToTop();
@@ -71,6 +65,7 @@ function RoomPage() {
             key={selectedRoom.id}
             room={selectedRoom}
             onClose={() => setSelectedRoom(null)}
+            getMap={getMap}
             mapControlsRef={mapControlsRef}
           />
         ) : (
