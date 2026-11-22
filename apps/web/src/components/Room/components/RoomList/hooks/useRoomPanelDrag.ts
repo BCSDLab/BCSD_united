@@ -25,7 +25,7 @@ interface PanelDrag {
 function getHeightRange(container: HTMLElement): HeightRange {
   const max = container.getBoundingClientRect().height;
 
-  return { min: Math.min(PANEL_BASE_HEIGHT, max), max };
+  return { min: Math.min(PANEL_BASE_HEIGHT, max / 2), max };
 }
 
 function updateHeight(panel: HTMLElement, controls: HTMLDivElement | null, range: HeightRange, height: number) {
