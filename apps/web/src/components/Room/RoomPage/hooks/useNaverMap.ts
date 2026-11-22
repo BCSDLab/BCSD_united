@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import hasValidCoordinates from 'components/Room/utils/hasValidCoordinates';
 
@@ -9,10 +9,18 @@ function useNaverMap(
   { zoomControl = true }: { zoomControl?: boolean } = {},
 ) {
   const [map, setMap] = useState<naver.maps.Map | null>(null);
+  const mapRef = useRef<naver.maps.Map | null>(null);
+  const coordinatesRef = useRef({ latitude, longitude });
+  const hasCoordinates = hasValidCoordinates({ latitude, longitude });
 
   useEffect(() => {
-    if (!isLoaded || !window.naver?.maps) return;
-    const coordinates = { latitude, longitude };
+    coordinatesRef.current = { latitude, longitude };
+  }, [latitude, longitude]);
+
+  useEffect(() => {
+    if (!isLoaded || !hasCoordinates || !window.naver?.maps) return;
+    // 좌표 값이 바뀌어도 지도는 유지하고, 새 지도를 만들 때만 최신 좌표를 읽는다.
+    const coordinates = coordinatesRef.current;
     if (!hasValidCoordinates(coordinates)) return;
     if (!document.getElementById('map')) return;
 
@@ -26,11 +34,13 @@ function useNaverMap(
       draggable: true,
       zoomControlOptions: { position: window.naver.maps.Position.TOP_LEFT },
     });
+    mapRef.current = mapInstance;
     const initListener = window.naver.maps.Event.once(mapInstance, 'init', () => {
-      setMap(mapInstance);
+      if (mapRef.current === mapInstance) setMap(mapInstance);
     });
 
     return () => {
+      mapRef.current = null;
       window.naver.maps.Event.removeListener(initListener);
       try {
         mapInstance.destroy();
@@ -39,14 +49,15 @@ function useNaverMap(
       }
       setMap(null);
     };
-  }, [isLoaded, latitude, longitude, zoomControl]);
+  }, [isLoaded, hasCoordinates, zoomControl]);
 
   useEffect(() => {
+    const mapInstance = mapRef.current;
     const coordinates = { latitude, longitude };
-    if (!map || !hasValidCoordinates(coordinates)) return;
+    if (!mapInstance || !hasValidCoordinates(coordinates)) return;
 
-    map.setCenter(new window.naver.maps.LatLng(coordinates.latitude, coordinates.longitude));
-  }, [map, latitude, longitude]);
+    mapInstance.setCenter(new window.naver.maps.LatLng(coordinates.latitude, coordinates.longitude));
+  }, [latitude, longitude]);
 
   const getMap = useCallback(() => map, [map]);
 
