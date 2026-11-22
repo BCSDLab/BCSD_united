@@ -2,13 +2,19 @@ import { useEffect, useRef, useState } from 'react';
 
 import hasValidCoordinates from 'components/Room/utils/hasValidCoordinates';
 
+interface MapState {
+  instance: naver.maps.Map | null;
+  zoomControl: boolean;
+  hasError: boolean;
+}
+
 function useNaverMap(
   latitude: number | null,
   longitude: number | null,
   isLoaded: boolean = true,
   { zoomControl = true }: { zoomControl?: boolean } = {},
 ) {
-  const [map, setMap] = useState<naver.maps.Map | null>(null);
+  const [mapState, setMapState] = useState<MapState | null>(null);
   const mapRef = useRef<naver.maps.Map | null>(null);
   const coordinatesRef = useRef({ latitude, longitude });
   const hasCoordinates = hasValidCoordinates({ latitude, longitude });
@@ -24,30 +30,43 @@ function useNaverMap(
     if (!hasValidCoordinates(coordinates)) return;
     if (!document.getElementById('map')) return;
 
-    const mapInstance = new window.naver.maps.Map('map', {
-      center: new window.naver.maps.LatLng(coordinates.latitude, coordinates.longitude),
-      maxZoom: 20,
-      minZoom: 15,
-      logoControl: false,
-      zoomControl,
-      scrollWheel: false,
-      draggable: true,
-      zoomControlOptions: { position: window.naver.maps.Position.TOP_LEFT },
+    let isActive = true;
+    let mapInstance: naver.maps.Map | undefined;
+    let initListener: naver.maps.MapEventListener | undefined;
+    const initializedMap = new Promise<naver.maps.Map>((resolve) => {
+      const instance = new window.naver.maps.Map('map', {
+        center: new window.naver.maps.LatLng(coordinates.latitude, coordinates.longitude),
+        maxZoom: 20,
+        minZoom: 15,
+        logoControl: false,
+        zoomControl,
+        scrollWheel: false,
+        draggable: true,
+        zoomControlOptions: { position: window.naver.maps.Position.TOP_LEFT },
+      });
+      mapInstance = instance;
+      mapRef.current = instance;
+      initListener = window.naver.maps.Event.once(instance, 'init', () => resolve(instance));
     });
-    mapRef.current = mapInstance;
-    const initListener = window.naver.maps.Event.once(mapInstance, 'init', () => {
-      if (mapRef.current === mapInstance) setMap(mapInstance);
-    });
+    initializedMap.then(
+      (instance) => {
+        if (isActive && mapRef.current === instance) setMapState({ zoomControl, instance, hasError: false });
+      },
+      () => {
+        if (isActive) setMapState({ zoomControl, instance: null, hasError: true });
+      },
+    );
 
     return () => {
+      isActive = false;
       mapRef.current = null;
-      window.naver.maps.Event.removeListener(initListener);
+      if (initListener) window.naver.maps.Event.removeListener(initListener);
       try {
-        mapInstance.destroy();
+        mapInstance?.destroy();
       } catch {
         // Naver Maps SDK 내부 _clearSwipe 타이밍 이슈 방어
       }
-      setMap(null);
+      setMapState(null);
     };
   }, [isLoaded, hasCoordinates, zoomControl]);
 
@@ -59,9 +78,11 @@ function useNaverMap(
     mapInstance.setCenter(new window.naver.maps.LatLng(coordinates.latitude, coordinates.longitude));
   }, [latitude, longitude]);
 
-  const getMap = () => map;
+  const isCurrentMap = isLoaded && hasCoordinates && mapState?.zoomControl === zoomControl;
+  const getMap = () => (isCurrentMap ? (mapState?.instance ?? null) : null);
+  const hasError = isCurrentMap && !!mapState?.hasError;
 
-  return { getMap };
+  return { getMap, hasError };
 }
 
 export default useNaverMap;

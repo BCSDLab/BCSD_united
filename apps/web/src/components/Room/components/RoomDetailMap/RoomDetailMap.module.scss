@@ -9,6 +9,10 @@
     margin-bottom: 30px;
   }
 
+  &__wrapper {
+    position: relative;
+  }
+
   &__map {
     height: 400px;
     isolation: isolate;
@@ -16,5 +20,11 @@
     @include media.media-breakpoint(mobile) {
       height: 165px;
     }
+  }
+
+  &__controls {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
   }
 }

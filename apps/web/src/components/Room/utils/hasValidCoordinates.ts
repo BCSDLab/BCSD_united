@@ -11,5 +11,12 @@ interface ValidCoordinates {
 export default function hasValidCoordinates(coordinates: Coordinates): coordinates is ValidCoordinates {
   const { latitude, longitude } = coordinates;
 
-  return latitude != null && longitude != null && latitude !== 0 && longitude !== 0;
+  return (
+    latitude != null &&
+    longitude != null &&
+    Number.isFinite(latitude) &&
+    Number.isFinite(longitude) &&
+    latitude !== 0 &&
+    longitude !== 0
+  );
 }

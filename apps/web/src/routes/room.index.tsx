@@ -42,7 +42,7 @@ function RoomPage() {
 
     return true;
   });
-  const isMapLoaded = useNaverMapScript();
+  const { isLoaded: isMapLoaded } = useNaverMapScript();
   const { getMap } = useNaverMap(LOCATION.latitude, LOCATION.longitude, isMapLoaded, {
     zoomControl: false,
   });
