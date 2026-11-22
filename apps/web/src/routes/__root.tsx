@@ -9,7 +9,6 @@ import {
   Scripts,
   useLocation,
   useMatches,
-  useRouter,
 } from '@tanstack/react-router';
 
 import ApplicationProviders from 'components/app/ApplicationProviders';
@@ -67,20 +66,16 @@ export const Route = createRootRoute({
       <NotFoundPage />
     </Layout>
   ),
-  errorComponent: function RootErrorComponent() {
-    const router = useRouter();
-
-    return (
-      <Layout>
-        <main>
-          <h1>페이지를 불러오지 못했습니다.</h1>
-          <button type="button" onClick={() => router.invalidate()}>
-            다시 시도
-          </button>
-        </main>
-      </Layout>
-    );
-  },
+  errorComponent: ({ reset }) => (
+    <Layout>
+      <main>
+        <h1>페이지를 불러오지 못했습니다.</h1>
+        <button type="button" onClick={reset}>
+          다시 시도
+        </button>
+      </main>
+    </Layout>
+  ),
 });
 
 function RootDocument({ children }: { children: ReactNode }) {
