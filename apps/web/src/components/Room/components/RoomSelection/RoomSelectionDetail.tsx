@@ -1,20 +1,19 @@
 import { useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { notFound } from '@tanstack/react-router';
 
 import type { LandList } from 'api/room/entity';
 import { roomQueries } from 'api/room/queries';
 import { RoomRentBadge } from 'components/Room/components/RoomCard/RoomCardContent';
+import Button from 'components/ui/Button';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import { copyToClipboard } from 'utils/ts/copyToClipboard';
-import { isNotFoundKoinError } from 'utils/ts/isr';
 import showToast from 'utils/ts/showToast';
 
 import RoomSelectionImages from './RoomSelectionImages';
 import styles from './RoomSelection.module.scss';
 
 export default function RoomSelectionDetail({ room }: { room: LandList }) {
-  const { data: detail, error } = useQuery(roomQueries.detail(String(room.id)));
+  const { data: detail, error, isFetching, refetch } = useQuery(roomQueries.detail(String(room.id)));
   const logger = useLogger();
   const hasLoggedEntry = useRef(false);
 
@@ -28,11 +27,16 @@ export default function RoomSelectionDetail({ room }: { room: LandList }) {
     });
   }, [detail, logger, room.name]);
 
-  if (error) {
-    if (isNotFoundKoinError(error)) throw notFound();
-    throw error;
+  if (error || detail?.is_deleted) {
+    return (
+      <div className={styles.info} role="alert">
+        <p>건물 정보를 불러오지 못했습니다.</p>
+        <Button color="neutral" size="sm" state={isFetching ? 'disabled' : 'default'} onClick={() => refetch()}>
+          다시 시도
+        </Button>
+      </div>
+    );
   }
-  if (detail?.is_deleted) throw notFound();
   const phone = detail?.phone;
 
   const copyPhone = async (phone: string) => {
