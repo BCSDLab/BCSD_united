@@ -1,5 +1,102 @@
 @use "src/utils/scss/media" as media;
 
+.layout {
+  @include media.media-breakpoint(mobile) {
+    min-width: 0;
+  }
+}
+
+.mobile {
+  padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  color: #1f1f1f;
+  line-height: 1.6;
+
+  &__heading {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 0 24px 16px;
+  }
+
+  &__badges {
+    display: flex;
+    gap: 8px;
+  }
+
+  &__name {
+    font-size: 18px;
+    font-weight: 500;
+    overflow-wrap: anywhere;
+  }
+
+  &__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    height: 204px;
+    background: #f8f8f8;
+    color: #727272;
+    font-size: 12px;
+
+    svg {
+      width: 98px;
+      height: 75px;
+    }
+  }
+
+  &__content {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+    padding: 40px 24px 24px;
+  }
+
+  &__info {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    h2 {
+      font-size: 16px;
+      font-weight: 500;
+    }
+
+    dl {
+      display: grid;
+      grid-template-columns: 100px minmax(0, 1fr);
+      row-gap: 8px;
+      font-size: 12px;
+    }
+
+    dt {
+      color: #6f6f6f;
+    }
+
+    dd {
+      overflow-wrap: anywhere;
+    }
+  }
+
+  &__contact {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 10;
+    padding: 16px 24px max(16px, env(safe-area-inset-bottom));
+    border-radius: 24px 24px 0 0;
+    background: #fff;
+    font-size: 14px;
+    overflow-wrap: anywhere;
+
+    span {
+      font-size: 12px;
+    }
+  }
+}
+
 .template {
   width: 1131px;
   margin: 68px auto 20px;
