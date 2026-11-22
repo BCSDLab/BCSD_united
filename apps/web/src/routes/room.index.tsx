@@ -34,7 +34,6 @@ function RoomPage() {
   const [selectedRoom, setSelectedRoom] = useState<LandList | null>(null);
   const [returnFocusRoomId, setReturnFocusRoomId] = useState<number | null>(null);
   const [previousKeyword, setPreviousKeyword] = useState(keyword);
-  const searchInputRef = useRef<HTMLInputElement>(null);
   const mapControlsRef = useRef<HTMLDivElement>(null);
   const handleSelectRoom = (room: LandList) => {
     setReturnFocusRoomId(room.id);
@@ -81,7 +80,6 @@ function RoomPage() {
         key={keyword}
         keyword={keyword}
         rooms={rooms}
-        inputRef={searchInputRef}
         onSearch={(value) => {
           setSelectedRoom(null);
           setReturnFocusRoomId(null);

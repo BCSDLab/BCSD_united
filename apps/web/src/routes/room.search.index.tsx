@@ -1,15 +1,12 @@
-import { useRef } from 'react';
 import { createFileRoute, Link, redirect } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
 import { roomQueries } from 'api/room/queries';
-import SearchIcon from 'assets/svg/Articles/search.svg';
 import MobilePageHeader from 'components/layout/MobilePageHeader';
 import { MobileOnlyPage } from 'components/layout/ResponsivePage';
 import RoomCardContent from 'components/Room/components/RoomCard/RoomCardContent';
 import RoomSearchField from 'components/Room/components/RoomSearchField';
 import useRoomSearch from 'components/Room/RoomPage/hooks/useRoomSearch';
-import HeaderIconButton from 'components/ui/PageHeader/HeaderIconButton';
 import SearchEmptyState from 'components/ui/SearchEmptyState';
 import ROUTES from 'static/routes';
 import { isMobileView } from 'utils/hooks/layout/useMobileView';
@@ -22,28 +19,14 @@ import styles from 'pages/room/search/RoomSearchPage.module.scss';
 
 function RoomSearchPage() {
   const { rooms, results, keyword, searchRooms } = useRoomSearch();
-  const inputRef = useRef<HTMLInputElement>(null);
   const goBack = useGoBack();
 
   return (
     <>
-      <MobilePageHeader
-        title="복덕방"
-        className={styles.header}
-        onBack={() => goBack(ROUTES.Room())}
-        rightAction={
-          <HeaderIconButton
-            className={styles['search-action']}
-            aria-label="검색창으로 이동"
-            onClick={() => inputRef.current?.focus()}
-          >
-            <SearchIcon aria-hidden />
-          </HeaderIconButton>
-        }
-      />
+      <MobilePageHeader title="복덕방" className={styles.header} onBack={() => goBack(ROUTES.Room())} />
       <main className={styles.content}>
         <div className={styles.search}>
-          <RoomSearchField key={keyword} keyword={keyword} rooms={rooms} onSearch={searchRooms} inputRef={inputRef} />
+          <RoomSearchField key={keyword} keyword={keyword} rooms={rooms} onSearch={searchRooms} />
         </div>
         {results?.length === 0 ? (
           <SearchEmptyState className={styles.empty} />

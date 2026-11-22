@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { cn } from '@bcsdlab/utils';
 
 import type { LandList } from 'api/room/entity';
@@ -15,22 +15,13 @@ interface RoomSearchFieldProps {
   rooms: LandList[] | undefined;
   onSearch: (keyword: string) => Promise<void>;
   className?: string;
-  inputRef?: RefObject<HTMLInputElement | null>;
   searchIcon?: ReactNode;
 }
 
-export default function RoomSearchField({
-  keyword,
-  rooms,
-  onSearch,
-  className,
-  inputRef,
-  searchIcon,
-}: RoomSearchFieldProps) {
+export default function RoomSearchField({ keyword, rooms, onSearch, className, searchIcon }: RoomSearchFieldProps) {
   const [value, setValue] = useState(keyword);
   const [isOpen, openCandidates, closeCandidates] = useBooleanState(false);
-  const internalInputRef = useRef<HTMLInputElement>(null);
-  const fieldRef = inputRef ?? internalInputRef;
+  const inputRef = useRef<HTMLInputElement>(null);
   const { containerRef } = useOutsideClick({ onOutsideClick: closeCandidates });
   useEscapeKeyDown({ onEscape: closeCandidates });
   const candidates = useMemo(() => filterRoomsByName(rooms, value), [rooms, value]);
@@ -38,7 +29,7 @@ export default function RoomSearchField({
   const confirmSearch = (name: string) => {
     setValue(name);
     closeCandidates();
-    fieldRef.current?.blur();
+    inputRef.current?.blur();
     onSearch(name);
   };
 
@@ -58,13 +49,8 @@ export default function RoomSearchField({
           openCandidates();
         }}
         onSearch={() => confirmSearch(value)}
-        onClear={async () => {
-          await onSearch('');
-          inputRef?.current?.focus();
-        }}
-        inputRef={fieldRef}
+        inputRef={inputRef}
         className={styles.input}
-        clearable
         label="건물명 검색"
         placeholder="건물 명을 입력해주세요."
         searchIcon={searchIcon}
