@@ -33,6 +33,7 @@ function RoomPage() {
   const [rentType, setRentType] = useState<RoomRentType>('all');
   const [selectedRoom, setSelectedRoom] = useState<LandList | null>(null);
   const [returnFocusRoomId, setReturnFocusRoomId] = useState<number | null>(null);
+  const [previousKeyword, setPreviousKeyword] = useState(keyword);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const mapControlsRef = useRef<HTMLDivElement>(null);
   const handleSelectRoom = (room: LandList) => {
@@ -57,6 +58,12 @@ function RoomPage() {
   useMarker({ getMap, lands, onSelect: handleSelectMarker, selectedRoomId: selectedRoom?.id });
 
   useScrollToTop();
+
+  if (previousKeyword !== keyword) {
+    setPreviousKeyword(keyword);
+    setSelectedRoom(null);
+    setReturnFocusRoomId(null);
+  }
 
   return (
     <div className={styles.template}>
