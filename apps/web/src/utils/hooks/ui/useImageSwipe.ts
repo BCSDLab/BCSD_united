@@ -32,7 +32,7 @@ export default function useImageSwipe({ enabled, onPrevious, onNext, onCenterTap
       const { left, width } = container.getBoundingClientRect();
       const position = (point.clientX - left) / width;
       if (position < 0.25) onPrevious();
-      else if (position > 0.75) onNext();
+      else if (position >= 0.75) onNext();
       else onCenterTap?.();
     },
   });
