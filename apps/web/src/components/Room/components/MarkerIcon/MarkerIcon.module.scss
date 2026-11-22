@@ -13,26 +13,6 @@
   }
 }
 
-@keyframes bounce {
-  0% {
-    opacity: 0;
-    transform: translateY(-2000px) rotate(-45deg);
-  }
-
-  60% {
-    opacity: 1;
-    transform: translateY(30px) rotate(-45deg);
-  }
-
-  80% {
-    transform: translateY(-10px) rotate(-45deg);
-  }
-
-  100% {
-    transform: translateY(0) rotate(-45deg);
-  }
-}
-
 .icon {
   width: 16px;
   height: 16px;
@@ -41,11 +21,7 @@
   position: absolute;
   transform: rotate(-45deg);
   margin: -15px 0 0 -17px;
-  animation: bounce;
-  animation-fill-mode: both;
-  animation-duration: 1s;
   border: 4px solid transparent;
-  animation-iteration-count: 1;
 
   &::after {
     content: "";

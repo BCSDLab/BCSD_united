@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 import type { LandList } from 'api/room/entity';
 import MarkerIcon from 'components/Room/components/MarkerIcon';
 import clusterRoomMarkers from 'components/Room/utils/clusterRoomMarkers';
+import createRoomMarkerAnimator, { type RoomMarkerGroup } from 'components/Room/utils/createRoomMarkerAnimator';
 import hasValidCoordinates from 'components/Room/utils/hasValidCoordinates';
 
 import styles from 'components/Room/components/MarkerIcon/MarkerIcon.module.scss';
@@ -40,6 +41,7 @@ function useMarker({ getMap, lands, onSelect, selectedRoomId }: MarkerProps) {
         position: new window.naver.maps.LatLng(land.latitude, land.longitude),
         title: land.name,
         map,
+        visible: false,
         icon: { content: MarkerIcon() },
         clickable: true,
       });
@@ -50,6 +52,10 @@ function useMarker({ getMap, lands, onSelect, selectedRoomId }: MarkerProps) {
 
     markersRef.current = created;
     const markersById = new Map(created.map(({ id, marker }) => [id, marker]));
+    const animator = createRoomMarkerAnimator(map);
+    let previousZoom = map.getZoom();
+    let previousSelectedId = selectedRoomIdRef.current;
+    let activeClusterKeys = new Set<string>();
     const updateClusters = () => {
       const selectedId = selectedRoomIdRef.current;
       const projection = map.getProjection();
@@ -62,47 +68,62 @@ function useMarker({ getMap, lands, onSelect, selectedRoomId }: MarkerProps) {
             })
           : [];
       const groups = clusterRoomMarkers(points);
-      const visibleMarkerIds = new Set<number>();
-      const activeClusterKeys = new Set<string>();
-      if (selectedId !== undefined) visibleMarkerIds.add(selectedId);
+      const displayGroups: RoomMarkerGroup[] = [];
+      activeClusterKeys = new Set<string>();
+      if (selectedId !== undefined) {
+        const selectedMarker = markersById.get(selectedId);
+        if (selectedMarker) displayGroups.push({ ids: [selectedId], marker: selectedMarker });
+      }
 
       groups.forEach((group) => {
         if (group.length === 1) {
-          visibleMarkerIds.add(group[0].id);
+          const marker = markersById.get(group[0].id);
+          if (marker) displayGroups.push({ ids: [group[0].id], marker });
 
           return;
         }
 
-        const key = group.map(({ id }) => id).join(',');
+        const ids = group.map(({ id }) => id);
+        const key = ids.join(',');
         activeClusterKeys.add(key);
-        if (clustersRef.current.has(key)) return;
-        const centerMarker = markersById.get(group[0].id);
-        if (!centerMarker) return;
+        let marker = clustersRef.current.get(key);
+        if (!marker) {
+          const centerMarker = markersById.get(group[0].id);
+          if (!centerMarker) return;
 
-        clustersRef.current.set(
-          key,
-          new window.naver.maps.Marker({
+          marker = new window.naver.maps.Marker({
             position: centerMarker.getPosition(),
             map,
+            visible: false,
             icon: { content: MarkerIcon(group.length) },
             title: `건물 ${group.length}개`,
             clickable: false,
-          }),
-        );
+          });
+          clustersRef.current.set(key, marker);
+        }
+        const clusterMarker = marker;
+        displayGroups.push({
+          ids,
+          marker: clusterMarker,
+          onHide: () => {
+            if (selectedRoomIdRef.current !== undefined || activeClusterKeys.has(key)) return;
+            clusterMarker.setMap(null);
+            clustersRef.current.delete(key);
+          },
+        });
       });
 
-      created.forEach(({ id, marker }) => {
-        const visible = visibleMarkerIds.has(id);
-        if (marker.getVisible() !== visible) marker.setVisible(visible);
-      });
+      const zoom = map.getZoom();
+      animator.update(
+        displayGroups,
+        zoom !== previousZoom && selectedId === undefined && previousSelectedId === undefined,
+      );
+      previousZoom = zoom;
+      previousSelectedId = selectedId;
       clustersRef.current.forEach((marker, key) => {
-        if (selectedId !== undefined) {
-          if (marker.getVisible()) marker.setVisible(false);
-        } else if (!activeClusterKeys.has(key)) {
+        if (selectedId === undefined && !activeClusterKeys.has(key) && !marker.getVisible()) {
           marker.setMap(null);
           clustersRef.current.delete(key);
-        } else if (!marker.getVisible()) {
-          marker.setVisible(true);
         }
       });
     };
@@ -112,6 +133,7 @@ function useMarker({ getMap, lands, onSelect, selectedRoomId }: MarkerProps) {
     return () => {
       window.naver.maps.Event.removeListener([idleListener, ...clickListeners]);
       updateClustersRef.current = null;
+      animator.clear();
       clearMarkers();
     };
   }, [getMap, lands, onSelect]);
