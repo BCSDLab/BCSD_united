@@ -83,7 +83,7 @@ function RoomDetailImg({ imgUrl }: RoomDetailImgProps) {
                 type="button"
                 className={`${styles['img-slider__tap']} ${styles['img-slider__tap--previous']}`}
                 aria-label="이전 건물 사진"
-                disabled={imgIndex === 0}
+                aria-disabled={imgIndex === 0}
                 onClick={onKeyboardClick(previousImage)}
               />
             )}
@@ -98,7 +98,7 @@ function RoomDetailImg({ imgUrl }: RoomDetailImgProps) {
                 type="button"
                 className={`${styles['img-slider__tap']} ${styles['img-slider__tap--next']}`}
                 aria-label="다음 건물 사진"
-                disabled={imgIndex === imgUrl.length - 1}
+                aria-disabled={imgIndex === imgUrl.length - 1}
                 onClick={onKeyboardClick(nextImage)}
               />
             )}

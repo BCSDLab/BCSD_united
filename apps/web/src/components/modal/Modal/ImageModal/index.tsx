@@ -151,14 +151,14 @@ function ImageModal({
                 type="button"
                 className={`${styles['mobile-gallery__tap']} ${styles['mobile-gallery__tap--previous']}`}
                 aria-label="이전 건물 사진"
-                disabled={selectedIndex === 0}
+                aria-disabled={selectedIndex === 0}
                 onClick={onKeyboardClick(() => navigateImage(-1))}
               />
               <button
                 type="button"
                 className={`${styles['mobile-gallery__tap']} ${styles['mobile-gallery__tap--next']}`}
                 aria-label="다음 건물 사진"
-                disabled={selectedIndex === imageList.length - 1}
+                aria-disabled={selectedIndex === imageList.length - 1}
                 onClick={onKeyboardClick(() => navigateImage(1))}
               />
             </>
