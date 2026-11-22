@@ -1,3 +1,6 @@
+@use "sass:color";
+@use "src/utils/scss/tokens" as tokens;
+
 @keyframes pulsate {
   0% {
     transform: scale(0.1, 0.1);
@@ -90,4 +93,53 @@
 
 .selected .icon {
   background: #7d08a4;
+}
+
+.cluster {
+  box-sizing: border-box;
+  border-radius: tokens.$radius-circle;
+  background-color: color.change(tokens.$primary-300, $alpha: 0.6);
+  color: tokens.$white;
+  font-weight: tokens.$font-weight-regular;
+  line-height: 1.6;
+
+  &__count {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    border-radius: tokens.$radius-circle;
+    background-color: tokens.$primary-500;
+  }
+
+  &--small {
+    width: 24px;
+    height: 24px;
+    padding: 3.82px;
+    font-size: tokens.$font-size-10;
+  }
+
+  &--medium {
+    width: 34px;
+    height: 34px;
+    padding: 5.41px;
+    font-size: tokens.$font-size-12;
+  }
+
+  &--large {
+    width: 38px;
+    height: 38px;
+    padding: 6px;
+    font-size: tokens.$font-size-13;
+    font-weight: tokens.$font-weight-medium;
+  }
+
+  &--extra-large {
+    width: 44px;
+    height: 44px;
+    padding: 7px;
+    font-size: tokens.$font-size-14;
+    font-weight: tokens.$font-weight-medium;
+  }
 }
