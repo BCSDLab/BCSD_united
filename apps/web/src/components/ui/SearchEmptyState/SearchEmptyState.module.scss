@@ -1,3 +1,5 @@
+@use "src/utils/scss/tokens" as tokens;
+
 .empty {
   display: flex;
   flex: 1;
@@ -21,6 +23,6 @@
     font-size: 14px;
     font-weight: 400;
     line-height: 1.6;
-    color: #727272;
+    color: tokens.$neutral-500;
   }
 }
