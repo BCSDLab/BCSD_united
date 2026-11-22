@@ -9,7 +9,7 @@ const useRoomDetail = (id: string) => {
 
   if (error) {
     if (isNotFoundKoinError(error)) throw notFound();
-    throw error;
+    if (!roomDetail) throw error;
   }
 
   const roomOptions = Object.entries(roomDetail || {}).reduce((acc, [key, val]) => {
