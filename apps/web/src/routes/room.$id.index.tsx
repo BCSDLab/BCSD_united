@@ -29,6 +29,7 @@ interface RoomDetailPageProps {
 function MobileRoomDetail({ room }: { room: LandDetailResponse }) {
   const { data: roomList } = useQuery(roomQueries.list());
   const summary = roomList?.lands?.find((land) => land.id === room.id);
+  const phone = room.phone?.trim();
 
   return (
     <main className={styles.mobile}>
@@ -60,8 +61,15 @@ function MobileRoomDetail({ room }: { room: LandDetailResponse }) {
         </section>
       </div>
       <div className={styles.mobile__contact}>
-        <span>연락처</span>
-        <p>{room.phone || '-'}</p>
+        <div className={styles.mobile__phone}>
+          <span>연락처</span>
+          <p>{phone || '연락처가 비어 있습니다.'}</p>
+        </div>
+        {phone && (
+          <a href={`tel:${phone}`} className={styles.mobile__call}>
+            전화 문의하기
+          </a>
+        )}
       </div>
     </main>
   );
