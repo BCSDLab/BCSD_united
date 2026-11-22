@@ -1,5 +1,4 @@
 import { useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
@@ -11,11 +10,12 @@ import { SSRLayout } from 'components/layout';
 import MobilePageHeader from 'components/layout/MobilePageHeader';
 import RoomList, { type RoomRentType } from 'components/Room/components/RoomList';
 import RoomMapControls from 'components/Room/components/RoomMapControls';
+import RoomSearchField from 'components/Room/components/RoomSearchField';
 import RoomSelection from 'components/Room/components/RoomSelection';
 import useMarker from 'components/Room/RoomPage/hooks/useMarker';
 import useNaverMap from 'components/Room/RoomPage/hooks/useNaverMap';
 import useNaverMapScript from 'components/Room/RoomPage/hooks/useNaverMapScript';
-import SearchBar from 'components/ui/SearchBar';
+import useRoomSearch from 'components/Room/RoomPage/hooks/useRoomSearch';
 import ROUTES from 'static/routes';
 import useScrollToTop from 'utils/hooks/ui/useScrollToTop';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
@@ -27,11 +27,11 @@ import styles from 'pages/room/RoomPage.module.scss';
 const LOCATION = { latitude: 36.764617, longitude: 127.283154 };
 
 function RoomPage() {
-  const { data: roomList } = useQuery(roomQueries.list());
+  const { rooms, results, keyword, searchRooms } = useRoomSearch();
   const [rentType, setRentType] = useState<RoomRentType>('all');
-  const [searchValue, setSearchValue] = useState('');
   const [selectedRoom, setSelectedRoom] = useState<LandList | null>(null);
   const [returnFocusRoomId, setReturnFocusRoomId] = useState<number | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const mapControlsRef = useRef<HTMLDivElement>(null);
   const handleSelectRoom = (room: LandList) => {
     setReturnFocusRoomId(room.id);
@@ -41,7 +41,7 @@ function RoomPage() {
     setReturnFocusRoomId(null);
     setSelectedRoom(room);
   };
-  const lands = roomList?.lands?.filter((room) => {
+  const lands = results?.filter((room) => {
     if (rentType === 'monthly') return room.is_monthly_available;
     if (rentType === 'charter') return room.is_charter_available;
 
@@ -68,13 +68,18 @@ function RoomPage() {
         }
       />
       <h1 className={styles.title}>복덕방</h1>
-      <SearchBar
-        value={searchValue}
-        onChange={setSearchValue}
+      <RoomSearchField
+        key={keyword}
+        keyword={keyword}
+        rooms={rooms}
+        inputRef={searchInputRef}
+        onSearch={(value) => {
+          setSelectedRoom(null);
+          setReturnFocusRoomId(null);
+
+          return searchRooms(value);
+        }}
         className={styles['desktop-search']}
-        clearable
-        label="건물명 검색"
-        placeholder="건물 명을 입력해주세요."
         searchIcon={<DesktopSearchIcon className={styles['desktop-search-icon']} aria-hidden />}
       />
       <div className={styles.content}>

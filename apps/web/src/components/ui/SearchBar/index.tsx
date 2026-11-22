@@ -10,6 +10,7 @@ interface SearchBarProps {
   value: string;
   onChange: (value: string) => void;
   onSearch?: () => void;
+  onClear?: () => void;
   label: string;
   placeholder?: string;
   size?: 'small' | 'medium';
@@ -23,6 +24,7 @@ export default function SearchBar({
   value,
   onChange,
   onSearch,
+  onClear,
   label,
   placeholder = '검색어를 입력해주세요.',
   size = 'medium',
@@ -68,6 +70,7 @@ export default function SearchBar({
           aria-label="검색어 삭제"
           onClick={() => {
             onChange('');
+            onClear?.();
             fieldRef.current?.focus();
           }}
         >

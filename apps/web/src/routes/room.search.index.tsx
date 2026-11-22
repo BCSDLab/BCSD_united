@@ -1,22 +1,25 @@
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import { createFileRoute, redirect } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
+import { roomQueries } from 'api/room/queries';
 import SearchIcon from 'assets/svg/Articles/search.svg';
 import MobilePageHeader from 'components/layout/MobilePageHeader';
 import { MobileOnlyPage } from 'components/layout/ResponsivePage';
+import RoomSearchField from 'components/Room/components/RoomSearchField';
+import useRoomSearch from 'components/Room/RoomPage/hooks/useRoomSearch';
 import HeaderIconButton from 'components/ui/PageHeader/HeaderIconButton';
-import SearchBar from 'components/ui/SearchBar';
 import ROUTES from 'static/routes';
 import { isMobileView } from 'utils/hooks/layout/useMobileView';
 import useGoBack from 'utils/hooks/routing/useGoBack';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
+import { ROOM_ISR_REVALIDATE_SECONDS, withStaticFetchRetry } from 'utils/ts/isr';
 
 import styles from 'pages/room/search/RoomSearchPage.module.scss';
 
 function RoomSearchPage() {
-  const [searchValue, setSearchValue] = useState('');
+  const { rooms, keyword, searchRooms } = useRoomSearch();
   const inputRef = useRef<HTMLInputElement>(null);
   const goBack = useGoBack();
 
@@ -37,24 +40,16 @@ function RoomSearchPage() {
         }
       />
       <main className={styles.content}>
-        <SearchBar
-          value={searchValue}
-          onChange={setSearchValue}
-          inputRef={inputRef}
-          className={styles.input}
-          size="small"
-          clearable
-          label="건물명 검색"
-          placeholder="건물 명을 입력해주세요."
-        />
+        <RoomSearchField key={keyword} keyword={keyword} rooms={rooms} onSearch={searchRooms} inputRef={inputRef} />
       </main>
     </>
   );
 }
 
-const loadPage = definePageLoad((_context, cacheControl, serverRequest) => {
+const loadPage = definePageLoad(async ({ queryClient }, cacheControl, serverRequest) => {
   if (!isMobileView(serverRequest.device)) throw redirect({ href: ROUTES.Room(), statusCode: 302 });
-  cacheControl.enablePublicCache();
+  await withStaticFetchRetry('room.list', () => queryClient.fetchQuery(roomQueries.list()));
+  cacheControl.enablePublicCache(`public, s-maxage=${ROOM_ISR_REVALIDATE_SECONDS}, stale-while-revalidate=300`);
 
   return {};
 });
