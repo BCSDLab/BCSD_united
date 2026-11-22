@@ -1,11 +1,12 @@
 import { useRef } from 'react';
-import { createFileRoute, redirect } from '@tanstack/react-router';
+import { createFileRoute, Link, redirect } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
 import { roomQueries } from 'api/room/queries';
 import SearchIcon from 'assets/svg/Articles/search.svg';
 import MobilePageHeader from 'components/layout/MobilePageHeader';
 import { MobileOnlyPage } from 'components/layout/ResponsivePage';
+import RoomCardContent from 'components/Room/components/RoomCard/RoomCardContent';
 import RoomSearchField from 'components/Room/components/RoomSearchField';
 import useRoomSearch from 'components/Room/RoomPage/hooks/useRoomSearch';
 import HeaderIconButton from 'components/ui/PageHeader/HeaderIconButton';
@@ -19,7 +20,7 @@ import { ROOM_ISR_REVALIDATE_SECONDS, withStaticFetchRetry } from 'utils/ts/isr'
 import styles from 'pages/room/search/RoomSearchPage.module.scss';
 
 function RoomSearchPage() {
-  const { rooms, keyword, searchRooms } = useRoomSearch();
+  const { rooms, results, keyword, searchRooms } = useRoomSearch();
   const inputRef = useRef<HTMLInputElement>(null);
   const goBack = useGoBack();
 
@@ -40,7 +41,23 @@ function RoomSearchPage() {
         }
       />
       <main className={styles.content}>
-        <RoomSearchField key={keyword} keyword={keyword} rooms={rooms} onSearch={searchRooms} inputRef={inputRef} />
+        <div className={styles.search}>
+          <RoomSearchField key={keyword} keyword={keyword} rooms={rooms} onSearch={searchRooms} inputRef={inputRef} />
+        </div>
+        <section className={styles.results} aria-label="건물 검색 결과">
+          <p className={styles.count} aria-live="polite">
+            전체({results?.length ?? 0})
+          </p>
+          <ul>
+            {results?.map((room) => (
+              <li key={room.id}>
+                <Link to={ROUTES.RoomDetail({ id: String(room.id) })} className={styles.result}>
+                  <RoomCardContent room={room} showArrow />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
       </main>
     </>
   );
