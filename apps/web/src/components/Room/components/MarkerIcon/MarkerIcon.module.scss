@@ -96,6 +96,7 @@
 }
 
 .cluster {
+  transform: translate(-50%, -50%);
   box-sizing: border-box;
   border-radius: tokens.$radius-circle;
   background-color: color.change(tokens.$primary-300, $alpha: 0.6);
