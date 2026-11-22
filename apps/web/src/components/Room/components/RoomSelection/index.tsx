@@ -6,7 +6,6 @@ import type { LandList } from 'api/room/entity';
 import CloseIcon from 'assets/svg/close-icon.svg';
 import RoomCardContent from 'components/Room/components/RoomCard/RoomCardContent';
 import ROUTES from 'static/routes';
-import useLogger from 'utils/hooks/analytics/useLogger';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 
 import RoomSelectionDetail from './RoomSelectionDetail';
@@ -20,7 +19,6 @@ interface RoomSelectionProps {
 
 export default function RoomSelection({ room, onClose, mapControlsRef }: RoomSelectionProps) {
   const isMobile = useMediaQuery();
-  const logger = useLogger();
   const panelRef = useRef<HTMLElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
 
@@ -60,17 +58,7 @@ export default function RoomSelection({ room, onClose, mapControlsRef }: RoomSel
       {isMobile ? (
         <>
           <RoomCardContent room={room} className={styles.summary} />
-          <Link
-            to={ROUTES.RoomDetail({ id: String(room.id) })}
-            className={styles.detail}
-            onClick={() =>
-              logger.actionEventClick({
-                event_name: 'DA1',
-                event_label: 'real_estate__room_list__room_detail__entry__click',
-                value: room.name,
-              })
-            }
-          >
+          <Link to={ROUTES.RoomDetail({ id: String(room.id) })} className={styles.detail}>
             매물 상세보기
           </Link>
         </>

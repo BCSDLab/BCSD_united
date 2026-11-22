@@ -5,6 +5,7 @@ import type { LandList } from 'api/room/entity';
 import RoomCard from 'components/Room/components/RoomCard';
 import Button from 'components/ui/Button';
 import SearchEmptyState from 'components/ui/SearchEmptyState';
+import useLogger from 'utils/hooks/analytics/useLogger';
 
 import useRoomPanelDrag from './hooks/useRoomPanelDrag';
 import styles from './RoomList.module.scss';
@@ -29,6 +30,7 @@ interface RoomListProps {
 
 function RoomList(props: RoomListProps) {
   const { lands, rentType, onRentTypeChange, onSelectRoom, mapControlsRef, returnFocusRoomId } = props;
+  const logger = useLogger();
   const listId = useId();
   const returnFocusRef = useRef<HTMLButtonElement>(null);
   const { panelRef, isMobile, isExpanded, handleToggle, dragHandlers } = useRoomPanelDrag(mapControlsRef);
@@ -81,7 +83,14 @@ function RoomList(props: RoomListProps) {
             <li className={styles.list__item} key={room.id}>
               <RoomCard
                 room={room}
-                onClick={() => onSelectRoom(room)}
+                onClick={() => {
+                  logger.actionEventClick({
+                    event_name: 'DA1',
+                    event_label: 'real_estate__room_list__room_detail__entry__click',
+                    value: room.name,
+                  });
+                  onSelectRoom(room);
+                }}
                 buttonRef={room.id === returnFocusRoomId ? returnFocusRef : undefined}
               />
             </li>

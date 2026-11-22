@@ -1,11 +1,9 @@
-import { useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import type { LandList } from 'api/room/entity';
 import { roomQueries } from 'api/room/queries';
 import { RoomRentBadge } from 'components/Room/components/RoomCard/RoomCardContent';
 import Button from 'components/ui/Button';
-import useLogger from 'utils/hooks/analytics/useLogger';
 import { copyToClipboard } from 'utils/ts/copyToClipboard';
 import showToast from 'utils/ts/showToast';
 
@@ -14,18 +12,6 @@ import styles from './RoomSelection.module.scss';
 
 export default function RoomSelectionDetail({ room }: { room: LandList }) {
   const { data: detail, error, isFetching, refetch } = useQuery(roomQueries.detail(String(room.id)));
-  const logger = useLogger();
-  const hasLoggedEntry = useRef(false);
-
-  useEffect(() => {
-    if (!detail || detail.is_deleted || hasLoggedEntry.current) return;
-    hasLoggedEntry.current = true;
-    logger.actionEventClick({
-      event_name: 'DA1',
-      event_label: 'real_estate__room_list__room_detail__entry__click',
-      value: room.name,
-    });
-  }, [detail, logger, room.name]);
 
   if (error || detail?.is_deleted) {
     return (
