@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
@@ -27,7 +27,16 @@ function RoomPage() {
   const { data: roomList } = useQuery(roomQueries.list());
   const [rentType, setRentType] = useState<RoomRentType>('all');
   const [selectedRoom, setSelectedRoom] = useState<LandList | null>(null);
+  const [returnFocusRoomId, setReturnFocusRoomId] = useState<number | null>(null);
   const mapControlsRef = useRef<HTMLDivElement>(null);
+  const handleSelectRoom = (room: LandList) => {
+    setReturnFocusRoomId(room.id);
+    setSelectedRoom(room);
+  };
+  const handleSelectMarker = useCallback((room: LandList) => {
+    setReturnFocusRoomId(null);
+    setSelectedRoom(room);
+  }, []);
   const lands = useMemo(
     () =>
       roomList?.lands?.filter((room) => {
@@ -47,7 +56,7 @@ function RoomPage() {
     if (!map || !selectedRoom || !hasValidCoordinates(selectedRoom)) return;
     map.setCenter(new window.naver.maps.LatLng(selectedRoom.latitude, selectedRoom.longitude));
   }, [getMap, selectedRoom]);
-  useMarker({ getMap, lands, onSelect: setSelectedRoom, selectedRoomId: selectedRoom?.id });
+  useMarker({ getMap, lands, onSelect: handleSelectMarker, selectedRoomId: selectedRoom?.id });
 
   useScrollToTop();
 
@@ -69,7 +78,8 @@ function RoomPage() {
             lands={lands}
             rentType={rentType}
             onRentTypeChange={setRentType}
-            onSelectRoom={setSelectedRoom}
+            onSelectRoom={handleSelectRoom}
+            returnFocusRoomId={returnFocusRoomId}
             mapControlsRef={mapControlsRef}
           />
         )}

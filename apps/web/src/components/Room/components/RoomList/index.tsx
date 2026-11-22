@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import type { RefObject } from 'react';
 
 import type { LandList } from 'api/room/entity';
@@ -24,13 +24,19 @@ interface RoomListProps {
   onRentTypeChange: (rentType: RoomRentType) => void;
   mapControlsRef: RefObject<HTMLDivElement | null>;
   onSelectRoom: (room: LandList) => void;
+  returnFocusRoomId?: number | null;
 }
 
 function RoomList(props: RoomListProps) {
-  const { lands, rentType, onRentTypeChange, onSelectRoom, mapControlsRef } = props;
+  const { lands, rentType, onRentTypeChange, onSelectRoom, mapControlsRef, returnFocusRoomId } = props;
   const listId = useId();
+  const returnFocusRef = useRef<HTMLButtonElement>(null);
   const { panelRef, isMobile, isExpanded, handleToggle, dragHandlers } = useRoomPanelDrag(mapControlsRef);
   const listTitle = `${RENT_TYPE_LABELS[rentType]}(${lands?.length ?? 0})`;
+
+  useEffect(() => {
+    returnFocusRef.current?.focus();
+  }, [returnFocusRoomId]);
 
   return (
     <section ref={panelRef} className={styles.panel} aria-label="건물 목록">
@@ -73,7 +79,11 @@ function RoomList(props: RoomListProps) {
         <ul id={listId} className={styles.list}>
           {lands?.map((room) => (
             <li className={styles.list__item} key={room.id}>
-              <RoomCard room={room} onClick={() => onSelectRoom(room)} />
+              <RoomCard
+                room={room}
+                onClick={() => onSelectRoom(room)}
+                buttonRef={room.id === returnFocusRoomId ? returnFocusRef : undefined}
+              />
             </li>
           ))}
         </ul>
