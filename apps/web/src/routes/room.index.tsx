@@ -32,6 +32,7 @@ function RoomPage() {
   const isSearchEmpty = !!keyword && results?.length === 0;
   const [rentType, setRentType] = useState<RoomRentType>('all');
   const [selectedRoom, setSelectedRoom] = useState<LandList | null>(null);
+  const [clusterRoomIds, setClusterRoomIds] = useState<Set<number> | null>(null);
   const [returnFocusRoomId, setReturnFocusRoomId] = useState<number | null>(null);
   const [previousKeyword, setPreviousKeyword] = useState(keyword);
   const mapControlsRef = useRef<HTMLDivElement>(null);
@@ -43,18 +44,30 @@ function RoomPage() {
     setReturnFocusRoomId(null);
     setSelectedRoom(room);
   };
+  const handleSelectCluster = (ids: number[]) => {
+    setSelectedRoom(null);
+    setReturnFocusRoomId(null);
+    setClusterRoomIds(new Set(ids));
+  };
   const lands = results?.filter((room) => {
     if (rentType === 'monthly') return room.is_monthly_available;
     if (rentType === 'charter') return room.is_charter_available;
 
     return true;
   });
+  const listLands = clusterRoomIds ? lands?.filter(({ id }) => clusterRoomIds.has(id)) : lands;
   const { isLoaded: isMapLoaded, hasError: hasMapScriptError } = useNaverMapScript();
   const { getMap, hasError: hasMapInitError } = useNaverMap(LOCATION.latitude, LOCATION.longitude, isMapLoaded, {
     zoomControl: false,
   });
   const hasMapError = hasMapScriptError || hasMapInitError;
-  useMarker({ getMap, lands, onSelect: handleSelectMarker, selectedRoomId: selectedRoom?.id });
+  useMarker({
+    getMap,
+    lands,
+    onSelect: handleSelectMarker,
+    onSelectCluster: handleSelectCluster,
+    selectedRoomId: selectedRoom?.id,
+  });
 
   useScrollToTop();
 
@@ -62,6 +75,7 @@ function RoomPage() {
     setPreviousKeyword(keyword);
     setSelectedRoom(null);
     setReturnFocusRoomId(null);
+    setClusterRoomIds(null);
   }
 
   return (
@@ -83,6 +97,7 @@ function RoomPage() {
         onSearch={(value) => {
           setSelectedRoom(null);
           setReturnFocusRoomId(null);
+          setClusterRoomIds(null);
 
           return searchRooms(value);
         }}
@@ -101,13 +116,17 @@ function RoomPage() {
           <RoomSelection
             key={selectedRoom.id}
             room={selectedRoom}
-            onClose={() => setSelectedRoom(null)}
+            onClose={() => {
+              setSelectedRoom(null);
+              setClusterRoomIds(null);
+            }}
             getMap={getMap}
             mapControlsRef={mapControlsRef}
           />
         ) : (
           <RoomList
-            lands={lands}
+            lands={listLands}
+            clusterIds={clusterRoomIds}
             rentType={rentType}
             onRentTypeChange={setRentType}
             onSelectRoom={handleSelectRoom}

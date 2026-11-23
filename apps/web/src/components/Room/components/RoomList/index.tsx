@@ -21,6 +21,7 @@ const RENT_TYPE_LABELS: Record<RoomRentType, string> = {
 
 interface RoomListProps {
   lands: LandList[] | undefined;
+  clusterIds: ReadonlySet<number> | null;
   rentType: RoomRentType;
   onRentTypeChange: (rentType: RoomRentType) => void;
   mapControlsRef: RefObject<HTMLDivElement | null>;
@@ -29,21 +30,31 @@ interface RoomListProps {
 }
 
 function RoomList(props: RoomListProps) {
-  const { lands, rentType, onRentTypeChange, onSelectRoom, mapControlsRef, returnFocusRoomId } = props;
+  const { lands, clusterIds, rentType, onRentTypeChange, onSelectRoom, mapControlsRef, returnFocusRoomId } = props;
   const logger = useLogger();
   const listId = useId();
   const returnFocusRef = useRef<HTMLButtonElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
   const { panelRef, isMobile, isExpanded, handleToggle, dragHandlers } = useRoomPanelDrag(mapControlsRef);
-  const listTitle = `${RENT_TYPE_LABELS[rentType]}(${lands?.length ?? 0})`;
+  const listTitle = `${clusterIds ? '묶음' : RENT_TYPE_LABELS[rentType]}(${lands?.length ?? 0})`;
+
+  useEffect(() => {
+    listRef.current?.scrollTo({ top: 0 });
+  }, [clusterIds, rentType]);
+
+  useEffect(() => {
+    if (clusterIds) headingRef.current?.focus({ preventScroll: true });
+  }, [clusterIds]);
 
   useEffect(() => {
     returnFocusRef.current?.focus();
   }, [returnFocusRoomId]);
 
   return (
-    <section ref={panelRef} className={styles.panel} aria-label="건물 목록">
+    <section ref={panelRef} className={styles.panel} aria-label={clusterIds ? '묶음 목록' : '건물 목록'}>
       <div className={styles.header}>
-        <h2 className={styles.header__count} aria-live="polite">
+        <h2 ref={headingRef} className={styles.header__count} aria-live="polite" tabIndex={-1}>
           {isMobile ? (
             <button
               type="button"
@@ -78,7 +89,7 @@ function RoomList(props: RoomListProps) {
       {lands?.length === 0 ? (
         <SearchEmptyState id={listId} className={styles.empty} />
       ) : (
-        <ul id={listId} className={styles.list}>
+        <ul ref={listRef} id={listId} className={styles.list}>
           {lands?.map((room) => (
             <li className={styles.list__item} key={room.id}>
               <RoomCard
