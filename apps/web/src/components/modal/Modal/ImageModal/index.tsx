@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { cn } from '@bcsdlab/utils';
 
 import PhotoNextIcon from 'assets/svg/Club/next-image-icon.svg';
@@ -71,9 +71,9 @@ function ImageModal({
     onNext: () => navigateImage(1),
   });
 
-  const handleArrowClick = (event: MouseEvent<HTMLButtonElement>, direction: -1 | 1) => {
+  const handleArrowClick = (direction: -1 | 1) => {
     navigateImage(direction);
-    if (event.detail > 0) onArrowClick?.(direction);
+    onArrowClick?.(direction);
   };
 
   const handleCloseClick = () => {
@@ -149,7 +149,7 @@ function ImageModal({
             [styles['arrow-button']]: true,
             [styles['arrow-button--prev']]: true,
           })}
-          onClick={(event) => handleArrowClick(event, -1)}
+          onClick={() => handleArrowClick(-1)}
         />
       )}
       {!isMobileNavigation && !isDesktopGallery && selectedIndex !== imageList.length - 1 && (
@@ -160,7 +160,7 @@ function ImageModal({
             [styles['arrow-button']]: true,
             [styles['arrow-button--next']]: true,
           })}
-          onClick={(event) => handleArrowClick(event, 1)}
+          onClick={() => handleArrowClick(1)}
         />
       )}
       {isDesktopGallery && (
@@ -189,7 +189,7 @@ function ImageModal({
                     className={styles['desktop-gallery__previous']}
                     aria-label="이전 이미지"
                     disabled={selectedIndex === 0}
-                    onClick={(event) => handleArrowClick(event, -1)}
+                    onClick={() => handleArrowClick(-1)}
                   >
                     <PhotoPreviousIcon aria-hidden />
                   </button>
@@ -198,7 +198,7 @@ function ImageModal({
                     className={styles['desktop-gallery__next']}
                     aria-label="다음 이미지"
                     disabled={selectedIndex === imageList.length - 1}
-                    onClick={(event) => handleArrowClick(event, 1)}
+                    onClick={() => handleArrowClick(1)}
                   >
                     <PhotoNextIcon aria-hidden />
                   </button>
