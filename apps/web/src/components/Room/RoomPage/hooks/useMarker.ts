@@ -15,9 +15,14 @@ interface MarkerProps {
   selectedRoomId: number | undefined;
 }
 
+interface ClusterMarker {
+  marker: naver.maps.Marker;
+  clickListener: naver.maps.MapEventListener;
+}
+
 function useMarker({ getMap, lands, onSelect, selectedRoomId }: MarkerProps) {
   const markersRef = useRef<Array<{ id: number; marker: naver.maps.Marker }>>([]);
-  const clustersRef = useRef(new Map<string, naver.maps.Marker>());
+  const clustersRef = useRef(new Map<string, ClusterMarker>());
   const selectedRoomIdRef = useRef(selectedRoomId);
   const updateClustersRef = useRef<(() => void) | null>(null);
 
@@ -25,11 +30,18 @@ function useMarker({ getMap, lands, onSelect, selectedRoomId }: MarkerProps) {
     const map = getMap();
     if (!map || !lands || !window.naver?.maps) return;
 
+    const removeCluster = (key: string) => {
+      const cluster = clustersRef.current.get(key);
+      if (!cluster) return;
+
+      window.naver.maps.Event.removeListener(cluster.clickListener);
+      cluster.marker.setMap(null);
+      clustersRef.current.delete(key);
+    };
     const clearMarkers = () => {
       markersRef.current.forEach(({ marker }) => marker.setMap(null));
       markersRef.current = [];
-      clustersRef.current.forEach((marker) => marker.setMap(null));
-      clustersRef.current.clear();
+      clustersRef.current.forEach((_, key) => removeCluster(key));
     };
     clearMarkers();
 
@@ -86,7 +98,7 @@ function useMarker({ getMap, lands, onSelect, selectedRoomId }: MarkerProps) {
         const ids = group.map(({ id }) => id);
         const key = ids.join(',');
         activeClusterKeys.add(key);
-        let marker = clustersRef.current.get(key);
+        let marker = clustersRef.current.get(key)?.marker;
         if (!marker) {
           const centerMarker = markersById.get(group[0].id);
           if (!centerMarker) return;
@@ -97,9 +109,14 @@ function useMarker({ getMap, lands, onSelect, selectedRoomId }: MarkerProps) {
             visible: false,
             icon: { content: MarkerIcon(group.length) },
             title: `건물 ${group.length}개`,
-            clickable: false,
+            clickable: true,
           });
-          clustersRef.current.set(key, marker);
+          const clickListener = marker.addListener('click', () => {
+            if (map.getZoom() >= map.getMaxZoom()) return;
+
+            map.zoomBy(1, centerMarker.getPosition(), true);
+          });
+          clustersRef.current.set(key, { marker, clickListener });
         }
         const clusterMarker = marker;
         displayGroups.push({
@@ -107,8 +124,7 @@ function useMarker({ getMap, lands, onSelect, selectedRoomId }: MarkerProps) {
           marker: clusterMarker,
           onHide: () => {
             if (selectedRoomIdRef.current !== undefined || activeClusterKeys.has(key)) return;
-            clusterMarker.setMap(null);
-            clustersRef.current.delete(key);
+            removeCluster(key);
           },
         });
       });
@@ -120,10 +136,9 @@ function useMarker({ getMap, lands, onSelect, selectedRoomId }: MarkerProps) {
       );
       previousZoom = zoom;
       previousSelectedId = selectedId;
-      clustersRef.current.forEach((marker, key) => {
+      clustersRef.current.forEach(({ marker }, key) => {
         if (selectedId === undefined && !activeClusterKeys.has(key) && !marker.getVisible()) {
-          marker.setMap(null);
-          clustersRef.current.delete(key);
+          removeCluster(key);
         }
       });
     };
