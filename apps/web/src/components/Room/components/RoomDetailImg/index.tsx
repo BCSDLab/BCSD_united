@@ -26,16 +26,14 @@ function RoomDetailImg({ imgUrl }: RoomDetailImgProps) {
     });
   };
   const previousImage = () => {
-    if (imgIndex > 0) {
-      logImageSlide('이전');
-      clickLeftArrow();
-    }
+    if (isMobile && imgIndex <= 0) return;
+    logImageSlide('이전');
+    clickLeftArrow();
   };
   const nextImage = () => {
-    if (imgIndex < imgUrl.length - 1) {
-      logImageSlide('다음');
-      clickRightArrow();
-    }
+    if (isMobile && imgIndex >= imgUrl.length - 1) return;
+    logImageSlide('다음');
+    clickRightArrow();
   };
   const openImage = () => {
     portal.open((option: Portal) => (
@@ -59,14 +57,7 @@ function RoomDetailImg({ imgUrl }: RoomDetailImgProps) {
   return (
     <div className={styles['img-slider']}>
       {!isMobile && (
-        <button
-          className={styles['img-slider__img-arrow']}
-          type="button"
-          onClick={() => {
-            logImageSlide('이전');
-            clickLeftArrow();
-          }}
-        >
+        <button className={styles['img-slider__img-arrow']} type="button" onClick={previousImage}>
           <Image
             src="https://static.koreatech.in/assets/ic-room/left-arrow.png"
             alt=""
@@ -116,14 +107,7 @@ function RoomDetailImg({ imgUrl }: RoomDetailImgProps) {
         )}
       </div>
       {!isMobile && (
-        <button
-          className={styles['img-slider__img-arrow']}
-          type="button"
-          onClick={() => {
-            logImageSlide('다음');
-            clickRightArrow();
-          }}
-        >
+        <button className={styles['img-slider__img-arrow']} type="button" onClick={nextImage}>
           <Image
             src="https://static.koreatech.in/assets/ic-room/right-arrow.png"
             alt=""
