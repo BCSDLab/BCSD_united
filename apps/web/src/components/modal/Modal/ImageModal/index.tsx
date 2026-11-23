@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
 import { cn } from '@bcsdlab/utils';
 
 import PhotoNextIcon from 'assets/svg/Club/next-image-icon.svg';
@@ -24,6 +24,8 @@ export interface ImageModalProps {
   imageSize?: 'default' | 'large';
   mobileNavigation?: boolean;
   onClose: () => void;
+  onArrowClick?: (direction: -1 | 1) => void;
+  onCloseButtonClick?: () => void;
 }
 
 function ImageModal({
@@ -36,6 +38,8 @@ function ImageModal({
   imageSize = 'default',
   mobileNavigation = false,
   onClose,
+  onArrowClick,
+  onCloseButtonClick,
 }: ImageModalProps) {
   const isMobile = useMediaQuery();
   const isMobileNavigation = mobileNavigation && isMobile;
@@ -66,6 +70,16 @@ function ImageModal({
     onPrevious: () => navigateImage(-1),
     onNext: () => navigateImage(1),
   });
+
+  const handleArrowClick = (event: MouseEvent<HTMLButtonElement>, direction: -1 | 1) => {
+    navigateImage(direction);
+    if (event.detail > 0) onArrowClick?.(direction);
+  };
+
+  const handleCloseClick = () => {
+    onCloseButtonClick?.();
+    onClose();
+  };
 
   const { backgroundRef } = useOutsideClick({ onOutsideClick: onClose });
   useEscapeKeyDown({ onEscape: onClose });
@@ -135,7 +149,7 @@ function ImageModal({
             [styles['arrow-button']]: true,
             [styles['arrow-button--prev']]: true,
           })}
-          onClick={() => navigateImage(-1)}
+          onClick={(event) => handleArrowClick(event, -1)}
         />
       )}
       {!isMobileNavigation && !isDesktopGallery && selectedIndex !== imageList.length - 1 && (
@@ -146,7 +160,7 @@ function ImageModal({
             [styles['arrow-button']]: true,
             [styles['arrow-button--next']]: true,
           })}
-          onClick={() => navigateImage(1)}
+          onClick={(event) => handleArrowClick(event, 1)}
         />
       )}
       {isDesktopGallery && (
@@ -160,7 +174,7 @@ function ImageModal({
               type="button"
               className={styles['desktop-header__close']}
               aria-label="이미지 닫기"
-              onClick={onClose}
+              onClick={handleCloseClick}
             >
               <PhotoCloseIcon width={40} height={40} aria-hidden />
             </button>
@@ -175,7 +189,7 @@ function ImageModal({
                     className={styles['desktop-gallery__previous']}
                     aria-label="이전 이미지"
                     disabled={selectedIndex === 0}
-                    onClick={() => navigateImage(-1)}
+                    onClick={(event) => handleArrowClick(event, -1)}
                   >
                     <PhotoPreviousIcon aria-hidden />
                   </button>
@@ -184,7 +198,7 @@ function ImageModal({
                     className={styles['desktop-gallery__next']}
                     aria-label="다음 이미지"
                     disabled={selectedIndex === imageList.length - 1}
-                    onClick={() => navigateImage(1)}
+                    onClick={(event) => handleArrowClick(event, 1)}
                   >
                     <PhotoNextIcon aria-hidden />
                   </button>
@@ -231,7 +245,7 @@ function ImageModal({
       )}
       {!isDesktopGallery && !isMobileNavigation && image}
       {!isDesktopGallery && (
-        <button className={styles.close} type="button" aria-label="이미지 닫기" onClick={() => onClose()} />
+        <button className={styles.close} type="button" aria-label="이미지 닫기" onClick={handleCloseClick} />
       )}
     </div>
   );

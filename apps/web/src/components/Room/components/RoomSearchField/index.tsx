@@ -4,6 +4,7 @@ import { cn } from '@bcsdlab/utils';
 import type { LandList } from 'api/room/entity';
 import filterRoomsByName from 'components/Room/utils/filterRoomsByName';
 import SearchBar from 'components/ui/SearchBar';
+import useLogger from 'utils/hooks/analytics/useLogger';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
 import { useEscapeKeyDown } from 'utils/hooks/ui/useEscapeKeyDown';
 import { useOutsideClick } from 'utils/hooks/ui/useOutsideClick';
@@ -19,6 +20,7 @@ interface RoomSearchFieldProps {
 }
 
 export default function RoomSearchField({ keyword, rooms, onSearch, className, searchIcon }: RoomSearchFieldProps) {
+  const logger = useLogger();
   const [value, setValue] = useState(keyword);
   const [isOpen, openCandidates, closeCandidates] = useBooleanState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -54,7 +56,24 @@ export default function RoomSearchField({ keyword, rooms, onSearch, className, s
           setValue(nextValue);
           openCandidates();
         }}
-        onSearch={() => confirmSearch(value)}
+        onInputClick={() =>
+          logger.actionEventClick({
+            event_name: 'DA1',
+            event_label: 'real_estate__room_list__search_input__click',
+            value: '검색창',
+          })
+        }
+        onSearch={() => {
+          if (value.trim()) {
+            logger.actionEventClick({
+              event_name: 'DA1',
+              event_label: 'real_estate__room_list__search__submit',
+              event_category: 'submit',
+              value: '검색',
+            });
+          }
+          confirmSearch(value);
+        }}
         inputRef={inputRef}
         className={styles.input}
         label="건물명 검색"
@@ -72,7 +91,14 @@ export default function RoomSearchField({ keyword, rooms, onSearch, className, s
                   type="button"
                   className={styles.candidate}
                   onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => confirmSearch(room.name)}
+                  onClick={() => {
+                    logger.actionEventClick({
+                      event_name: 'DA1',
+                      event_label: 'real_estate__room_list__search_suggestion__select__click',
+                      value: room.name,
+                    });
+                    confirmSearch(room.name);
+                  }}
                 >
                   {room.name.slice(0, matchIndex)}
                   <span className={styles.match}>{value}</span>

@@ -1,10 +1,8 @@
-import ImageModal from 'components/modal/Modal/ImageModal';
-import type { Portal } from 'components/modal/Modal/PortalProvider';
 import useClickArrow from 'components/Room/RoomDetailPage/hooks/useClickArrow';
+import useRoomPhotoModal from 'components/Room/RoomDetailPage/hooks/useRoomPhotoModal';
 import Image from 'components/ui/Image';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
-import useModalPortal from 'utils/hooks/layout/useModalPortal';
 import useImageSwipe from 'utils/hooks/ui/useImageSwipe';
 
 import styles from './RoomDetailImg.module.scss';
@@ -17,8 +15,18 @@ function RoomDetailImg({ imgUrl }: RoomDetailImgProps) {
   const isMobile = useMediaQuery();
   const { imgIndex, clickRightArrow, clickLeftArrow } = useClickArrow(imgUrl.length);
   const logger = useLogger();
-  const portal = useModalPortal();
+  const openRoomPhotoModal = useRoomPhotoModal();
   const logImageSlide = (value: '이전' | '다음') => {
+    if (isMobile) {
+      logger.actionEventSwipe({
+        event_name: 'DA1',
+        event_label: 'real_estate__room_detail__photo_view__slide__swipe',
+        value,
+      });
+
+      return;
+    }
+
     logger.actionEventClick({
       event_name: 'DA1',
       event_label: 'real_estate__room_detail__photo_view__slide__click',
@@ -36,16 +44,13 @@ function RoomDetailImg({ imgUrl }: RoomDetailImgProps) {
     clickRightArrow();
   };
   const openImage = () => {
-    portal.open((option: Portal) => (
-      <ImageModal
-        imageList={imgUrl}
-        imageIndex={imgIndex}
-        imageAlt="건물 사진"
-        dialogLabel="건물 사진 확대 보기"
-        mobileNavigation
-        onClose={option.close}
-      />
-    ));
+    openRoomPhotoModal({
+      imageList: imgUrl,
+      imageIndex: imgIndex,
+      imageAlt: '건물 사진',
+      dialogLabel: '건물 사진 확대 보기',
+      mobileNavigation: true,
+    });
   };
   const { handlers, onButtonClick } = useImageSwipe({
     enabled: isMobile,

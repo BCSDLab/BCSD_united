@@ -15,9 +15,11 @@ import RoomSelection from 'components/Room/components/RoomSelection';
 import useMarker from 'components/Room/RoomPage/hooks/useMarker';
 import useNaverMap from 'components/Room/RoomPage/hooks/useNaverMap';
 import useNaverMapScript from 'components/Room/RoomPage/hooks/useNaverMapScript';
+import useRoomBack from 'components/Room/RoomPage/hooks/useRoomBack';
 import useRoomSearch from 'components/Room/RoomPage/hooks/useRoomSearch';
 import SearchEmptyState from 'components/ui/SearchEmptyState';
 import ROUTES from 'static/routes';
+import useLogger from 'utils/hooks/analytics/useLogger';
 import useScrollToTop from 'utils/hooks/ui/useScrollToTop';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
@@ -29,6 +31,8 @@ const LOCATION = { latitude: 36.764617, longitude: 127.283154 };
 
 function RoomPage() {
   const { rooms, results, keyword, searchRooms } = useRoomSearch();
+  const logger = useLogger();
+  const handleBack = useRoomBack('room_list');
   const isSearchEmpty = !!keyword && results?.length === 0;
   const [rentType, setRentType] = useState<RoomRentType>('all');
   const [selectedRoom, setSelectedRoom] = useState<LandList | null>(null);
@@ -83,6 +87,7 @@ function RoomPage() {
       <MobilePageHeader
         title="복덕방"
         className={styles['mobile-header']}
+        onBack={handleBack}
         rightAction={
           <Link to={ROUTES.RoomSearch()} className={styles['search-link']} aria-label="건물 검색">
             <SearchIcon aria-hidden />
@@ -135,7 +140,18 @@ function RoomPage() {
           />
         )}
         <div ref={mapControlsRef} className={styles['map-controls']}>
-          {!hasMapError && <RoomMapControls onZoom={(delta) => getMap()?.zoomBy(delta)} />}
+          {!hasMapError && (
+            <RoomMapControls
+              onZoom={(delta) => {
+                logger.actionEventClick({
+                  event_name: 'DA1',
+                  event_label: 'real_estate__room_list__map__zoom__click',
+                  value: delta > 0 ? '확대' : '축소',
+                });
+                getMap()?.zoomBy(delta);
+              }}
+            />
+          )}
         </div>
         {isSearchEmpty && <SearchEmptyState className={styles.empty} />}
       </div>
