@@ -128,6 +128,7 @@ export const PROTECTED_ROUTES: RouteFn[] = [
   ROUTES.TeamMyApplications,
   ROUTES.TeamMyCreatedPosts,
   ROUTES.TeamChat,
+  ROUTES.CallvanChat,
 ];
 
 export default ROUTES;

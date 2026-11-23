@@ -6,7 +6,7 @@ import CafeteriaInfo from 'components/cafeteria/components/CafeteriaInfo';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useModalPortal from 'utils/hooks/layout/useModalPortal';
 
-import styles from 'components/cafeteria/PCCafeteriaPage/components/DateNavigator/DateNavigator.module.scss';
+import styles from 'components/cafeteria/PCCafeteriaPage/components/DateNavigator/DateNavigator.module.css';
 
 export default function CafeteriaInfoTrigger() {
   const portalManager = useModalPortal();

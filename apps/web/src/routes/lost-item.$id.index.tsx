@@ -9,6 +9,7 @@ import ReportIcon from 'assets/svg/Articles/report.svg';
 import CategoryBadge from 'components/Articles/components/CategoryBadge';
 import HotArticles from 'components/Articles/components/HotArticle';
 import { useArticlesLogger } from 'components/Articles/hooks/useArticlesLogger';
+import useLostItemLabels from 'components/Articles/hooks/useLostItemLabels';
 import DeleteModal from 'components/Articles/LostItemDetailPage/components/DeleteModal';
 import DisplayImage from 'components/Articles/LostItemDetailPage/components/DisplayImage';
 import FoundChip from 'components/Articles/LostItemDetailPage/components/FoundChip';
@@ -48,6 +49,7 @@ function LostItemDetailPage({ articleId }: LostItemDetailPageProps) {
   const isMobile = useMediaQuery();
   const portalManager = useModalPortal();
   const isLoggedIn = useIsLoggedIn();
+  const labels = useLostItemLabels();
 
   const { data: article } = useSuspenseQuery(articleQueries.lostItemDetail(isLoggedIn, articleId));
   const { mutateAsync: searchChatroom } = usePostLostItemChatroom();
@@ -87,7 +89,8 @@ function LostItemDetailPage({ articleId }: LostItemDetailPageProps) {
     is_mine,
     organization,
   } = article;
-  const typeLabel = type === 'FOUND' ? '[습득물]' : '[분실물]';
+  const mobileTypeLabel = labels.type(type);
+  const typeLabel = `[${mobileTypeLabel}]`;
 
   const translation = useContentTranslation<{ found_place: string; content: string }>({
     resourceType: 'LOST_ITEM',
@@ -102,7 +105,6 @@ function LostItemDetailPage({ articleId }: LostItemDetailPageProps) {
   // 번역을 보여주는 동안에만 습득 장소와 내용을 번역문으로 바꾼다
   const shownPlace = translation.translated?.found_place ?? found_place;
   const shownContent = translation.translated?.content ?? content;
-  const mobileTypeLabel = type === 'FOUND' ? '습득물' : '분실물';
 
   const requireLogin = (
     modalTitle: string,

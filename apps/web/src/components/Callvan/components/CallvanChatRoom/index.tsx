@@ -1,9 +1,11 @@
-import { useRef, useState, useEffect } from 'react';
-import { useSuspenseQuery } from '@tanstack/react-query';
+import { useRef, useState, useEffect, useMemo } from 'react';
+import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
 
-import type { CallvanChatMessage } from 'api/callvan/entity';
 import { callvanQueries } from 'api/callvan/queries';
+import type { ChatMessageResponse, ChatRoomResponse } from 'api/chat/entity';
+import { chatMutations } from 'api/chat/mutations';
+import { chatQueries } from 'api/chat/queries';
 import ArrowBackIcon from 'assets/svg/Callvan/arrow-back.svg';
 import PeopleIcon from 'assets/svg/Callvan/people.svg';
 import ImageUploadIcon from 'assets/svg/common/image-upload.svg';
@@ -11,8 +13,10 @@ import SendIcon from 'assets/svg/common/send.svg';
 import { ParticipantAvatarIcon } from 'components/Callvan/components/ParticipantsList/ParticipantAvatarIcon';
 import useSendCallvanChat from 'components/Callvan/hooks/useSendCallvanChat';
 import { getParticipantColor } from 'components/Callvan/utils/participantColor';
+import LoadingSpinner from 'components/feedback/LoadingSpinner';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
+import { useUser } from 'utils/hooks/state/useUser';
 import useUploadFile from 'utils/hooks/uploadFile/useUploadFile';
 
 import styles from './CallvanChatRoom.module.scss';
@@ -21,8 +25,36 @@ interface CallvanChatRoomProps {
   postId: number;
 }
 
-function groupMessagesByDate(messages: CallvanChatMessage[]): Array<{ date: string; messages: CallvanChatMessage[] }> {
-  const groups: Array<{ date: string; messages: CallvanChatMessage[] }> = [];
+interface AuthenticatedCallvanChatRoomProps extends CallvanChatRoomProps {
+  userId: number;
+}
+
+interface CallvanChatRoomContentProps {
+  room: ChatRoomResponse;
+  userId: number;
+}
+
+interface CallvanMessageView extends ChatMessageResponse {
+  date: string;
+  time: string;
+  is_mine: boolean;
+}
+
+const CHAT_POLLING_INTERVAL_MS = 1000;
+
+function toMessageView(message: ChatMessageResponse, userId: number | null): CallvanMessageView {
+  const hour = Number(message.timestamp.slice(11, 13));
+
+  return {
+    ...message,
+    date: message.timestamp.slice(0, 10).replaceAll('-', '. '),
+    time: `${hour < 12 ? '오전' : '오후'} ${hour % 12 || 12}:${message.timestamp.slice(14, 16)}`,
+    is_mine: userId !== null && message.user_id === userId,
+  };
+}
+
+function groupMessagesByDate(messages: CallvanMessageView[]): Array<{ date: string; messages: CallvanMessageView[] }> {
+  const groups: Array<{ date: string; messages: CallvanMessageView[] }> = [];
 
   messages.forEach((msg) => {
     const lastGroup = groups[groups.length - 1];
@@ -36,6 +68,24 @@ function groupMessagesByDate(messages: CallvanChatMessage[]): Array<{ date: stri
   return groups;
 }
 
+function findLastVisibleMessageId(container: HTMLDivElement): string | undefined {
+  const bounds = container.getBoundingClientRect();
+  const visibleTop = Math.max(bounds.top, 0);
+  const visibleBottom = Math.min(bounds.bottom, window.innerHeight);
+  if (bounds.width === 0 || visibleTop >= visibleBottom) return undefined;
+
+  const elements = container.querySelectorAll<HTMLElement>('[data-message-id]');
+  for (let index = elements.length - 1; index >= 0; index -= 1) {
+    const element = elements[index];
+    const messageBounds = element.getBoundingClientRect();
+    if (messageBounds.bottom > visibleTop && messageBounds.top < visibleBottom) {
+      return element.dataset.messageId;
+    }
+  }
+
+  return undefined;
+}
+
 function formatKoreanDateString(dateStr: string): string {
   const parts = dateStr.match(/\d+/g);
   if (parts && parts.length >= 3) {
@@ -45,23 +95,136 @@ function formatKoreanDateString(dateStr: string): string {
   return dateStr;
 }
 
-export default function CallvanChatRoom({ postId }: CallvanChatRoomProps) {
+export default function CallvanChatRoom(props: CallvanChatRoomProps) {
+  const { data: user } = useUser();
+  if (user === null) return null;
+
+  return <AuthenticatedCallvanChatRoom key={user.id} {...props} userId={user.id} />;
+}
+
+function AuthenticatedCallvanChatRoom({ postId, userId }: AuthenticatedCallvanChatRoomProps) {
+  const [hasCheckedRoom, setHasCheckedRoom] = useState(false);
+  const { data: rooms, error, refetch } = useSuspenseQuery(chatQueries.rooms(userId, 'CALLVAN'));
+  const room = rooms.find((candidate) => candidate.context_id === postId);
+
+  useEffect(() => {
+    if (room || hasCheckedRoom) return;
+
+    let active = true;
+    // 다른 기기에서 참여한 방이 캐시에 없을 수 있어 한 번 재조회한다.
+    void refetch({ cancelRefetch: false }).then(() => {
+      if (active) setHasCheckedRoom(true);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [room, hasCheckedRoom, refetch]);
+
+  if (!room) {
+    if (!hasCheckedRoom) return <LoadingSpinner size="50px" />;
+    if (error) throw error;
+
+    throw new Error('채팅방을 찾을 수 없습니다.');
+  }
+
+  return <CallvanChatRoomContent key={room.room_id} room={room} userId={userId} />;
+}
+
+function CallvanChatRoomContent({ room, userId }: CallvanChatRoomContentProps) {
   const router = useRouter();
   const logger = useLogger();
   const isLoggedIn = useIsLoggedIn();
-  const { data } = useSuspenseQuery(callvanQueries.chat(postId, isLoggedIn));
+  const queryClient = useQueryClient();
+  const postId = room.context_id;
+  const roomId = room.room_id;
+  const { data: messageCache } = useSuspenseQuery({
+    ...chatQueries.messages(queryClient, userId, roomId),
+    refetchInterval: CHAT_POLLING_INTERVAL_MS,
+  });
+  const messages = useMemo(
+    () => messageCache.messages.map((message) => toMessageView(message, userId)),
+    [messageCache.messages, userId],
+  );
   const { data: postDetail } = useSuspenseQuery(callvanQueries.postDetail(postId, isLoggedIn));
+  const { mutate: markRead } = useMutation(chatMutations.markRead(queryClient, userId, roomId));
+  const { mutateAsync: loadPreviousMessagesAsync } = useMutation(
+    chatMutations.loadPreviousMessages(queryClient, userId, roomId),
+  );
 
-  const { mutate: sendMessage, isPending: isSending } = useSendCallvanChat(postId);
+  const { mutate: sendMessage, isPending: isSending } = useSendCallvanChat(userId, roomId);
   const [inputValue, setInputValue] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const isFetchingPreviousMessagesRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { uploadFile, isPending: isUploading } = useUploadFile();
+  const lastMessageId = messageCache.messages[messageCache.messages.length - 1]?.message_id;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView();
-  }, [data.messages]);
+  }, [lastMessageId]);
+
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container || !room.supports_read_receipts) return;
+    let animationFrame: number | undefined;
+
+    const markVisibleMessages = () => {
+      animationFrame = undefined;
+      if (document.visibilityState !== 'visible') return;
+      const messageId = findLastVisibleMessageId(container);
+      if (messageId) markRead(messageId);
+    };
+    const scheduleRead = () => {
+      if (animationFrame === undefined) animationFrame = window.requestAnimationFrame(markVisibleMessages);
+    };
+
+    scheduleRead();
+    container.addEventListener('scroll', scheduleRead);
+    container.addEventListener('load', scheduleRead, true);
+    document.addEventListener('visibilitychange', scheduleRead);
+    window.addEventListener('resize', scheduleRead);
+
+    return () => {
+      if (animationFrame !== undefined) window.cancelAnimationFrame(animationFrame);
+      container.removeEventListener('scroll', scheduleRead);
+      container.removeEventListener('load', scheduleRead, true);
+      document.removeEventListener('visibilitychange', scheduleRead);
+      window.removeEventListener('resize', scheduleRead);
+    };
+  }, [messageCache.messages, room.supports_read_receipts, markRead]);
+
+  const loadPreviousMessages = async () => {
+    const container = messagesContainerRef.current;
+    if (!container || !messageCache.hasPreviousMessages || isFetchingPreviousMessagesRef.current) return;
+    isFetchingPreviousMessagesRef.current = true;
+    const anchor = container.querySelector<HTMLElement>('[data-message-id]');
+    const anchorId = anchor?.dataset.messageId;
+    const anchorTop = anchor?.getBoundingClientRect().top;
+
+    try {
+      const page = await loadPreviousMessagesAsync();
+      if (page && page.messages.length > 0) {
+        requestAnimationFrame(() => {
+          if (!anchorId || anchorTop === undefined) return;
+          const restoredAnchor = container.querySelector<HTMLElement>(`[data-message-id="${anchorId}"]`);
+          if (restoredAnchor) container.scrollTop += restoredAnchor.getBoundingClientRect().top - anchorTop;
+        });
+      }
+    } catch {
+      // 오류 표시는 공통 mutation에서 처리한다.
+    } finally {
+      isFetchingPreviousMessagesRef.current = false;
+    }
+  };
+
+  const handleMessagesScroll = () => {
+    if (messagesContainerRef.current && messagesContainerRef.current.scrollTop <= 0) {
+      void loadPreviousMessages();
+    }
+  };
 
   const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -115,15 +278,15 @@ export default function CallvanChatRoom({ postId }: CallvanChatRoomProps) {
     }
   };
 
-  const senderColorMap = new Map<number, number>();
+  const senderColorMap = new Map<number | null, number>();
 
-  data.messages.forEach((message) => {
+  messages.forEach((message) => {
     if (!message.is_mine && !senderColorMap.has(message.user_id)) {
       senderColorMap.set(message.user_id, senderColorMap.size);
     }
   });
 
-  const messageGroups = groupMessagesByDate(data.messages);
+  const messageGroups = groupMessagesByDate(messages);
 
   return (
     <div className={styles['chat-room']}>
@@ -150,7 +313,7 @@ export default function CallvanChatRoom({ postId }: CallvanChatRoomProps) {
         <div className={styles['chat-room__header-menu']} />
       </div>
 
-      <div className={styles['chat-room__messages']}>
+      <div className={styles['chat-room__messages']} ref={messagesContainerRef} onScroll={handleMessagesScroll}>
         {messageGroups.length === 0 && <div className={styles['chat-room__empty']}>아직 대화가 없습니다.</div>}
 
         {messageGroups.map((group) => (
@@ -160,11 +323,11 @@ export default function CallvanChatRoom({ postId }: CallvanChatRoomProps) {
             </div>
 
             {group.messages.map((msg, idx) => {
-              const key = `${msg.user_id}-${msg.time}-${idx}`;
+              const key = msg.message_id;
 
               if (msg.is_mine) {
                 return (
-                  <div key={key} className={styles['chat-room__message-row--mine']}>
+                  <div key={key} className={styles['chat-room__message-row--mine']} data-message-id={msg.message_id}>
                     {msg.unread_count > 0 ? (
                       <div className={styles['chat-room__textheader--mine']}>
                         <span className={styles['chat-room__unread-count']}>{msg.unread_count}</span>
@@ -192,6 +355,7 @@ export default function CallvanChatRoom({ postId }: CallvanChatRoomProps) {
               return (
                 <div
                   key={key}
+                  data-message-id={msg.message_id}
                   className={
                     showSender
                       ? styles['chat-room__message-group--others']
@@ -202,7 +366,7 @@ export default function CallvanChatRoom({ postId }: CallvanChatRoomProps) {
                     <div className={styles['chat-room__sender-row']}>
                       <ParticipantAvatarIcon color={getParticipantColor(senderColorMap.get(msg.user_id) ?? 0)} />
                       <div className={styles['chat-room__sender-info']}>
-                        <span className={styles['chat-room__sender-name']}>{msg.sender_nickname}</span>
+                        <span className={styles['chat-room__sender-name']}>{msg.user_nickname}</span>
                         {msg.is_left_user && <span className={styles['chat-room__left-badge']}>(나간 사용자)</span>}
                       </div>
                     </div>

@@ -4,7 +4,7 @@ import { useBodyScrollLock } from 'utils/hooks/ui/useBodyScrollLock';
 import { useEscapeKeyDown } from 'utils/hooks/ui/useEscapeKeyDown';
 import { useOutsideClick } from 'utils/hooks/ui/useOutsideClick';
 
-import styles from './DetailImage.module.scss';
+import styles from './DetailImage.module.css';
 
 interface DetailModalProps {
   url: string | null;

@@ -1,5 +1,5 @@
 import { cn } from '@bcsdlab/utils';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useRouter } from '@tanstack/react-router';
 
 import type { TeamRecruitmentApplicant } from 'api/team/entity';
@@ -7,7 +7,7 @@ import { teamMutations } from 'api/team/mutations';
 import ChatBubbleIcon from 'assets/svg/Team/chat-bubble.svg';
 import ChevronRightIcon from 'assets/svg/Team/chevron-right-icon.svg';
 import ProfileAvatarIcon from 'assets/svg/Team/profile-avatar-icon.svg';
-import formatApplicationStatus from 'components/Team/utils/formatApplicationStatus';
+import useRecruitmentLabels from 'components/Team/utils/useRecruitmentLabels';
 import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
@@ -28,7 +28,9 @@ interface ApplicantCardProps {
 }
 
 export default function ApplicantCard({ applicant, recruitmentId }: ApplicantCardProps) {
+  const queryClient = useQueryClient();
   const router = useRouter();
+  const labels = useRecruitmentLabels();
   const logger = useLogger();
   const isMobile = useMediaQuery();
   const {
@@ -41,7 +43,7 @@ export default function ApplicantCard({ applicant, recruitmentId }: ApplicantCar
   } = applicant;
 
   const { mutate: createDirectChatRoom, isPending: isCreatingChat } = useMutation(
-    teamMutations.createDirectChatRoom(Number(recruitmentId)),
+    teamMutations.createDirectChatRoom(queryClient, Number(recruitmentId)),
   );
 
   const handleCardClick = () => {
@@ -80,7 +82,7 @@ export default function ApplicantCard({ applicant, recruitmentId }: ApplicantCar
   const statusLabel = (
     <span className={cn({ [styles.card__status]: true, [styles[STATUS_CLASS[status]]]: true })}>
       {isMobile && '· '}
-      {formatApplicationStatus(status)}
+      {labels.applicationStatus(status)}
     </span>
   );
 

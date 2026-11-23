@@ -7,7 +7,7 @@ import { useCafeteriaParams } from 'components/cafeteria/hooks/useCafeteriaParam
 import { kstDateKey, kstDayOfWeek } from 'utils/ts/calendar';
 
 import CafeteriaInfoTrigger from './components/CafeteriaInfoTrigger';
-import styles from './DateNavigator.module.scss';
+import styles from './DateNavigator.module.css';
 
 interface DayInfo {
   weekDay: string;

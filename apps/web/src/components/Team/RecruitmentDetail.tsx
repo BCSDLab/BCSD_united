@@ -15,7 +15,8 @@ import LoginRequiredModal from 'components/modal/LoginRequiredModal';
 import DeleteConfirmModal from 'components/Team/components/DeleteConfirmModal';
 import OwnerActionMenu from 'components/Team/components/OwnerActionMenu';
 import { RecruitmentBadges } from 'components/Team/components/RecruitmentCard';
-import { formatRecruitmentDate, MEETING_TYPE_LABEL } from 'components/Team/utils/recruitmentDisplay';
+import { formatRecruitmentDate } from 'components/Team/utils/recruitmentDisplay';
+import useRecruitmentLabels from 'components/Team/utils/useRecruitmentLabels';
 import TranslateButton from 'components/translation/TranslateButton';
 import useContentTranslation, { translationSource } from 'components/translation/useContentTranslation';
 import ROUTES from 'static/routes';
@@ -77,6 +78,7 @@ interface DetailContentProps {
 
 function DetailContent({ recruitment, onEdit, onDelete }: DetailContentProps) {
   const router = useRouter();
+  const labels = useRecruitmentLabels();
   const logger = useLogger();
   const [isLoginModalOpen, openLoginModal, closeLoginModal] = useBooleanState(false);
   const primaryAction = getPrimaryAction(recruitment);
@@ -224,7 +226,7 @@ function DetailContent({ recruitment, onEdit, onDelete }: DetailContentProps) {
                   </span>
                   진행 방식
                 </dt>
-                <dd className={styles.information__value}>{MEETING_TYPE_LABEL[recruitment.meeting_type]}</dd>
+                <dd className={styles.information__value}>{labels.meetingType(recruitment.meeting_type)}</dd>
               </div>
               <div className={styles.information__row}>
                 <dt className={styles.information__label}>

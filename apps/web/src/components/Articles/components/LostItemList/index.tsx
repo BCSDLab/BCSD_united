@@ -4,6 +4,7 @@ import { Link } from '@tanstack/react-router';
 import type { LostItemArticleForGetDTO } from 'api/articles/entity';
 import CategoryBadge from 'components/Articles/components/CategoryBadge';
 import { useArticlesLogger } from 'components/Articles/hooks/useArticlesLogger';
+import useLostItemLabels from 'components/Articles/hooks/useLostItemLabels';
 import FoundChip from 'components/Articles/LostItemDetailPage/components/FoundChip';
 import setArticleRegisteredDate from 'components/Articles/utils/setArticleRegisteredDate';
 import Image from 'components/ui/Image';
@@ -34,13 +35,14 @@ export default function LostItemList({ articles }: LostItemListProps) {
   const referenceDate = serverRequest ? new Date(serverRequest.now) : null;
   const isMobile = useMediaQuery();
   const { logLostItemPostEntry } = useArticlesLogger();
+  const labels = useLostItemLabels();
 
   const handleReportedClick = () => showToast('error', '신고된 게시글은 볼 수 없습니다.');
 
   const getCommon = (article: LostItemArticleForGetDTO) => {
     const [registeredDate, isNewArticle] = setArticleRegisteredDate(article.registered_at, referenceDate);
     const detailLink = ROUTES.LostItemDetail({ id: String(article.id) });
-    const typeText = article.type === 'LOST' ? '분실물' : '습득물';
+    const typeText = labels.type(article.type);
 
     return { registeredDate, isNewArticle, detailLink, typeText };
   };

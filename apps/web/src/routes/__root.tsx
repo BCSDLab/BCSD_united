@@ -43,7 +43,7 @@ export const Route = createRootRoute({
 
     return snapshot;
   },
-  loader: ({ context }) => ({ serverRequest: context.serverRequest }),
+  loader: ({ context }) => ({ serverRequest: context.serverRequest, messages: context.messages ?? null }),
   head: () => ({
     meta: [
       { charSet: 'utf-8' },
@@ -105,7 +105,9 @@ function RootDocument({ children }: { children: ReactNode }) {
             />
           </noscript>
         )}
-        <ApplicationProviders serverRequest={data?.serverRequest ?? null}>{children}</ApplicationProviders>
+        <ApplicationProviders serverRequest={data?.serverRequest ?? null} messages={data?.messages ?? null}>
+          {children}
+        </ApplicationProviders>
         {gtmId && (
           <script
             dangerouslySetInnerHTML={{

@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router';
 
 import { articleQueries } from 'api/articles/queries';
 import CategoryBadge from 'components/Articles/components/CategoryBadge';
+import useLostItemLabels from 'components/Articles/hooks/useLostItemLabels';
 import FoundChip from 'components/Articles/LostItemDetailPage/components/FoundChip';
 import ROUTES from 'static/routes';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
@@ -14,6 +15,7 @@ import styles from './LatestLostItemList.module.scss';
 function LatestLostItemList() {
   const isMobile = useMediaQuery();
   const isLoggedIn = useIsLoggedIn();
+  const labels = useLostItemLabels();
   const { data, hasNextPage, fetchNextPage, isFetchingNextPage } = useSuspenseInfiniteQuery(
     articleQueries.lostItemInfiniteList(isLoggedIn, {
       limit: 10,
@@ -34,7 +36,7 @@ function LatestLostItemList() {
           articles.map((article) => (
             <Link key={article.id} to={ROUTES.LostItemDetail({ id: String(article.id) })} className={styles.item}>
               <div className={styles.item__content}>
-                <span className={styles.item__type}>{article.type === 'LOST' ? '분실물' : '습득물'}</span>
+                <span className={styles.item__type}>{labels.type(article.type)}</span>
                 <div className={styles.item__info}>
                   <CategoryBadge category={article.category} isMobile={isMobile} className={styles.item__category} />
                   <span className={styles.item__place}>{article.found_place}</span>
