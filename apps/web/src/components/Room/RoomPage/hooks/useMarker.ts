@@ -12,6 +12,7 @@ interface MarkerProps {
   getMap: () => naver.maps.Map | null;
   lands: LandList[] | undefined;
   onSelect: (room: LandList) => void;
+  onSelectCluster: (ids: number[]) => void;
   selectedRoomId: number | undefined;
 }
 
@@ -20,7 +21,7 @@ interface ClusterMarker {
   clickListener: naver.maps.MapEventListener;
 }
 
-function useMarker({ getMap, lands, onSelect, selectedRoomId }: MarkerProps) {
+function useMarker({ getMap, lands, onSelect, onSelectCluster, selectedRoomId }: MarkerProps) {
   const markersRef = useRef<Array<{ id: number; marker: naver.maps.Marker }>>([]);
   const clustersRef = useRef(new Map<string, ClusterMarker>());
   const selectedRoomIdRef = useRef(selectedRoomId);
@@ -112,7 +113,11 @@ function useMarker({ getMap, lands, onSelect, selectedRoomId }: MarkerProps) {
             clickable: true,
           });
           const clickListener = marker.addListener('click', () => {
-            if (map.getZoom() >= map.getMaxZoom()) return;
+            if (map.getZoom() >= map.getMaxZoom()) {
+              onSelectCluster(ids);
+
+              return;
+            }
 
             map.zoomBy(1, centerMarker.getPosition(), true);
           });
@@ -151,7 +156,7 @@ function useMarker({ getMap, lands, onSelect, selectedRoomId }: MarkerProps) {
       animator.clear();
       clearMarkers();
     };
-  }, [getMap, lands, onSelect]);
+  }, [getMap, lands, onSelect, onSelectCluster]);
 
   useEffect(() => {
     selectedRoomIdRef.current = selectedRoomId;
@@ -160,7 +165,7 @@ function useMarker({ getMap, lands, onSelect, selectedRoomId }: MarkerProps) {
       marker.getElement().classList.toggle(styles.selected, id === selectedRoomId);
       marker.setZIndex(id === selectedRoomId ? 1 : 0);
     });
-  }, [getMap, lands, onSelect, selectedRoomId]);
+  }, [getMap, lands, onSelect, onSelectCluster, selectedRoomId]);
 
   const getMarkerArray = () => markersRef.current.map(({ marker }) => marker);
 
