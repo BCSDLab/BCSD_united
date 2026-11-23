@@ -1,4 +1,5 @@
 @use "src/utils/scss/media" as media;
+@use "src/utils/scss/tokens" as tokens;
 
 .background {
   position: fixed;
@@ -134,5 +135,112 @@
     &--next {
       right: 0;
     }
+  }
+}
+
+.background--desktop-gallery {
+  box-sizing: border-box;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 80px;
+  padding: 60px;
+}
+
+.desktop-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  align-self: stretch;
+
+  &__text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    line-height: 1.6;
+  }
+
+  &__title {
+    color: tokens.$white;
+    font-size: tokens.$font-size-28;
+    font-weight: tokens.$font-weight-bold;
+  }
+
+  &__description {
+    color: tokens.$neutral-400;
+    font-size: tokens.$font-size-24;
+    font-weight: tokens.$font-weight-medium;
+  }
+
+  &__close {
+    display: flex;
+    cursor: pointer;
+
+    > svg > path {
+      stroke: tokens.$white;
+    }
+
+    &:focus-visible {
+      outline: 2px solid tokens.$white;
+      outline-offset: 4px;
+    }
+  }
+}
+
+.desktop-gallery {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+  min-height: 0;
+  max-width: 100%;
+
+  &__stage {
+    position: relative;
+  }
+
+  &__image {
+    display: block;
+    position: static;
+    max-width: min(1016px, calc(100vw - 384px));
+
+    // 상단 여백·제목·간격·사진 번호를 제외한 높이에 사진을 맞춘다.
+    max-height: calc(100dvh - 354px);
+  }
+
+  &__previous,
+  &__next {
+    position: absolute;
+    top: 50%;
+    display: flex;
+    transform: translateY(-50%);
+    cursor: pointer;
+
+    > svg > rect {
+      fill: tokens.$neutral-500;
+    }
+
+    &:disabled {
+      cursor: default;
+    }
+
+    &:focus-visible {
+      outline: 2px solid tokens.$white;
+      outline-offset: 4px;
+    }
+  }
+
+  &__previous {
+    left: -132px;
+  }
+
+  &__next {
+    right: -132px;
+  }
+
+  &__count {
+    color: tokens.$white;
+    font-size: tokens.$font-size-24;
+    font-weight: tokens.$font-weight-bold;
+    line-height: 1.6;
   }
 }

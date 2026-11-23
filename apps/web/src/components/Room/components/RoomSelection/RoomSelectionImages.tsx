@@ -48,6 +48,7 @@ export default function RoomSelectionImages({ imageUrls, name }: RoomSelectionIm
         imageIndex={currentIndex}
         imageAlt={`${name} 건물 사진`}
         imageSize="large"
+        imageTitle={name}
         onClose={option.close}
       />
     ));
