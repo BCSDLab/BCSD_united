@@ -49,6 +49,7 @@ export default function RoomSelectionImages({ imageUrls, name }: RoomSelectionIm
         imageAlt={`${name} 건물 사진`}
         imageSize="large"
         imageTitle={name}
+        dialogLabel="건물 사진 확대 보기"
         onClose={option.close}
       />
     ));

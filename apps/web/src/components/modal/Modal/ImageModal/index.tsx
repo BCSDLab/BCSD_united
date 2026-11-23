@@ -19,6 +19,7 @@ export interface ImageModalProps {
   imageIndex: number;
   imageAlt?: string;
   imageTitle?: string;
+  dialogLabel?: string;
   imageSize?: 'default' | 'large';
   mobileNavigation?: boolean;
   onClose: () => void;
@@ -29,6 +30,7 @@ function ImageModal({
   imageIndex,
   imageAlt = '상점이미지',
   imageTitle,
+  dialogLabel = '이미지 확대 보기',
   imageSize = 'default',
   mobileNavigation = false,
   onClose,
@@ -121,7 +123,7 @@ function ImageModal({
       ref={backgroundRef}
       role={isMobileNavigation || isDesktopGallery ? 'dialog' : undefined}
       aria-modal={isMobileNavigation || isDesktopGallery ? true : undefined}
-      aria-label={isMobileNavigation || isDesktopGallery ? '건물 사진 확대 보기' : undefined}
+      aria-label={isMobileNavigation || isDesktopGallery ? dialogLabel : undefined}
     >
       {!isMobileNavigation && !isDesktopGallery && selectedIndex !== 0 && (
         <button

@@ -43,6 +43,7 @@ function RoomDetailImg({ imgUrl }: RoomDetailImgProps) {
         imageList={imgUrl}
         imageIndex={imgIndex}
         imageAlt="건물 사진"
+        dialogLabel="건물 사진 확대 보기"
         mobileNavigation
         onClose={option.close}
       />
