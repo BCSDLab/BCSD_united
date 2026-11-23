@@ -19,6 +19,7 @@ export interface ImageModalProps {
   imageIndex: number;
   imageAlt?: string;
   imageTitle?: string;
+  imageDescription?: string;
   dialogLabel?: string;
   imageSize?: 'default' | 'large';
   mobileNavigation?: boolean;
@@ -30,6 +31,7 @@ function ImageModal({
   imageIndex,
   imageAlt = '상점이미지',
   imageTitle,
+  imageDescription,
   dialogLabel = '이미지 확대 보기',
   imageSize = 'default',
   mobileNavigation = false,
@@ -152,7 +154,7 @@ function ImageModal({
           <div className={styles['desktop-header']}>
             <div className={styles['desktop-header__text']}>
               {imageTitle && <h2 className={styles['desktop-header__title']}>{imageTitle}</h2>}
-              <p className={styles['desktop-header__description']}>상세 사진</p>
+              {imageDescription && <p className={styles['desktop-header__description']}>{imageDescription}</p>}
             </div>
             <button
               type="button"

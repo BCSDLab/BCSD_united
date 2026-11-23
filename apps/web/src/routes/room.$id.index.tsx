@@ -91,7 +91,9 @@ function RoomDetailPage({ id }: RoomDetailPageProps) {
 
   return (
     <div className={styles.template}>
-      <div>{!isMobile && <h1 className={styles.template__title}>복덕방</h1>}</div>
+      <div>
+        <h1 className={styles.template__title}>복덕방</h1>
+      </div>
       {roomDetail && <div className={styles.template__name}>{roomDetail?.name}</div>}
       <div className={styles.info}>
         <h2 className={styles.info__title}>원룸 정보</h2>
