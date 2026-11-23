@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import hasValidCoordinates from 'components/Room/utils/hasValidCoordinates';
 
@@ -59,7 +59,7 @@ function useNaverMap(
     mapInstance.setCenter(new window.naver.maps.LatLng(coordinates.latitude, coordinates.longitude));
   }, [latitude, longitude]);
 
-  const getMap = useCallback(() => map, [map]);
+  const getMap = () => map;
 
   return { getMap };
 }

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
@@ -32,20 +32,16 @@ function RoomPage() {
     setReturnFocusRoomId(room.id);
     setSelectedRoom(room);
   };
-  const handleSelectMarker = useCallback((room: LandList) => {
+  const handleSelectMarker = (room: LandList) => {
     setReturnFocusRoomId(null);
     setSelectedRoom(room);
-  }, []);
-  const lands = useMemo(
-    () =>
-      roomList?.lands?.filter((room) => {
-        if (rentType === 'monthly') return room.is_monthly_available;
-        if (rentType === 'charter') return room.is_charter_available;
+  };
+  const lands = roomList?.lands?.filter((room) => {
+    if (rentType === 'monthly') return room.is_monthly_available;
+    if (rentType === 'charter') return room.is_charter_available;
 
-        return true;
-      }),
-    [roomList, rentType],
-  );
+    return true;
+  });
   const isMapLoaded = useNaverMapScript();
   const { getMap } = useNaverMap(LOCATION.latitude, LOCATION.longitude, isMapLoaded, {
     zoomControl: false,
