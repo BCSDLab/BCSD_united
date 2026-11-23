@@ -59,7 +59,7 @@ function ImageModal({
     [imageList.length, scale, isMobileNavigation],
   );
 
-  const { handlers, onKeyboardClick } = useImageSwipe({
+  const { handlers, onButtonClick } = useImageSwipe({
     enabled: isMobileNavigation && scale === 1,
     onPrevious: () => navigateImage(-1),
     onNext: () => navigateImage(1),
@@ -214,14 +214,14 @@ function ImageModal({
                 className={`${styles['mobile-gallery__tap']} ${styles['mobile-gallery__tap--previous']}`}
                 aria-label="이전 건물 사진"
                 aria-disabled={selectedIndex === 0}
-                onClick={onKeyboardClick(() => navigateImage(-1))}
+                onClick={onButtonClick(() => navigateImage(-1))}
               />
               <button
                 type="button"
                 className={`${styles['mobile-gallery__tap']} ${styles['mobile-gallery__tap--next']}`}
                 aria-label="다음 건물 사진"
                 aria-disabled={selectedIndex === imageList.length - 1}
-                onClick={onKeyboardClick(() => navigateImage(1))}
+                onClick={onButtonClick(() => navigateImage(1))}
               />
             </>
           )}
