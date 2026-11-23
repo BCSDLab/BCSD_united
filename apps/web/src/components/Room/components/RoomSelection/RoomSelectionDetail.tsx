@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { LandList } from 'api/room/entity';
 import { roomQueries } from 'api/room/queries';
 import { RoomRentBadge } from 'components/Room/components/RoomCard/RoomCardContent';
+import RoomDetailInfo from 'components/Room/components/RoomDetailInfo';
 import Button from 'components/ui/Button';
 import { copyToClipboard } from 'utils/ts/copyToClipboard';
 import showToast from 'utils/ts/showToast';
@@ -46,16 +47,7 @@ export default function RoomSelectionDetail({ room }: { room: LandList }) {
           <RoomSelectionImages imageUrls={detail.image_urls} name={detail.name} />
           <div className={styles.info}>
             <h3>원룸 정보</h3>
-            <dl>
-              <dt>월세 | 전세</dt>
-              <dd>별도 문의</dd>
-              <dt>보증금 | 관리비</dt>
-              <dd>별도 문의</dd>
-              <dt>방크기</dt>
-              <dd>{detail.size ? `${detail.size}평` : '-'}</dd>
-              <dt>방종류</dt>
-              <dd>{detail.room_type || '-'}</dd>
-            </dl>
+            <RoomDetailInfo size={detail.size} roomType={detail.room_type} />
           </div>
           <div className={styles.info}>
             <h3>위치 정보</h3>

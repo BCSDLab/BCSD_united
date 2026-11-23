@@ -1,9 +1,15 @@
+import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, notFound } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
+import type { LandDetailResponse } from 'api/room/entity';
 import { roomQueries } from 'api/room/queries';
+import SleepIcon from 'assets/svg/common/sleep-bbico.svg';
 import { SSRLayout } from 'components/layout';
+import MobilePageHeader from 'components/layout/MobilePageHeader';
+import { RoomRentBadge } from 'components/Room/components/RoomCard/RoomCardContent';
 import RoomDetailImg from 'components/Room/components/RoomDetailImg';
+import RoomDetailInfo from 'components/Room/components/RoomDetailInfo';
 import RoomDetailMap from 'components/Room/components/RoomDetailMap';
 import RoomDetailOption from 'components/Room/components/RoomDetailOption';
 import RoomDetailTable from 'components/Room/components/RoomDetailTable';
@@ -20,14 +26,74 @@ interface RoomDetailPageProps {
   readonly id: string;
 }
 
+function MobileRoomDetail({ room }: { room: LandDetailResponse }) {
+  const { data: roomList } = useQuery(roomQueries.list());
+  const summary = roomList?.lands?.find((land) => land.id === room.id);
+  const phone = room.phone?.trim();
+
+  return (
+    <main className={styles.mobile}>
+      <div className={styles.mobile__heading}>
+        {(summary?.is_monthly_available || summary?.is_charter_available) && (
+          <div className={styles.mobile__badges}>
+            {summary.is_monthly_available && <RoomRentBadge type="monthly" />}
+            {summary.is_charter_available && <RoomRentBadge type="charter" />}
+          </div>
+        )}
+        <h2 className={styles.mobile__name}>{room.name}</h2>
+      </div>
+      {room.image_urls?.length ? (
+        <RoomDetailImg imgUrl={room.image_urls} />
+      ) : (
+        <div className={styles.mobile__empty}>
+          <SleepIcon aria-hidden />
+          <p>이미지 준비 중입니다.</p>
+        </div>
+      )}
+      <div className={styles.mobile__content}>
+        <section className={styles.mobile__info}>
+          <h2>원룸 정보</h2>
+          <RoomDetailInfo size={room.size} roomType={room.room_type} />
+        </section>
+        <section className={styles.mobile__info}>
+          <h2>위치 정보</h2>
+          <RoomDetailMap latitude={room.latitude} longitude={room.longitude} address={room.address} />
+        </section>
+      </div>
+      <div className={styles.mobile__contact}>
+        <div className={styles.mobile__phone}>
+          <span>연락처</span>
+          <p>{phone || '연락처가 비어 있습니다.'}</p>
+        </div>
+        {phone && (
+          <a href={`tel:${phone}`} className={styles.mobile__call}>
+            전화 문의하기
+          </a>
+        )}
+      </div>
+    </main>
+  );
+}
+
 function RoomDetailPage({ id }: RoomDetailPageProps) {
   const isMobile = useMediaQuery();
   const { roomDetail, roomOptions } = useRoomDetail(id);
   useScrollToTop();
 
+  if (isMobile) {
+    return (
+      <>
+        <MobilePageHeader title="복덕방" />
+        {roomDetail && <MobileRoomDetail room={roomDetail} />}
+      </>
+    );
+  }
+
   return (
     <div className={styles.template}>
-      <div>{!isMobile && <h1 className={styles.template__title}>복덕방</h1>}</div>
+      <div>
+        <h1 className={styles.template__title}>복덕방</h1>
+      </div>
       {roomDetail && <div className={styles.template__name}>{roomDetail?.name}</div>}
       <div className={styles.info}>
         <h2 className={styles.info__title}>원룸 정보</h2>
@@ -43,7 +109,7 @@ function RoomDetailPage({ id }: RoomDetailPageProps) {
             phone={roomDetail?.phone}
           />
         )}
-        {roomDetail?.image_urls ? (
+        {roomDetail?.image_urls?.length ? (
           <RoomDetailImg imgUrl={roomDetail?.image_urls} />
         ) : (
           <div className={styles['info__img-slider__img--empty']}>
@@ -103,5 +169,9 @@ function RouteComponent() {
   const props = Route.useLoaderData();
   const page = <RoomDetailPage {...props} />;
 
-  return <SSRLayout>{page}</SSRLayout>;
+  return (
+    <SSRLayout className={styles.layout} mobileHeader="page">
+      {page}
+    </SSRLayout>
+  );
 }

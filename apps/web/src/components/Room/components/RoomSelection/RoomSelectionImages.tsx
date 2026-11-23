@@ -43,7 +43,16 @@ export default function RoomSelectionImages({ imageUrls, name }: RoomSelectionIm
 
   const openImage = () => {
     portal.open((option: Portal) => (
-      <ImageModal imageList={images} imageIndex={currentIndex} imageAlt={`${name} 건물 사진`} onClose={option.close} />
+      <ImageModal
+        imageList={images}
+        imageIndex={currentIndex}
+        imageAlt={`${name} 건물 사진`}
+        imageSize="large"
+        imageTitle={name}
+        imageDescription="상세 사진"
+        dialogLabel="건물 사진 확대 보기"
+        onClose={option.close}
+      />
     ));
   };
 
