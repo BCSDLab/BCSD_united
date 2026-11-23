@@ -20,6 +20,29 @@ const LanguageContext = createContext<LanguageContextValue | null>(null);
 const LANGUAGE_AWARE_ROOT_KEYS = new Set(['store', 'store-mobile', 'cafeteria', 'bus', 'callvan', 'lecture']);
 
 /**
+ * 서버에 저장한 선호 언어를 쿠키에 남기고 돌려준다. 서버에 값이 없으면 지금 쓰는 언어를 서버에 저장하고 `null`을 돌려준다.
+ * 동기화는 화면 이용을 막지 않는다. 실패하면 `null`을 돌려주고, 기기에 저장한 언어를 그대로 쓰다가 다음 로그인 때 다시 맞춘다.
+ */
+// React Compiler는 try/finally가 있는 컴포넌트를 최적화하지 않으므로 컴포넌트 밖에 둔다.
+// 최적화가 빠지면 Provider value가 렌더마다 새 객체가 되어, 하이드레이션 직후 언어가 그대로여도 화면 전체가 다시 그려진다.
+async function syncLanguageWithServer(): Promise<LanguageCode | null> {
+  try {
+    const { language: serverValue } = await getMyLanguage();
+    const savedLanguage = parseLanguage(serverValue);
+    if (savedLanguage) {
+      writeLanguageCookie(savedLanguage);
+
+      return savedLanguage;
+    }
+    await updateMyLanguage({ language: readStoredLanguage() ?? getBrowserLanguage() });
+  } catch {
+    // 실패해도 화면 이용은 막지 않는다
+  }
+
+  return null;
+}
+
+/**
  * 화면 언어 우선순위: 로그인 사용자의 서버 선호 언어 → 기기에 저장한 언어(쿠키) → 브라우저·OS 언어 → 기본 언어.
  *
  * 서버 렌더는 쿠키만 보고 그리므로, 쿠키가 없을 때의 브라우저 언어와 로그인 후의 서버 선호 언어는 마운트 후 반영한다.
@@ -74,24 +97,10 @@ export function LanguageProvider({
     if (syncedRef.current) return;
     syncedRef.current = true;
 
-    const syncWithServer = async () => {
-      try {
-        const { language: serverValue } = await getMyLanguage();
-        const savedLanguage = parseLanguage(serverValue);
-        if (savedLanguage) {
-          writeLanguageCookie(savedLanguage);
-          setServerLanguage(savedLanguage);
-
-          return;
-        }
-        await updateMyLanguage({ language: readStoredLanguage() ?? getBrowserLanguage() });
-      } catch {
-        // 동기화는 화면 이용을 막지 않는다. 실패하면 기기에 저장한 언어를 그대로 쓰고 다음 로그인 때 다시 맞춘다.
-      } finally {
-        setServerLanguageChecked(true);
-      }
-    };
-    syncWithServer();
+    syncLanguageWithServer().then((savedLanguage) => {
+      if (savedLanguage) setServerLanguage(savedLanguage);
+      setServerLanguageChecked(true);
+    });
   }, [isLoggedIn]);
 
   useEffect(() => {

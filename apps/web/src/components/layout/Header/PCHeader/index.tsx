@@ -18,6 +18,7 @@ import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import { isomorphicSessionStorage } from 'utils/ts/env';
 import getElapsedSeconds from 'utils/ts/getElapsedSeconds';
 
+import LanguageDropdown from './LanguageDropdown';
 import styles from './PCHeader.module.scss';
 
 interface PCHeaderProps {
@@ -204,6 +205,9 @@ export default function PCHeader({ openModal }: PCHeaderProps) {
         </div>
       </div>
       <ul className={styles['header__auth-menu']}>
+        <li>
+          <LanguageDropdown />
+        </li>
         {!isLoggedin ? (
           <>
             <li className={styles['header__auth-link']}>
