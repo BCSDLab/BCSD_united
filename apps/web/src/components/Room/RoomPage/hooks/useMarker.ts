@@ -1,27 +1,34 @@
 import { useEffect, useRef } from 'react';
-import { useRouter } from '@tanstack/react-router';
 
-import type { LandListResponse } from 'api/room/entity';
+import type { LandList } from 'api/room/entity';
 import MarkerIcon from 'components/Room/components/MarkerIcon';
-import ROUTES from 'static/routes';
+import hasValidCoordinates from 'components/Room/utils/hasValidCoordinates';
+
+import styles from 'components/Room/components/MarkerIcon/MarkerIcon.module.scss';
 
 interface MarkerProps {
   getMap: () => naver.maps.Map | null;
-  roomList: LandListResponse | undefined;
+  lands: LandList[] | undefined;
+  onSelect: (room: LandList) => void;
+  selectedRoomId: number | undefined;
 }
 
-function useMarker({ getMap, roomList }: MarkerProps) {
-  const markersRef = useRef<naver.maps.Marker[]>([]);
-  const router = useRouter();
+function useMarker({ getMap, lands, onSelect, selectedRoomId }: MarkerProps) {
+  const markersRef = useRef<Array<{ id: number; marker: naver.maps.Marker }>>([]);
 
   useEffect(() => {
     const map = getMap();
-    if (!map || !roomList || !window.naver) return;
+    if (!map || !lands || !window.naver) return;
 
-    markersRef.current.forEach((m) => m.setMap(null));
-    markersRef.current = [];
+    const clearMarkers = () => {
+      markersRef.current.forEach(({ marker }) => marker.setMap(null));
+      markersRef.current = [];
+    };
+    clearMarkers();
 
-    const created = (roomList.lands ?? []).map((land) => {
+    const created = lands.flatMap((land) => {
+      if (!hasValidCoordinates(land)) return [];
+
       const marker = new window.naver.maps.Marker({
         position: new window.naver.maps.LatLng(land.latitude, land.longitude),
         title: land.name,
@@ -30,21 +37,25 @@ function useMarker({ getMap, roomList }: MarkerProps) {
         clickable: true,
       });
       marker.addListener('click', () => {
-        router.navigate({ href: ROUTES.RoomDetail({ id: String(land.id) }) });
+        onSelect(land);
       });
 
-      return marker;
+      return [{ id: land.id, marker }];
     });
 
     markersRef.current = created;
 
-    return () => {
-      markersRef.current.forEach((m) => m.setMap(null));
-      markersRef.current = [];
-    };
-  }, [getMap, roomList, router]);
+    return clearMarkers;
+  }, [getMap, lands, onSelect]);
 
-  const getMarkerArray = () => markersRef.current;
+  useEffect(() => {
+    markersRef.current.forEach(({ id, marker }) => {
+      marker.getElement().classList.toggle(styles.selected, id === selectedRoomId);
+      marker.setZIndex(id === selectedRoomId ? 1 : 0);
+    });
+  }, [getMap, lands, onSelect, selectedRoomId]);
+
+  const getMarkerArray = () => markersRef.current.map(({ marker }) => marker);
 
   return { getMarkerArray };
 }

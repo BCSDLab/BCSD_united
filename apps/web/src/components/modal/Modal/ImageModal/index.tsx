@@ -12,10 +12,11 @@ import styles from './ImageModal.module.scss';
 export interface ImageModalProps {
   imageList: string[];
   imageIndex: number;
+  imageAlt?: string;
   onClose: () => void;
 }
 
-function ImageModal({ imageList, imageIndex, onClose }: ImageModalProps) {
+function ImageModal({ imageList, imageIndex, imageAlt = '상점이미지', onClose }: ImageModalProps) {
   const [selectedIndex, setSelectedIndex] = useState(imageIndex);
   const [scale, setScale] = useState(1);
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
@@ -96,7 +97,7 @@ function ImageModal({ imageList, imageIndex, onClose }: ImageModalProps) {
         ref={imageRef}
         className={styles.image}
         src={imageList[selectedIndex]}
-        alt="상점이미지"
+        alt={imageAlt}
         style={{
           transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
         }}

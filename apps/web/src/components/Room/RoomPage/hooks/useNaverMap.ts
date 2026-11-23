@@ -1,41 +1,65 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
-function useNaverMap(latitude: number, longitude: number, isLoaded: boolean = true) {
+import hasValidCoordinates from 'components/Room/utils/hasValidCoordinates';
+
+function useNaverMap(
+  latitude: number | null,
+  longitude: number | null,
+  isLoaded: boolean = true,
+  { zoomControl = true }: { zoomControl?: boolean } = {},
+) {
+  const [map, setMap] = useState<naver.maps.Map | null>(null);
   const mapRef = useRef<naver.maps.Map | null>(null);
+  const coordinatesRef = useRef({ latitude, longitude });
+  const hasCoordinates = hasValidCoordinates({ latitude, longitude });
 
   useEffect(() => {
-    if (!isLoaded || !window.naver?.maps) return;
+    coordinatesRef.current = { latitude, longitude };
+  }, [latitude, longitude]);
+
+  useEffect(() => {
+    if (!isLoaded || !hasCoordinates || !window.naver?.maps) return;
+    // 좌표 값이 바뀌어도 지도는 유지하고, 새 지도를 만들 때만 최신 좌표를 읽는다.
+    const coordinates = coordinatesRef.current;
+    if (!hasValidCoordinates(coordinates)) return;
     if (!document.getElementById('map')) return;
 
     const mapInstance = new window.naver.maps.Map('map', {
-      center: new window.naver.maps.LatLng(latitude, longitude),
+      center: new window.naver.maps.LatLng(coordinates.latitude, coordinates.longitude),
       maxZoom: 20,
       minZoom: 15,
       logoControl: false,
-      zoomControl: true,
+      zoomControl,
       scrollWheel: false,
       draggable: true,
       zoomControlOptions: { position: window.naver.maps.Position.TOP_LEFT },
     });
     mapRef.current = mapInstance;
+    const initListener = window.naver.maps.Event.once(mapInstance, 'init', () => {
+      if (mapRef.current === mapInstance) setMap(mapInstance);
+    });
 
     return () => {
+      mapRef.current = null;
+      window.naver.maps.Event.removeListener(initListener);
       try {
         mapInstance.destroy();
       } catch {
         // Naver Maps SDK 내부 _clearSwipe 타이밍 이슈 방어
       }
-      mapRef.current = null;
+      setMap(null);
     };
-  }, [isLoaded, latitude, longitude]);
+  }, [isLoaded, hasCoordinates, zoomControl]);
 
   useEffect(() => {
-    if (mapRef.current) {
-      mapRef.current.setCenter(new window.naver.maps.LatLng(latitude, longitude));
-    }
+    const mapInstance = mapRef.current;
+    const coordinates = { latitude, longitude };
+    if (!mapInstance || !hasValidCoordinates(coordinates)) return;
+
+    mapInstance.setCenter(new window.naver.maps.LatLng(coordinates.latitude, coordinates.longitude));
   }, [latitude, longitude]);
 
-  const getMap = () => mapRef.current;
+  const getMap = () => map;
 
   return { getMap };
 }
