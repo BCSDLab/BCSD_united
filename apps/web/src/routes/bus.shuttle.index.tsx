@@ -16,6 +16,7 @@ import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useMount from 'utils/hooks/state/useMount';
+import useServerMessage from 'utils/language/useServerMessage';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
 import { BUS_SHUTTLE_ISR_REVALIDATE_SECONDS, withStaticFetchRetry } from 'utils/ts/isr';
@@ -38,6 +39,7 @@ function asString(value: string | string[] | undefined): string | undefined {
 }
 
 function ShuttleBusTimetable() {
+  const message = useServerMessage();
   const routeNavigate = useNavigate();
   const routeQuery: Record<string, string | string[] | undefined> = {
     ...useSearch({ strict: false }),
@@ -58,7 +60,7 @@ function ShuttleBusTimetable() {
     enabled: isMount,
   });
 
-  const displaySemester = shuttleCourse.semester_info.name;
+  const displaySemester = message('shuttle.semester', shuttleCourse.semester_info.name);
   const updatedAt = timetable?.updated_at;
 
   return (
@@ -150,6 +152,7 @@ function ShuttleBusTimetable() {
 }
 
 function TemplateShuttleVersion({ region, routes, category }: TemplateShuttleVersionProps) {
+  const message = useServerMessage();
   const routeNavigate = useNavigate();
 
   const isMobile = useMediaQuery();
@@ -211,7 +214,7 @@ function TemplateShuttleVersion({ region, routes, category }: TemplateShuttleVer
                 <span
                   className={`${styles['template-shuttle__list_type']} ${styles[SHUTTLE_ROUTE_TYPE_CLASS[route.type]] ?? ''}`}
                 >
-                  {route.type}
+                  {message('shuttle.type', route.type)}
                 </span>
                 <span className={styles['template-shuttle__list_name']}>{route.route_name}</span>
               </div>

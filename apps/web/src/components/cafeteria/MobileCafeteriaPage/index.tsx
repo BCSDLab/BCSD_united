@@ -12,6 +12,7 @@ import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import { useSessionLogger } from 'utils/hooks/analytics/useSessionLogger';
 import useScrollToTop from 'utils/hooks/ui/useScrollToTop';
+import useServerMessage from 'utils/language/useServerMessage';
 
 import CafeteriaInfoWidget from './components/CafeteriaInfoWidget';
 import MobileDiningBlocks from './components/MobileDiningBlocks';
@@ -23,6 +24,7 @@ interface MobileCafeteriaPageProps {
 }
 
 export default function MobileCafeteriaPage({ onReportSoldout }: MobileCafeteriaPageProps) {
+  const message = useServerMessage();
   const { diningType, setDiningType } = useCafeteriaParams();
   const logger = useLogger();
   const router = useRouter();
@@ -89,7 +91,7 @@ export default function MobileCafeteriaPage({ onReportSoldout }: MobileCafeteria
             aria-pressed={dining === diningType}
             onClick={() => handleDiningTypeChange(dining)}
           >
-            {DINING_TYPE_MAP[dining]}
+            {message('dining.type', dining, DINING_TYPE_MAP[dining])}
           </button>
         ))}
       </div>
