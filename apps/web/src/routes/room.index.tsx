@@ -42,10 +42,11 @@ function RoomPage() {
 
     return true;
   });
-  const { isLoaded: isMapLoaded } = useNaverMapScript();
-  const { getMap } = useNaverMap(LOCATION.latitude, LOCATION.longitude, isMapLoaded, {
+  const { isLoaded: isMapLoaded, hasError: hasMapScriptError } = useNaverMapScript();
+  const { getMap, hasError: hasMapInitError } = useNaverMap(LOCATION.latitude, LOCATION.longitude, isMapLoaded, {
     zoomControl: false,
   });
+  const hasMapError = hasMapScriptError || hasMapInitError;
   useMarker({ getMap, lands, onSelect: handleSelectMarker, selectedRoomId: selectedRoom?.id });
 
   useScrollToTop();
@@ -55,7 +56,13 @@ function RoomPage() {
       <MobilePageHeader title="복덕방" className={styles['mobile-header']} />
       <h1 className={styles.title}>복덕방</h1>
       <div className={styles.content}>
-        <div id="map" className={styles.map} />
+        {hasMapError ? (
+          <p className={styles['map-error']} role="status">
+            지도를 불러오지 못했어요
+          </p>
+        ) : (
+          <div id="map" className={styles.map} />
+        )}
         {selectedRoom ? (
           <RoomSelection
             key={selectedRoom.id}
@@ -75,7 +82,7 @@ function RoomPage() {
           />
         )}
         <div ref={mapControlsRef} className={styles['map-controls']}>
-          <RoomMapControls onZoom={(delta) => getMap()?.zoomBy(delta)} />
+          {!hasMapError && <RoomMapControls onZoom={(delta) => getMap()?.zoomBy(delta)} />}
         </div>
       </div>
     </div>
