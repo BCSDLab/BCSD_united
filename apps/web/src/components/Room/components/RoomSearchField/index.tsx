@@ -32,10 +32,11 @@ export default function RoomSearchField({ keyword, rooms, onSearch, className, s
   const candidates = useMemo(() => filterRoomsByName(rooms, value), [rooms, value]);
 
   const confirmSearch = (name: string) => {
-    setValue(name);
+    const trimmedKeyword = name.trim();
+    setValue(trimmedKeyword);
     closeCandidates();
     inputRef.current?.blur();
-    onSearch(name);
+    onSearch(trimmedKeyword);
   };
 
   return (
