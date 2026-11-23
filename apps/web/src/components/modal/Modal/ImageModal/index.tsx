@@ -94,7 +94,7 @@ function ImageModal({
       imageEl.removeEventListener('touchmove', handleTouchMove);
       imageEl.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [scale, translate, isMobileNavigation]);
+  }, [scale, translate, isMobileNavigation, isDesktopGallery]);
 
   const image = (
     // 이미지마다 크기가 다르고 핀치 줌이 DOM ref를 직접 사용한다.
