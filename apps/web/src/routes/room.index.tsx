@@ -1,18 +1,23 @@
 import { useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
 import type { LandList } from 'api/room/entity';
 import { roomQueries } from 'api/room/queries';
+import SearchIcon from 'assets/svg/Articles/search.svg';
+import DesktopSearchIcon from 'assets/svg/search-01.svg';
 import { SSRLayout } from 'components/layout';
 import MobilePageHeader from 'components/layout/MobilePageHeader';
 import RoomList, { type RoomRentType } from 'components/Room/components/RoomList';
 import RoomMapControls from 'components/Room/components/RoomMapControls';
+import RoomSearchField from 'components/Room/components/RoomSearchField';
 import RoomSelection from 'components/Room/components/RoomSelection';
 import useMarker from 'components/Room/RoomPage/hooks/useMarker';
 import useNaverMap from 'components/Room/RoomPage/hooks/useNaverMap';
 import useNaverMapScript from 'components/Room/RoomPage/hooks/useNaverMapScript';
+import useRoomSearch from 'components/Room/RoomPage/hooks/useRoomSearch';
+import SearchEmptyState from 'components/ui/SearchEmptyState';
+import ROUTES from 'static/routes';
 import useScrollToTop from 'utils/hooks/ui/useScrollToTop';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
@@ -23,10 +28,12 @@ import styles from 'pages/room/RoomPage.module.scss';
 const LOCATION = { latitude: 36.764617, longitude: 127.283154 };
 
 function RoomPage() {
-  const { data: roomList } = useQuery(roomQueries.list());
+  const { rooms, results, keyword, searchRooms } = useRoomSearch();
+  const isSearchEmpty = !!keyword && results?.length === 0;
   const [rentType, setRentType] = useState<RoomRentType>('all');
   const [selectedRoom, setSelectedRoom] = useState<LandList | null>(null);
   const [returnFocusRoomId, setReturnFocusRoomId] = useState<number | null>(null);
+  const [previousKeyword, setPreviousKeyword] = useState(keyword);
   const mapControlsRef = useRef<HTMLDivElement>(null);
   const handleSelectRoom = (room: LandList) => {
     setReturnFocusRoomId(room.id);
@@ -36,7 +43,7 @@ function RoomPage() {
     setReturnFocusRoomId(null);
     setSelectedRoom(room);
   };
-  const lands = roomList?.lands?.filter((room) => {
+  const lands = results?.filter((room) => {
     if (rentType === 'monthly') return room.is_monthly_available;
     if (rentType === 'charter') return room.is_charter_available;
 
@@ -51,11 +58,38 @@ function RoomPage() {
 
   useScrollToTop();
 
+  if (previousKeyword !== keyword) {
+    setPreviousKeyword(keyword);
+    setSelectedRoom(null);
+    setReturnFocusRoomId(null);
+  }
+
   return (
     <div className={styles.template}>
-      <MobilePageHeader title="복덕방" className={styles['mobile-header']} />
+      <MobilePageHeader
+        title="복덕방"
+        className={styles['mobile-header']}
+        rightAction={
+          <Link to={ROUTES.RoomSearch()} className={styles['search-link']} aria-label="건물 검색">
+            <SearchIcon aria-hidden />
+          </Link>
+        }
+      />
       <h1 className={styles.title}>복덕방</h1>
-      <div className={styles.content}>
+      <RoomSearchField
+        key={keyword}
+        keyword={keyword}
+        rooms={rooms}
+        onSearch={(value) => {
+          setSelectedRoom(null);
+          setReturnFocusRoomId(null);
+
+          return searchRooms(value);
+        }}
+        className={styles['desktop-search']}
+        searchIcon={<DesktopSearchIcon className={styles['desktop-search-icon']} aria-hidden />}
+      />
+      <div className={`${styles.content} ${isSearchEmpty ? styles['content--empty'] : ''}`}>
         {hasMapError ? (
           <p className={styles['map-error']} role="status">
             지도를 불러오지 못했어요
@@ -84,6 +118,7 @@ function RoomPage() {
         <div ref={mapControlsRef} className={styles['map-controls']}>
           {!hasMapError && <RoomMapControls onZoom={(delta) => getMap()?.zoomBy(delta)} />}
         </div>
+        {isSearchEmpty && <SearchEmptyState className={styles.empty} />}
       </div>
     </div>
   );

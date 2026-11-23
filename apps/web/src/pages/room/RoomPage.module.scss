@@ -37,6 +37,26 @@
   padding: 0 24px;
 }
 
+.search-link {
+  display: flex;
+
+  path {
+    fill: #000;
+  }
+}
+
+.desktop-search {
+  margin-top: 40px;
+
+  @include media.media-breakpoint(mobile) {
+    display: none;
+  }
+}
+
+.desktop-search-icon path {
+  stroke: #414148;
+}
+
 .content {
   position: relative;
   height: 869px;
@@ -65,6 +85,17 @@
 
 .map-error {
   padding: 16px;
+}
+
+.content--empty > :not(.empty) {
+  visibility: hidden;
+}
+
+.content > .empty {
+  position: absolute;
+  inset: 0;
+  justify-content: flex-start;
+  padding-top: 272px;
 }
 
 .map-controls {

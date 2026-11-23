@@ -59,6 +59,7 @@ const ROUTES = {
   LostItemEdit: ({ id }: ROUTESParams<'id'>) => `/lost-item/edit/${id}`,
   LostItemReport: ({ id }: ROUTESParams<'id'>) => `/lost-item/report/${id}`,
   Room: () => '/room',
+  RoomSearch: () => '/room/search',
   RoomDetail: ({ id }: ROUTESParams<'id'>) => `/room/${id}`,
   CampusInfo: () => '/campusinfo',
   Department: () => '/department',
