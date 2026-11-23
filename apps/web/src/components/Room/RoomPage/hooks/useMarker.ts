@@ -1,10 +1,11 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useEffectEvent, useRef } from 'react';
 
 import type { LandList } from 'api/room/entity';
 import MarkerIcon from 'components/Room/components/MarkerIcon';
 import clusterRoomMarkers from 'components/Room/utils/clusterRoomMarkers';
 import createRoomMarkerAnimator, { type RoomMarkerGroup } from 'components/Room/utils/createRoomMarkerAnimator';
 import hasValidCoordinates from 'components/Room/utils/hasValidCoordinates';
+import useLogger from 'utils/hooks/analytics/useLogger';
 
 import styles from 'components/Room/components/MarkerIcon/MarkerIcon.module.scss';
 
@@ -22,10 +23,18 @@ interface ClusterMarker {
 }
 
 function useMarker({ getMap, lands, onSelect, onSelectCluster, selectedRoomId }: MarkerProps) {
+  const logger = useLogger();
   const markersRef = useRef<Array<{ id: number; marker: naver.maps.Marker }>>([]);
   const clustersRef = useRef(new Map<string, ClusterMarker>());
   const selectedRoomIdRef = useRef(selectedRoomId);
   const updateClustersRef = useRef<(() => void) | null>(null);
+  const logClusterClick = useEffectEvent(() => {
+    logger.actionEventClick({
+      event_name: 'DA1',
+      event_label: 'real_estate__room_list__map_cluster__click',
+      value: '묶음 마커',
+    });
+  });
 
   useEffect(() => {
     const map = getMap();
@@ -113,6 +122,7 @@ function useMarker({ getMap, lands, onSelect, onSelectCluster, selectedRoomId }:
             clickable: true,
           });
           const clickListener = marker.addListener('click', () => {
+            logClusterClick();
             if (map.getZoom() >= map.getMaxZoom()) {
               onSelectCluster(ids);
 
