@@ -8,6 +8,7 @@ import styles from './SearchBar.module.scss';
 interface SearchBarProps {
   value: string;
   onChange: (value: string) => void;
+  onInputClick?: () => void;
   onSearch?: () => void;
   label: string;
   placeholder?: string;
@@ -20,6 +21,7 @@ interface SearchBarProps {
 export default function SearchBar({
   value,
   onChange,
+  onInputClick,
   onSearch,
   label,
   placeholder = '검색어를 입력해주세요.',
@@ -52,6 +54,7 @@ export default function SearchBar({
         value={value}
         placeholder={placeholder}
         autoComplete="off"
+        onClick={onInputClick}
         onChange={(event) => onChange(event.target.value)}
         onKeyDown={handleKeyDown}
       />

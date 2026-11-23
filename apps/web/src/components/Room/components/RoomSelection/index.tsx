@@ -7,6 +7,7 @@ import CloseIcon from 'assets/svg/close-icon.svg';
 import RoomCardContent from 'components/Room/components/RoomCard/RoomCardContent';
 import hasValidCoordinates from 'components/Room/utils/hasValidCoordinates';
 import ROUTES from 'static/routes';
+import useLogger from 'utils/hooks/analytics/useLogger';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 
 import RoomSelectionDetail from './RoomSelectionDetail';
@@ -23,6 +24,7 @@ interface RoomSelectionProps {
 
 export default function RoomSelection({ room, onClose, getMap, mapControlsRef }: RoomSelectionProps) {
   const isMobile = useMediaQuery();
+  const logger = useLogger();
   const panelRef = useRef<HTMLElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
 
@@ -84,14 +86,33 @@ export default function RoomSelection({ room, onClose, getMap, mapControlsRef }:
         type="button"
         className={styles.close}
         aria-label="건물 목록으로 돌아가기"
-        onClick={onClose}
+        onClick={() => {
+          if (isMobile) {
+            logger.actionEventClick({
+              event_name: 'DA1',
+              event_label: 'real_estate__room_list__room_preview__close__click',
+              value: '닫기',
+            });
+          }
+          onClose();
+        }}
       >
         <CloseIcon aria-hidden />
       </button>
       {isMobile ? (
         <>
           <RoomCardContent room={room} className={styles.summary} />
-          <Link to={ROUTES.RoomDetail({ id: String(room.id) })} className={styles.detail}>
+          <Link
+            to={ROUTES.RoomDetail({ id: String(room.id) })}
+            className={styles.detail}
+            onClick={() =>
+              logger.actionEventClick({
+                event_name: 'DA1',
+                event_label: 'real_estate__room_list__room_detail__button_entry__click',
+                value: room.name,
+              })
+            }
+          >
             매물 상세보기
           </Link>
         </>

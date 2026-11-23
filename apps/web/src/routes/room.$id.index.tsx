@@ -14,6 +14,8 @@ import RoomDetailMap from 'components/Room/components/RoomDetailMap';
 import RoomDetailOption from 'components/Room/components/RoomDetailOption';
 import RoomDetailTable from 'components/Room/components/RoomDetailTable';
 import useRoomDetail from 'components/Room/RoomDetailPage/hooks/useRoomDetail';
+import useRoomBack from 'components/Room/RoomPage/hooks/useRoomBack';
+import useLogger from 'utils/hooks/analytics/useLogger';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useScrollToTop from 'utils/hooks/ui/useScrollToTop';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
@@ -28,6 +30,7 @@ interface RoomDetailPageProps {
 
 function MobileRoomDetail({ room }: { room: LandDetailResponse }) {
   const { data: roomList } = useQuery(roomQueries.list());
+  const logger = useLogger();
   const summary = roomList?.lands?.find((land) => land.id === room.id);
   const phone = room.phone?.trim();
 
@@ -66,7 +69,17 @@ function MobileRoomDetail({ room }: { room: LandDetailResponse }) {
           <p>{phone || '연락처가 비어 있습니다.'}</p>
         </div>
         {phone && (
-          <a href={`tel:${phone}`} className={styles.mobile__call}>
+          <a
+            href={`tel:${phone}`}
+            className={styles.mobile__call}
+            onClick={() =>
+              logger.actionEventClick({
+                event_name: 'DA1',
+                event_label: 'real_estate__room_detail__contact__call__click',
+                value: '전화 문의하기',
+              })
+            }
+          >
             전화 문의하기
           </a>
         )}
@@ -78,12 +91,13 @@ function MobileRoomDetail({ room }: { room: LandDetailResponse }) {
 function RoomDetailPage({ id }: RoomDetailPageProps) {
   const isMobile = useMediaQuery();
   const { roomDetail, roomOptions } = useRoomDetail(id);
+  const handleBack = useRoomBack('room_detail');
   useScrollToTop();
 
   if (isMobile) {
     return (
       <>
-        <MobilePageHeader title="복덕방" />
+        <MobilePageHeader title="복덕방" onBack={handleBack} />
         {roomDetail && <MobileRoomDetail room={roomDetail} />}
       </>
     );

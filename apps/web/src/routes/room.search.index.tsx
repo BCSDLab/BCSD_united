@@ -6,11 +6,12 @@ import MobilePageHeader from 'components/layout/MobilePageHeader';
 import { MobileOnlyPage } from 'components/layout/ResponsivePage';
 import RoomCardContent from 'components/Room/components/RoomCard/RoomCardContent';
 import RoomSearchField from 'components/Room/components/RoomSearchField';
+import useRoomBack from 'components/Room/RoomPage/hooks/useRoomBack';
 import useRoomSearch from 'components/Room/RoomPage/hooks/useRoomSearch';
 import SearchEmptyState from 'components/ui/SearchEmptyState';
 import ROUTES from 'static/routes';
+import useLogger from 'utils/hooks/analytics/useLogger';
 import { isMobileView } from 'utils/hooks/layout/useMobileView';
-import useGoBack from 'utils/hooks/routing/useGoBack';
 import { stringifySearch } from 'utils/routing/search';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
@@ -20,11 +21,12 @@ import styles from 'pages/room/search/RoomSearchPage.module.scss';
 
 function RoomSearchPage() {
   const { rooms, results, keyword, searchRooms } = useRoomSearch();
-  const goBack = useGoBack();
+  const logger = useLogger();
+  const handleBack = useRoomBack('room_list', ROUTES.Room());
 
   return (
     <>
-      <MobilePageHeader title="복덕방" className={styles.header} onBack={() => goBack(ROUTES.Room())} />
+      <MobilePageHeader title="복덕방" className={styles.header} onBack={handleBack} />
       <main className={styles.content}>
         <div className={styles.search}>
           <RoomSearchField key={keyword} keyword={keyword} rooms={rooms} onSearch={searchRooms} />
@@ -40,7 +42,17 @@ function RoomSearchPage() {
               <ul>
                 {results.map((room) => (
                   <li key={room.id}>
-                    <Link to={ROUTES.RoomDetail({ id: String(room.id) })} className={styles.result}>
+                    <Link
+                      to={ROUTES.RoomDetail({ id: String(room.id) })}
+                      className={styles.result}
+                      onClick={() =>
+                        logger.actionEventClick({
+                          event_name: 'DA1',
+                          event_label: 'real_estate__room_list__room_detail__entry__click',
+                          value: room.name,
+                        })
+                      }
+                    >
                       <RoomCardContent room={room} showArrow />
                     </Link>
                   </li>

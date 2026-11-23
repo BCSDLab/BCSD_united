@@ -3,11 +3,9 @@ import { useState } from 'react';
 import SleepIcon from 'assets/svg/common/sleep-bbico.svg';
 import ExpandIcon from 'assets/svg/Room/expand.svg';
 import ChevronRightIcon from 'assets/svg/Team/chevron-right-icon.svg';
-import ImageModal from 'components/modal/Modal/ImageModal';
-import type { Portal } from 'components/modal/Modal/PortalProvider';
+import useRoomPhotoModal from 'components/Room/RoomDetailPage/hooks/useRoomPhotoModal';
 import Image from 'components/ui/Image';
 import useLogger from 'utils/hooks/analytics/useLogger';
-import useModalPortal from 'utils/hooks/layout/useModalPortal';
 
 import styles from './RoomSelectionImages.module.scss';
 
@@ -19,7 +17,7 @@ interface RoomSelectionImagesProps {
 export default function RoomSelectionImages({ imageUrls, name }: RoomSelectionImagesProps) {
   const images = imageUrls?.filter(Boolean) ?? [];
   const [imageIndex, setImageIndex] = useState(0);
-  const portal = useModalPortal();
+  const openRoomPhotoModal = useRoomPhotoModal();
   const logger = useLogger();
   const currentIndex = Math.min(imageIndex, Math.max(0, images.length - 1));
 
@@ -42,18 +40,15 @@ export default function RoomSelectionImages({ imageUrls, name }: RoomSelectionIm
   };
 
   const openImage = () => {
-    portal.open((option: Portal) => (
-      <ImageModal
-        imageList={images}
-        imageIndex={currentIndex}
-        imageAlt={`${name} 건물 사진`}
-        imageSize="large"
-        imageTitle={name}
-        imageDescription="상세 사진"
-        dialogLabel="건물 사진 확대 보기"
-        onClose={option.close}
-      />
-    ));
+    openRoomPhotoModal({
+      imageList: images,
+      imageIndex: currentIndex,
+      imageAlt: `${name} 건물 사진`,
+      imageSize: 'large',
+      imageTitle: name,
+      imageDescription: '상세 사진',
+      dialogLabel: '건물 사진 확대 보기',
+    });
   };
 
   return (

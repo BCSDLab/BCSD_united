@@ -79,7 +79,17 @@ function RoomList(props: RoomListProps) {
               size="sm"
               className={styles.filters__button}
               aria-pressed={rentType === type}
-              onClick={() => onRentTypeChange(type)}
+              onClick={() => {
+                if (type !== rentType) {
+                  logger.actionEventClick({
+                    event_name: 'DA1',
+                    event_label: 'real_estate__room_list__contract_type__select',
+                    event_category: 'select',
+                    value: RENT_TYPE_LABELS[type],
+                  });
+                }
+                onRentTypeChange(type);
+              }}
             >
               {RENT_TYPE_LABELS[type]}
             </Button>
@@ -97,7 +107,9 @@ function RoomList(props: RoomListProps) {
                 onClick={() => {
                   logger.actionEventClick({
                     event_name: 'DA1',
-                    event_label: 'real_estate__room_list__room_detail__entry__click',
+                    event_label: isMobile
+                      ? 'real_estate__room_list__room_preview__entry__click'
+                      : 'real_estate__room_list__room_detail__entry__click',
                     value: room.name,
                   });
                   onSelectRoom(room);
