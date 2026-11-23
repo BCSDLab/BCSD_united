@@ -83,6 +83,8 @@ export interface TeamRecruitmentDetailResponse extends APIResponse, TeamRecruitm
   can_manage_applicants: boolean;
   team_chat_available: boolean;
   team_chat_room_id: number | null;
+  /** 제목·소개·지원 자격의 번역 원문 버전. 번역 요청의 `expected_source_version`으로 넘긴다. */
+  translation_source_version?: string | null;
 }
 
 interface TeamRecruitmentUpdateBaseRequest {
