@@ -164,12 +164,12 @@ function SignupPage() {
 }
 
 export const Route = createFileRoute('/auth/signup/$id/')({
+  validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   beforeLoad: ({ params }) => {
     // 서버(UA)와 클라이언트(뷰포트)의 기기 판정이 다를 수 있으므로 등록된 모든 단계를 허용해 SSR·하이드레이션 결과를 맞춘다.
     if (!mobileSteps.includes(params.id as StepTitle) && !desktopSteps.includes(params.id as StepTitle))
       throw notFound();
   },
-  validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   component: RouteComponent,
 });
 

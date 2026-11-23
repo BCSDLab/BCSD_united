@@ -2,19 +2,14 @@ import { traceOperation } from '@koin/telemetry/runtime';
 
 import { isHttpError, isKoinError } from 'interfaces/APIError';
 
-export const ARTICLE_DETAIL_ISR_REVALIDATE_SECONDS = 60 * 10;
-export const BUS_SHUTTLE_ISR_REVALIDATE_SECONDS = 60 * 30;
-export const ROOM_ISR_REVALIDATE_SECONDS = 60 * 60;
-
-export const ARTICLE_HOT_PATH_LIMIT = 10;
-export const ROOM_HOT_PATH_LIMIT = 24;
+// 공개 페이지 SSR 응답의 엣지 캐시(`s-maxage`) 유지 시간과 해당 loader 조회의 재시도.
+// span op·속성의 `isr` 이름은 Sentry 조회 기준이므로 유지한다.
+export const ARTICLE_DETAIL_EDGE_CACHE_SECONDS = 60 * 10;
+export const BUS_SHUTTLE_EDGE_CACHE_SECONDS = 60 * 30;
+export const ROOM_EDGE_CACHE_SECONDS = 60 * 60;
 
 const STATIC_FETCH_RETRY_ATTEMPTS = 2;
 const STATIC_FETCH_RETRY_DELAY_MS = 300;
-
-export function isNotFoundKoinError(error: unknown): boolean {
-  return isKoinError(error) && error.status === 404;
-}
 
 function isRetryableStaticFetchError(error: unknown): boolean {
   if (isKoinError(error)) {
