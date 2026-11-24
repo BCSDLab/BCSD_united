@@ -14,10 +14,11 @@ import { isKoinError } from 'interfaces/APIError';
 import type { InputMessage } from 'interfaces/InputMessage';
 import { MESSAGES, STORAGE_KEY } from 'static/auth';
 import ROUTES from 'static/routes';
-import useResendLock from 'utils/hooks/auth/useResendLock';
+import useResendLock, { getSendLimitMessage } from 'utils/hooks/auth/useResendLock';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
 import { useSessionStorage } from 'utils/hooks/state/useWebStorage';
 import useCountdownTimer from 'utils/hooks/ui/useCountdownTimer';
+import { getErrorStatus } from 'utils/ts/httpError';
 import showToast from 'utils/ts/showToast';
 
 interface UseEmailVerificationProps {
@@ -55,7 +56,7 @@ function useEmailVerification({ email, onNext }: UseEmailVerificationProps) {
     },
   });
 
-  const { isResendLocked, markSent, withResendLock, resendButtonText } = useResendLock(email);
+  const { isResendLocked, markSent, withResendLock, getResendLockMessage } = useResendLock(email);
 
   const resetVerificationState = () => {
     disableButton();
@@ -80,15 +81,18 @@ function useEmailVerification({ email, onNext }: UseEmailVerificationProps) {
       }, 3000);
     },
     onError: (err) => {
+      if (getErrorStatus(err) === 429) {
+        setEmailMessage({ type: 'error', content: getSendLimitMessage(err) });
+
+        return;
+      }
       if (isKoinError(err)) {
         if (err.status === 400) setEmailMessage({ type: 'warning', content: MESSAGES.EMAIL.FORMAT });
-
-        if (err.status === 429) setEmailMessage({ type: 'error', content: MESSAGES.VERIFICATION.STOP });
       }
     },
   });
 
-  const { mutate: checkEmailExists } = useMutation({
+  const { mutate: checkEmailExists, isPending: isCheckingEmailExists } = useMutation({
     mutationFn: emailExists,
     onSuccess: () => {
       sendVerificationEmail({ email });
@@ -155,11 +159,11 @@ function useEmailVerification({ email, onNext }: UseEmailVerificationProps) {
 
   return {
     emailMessage,
-    checkEmailExists: withResendLock(checkEmailExists),
+    checkEmailExists: withResendLock(checkEmailExists, isCheckingEmailExists || isSendingVerification),
     checkVerificationEmailVerify,
     isSendingVerification,
     isResendLocked,
-    resendButtonText,
+    resendLockMessage: getResendLockMessage(isTimer),
     findEmail,
     isDisabled,
     disableButton,

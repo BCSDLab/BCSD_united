@@ -43,7 +43,7 @@ function FindIdPhonePage() {
     timerValue,
     stopTimer,
     isResendLocked,
-    resendButtonText,
+    resendLockMessage,
   } = usePhoneVerificationInFindId({ phoneNumber });
 
   const isFormFilled = phoneNumber && verificationCode;
@@ -68,6 +68,8 @@ function FindIdPhonePage() {
   const onBack = () => {
     router.navigate({ href: ROUTES.Auth() });
   };
+
+  const shownPhoneMessage = resendLockMessage ?? phoneMessage;
 
   return (
     <div className={styles.container}>
@@ -94,12 +96,12 @@ function FindIdPhonePage() {
                       labelName="휴대전화"
                       htmlFor="phone_number"
                       placeholder="- 없이 번호를 입력해 주세요."
-                      message={phoneMessage}
+                      message={shownPhoneMessage}
                       disabled={isVerified}
                       isDelete={!isVerified}
                       maxLength={11}
                     >
-                      {phoneMessage?.type === 'success' && (
+                      {shownPhoneMessage?.type === 'success' && (
                         <div className={styles['label-count-number']}>
                           {' '}
                           남은 횟수 ({smsSendCountData?.remaining_count}/{smsSendCountData?.total_count})
@@ -112,7 +114,7 @@ function FindIdPhonePage() {
                       className={styles['check-button']}
                       disabled={!field.value || isDisabled || isVerified || isResendLocked}
                     >
-                      {resendButtonText('인증번호 발송')}
+                      인증번호 발송
                     </button>
                   </div>
                 )}

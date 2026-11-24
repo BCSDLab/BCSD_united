@@ -41,7 +41,7 @@ function FindIdEmailPage() {
     timerValue,
     stopTimer,
     isResendLocked,
-    resendButtonText,
+    resendLockMessage,
   } = useEmailVerification({ email });
 
   const onClickSendVerificationButton = () => {
@@ -70,6 +70,8 @@ function FindIdEmailPage() {
     router.navigate({ href: ROUTES.Auth() });
   };
 
+  const shownEmailMessage = resendLockMessage ?? emailMessage;
+
   return (
     <div className={styles.container}>
       <FormProvider {...methods}>
@@ -95,11 +97,11 @@ function FindIdEmailPage() {
                       labelName="이메일"
                       htmlFor="email"
                       placeholder="등록된 이메일을 입력해 주세요."
-                      message={emailMessage}
+                      message={shownEmailMessage}
                       disabled={isVerified}
                       isDelete={!isVerified}
                     >
-                      {emailMessage?.type === 'success' && (
+                      {shownEmailMessage?.type === 'success' && (
                         <div className={styles['label-count-number']}>
                           {' '}
                           남은 횟수 ({emailSendCountData?.remaining_count}/{emailSendCountData?.total_count})
@@ -112,7 +114,7 @@ function FindIdEmailPage() {
                       className={styles['check-button']}
                       disabled={!field.value || isDisabled || isVerified || isResendLocked}
                     >
-                      {resendButtonText('인증번호 발송')}
+                      인증번호 발송
                     </button>
                   </div>
                 )}

@@ -8,10 +8,11 @@ import { isKoinError } from 'interfaces/APIError';
 import type { InputMessage } from 'interfaces/InputMessage';
 import { MESSAGES, STORAGE_KEY } from 'static/auth';
 import ROUTES from 'static/routes';
-import useResendLock from 'utils/hooks/auth/useResendLock';
+import useResendLock, { getSendLimitMessage } from 'utils/hooks/auth/useResendLock';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
 import { useSessionStorage } from 'utils/hooks/state/useWebStorage';
 import useCountdownTimer from 'utils/hooks/ui/useCountdownTimer';
+import { getErrorStatus } from 'utils/ts/httpError';
 import showToast from 'utils/ts/showToast';
 
 interface UsePhoneVerificationProps {
@@ -54,9 +55,9 @@ function usePhoneVerificationInFindId({ phoneNumber, onNext }: UsePhoneVerificat
     },
   });
 
-  const { isResendLocked, markSent, withResendLock, resendButtonText } = useResendLock(phoneNumber);
+  const { isResendLocked, markSent, withResendLock, getResendLockMessage } = useResendLock(phoneNumber);
 
-  const { mutate: sendVerificationSms } = useMutation({
+  const { mutate: sendVerificationSms, isPending: isSendingVerificationSms } = useMutation({
     mutationFn: smsSend,
     onSuccess: ({ total_count, remaining_count, current_count }, { phone_number }) => {
       markSent(phone_number);
@@ -69,19 +70,20 @@ function usePhoneVerificationInFindId({ phoneNumber, onNext }: UsePhoneVerificat
       }, 3000);
     },
     onError: (err) => {
+      if (getErrorStatus(err) === 429) {
+        setPhoneMessage({ type: 'error', content: getSendLimitMessage(err) });
+
+        return;
+      }
       if (isKoinError(err)) {
         if (err.status === 400) {
           setPhoneMessage({ type: 'warning', content: MESSAGES.PHONE.INVALID });
-        }
-
-        if (err.status === 429) {
-          setPhoneMessage({ type: 'error', content: MESSAGES.VERIFICATION.STOP });
         }
       }
     },
   });
 
-  const { mutate: checkPhoneExists } = useMutation({
+  const { mutate: checkPhoneExists, isPending: isCheckingPhoneExists } = useMutation({
     mutationFn: phoneExists, // 아이디, 비밀번호 찾기 때 사용되는 api
     onSuccess: () => {
       sendVerificationSms({ phone_number: phoneNumber });
@@ -115,7 +117,7 @@ function usePhoneVerificationInFindId({ phoneNumber, onNext }: UsePhoneVerificat
     },
   });
 
-  const { mutate: sendSMSToUser } = useMutation({
+  const { mutate: sendSMSToUser, isPending: isSendingSmsToUser } = useMutation({
     mutationFn: smsSend,
     onSuccess: (data: SmsSendResponse, { phone_number }) => {
       markSent(phone_number);
@@ -128,18 +130,20 @@ function usePhoneVerificationInFindId({ phoneNumber, onNext }: UsePhoneVerificat
       });
     },
     onError: (err) => {
+      if (getErrorStatus(err) === 429) {
+        setPhoneMessage({ type: 'error', content: getSendLimitMessage(err) });
+
+        return;
+      }
       if (isKoinError(err)) {
         if (err.status === 400) {
           setPhoneMessage({ type: 'warning', content: MESSAGES.PHONE.INVALID });
-        }
-        if (err.status === 429) {
-          setPhoneMessage({ type: 'error', content: MESSAGES.VERIFICATION.STOP });
         }
       }
     },
   });
 
-  const { mutate: checkPhoneNumber } = useMutation({
+  const { mutate: checkPhoneNumber, isPending: isCheckingPhoneNumber } = useMutation({
     mutationFn: checkPhone, // 회원가입 할 때 사용되는 api
     onSuccess: () => {
       sendSMSToUser({ phone_number: phoneNumber });
@@ -190,12 +194,15 @@ function usePhoneVerificationInFindId({ phoneNumber, onNext }: UsePhoneVerificat
     },
   });
 
+  const isSendPending =
+    isCheckingPhoneExists || isSendingVerificationSms || isCheckingPhoneNumber || isSendingSmsToUser;
+
   return {
     phoneMessage,
-    checkPhoneExists: withResendLock(checkPhoneExists),
+    checkPhoneExists: withResendLock(checkPhoneExists, isSendPending),
     checkVerificationSmsVerify,
     isResendLocked,
-    resendButtonText,
+    resendLockMessage: getResendLockMessage(isTimer),
     findId,
     isDisabled,
     disableButton,
@@ -214,7 +221,7 @@ function usePhoneVerificationInFindId({ phoneNumber, onNext }: UsePhoneVerificat
     checkIdMatchPhone,
     idMessage,
     setIdMessage,
-    checkPhoneNumber: withResendLock(checkPhoneNumber),
+    checkPhoneNumber: withResendLock(checkPhoneNumber, isSendPending),
   };
 }
 

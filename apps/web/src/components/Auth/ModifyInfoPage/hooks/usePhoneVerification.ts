@@ -5,6 +5,8 @@ import { smsSend, smsVerify, checkPhone } from 'api/auth';
 import type { SmsSendResponse } from 'api/auth/entity';
 import { isKoinError } from 'interfaces/APIError';
 import { MESSAGES } from 'static/auth';
+import useResendLock, { getSendLimitMessage } from 'utils/hooks/auth/useResendLock';
+import { getErrorStatus } from 'utils/ts/httpError';
 
 import { useVerificationTimer } from './useVerificationTimer';
 
@@ -53,9 +55,13 @@ export function usePhoneVerification(
     }
   });
 
+  const { isResendLocked, markSent, releaseLock, withResendLock, getResendLockMessage } =
+    useResendLock(normalizedPhoneNumber);
+
   const sendSMS = useMutation({
     mutationFn: smsSend,
     onSuccess: (data: SmsSendResponse, { phone_number: requestedPhoneNumber }) => {
+      markSent(requestedPhoneNumber);
       if (requestedPhoneNumber !== currentPhoneNumberRef.current) return;
 
       setIsSendLimitExceeded(false);
@@ -69,15 +75,17 @@ export function usePhoneVerification(
     onError: (err, { phone_number: requestedPhoneNumber }) => {
       if (requestedPhoneNumber !== currentPhoneNumberRef.current) return;
 
+      if (getErrorStatus(err) === 429) {
+        stop();
+        setIsSendLimitExceeded(true);
+        setPhoneMessage({ type: 'error', content: getSendLimitMessage(err) });
+        setVerificationMessage(null);
+
+        return;
+      }
       if (isKoinError(err)) {
         const { status } = err;
         if (status === 400) setPhoneMessage({ type: 'warning', content: MESSAGES.PHONE.INVALID });
-        if (status === 429) {
-          stop();
-          setIsSendLimitExceeded(true);
-          setPhoneMessage({ type: 'error', content: MESSAGES.VERIFICATION.STOP });
-          setVerificationMessage(null);
-        }
       }
     },
   });
@@ -120,6 +128,7 @@ export function usePhoneVerification(
         if (status === 404) {
           setVerificationMessage({ type: 'warning', content: MESSAGES.VERIFICATION.TIMEOUT });
           expire();
+          releaseLock(requestedPhoneNumber);
         }
       }
     },
@@ -147,9 +156,11 @@ export function usePhoneVerification(
     (shouldShowVerificationHelp ? { type: 'default', content: MESSAGES.VERIFICATION.DEFAULT } : null);
 
   return {
-    checkPhoneNumber,
+    sendVerification: withResendLock((phoneNumber: string) => checkPhoneNumber.mutate(phoneNumber), isSending),
     verifyCode,
-    phoneMessage,
+    // 인증을 마치면 타이머가 멈추므로, 인증 전에만 잠금 안내를 보여준다.
+    phoneMessage: (isVerified ? null : getResendLockMessage(isRunning)) ?? phoneMessage,
+    isResendLocked,
     verificationMessage: displayedVerificationMessage,
     isVerified,
     hasSentVerificationCode,

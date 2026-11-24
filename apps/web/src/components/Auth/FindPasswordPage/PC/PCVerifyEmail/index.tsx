@@ -47,7 +47,7 @@ function PCVerifyEmail({ onNext, onBack, setContactType }: FindPasswordProps) {
     idMessage,
     setIdMessage,
     isResendLocked,
-    resendButtonText,
+    resendLockMessage,
   } = useEmailVerification({ email, onNext });
 
   const onClickSendVerificationButton = () => {
@@ -82,6 +82,8 @@ function PCVerifyEmail({ onNext, onBack, setContactType }: FindPasswordProps) {
   };
 
   const isFormFilled = loginId && email && verificationCode && isCodeCorrect;
+
+  const shownEmailMessage = resendLockMessage ?? emailMessage;
 
   return (
     <div className={styles.container}>
@@ -137,7 +139,7 @@ function PCVerifyEmail({ onNext, onBack, setContactType }: FindPasswordProps) {
                   }}
                   placeholder="이메일을 입력해 주세요."
                   isRequired
-                  message={emailMessage}
+                  message={shownEmailMessage}
                   disabled={isVerified}
                   isDelete={!isVerified}
                   onClear={() => {
@@ -145,7 +147,7 @@ function PCVerifyEmail({ onNext, onBack, setContactType }: FindPasswordProps) {
                     setButtonText('인증번호 발송');
                   }}
                 >
-                  {emailMessage?.type === 'success' && (
+                  {shownEmailMessage?.type === 'success' && (
                     <div className={styles['label-count-number']}>
                       {' '}
                       남은 횟수 ({emailSendCountData?.remaining_count}/{emailSendCountData?.total_count})
@@ -160,7 +162,7 @@ function PCVerifyEmail({ onNext, onBack, setContactType }: FindPasswordProps) {
                   className={styles['check-button']}
                   disabled={!field.value || isDisabled || isVerified || isResendLocked}
                 >
-                  {isSendingVerification ? '...' : resendButtonText(buttonText)}
+                  {isSendingVerification ? '...' : buttonText}
                 </button>
               </div>
             )}

@@ -802,9 +802,10 @@ const PhoneInput = React.forwardRef<ICustomFormInput | null, ICustomFormInputPro
   const isPhoneNumberUnchanged = normalizedPhoneNumber === originalPhoneNumber;
 
   const {
-    checkPhoneNumber,
+    sendVerification,
     verifyCode,
     phoneMessage,
+    isResendLocked,
     verificationMessage,
     isVerified,
     timeLeft,
@@ -817,7 +818,8 @@ const PhoneInput = React.forwardRef<ICustomFormInput | null, ICustomFormInputPro
     resetVerification,
   } = usePhoneVerification(normalizedPhoneNumber, { showVerificationHelp: isMobile });
 
-  const isSendButtonDisabled = isPhoneNumberUnchanged || isSendLimitExceeded || isSending || isVerified;
+  const isSendButtonDisabled =
+    isPhoneNumberUnchanged || isSendLimitExceeded || isSending || isVerified || isResendLocked;
 
   useEffect(() => {
     setIsValid((prev) => ({
@@ -848,7 +850,7 @@ const PhoneInput = React.forwardRef<ICustomFormInput | null, ICustomFormInputPro
     if (!isPhoneNumberUnchanged) {
       setCodeNumber('');
       setIsValid((prev) => ({ ...prev, isPhoneValid: false }));
-      checkPhoneNumber.mutate(normalizedPhoneNumber);
+      sendVerification(normalizedPhoneNumber);
     }
   };
 

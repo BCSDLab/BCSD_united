@@ -60,7 +60,7 @@ function Verification({ onNext, onBack, setUserType }: VerificationProps) {
     stopTimer,
     checkPhoneNumber,
     isResendLocked,
-    resendButtonText,
+    resendLockMessage,
   } = usePhoneVerification({ phoneNumber, onNext });
 
   const onClickSendVerificationButton = () => {
@@ -106,6 +106,8 @@ function Verification({ onNext, onBack, setUserType }: VerificationProps) {
       session_name: 'sign_up',
     });
   };
+
+  const shownPhoneMessage = resendLockMessage ?? phoneMessage;
 
   return (
     <div className={styles.container}>
@@ -186,7 +188,7 @@ function Verification({ onNext, onBack, setUserType }: VerificationProps) {
                     onChange={(e) => handlePhoneNumberChange(e, field.onChange)}
                     placeholder="숫자만 입력해 주세요."
                     isRequired
-                    message={phoneMessage}
+                    message={shownPhoneMessage}
                     disabled={isDisabled || isVerified}
                     isDelete={!isVerified}
                     onClear={() => {
@@ -194,13 +196,13 @@ function Verification({ onNext, onBack, setUserType }: VerificationProps) {
                       setButtonText('인증번호 발송');
                     }}
                   >
-                    {phoneMessage?.type === 'success' && smsSendCountData && (
+                    {shownPhoneMessage?.type === 'success' && smsSendCountData && (
                       <div className={styles['label-count-number']}>
                         {' '}
                         남은 횟수 ({smsSendCountData?.remaining_count}/{smsSendCountData?.total_count})
                       </div>
                     )}
-                    {phoneMessage?.type === 'error' && phoneMessage.code === 'ALREADY_REGISTERED' && (
+                    {shownPhoneMessage?.type === 'error' && shownPhoneMessage.code === 'ALREADY_REGISTERED' && (
                       <>
                         <button onClick={goToLogin} type="button" className={styles['label-link-button']}>
                           로그인하기
@@ -232,7 +234,7 @@ function Verification({ onNext, onBack, setUserType }: VerificationProps) {
                     className={styles['check-button']}
                     disabled={!field.value || isDisabled || isVerified || isResendLocked}
                   >
-                    {isSendingVerification ? '...' : resendButtonText(buttonText)}
+                    {isSendingVerification ? '...' : buttonText}
                   </button>
                 </div>
               </div>
