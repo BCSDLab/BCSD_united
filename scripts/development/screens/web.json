@@ -67,7 +67,8 @@
       "id": "auth-modifyinfo",
       "route": "auth.modifyinfo.index.tsx",
       "path": "/auth/modifyinfo",
-      "access": "public"
+      "access": "authenticated",
+      "targetText": "아이디"
     },
     {
       "id": "auth-signup-id",
@@ -122,41 +123,49 @@
     {
       "id": "callvan-postid-participants",
       "route": "callvan.$postId.participants.index.tsx",
-      "path": "/callvan/124/participants",
-      "access": "public",
-      "source": "스테이지 API(https://api.stage.koreatech.in) GET /callvan?page=1&limit=10 의 첫 글 id"
+      "path": "/callvan/:postId/participants",
+      "access": "authenticated",
+      "desktopGuard": "/",
+      "targetText": "참여자 리스트"
     },
     {
       "id": "callvan-postid-report-userid",
       "route": "callvan.$postId.report.$userId.index.tsx",
-      "path": "/callvan/124/report/1",
-      "access": "public",
-      "source": "스테이지 API(https://api.stage.koreatech.in) GET /callvan?page=1&limit=10 의 첫 글 id. userId는 로그인 없이 조회할 수 없어 실제 값이 아니다"
+      "path": "/callvan/:postId/report/:userId",
+      "access": "authenticated",
+      "desktopGuard": "/",
+      "targetText": "신고하기"
     },
     {
       "id": "callvan-add",
       "route": "callvan.add.index.tsx",
       "path": "/callvan/add",
-      "access": "public"
+      "access": "authenticated",
+      "targetText": "출발지 선택"
     },
     {
       "id": "callvan-chat-id",
       "route": "callvan.chat.$id.index.tsx",
-      "path": "/callvan/chat/124",
-      "access": "public",
-      "source": "스테이지 API(https://api.stage.koreatech.in) GET /callvan?page=1&limit=10 의 첫 글 id"
+      "path": "/callvan/chat/:postId",
+      "access": "authenticated",
+      "desktopGuard": "/",
+      "target": "textarea[placeholder='메세지 보내기']"
     },
     {
       "id": "callvan",
       "route": "callvan.index.tsx",
       "path": "/callvan",
-      "access": "public"
+      "access": "authenticated",
+      "desktopGuard": "/",
+      "targetText": "콜밴팟"
     },
     {
       "id": "callvan-notifications",
       "route": "callvan.notifications.index.tsx",
       "path": "/callvan/notifications",
-      "access": "public"
+      "access": "authenticated",
+      "desktopGuard": "/",
+      "targetText": "알림"
     },
     {
       "id": "campusinfo",
@@ -266,7 +275,8 @@
       "id": "lost-item-chat",
       "route": "lost-item.chat.index.tsx",
       "path": "/lost-item/chat",
-      "access": "public"
+      "access": "authenticated",
+      "targetText": "쪽지"
     },
     {
       "id": "lost-item-edit-id",
@@ -412,9 +422,9 @@
     {
       "id": "report-review-shopid-id-reviewid-reviewid",
       "route": "report.review.shopid.$id.reviewid.$reviewid.index.tsx",
-      "path": "/report/review/shopid/11/reviewid/483",
-      "access": "public",
-      "source": "스테이지 API(https://api.stage.koreatech.in) GET /shops 의 첫 상점 id와 GET /shops/11/reviews 의 첫 리뷰 id"
+      "path": "/report/review/shopid/:shopId/reviewid/:otherReviewId",
+      "access": "authenticated",
+      "targetText": "신고 이유를 선택해주세요."
     },
     {
       "id": "room-id",
@@ -485,16 +495,16 @@
     {
       "id": "store-review-id",
       "route": "store.review.$id.index.tsx",
-      "path": "/store/review/11",
-      "access": "public",
-      "source": "스테이지 API(https://api.stage.koreatech.in) GET /shops 의 첫 상점 id"
+      "path": "/store/review/:shopId",
+      "access": "authenticated",
+      "targetText": "내용"
     },
     {
       "id": "store-review-edit-id-reviewid",
       "route": "store.review.edit.$id.$reviewid.index.tsx",
-      "path": "/store/review/edit/11/483",
-      "access": "public",
-      "source": "스테이지 API(https://api.stage.koreatech.in) GET /shops 의 첫 상점 id와 GET /shops/11/reviews 의 첫 리뷰 id"
+      "path": "/store/review/edit/:shopId/:ownReviewId",
+      "access": "authenticated",
+      "targetText": "내용"
     },
     {
       "id": "store-search",
