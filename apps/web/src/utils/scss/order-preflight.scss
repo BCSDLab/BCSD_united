@@ -59,7 +59,6 @@
 }
 
 // KOIN_ORDER_WEBVIEW body의 글꼴 체인·크기·줄 높이. 화면·포털 루트에 건다.
-// 이름은 대소문자를 가리지 않아 next/font가 등록한 pretendard 페이스와 매칭된다
 @mixin body-font {
   font-family:
     Pretendard, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",

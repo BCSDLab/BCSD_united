@@ -9,6 +9,7 @@ import ReportIcon from 'assets/svg/Articles/report.svg';
 import CategoryBadge from 'components/Articles/components/CategoryBadge';
 import HotArticles from 'components/Articles/components/HotArticle';
 import { useArticlesLogger } from 'components/Articles/hooks/useArticlesLogger';
+import useLostItemLabels from 'components/Articles/hooks/useLostItemLabels';
 import DeleteModal from 'components/Articles/LostItemDetailPage/components/DeleteModal';
 import DisplayImage from 'components/Articles/LostItemDetailPage/components/DisplayImage';
 import FoundChip from 'components/Articles/LostItemDetailPage/components/FoundChip';
@@ -21,6 +22,8 @@ import usePostFoundLostItem from 'components/Articles/LostItemDetailPage/hooks/u
 import usePostLostItemChatroom from 'components/Articles/LostItemDetailPage/hooks/usePostLostItemChatroom';
 import { SSRLayout } from 'components/layout';
 import LoginRequiredModal from 'components/modal/LoginRequiredModal';
+import TranslateButton from 'components/translation/TranslateButton';
+import useContentTranslation, { translationSource } from 'components/translation/useContentTranslation';
 import { isKoinError } from 'interfaces/APIError';
 import ROUTES from 'static/routes';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
@@ -30,7 +33,7 @@ import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
 import useScrollToTop from 'utils/hooks/ui/useScrollToTop';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
-import { isNotFoundKoinError } from 'utils/ts/isr';
+import { isNotFoundKoinError } from 'utils/ts/httpError';
 import { parseQueryId } from 'utils/ts/parseServerSideParams';
 
 import styles from 'pages/lost-item/[id]/LostItemDetailPage.module.scss';
@@ -46,6 +49,7 @@ function LostItemDetailPage({ articleId }: LostItemDetailPageProps) {
   const isMobile = useMediaQuery();
   const portalManager = useModalPortal();
   const isLoggedIn = useIsLoggedIn();
+  const labels = useLostItemLabels();
 
   const { data: article } = useSuspenseQuery(articleQueries.lostItemDetail(isLoggedIn, articleId));
   const { mutateAsync: searchChatroom } = usePostLostItemChatroom();
@@ -85,8 +89,22 @@ function LostItemDetailPage({ articleId }: LostItemDetailPageProps) {
     is_mine,
     organization,
   } = article;
-  const typeLabel = type === 'FOUND' ? '[습득물]' : '[분실물]';
-  const mobileTypeLabel = type === 'FOUND' ? '습득물' : '분실물';
+  const mobileTypeLabel = labels.type(type);
+  const typeLabel = `[${mobileTypeLabel}]`;
+
+  const translation = useContentTranslation<{ found_place: string; content: string }>({
+    resourceType: 'LOST_ITEM',
+    resourceId: articleId,
+    translatePath: `/articles/lost-item/${articleId}/translations`,
+    sourceVersion: article.translation_source_version,
+    source: translationSource(
+      articleQueries.lostItemDetail(isLoggedIn, articleId),
+      (data) => data.translation_source_version,
+    ),
+  });
+  // 번역을 보여주는 동안에만 습득 장소와 내용을 번역문으로 바꾼다
+  const shownPlace = translation.translated?.found_place ?? found_place;
+  const shownContent = translation.translated?.content ?? content;
 
   const requireLogin = (
     modalTitle: string,
@@ -172,8 +190,8 @@ function LostItemDetailPage({ articleId }: LostItemDetailPageProps) {
                 <span className={styles.header__type}>{isMobile ? mobileTypeLabel : typeLabel}</span>
                 <CategoryBadge category={category} isMobile={isMobile} className={styles.header__category} />
                 <span className={styles.header__location}>
-                  <span className={styles.header__place} title={found_place}>
-                    {found_place}
+                  <span className={styles.header__place} title={shownPlace}>
+                    {shownPlace}
                   </span>
                   <span className={styles.header__divider}>|</span>
                   <span className={styles.header__dateText}>{found_date}</span>
@@ -184,11 +202,19 @@ function LostItemDetailPage({ articleId }: LostItemDetailPageProps) {
             <div className={styles.header__info}>
               <div className={styles.header__author}>{author}</div>
               <div className={styles.header__date}>{registered_at}</div>
+              {translation.canTranslate && (
+                <TranslateButton
+                  state={translation.state}
+                  onClick={translation.toggle}
+                  size={isMobile ? 'small' : 'large'}
+                  className={styles.header__translate}
+                />
+              )}
             </div>
           </div>
           <div className={styles.article}>
             <DisplayImage key={articleId} images={images} />
-            <div className={styles.article__content}>{content}</div>
+            <div className={styles.article__content}>{shownContent}</div>
             {organization && (
               <div className={styles.article__guide}>
                 <p>분실물 수령을 희망하시는 분은 재실 시간 내에</p>

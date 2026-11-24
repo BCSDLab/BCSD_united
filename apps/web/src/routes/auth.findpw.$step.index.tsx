@@ -180,10 +180,10 @@ function FindPassword() {
 }
 
 export const Route = createFileRoute('/auth/findpw/$step/')({
+  validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   beforeLoad: ({ params }) => {
     if (!Object.hasOwn(stepToProgress, params.step)) throw notFound();
   },
-  validateSearch: (search: Record<string, unknown>) => search as Record<string, string | string[] | undefined>,
   component: RouteComponent,
 });
 

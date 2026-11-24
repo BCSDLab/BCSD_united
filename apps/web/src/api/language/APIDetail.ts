@@ -1,6 +1,13 @@
 import { type APIRequest, HTTP_METHOD } from 'interfaces/APIRequest';
 
-import type { LanguagesResponse, MyLanguageResponse, UpdateMyLanguageRequest } from './entity';
+import type {
+  LanguagesResponse,
+  MessagesResponse,
+  MyLanguageResponse,
+  PolicyResponse,
+  PolicyType,
+  UpdateMyLanguageRequest,
+} from './entity';
 
 export class Languages<R extends LanguagesResponse> implements APIRequest<R> {
   method = HTTP_METHOD.GET;
@@ -29,4 +36,31 @@ export class UpdateMyLanguage<R extends MyLanguageResponse> implements APIReques
   response!: R;
 
   constructor(public data: UpdateMyLanguageRequest) {}
+}
+
+export class Messages<R extends MessagesResponse> implements APIRequest<R> {
+  method = HTTP_METHOD.GET;
+
+  path: string;
+
+  response!: R;
+
+  constructor(language: string) {
+    this.path = `/languages/${encodeURIComponent(language)}/messages`;
+  }
+}
+
+export class Policy<R extends PolicyResponse> implements APIRequest<R> {
+  method = HTTP_METHOD.GET;
+
+  path: string;
+
+  params: { language: string };
+
+  response!: R;
+
+  constructor(type: PolicyType, language: string) {
+    this.path = `/policies/${type}`;
+    this.params = { language };
+  }
 }

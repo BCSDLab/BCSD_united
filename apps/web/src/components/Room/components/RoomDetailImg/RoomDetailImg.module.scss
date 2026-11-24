@@ -8,7 +8,8 @@
   position: relative;
 
   @include media.media-breakpoint(mobile) {
-    justify-content: space-evenly;
+    margin-top: 0;
+    flex-direction: column;
   }
 
   &__img-arrow {
@@ -28,8 +29,8 @@
     overflow: hidden;
 
     @include media.media-breakpoint(mobile) {
-      height: 184px;
-      width: 100%;
+      height: 204px;
+      touch-action: pan-y;
     }
   }
 
@@ -49,7 +50,52 @@
     font-size: 12px;
     line-height: 2;
     color: #fff;
+    text-align: center;
     bottom: 10px;
     left: calc(50% - 27px);
+  }
+
+  &__tap {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 25%;
+
+    &:focus-visible {
+      outline: 2px solid #b611f5;
+      outline-offset: -2px;
+    }
+
+    &--previous {
+      left: 0;
+    }
+
+    &--center {
+      left: 25%;
+      width: 50%;
+    }
+
+    &--next {
+      right: 0;
+    }
+  }
+
+  &__dots {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    padding-top: 12px;
+  }
+
+  &__dot,
+  &__dot--active {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #e1e1e1;
+  }
+
+  &__dot--active {
+    background: #b611f5;
   }
 }

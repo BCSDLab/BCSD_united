@@ -145,6 +145,11 @@ interface FcmErrorBody {
 
 export async function sendPush(env: Bindings, input: PushInput): Promise<void> {
   if (!input.token.trim()) throw new ApiError(400, 'INVALID_FCM_TOKEN', '푸시 알림 토큰이 필요합니다.');
+  await sendFcmMessage(env, fcmMessage(input));
+}
+
+/** FCM HTTP v1 messages:send. `message`는 완성된 v1 Message 객체다. */
+export async function sendFcmMessage(env: Bindings, message: object): Promise<void> {
   const project = required(env.FCM_PROJECT_ID, 'FCM_PROJECT_ID');
   const response = await request(
     'FCM',
@@ -152,7 +157,7 @@ export async function sendPush(env: Bindings, input: PushInput): Promise<void> {
     {
       method: 'POST',
       headers: { authorization: `Bearer ${await accessToken(env)}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ message: fcmMessage(input) }),
+      body: JSON.stringify({ message }),
     },
   );
   if (!response.ok) {

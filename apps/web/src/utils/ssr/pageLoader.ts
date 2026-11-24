@@ -2,9 +2,11 @@ import type { DehydratedState, QueryClient } from '@tanstack/react-query';
 
 import { WebSession } from 'api/auth/APIDetail';
 import { authQueries, SESSION_STALE_TIME } from 'api/auth/queries';
+import type { MessagesResponse } from 'api/language/entity';
 import { isHttpError } from 'interfaces/APIError';
 import { ANONYMOUS_SESSION, SESSION_QUERY_KEY, type Session } from 'utils/auth/session';
 import { isConfirmedSession, prepareSessionFetch, sessionCookie } from 'utils/auth/sessionConfirmation';
+import { readStoredLanguage } from 'utils/language/language';
 import type { ServerRequestContext } from 'utils/ssr/requestContext';
 import { getFreshServerNow, initializeServerClock } from 'utils/ssr/serverClock';
 import APIClient from 'utils/ts/apiClient';
@@ -43,6 +45,8 @@ export type PageData<Props extends object> = Props & {
 export interface RootSnapshot {
   serverRequest: ServerRequestContext;
   hasSession: boolean;
+  /** 서버 렌더에서만 채우는 표시 문구 사전. 페이지 이동 때는 이미 받은 사전을 그대로 쓴다. */
+  messages?: MessagesResponse | null;
 }
 
 const CLIENT_CACHE_CONTROL: PageCacheControl = { enablePublicCache: () => {} };
@@ -120,8 +124,8 @@ export async function getClientRootSnapshot(ssrServerRequest: ServerRequestConte
       userType,
       now,
       mayBeSharedCached: false,
-      // 언어를 바꾸면 새로고침하므로 문서를 받은 뒤에는 SSR 값이 그대로 유지된다
-      language: ssrServerRequest.language,
+      // 마운트 후 브라우저 언어나 서버 선호 언어로 바뀌었을 수 있으므로 지금 저장된 언어를 쓴다
+      language: readStoredLanguage() ?? ssrServerRequest.language,
     },
     hasSession: !!currentCookie,
   };

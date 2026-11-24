@@ -1,4 +1,12 @@
-import type { Env, Identity, PatchManifest, PreparedJob, Verification } from './types';
+import type {
+  Env,
+  Identity,
+  PatchManifest,
+  PreparedJob,
+  PreparedRequestJob,
+  RequestIdentity,
+  Verification,
+} from './types';
 
 const encoder = new TextEncoder();
 export const HEX = /^[a-f0-9]{40}$/;
@@ -138,7 +146,8 @@ export class GitHubError extends Error {
     this.status = status;
   }
 }
-export function marker(identity: Identity): string {
+export function marker(identity: Identity | RequestIdentity): string {
+  if (identity.source === 'slack-request') return `<!-- slack-autofix:${identity.teamId}:${identity.eventId} -->`;
   const scope =
     identity.source === 'sentry'
       ? identity.scope.organization
@@ -146,11 +155,13 @@ export function marker(identity: Identity): string {
   return `<!-- error-autofix:${identity.source}:${scope}:${identity.project}:${identity.sourceId} -->`;
 }
 /** Mirror identityKey's canonical provider scope without importing the Worker entrypoint. */
-export async function branch(identity: Identity): Promise<string> {
+export async function branch(identity: Identity | RequestIdentity): Promise<string> {
   const key =
-    identity.source === 'sentry'
-      ? `sentry/${identity.scope.organization}/${identity.project}/${identity.sourceId}`
-      : `cloudflare/${identity.scope.accountId}/${identity.scope.policyId}/${identity.project}/${identity.sourceId}`;
+    identity.source === 'slack-request'
+      ? `slack-request/${identity.teamId}/${identity.eventId}`
+      : identity.source === 'sentry'
+        ? `sentry/${identity.scope.organization}/${identity.project}/${identity.sourceId}`
+        : `cloudflare/${identity.scope.accountId}/${identity.scope.policyId}/${identity.project}/${identity.sourceId}`;
   let digest = '';
   for (const byte of new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode(key))))
     digest += byte.toString(16).padStart(2, '0');
@@ -266,7 +277,11 @@ export async function existingPull(env: Env, token: string, job: Pick<PreparedJo
   return pulls[0] ?? null;
 }
 
-export async function publish(env: Env, job: PreparedJob, verification: Verification): Promise<string> {
+export async function publish(
+  env: Env,
+  job: PreparedJob | PreparedRequestJob,
+  verification: Verification,
+): Promise<string> {
   const token = await installationToken(env, 'publish');
   const base = await baseRepository(env, token, job.baseBranch);
   if (base.baseSha !== job.baseSha) throw new Error('Source branch advanced since independent verification');
@@ -294,7 +309,10 @@ export async function publish(env: Env, job: PreparedJob, verification: Verifica
     tree,
   });
   const commit = await github<{ sha: string }>(env, token, '/git/commits', 'POST', {
-    message: `fix: ${job.identity.source} ${job.identity.sourceId} 오류 수정`,
+    message:
+      job.mode === 'request'
+        ? 'fix: Slack 요청 코드 수정'
+        : `fix: ${job.identity.source} ${job.identity.sourceId} 오류 수정`,
     tree: resultTree.sha,
     parents: [job.baseSha],
   });
@@ -321,14 +339,23 @@ export async function publish(env: Env, job: PreparedJob, verification: Verifica
       throw new Error('Existing branch differs: never overwrite human changes');
   }
   const source =
-    job.identity.source === 'sentry'
-      ? `[Sentry issue](https://${job.identity.scope.organization}.sentry.io/issues/${job.identity.sourceId}/)`
-      : `[Cloudflare account dashboard](https://dash.cloudflare.com/${job.identity.scope.accountId}/) (Issue ID: \`${job.identity.sourceId}\`, policy: \`${job.identity.scope.policyId}\`)`;
-  const body = `${marker(job.identity)}\n\n## What is this PR?\n\n- Source: ${source}\n- Project: \`${job.identity.project}\`\n- App: \`apps/${job.context.app}\`\n- Verified request: \`${job.context.requestMethod} ${job.context.route}\`\n- Verified source branch: \`${job.baseBranch}\` at \`${job.baseSha}\`\n- PR target branch: \`${job.targetBranch}\`\n\n## Changes\n\n${verification.verifiedManifest.files.map((file) => `- \`${file.path}\``).join('\n')}\n\n## Independent checks\n\n${verification.passedChecks.map((check) => `- [x] ${check}`).join('\n')}\n\n## Precaution\n\n- Candidate was independently verified on the source branch (\`${job.baseBranch}\`), not on the develop integration tip. The PR's CI must validate develop integration before human merge.\n- This PR is authored by the GitHub App bot and is never eligible for automatic PR-review merge.\n- Rocky 실행기에서 독립 생성/검증; 자동 merge/배포는 하지 않습니다. 실제 사용자 데이터와 인증된 화면은 검증하지 않았습니다.\n- 오류 문자열과 생성 코드는 신뢰할 수 없는 입력입니다. 원인 및 테스트 타당성을 리뷰해 주세요.\n`;
+    job.mode === 'request'
+      ? `Slack request \`${job.identity.teamId}/${job.identity.eventId}\` by \`${job.identity.userId}\``
+      : job.identity.source === 'sentry'
+        ? `[Sentry issue](https://${job.identity.scope.organization}.sentry.io/issues/${job.identity.sourceId}/)`
+        : `[Cloudflare account dashboard](https://dash.cloudflare.com/${job.identity.scope.accountId}/) (Issue ID: \`${job.identity.sourceId}\`, policy: \`${job.identity.scope.policyId}\`)`;
+  const evidence =
+    job.mode === 'request'
+      ? '- Explicit authenticated Slack modification request; request text is untrusted model input.'
+      : `- Project: \`${job.identity.project}\`\n- App: \`apps/${job.context.app}\`\n- Verified request: \`${job.context.requestMethod} ${job.context.route}\``;
+  const body = `${marker(job.identity)}\n\n## What is this PR?\n\n- Source: ${source}\n${evidence}\n- Verified source branch: \`${job.baseBranch}\` at \`${job.baseSha}\`\n- PR target branch: \`${job.targetBranch}\`\n\n## Changes\n\n${verification.verifiedManifest.files.map((file) => `- \`${file.path}\``).join('\n')}\n\n## Independent checks\n\n${verification.passedChecks.map((check) => `- [x] ${check}`).join('\n')}\n\n## Precaution\n\n- Candidate was independently verified on the source branch (\`${job.baseBranch}\`), not on a later develop integration tip. The PR's CI must validate develop integration before human merge.\n- This PR is authored by the GitHub App bot and is never eligible for automatic PR-review merge.\n- This request does not authorize main promotion, deployment or external provider mutations. Model input and output are untrusted; only the independently verified manifest was published.\n`;
   let pr: Pull;
   try {
     pr = await github<Pull>(env, token, '/pulls', 'POST', {
-      title: `[${job.domain}] ${job.identity.source} ${job.identity.sourceId} 오류 수정`,
+      title:
+        job.mode === 'request'
+          ? '[공통] Slack 요청 코드 수정'
+          : `[${job.domain}] ${job.identity.source} ${job.identity.sourceId} 오류 수정`,
       body,
       head: job.branch,
       base: job.targetBranch,

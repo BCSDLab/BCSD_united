@@ -1,4 +1,4 @@
-import 'instrumentation-client';
+import 'sentryClient';
 
 import { startTransition } from 'react';
 import { captureException } from '@sentry/core';

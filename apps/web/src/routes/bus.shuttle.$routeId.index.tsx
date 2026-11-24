@@ -14,6 +14,7 @@ import { SHUTTLE_ROUTE_TYPE_CLASS } from 'static/bus';
 import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
+import useServerMessage from 'utils/language/useServerMessage';
 
 import styles from 'pages/bus/shuttle/ShuttleDetailPage.module.scss';
 
@@ -22,6 +23,7 @@ function asString(value: string | string[]): string {
 }
 
 function ShuttleDetailPage() {
+  const message = useServerMessage();
   const routeNavigate = useNavigate();
   const routeQuery: Record<string, string | string[] | undefined> = {
     ...useSearch({ strict: false }),
@@ -91,7 +93,9 @@ function ShuttleDetailPage() {
           <div className={styles['time-table-title']}>
             <div className={styles['bus-icon']}>
               <BusIcon />
-              <div className={`${styles['bus-type']} ${routeTypeClass ?? ''}`}>{shuttleTimetableDetail.route_type}</div>
+              <div className={`${styles['bus-type']} ${routeTypeClass ?? ''}`}>
+                {message('shuttle.type', shuttleTimetableDetail.route_type)}
+              </div>
             </div>
             <div className={styles.header__title}>{shuttleTimetableDetail.route_name} 시간표</div>
             {shuttleTimetableDetail.sub_name && (
@@ -118,7 +122,7 @@ function ShuttleDetailPage() {
                     });
                   }}
                 >
-                  {name}
+                  {message('shuttle.direction', name)}
                 </button>
               ))}
             </div>
@@ -134,7 +138,7 @@ function ShuttleDetailPage() {
                 ?.map(({ name, detail, arrival_time }) => (
                   <React.Fragment key={name}>
                     <div className={styles['time-table__number']}>
-                      {name}
+                      {message('shuttle.direction', name)}
                       {detail}
                     </div>
                     {arrival_time.map((time, index) => (
@@ -148,10 +152,10 @@ function ShuttleDetailPage() {
 
               <div className={styles['time-table__number']}>승하차장명</div>
 
-              {shuttleTimetableDetail.node_info.map(({ name, detail }) => (
+              {shuttleTimetableDetail.node_info.map(({ name, display_name: displayName, detail }) => (
                 <div key={name} className={styles['time-table__node-wrapper']}>
                   <div className={styles['time-table__node']}>
-                    <div>{name}</div>
+                    <div>{displayName ?? name}</div>
                     {detail && <div className={styles['time-table__node-detail']}>{detail}</div>}
                   </div>
                 </div>
@@ -166,7 +170,9 @@ function ShuttleDetailPage() {
           <div className={styles['time-table-title']}>
             <div className={styles['bus-icon']}>
               <BusIcon />
-              <div className={`${styles['bus-type']} ${routeTypeClass ?? ''}`}>{shuttleTimetableDetail.route_type}</div>
+              <div className={`${styles['bus-type']} ${routeTypeClass ?? ''}`}>
+                {message('shuttle.type', shuttleTimetableDetail.route_type)}
+              </div>
             </div>
             <div className={styles.header__title}>{shuttleTimetableDetail.route_name} 시간표</div>
             {shuttleTimetableDetail.sub_name && (
@@ -176,9 +182,9 @@ function ShuttleDetailPage() {
 
           <div className={styles['time-table']} style={{ gridTemplateRows: `repeat(${rowLength}, 1fr)` }}>
             <div className={styles['time-table__number']}>승하차장명</div>
-            {shuttleTimetableDetail.node_info.map(({ name, detail }) => (
+            {shuttleTimetableDetail.node_info.map(({ name, display_name: displayName, detail }) => (
               <div key={name} className={`${styles['time-table__node']} ${styles['time-table__node--long']}`}>
-                <div>{name}</div>
+                <div>{displayName ?? name}</div>
                 {detail && <div className={styles['time-table__node-detail']}>{detail}</div>}
               </div>
             ))}
@@ -186,7 +192,7 @@ function ShuttleDetailPage() {
             {shuttleTimetableDetail.route_info.map(({ name, detail, arrival_time }) => (
               <React.Fragment key={name}>
                 <div className={styles['time-table__number']}>
-                  {name}
+                  {message('shuttle.direction', name)}
                   <br />
                   {detail}
                 </div>

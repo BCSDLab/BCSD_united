@@ -1,8 +1,5 @@
-import {
-  GetLostItemChatroomMessagesV2,
-  PostLeaveLostItemChatroomV2,
-  PostLostItemChatroomMessageV2,
-} from 'api/articles/ChatAPIDetailV2';
+import { createServerFn } from '@tanstack/react-start';
+
 import APIClient from 'utils/ts/apiClient';
 
 import {
@@ -18,18 +15,33 @@ import {
   PostReportLostItemArticle,
   PostLostItemChatroom,
   PostBlockLostItemChatroom,
-  GetLostItemChatroomList,
-  GetLostItemChatroomDetail,
-  GetLostItemChatroomDetailMessages,
   GetLostItemStat,
   PostFoundLostItem,
   PutLostItemArticle,
   GetLostItemSearch,
 } from './APIDetail';
+import { fetchArticleContent } from './content.server';
+import { getArticleContentUrl } from './contentUrl';
+
+const readArticleContent = createServerFn({ method: 'GET' })
+  .validator((value: unknown) => {
+    if (typeof value !== 'string' || !getArticleContentUrl(value)) {
+      throw new TypeError('Invalid article content URL');
+    }
+
+    return value;
+  })
+  .handler(({ data }) => fetchArticleContent(data));
 
 export const getArticles = (page: string, boardId?: number) => APIClient.of(GetArticles)(page, boardId);
 
-export const getArticle = APIClient.of(GetArticle);
+export const getArticle = async (id: string | undefined) => {
+  const article = await APIClient.of(GetArticle)(id);
+  const contentUrl = getArticleContentUrl(article.content);
+  if (!contentUrl) return article;
+
+  return { ...article, content: await readArticleContent({ data: contentUrl }) };
+};
 
 export const getHotArticles = APIClient.of(GetHotArticles);
 
@@ -49,12 +61,6 @@ export const postReportLostItemArticle = APIClient.of(PostReportLostItemArticle)
 
 export const postLostItemChatroom = APIClient.of(PostLostItemChatroom);
 
-export const getLostItemChatroomList = APIClient.of(GetLostItemChatroomList);
-
-export const getLostItemChatroomDetail = APIClient.of(GetLostItemChatroomDetail);
-
-export const getLostItemChatroomDetailMessages = APIClient.of(GetLostItemChatroomDetailMessages);
-
 export const postBlockLostItemChatroom = APIClient.of(PostBlockLostItemChatroom);
 
 export const getLostItemStat = APIClient.of(GetLostItemStat);
@@ -64,9 +70,3 @@ export const postFoundLostItem = APIClient.of(PostFoundLostItem);
 export const putLostItemArticle = APIClient.of(PutLostItemArticle);
 
 export const getLostItemSearch = APIClient.of(GetLostItemSearch);
-
-export const getLostItemChatroomMessagesV2 = APIClient.of(GetLostItemChatroomMessagesV2);
-
-export const postLostItemChatroomMessageV2 = APIClient.of(PostLostItemChatroomMessageV2);
-
-export const postLeaveLostItemChatroomV2 = APIClient.of(PostLeaveLostItemChatroomV2);

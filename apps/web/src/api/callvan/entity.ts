@@ -57,6 +57,9 @@ export interface CallvanPost {
   title: string;
   departure: string;
   arrival: string;
+  /** 화면 언어로 번역한 장소. 직접 입력한 장소는 원문 그대로다. */
+  display_departure?: string;
+  display_arrival?: string;
   departure_date: string;
   departure_time: string;
   author_nickname: string;
@@ -161,6 +164,9 @@ export interface CallvanPostDetail {
   title: string;
   departure: string;
   arrival: string;
+  /** 화면 언어로 번역한 장소. 직접 입력한 장소는 원문 그대로다. */
+  display_departure?: string;
+  display_arrival?: string;
   departure_date: string;
   departure_time: string;
   current_participants: number;
@@ -214,26 +220,4 @@ export interface CreateCallvanResponse {
   status: CallvanStatus;
   created_at: string;
   updated_at: string;
-}
-
-export interface CallvanChatMessage {
-  user_id: number;
-  sender_nickname: string;
-  content: string;
-  date: string;
-  time: string;
-  unread_count: number;
-  is_image: boolean;
-  is_left_user: boolean;
-  is_mine: boolean;
-}
-
-export interface CallvanChatResponse {
-  room_name: string;
-  messages: CallvanChatMessage[];
-}
-
-export interface SendChatRequest {
-  is_image: boolean;
-  content: string;
 }

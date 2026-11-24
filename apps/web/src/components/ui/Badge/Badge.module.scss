@@ -1,4 +1,5 @@
 @use "src/utils/scss/order-palette" as palette;
+@use "src/utils/scss/tokens" as tokens;
 
 .badge {
   display: inline-flex;
@@ -7,8 +8,8 @@
   box-sizing: border-box;
   height: fit-content;
   border: 1px solid transparent;
-  border-radius: 9999px;
-  font-weight: 600;
+  border-radius: tokens.$radius-full;
+  font-weight: tokens.$font-weight-semibold;
 
   &--xs {
     padding: 4px 8px;
@@ -27,60 +28,60 @@
   }
 
   &--font-sm {
-    font-size: 14px;
+    font-size: tokens.$font-size-14;
     line-height: 20px;
   }
 
   &--font-xs {
-    font-size: 12px;
+    font-size: tokens.$font-size-12;
     line-height: 16px;
   }
 
   &--primary-default {
     border-color: palette.$primary-500;
     background-color: palette.$primary-500;
-    color: #fff;
+    color: tokens.$white;
   }
 
   &--primary-outlined {
     border-color: palette.$primary-500;
-    background-color: #fff;
+    background-color: tokens.$white;
     color: palette.$primary-500;
   }
 
   &--primaryLight-default {
     border-color: palette.$primary-300;
     background-color: palette.$primary-300;
-    color: #fff;
+    color: tokens.$white;
   }
 
   &--primaryLight-outlined {
     border-color: palette.$primary-300;
-    background-color: #fff;
+    background-color: tokens.$white;
     color: palette.$primary-300;
   }
 
   &--neutral-default {
     border-color: palette.$neutral-300;
-    background-color: #fff;
+    background-color: tokens.$white;
     color: palette.$neutral-500;
   }
 
   &--neutral-outlined {
     border-width: 0;
-    background-color: #fff;
+    background-color: tokens.$white;
     color: palette.$neutral-400;
   }
 
   &--white-default {
-    border-color: #fff;
-    background-color: #fff;
+    border-color: tokens.$white;
+    background-color: tokens.$white;
     color: palette.$primary-300;
   }
 
   &--white-outlined {
     border-color: palette.$primary-500;
-    background-color: #fff;
+    background-color: tokens.$white;
     color: palette.$primary-500;
   }
 

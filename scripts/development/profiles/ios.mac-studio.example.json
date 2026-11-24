@@ -1,0 +1,56 @@
+{
+  "checkout": "/Users/OPERATOR/harness/KOIN_iOS",
+  "repository": "BCSDLab/KOIN_iOS",
+  "timeoutMs": 2400000,
+  "steps": [
+    {
+      "id": "build-simulator-app",
+      "kind": "build",
+      "command": [
+        "node",
+        "/Users/OPERATOR/harness/BCSD_united/scripts/development/ios-scenario.mjs",
+        "build",
+        "--checkout",
+        "/Users/OPERATOR/harness/KOIN_iOS"
+      ]
+    },
+    {
+      "id": "dining-view",
+      "kind": "scenario",
+      "scenarioId": "dining-view",
+      "command": [
+        "node",
+        "/Users/OPERATOR/harness/BCSD_united/scripts/development/ios-scenario.mjs",
+        "scenario",
+        "--checkout",
+        "/Users/OPERATOR/harness/KOIN_iOS",
+        "--flow",
+        "/Users/OPERATOR/harness/BCSD_united/scripts/development/flows/ios-dining-view.yaml",
+        "--out",
+        "build/harness/dining-view"
+      ]
+    },
+    {
+      "id": "dining-meal-change",
+      "kind": "scenario",
+      "scenarioId": "dining-meal-change",
+      "command": [
+        "node",
+        "/Users/OPERATOR/harness/BCSD_united/scripts/development/ios-scenario.mjs",
+        "scenario",
+        "--checkout",
+        "/Users/OPERATOR/harness/KOIN_iOS",
+        "--flow",
+        "/Users/OPERATOR/harness/BCSD_united/scripts/development/flows/ios-dining-meal-change.yaml",
+        "--out",
+        "build/harness/dining-meal-change"
+      ]
+    }
+  ],
+  "artifacts": [
+    "build/harness/dining-view/recording.mp4",
+    "build/harness/dining-view/junit.xml",
+    "build/harness/dining-meal-change/recording.mp4",
+    "build/harness/dining-meal-change/junit.xml"
+  ]
+}

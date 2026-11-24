@@ -1,0 +1,629 @@
+{
+  "screens": [
+    {
+      "id": "not-found",
+      "route": "404.index.tsx",
+      "path": "/404",
+      "access": "public",
+      "expect": "not-found"
+    },
+    {
+      "id": "articles-id",
+      "route": "articles.$id.index.tsx",
+      "path": "/articles/22409",
+      "access": "public",
+      "source": "스테이지 API(https://api.stage.koreatech.in) GET /articles?boardId=4&page=1&limit=10 의 첫 글 id"
+    },
+    {
+      "id": "articles",
+      "route": "articles.index.tsx",
+      "path": "/articles",
+      "access": "public"
+    },
+    {
+      "id": "articles-search",
+      "route": "articles.search.index.tsx",
+      "path": "/articles/search",
+      "access": "public"
+    },
+    {
+      "id": "auth-findid-email",
+      "route": "auth.findid.email.index.tsx",
+      "path": "/auth/findid/email",
+      "access": "public"
+    },
+    {
+      "id": "auth-findid",
+      "route": "auth.findid.index.tsx",
+      "path": "/auth/findid",
+      "access": "public"
+    },
+    {
+      "id": "auth-findid-phone",
+      "route": "auth.findid.phone.index.tsx",
+      "path": "/auth/findid/phone",
+      "access": "public"
+    },
+    {
+      "id": "auth-findid-result",
+      "route": "auth.findid.result.index.tsx",
+      "path": "/auth/findid/result",
+      "access": "public"
+    },
+    {
+      "id": "auth-findpw-step",
+      "route": "auth.findpw.$step.index.tsx",
+      "path": "/auth/findpw/계정인증",
+      "access": "public",
+      "source": "라우트 파일의 stepToProgress 첫 단계"
+    },
+    {
+      "id": "auth",
+      "route": "auth.index.tsx",
+      "path": "/auth",
+      "access": "public"
+    },
+    {
+      "id": "auth-modifyinfo",
+      "route": "auth.modifyinfo.index.tsx",
+      "path": "/auth/modifyinfo",
+      "access": "authenticated",
+      "targetText": "아이디"
+    },
+    {
+      "id": "auth-signup-id",
+      "route": "auth.signup.$id.index.tsx",
+      "path": "/auth/signup/약관동의",
+      "access": "public",
+      "source": "라우트 파일의 mobileSteps·desktopSteps 첫 단계"
+    },
+    {
+      "id": "benefitstore",
+      "route": "benefitstore.index.tsx",
+      "path": "/benefitstore",
+      "access": "public"
+    },
+    {
+      "id": "bus-city",
+      "route": "bus.city.index.tsx",
+      "path": "/bus/city",
+      "access": "public"
+    },
+    {
+      "id": "bus-express",
+      "route": "bus.express.index.tsx",
+      "path": "/bus/express",
+      "access": "public"
+    },
+    {
+      "id": "bus-route",
+      "route": "bus.route.index.tsx",
+      "path": "/bus/route",
+      "access": "public"
+    },
+    {
+      "id": "bus-shuttle-routeid",
+      "route": "bus.shuttle.$routeId.index.tsx",
+      "path": "/bus/shuttle/6a941f37c9bf31464a269865",
+      "access": "public",
+      "source": "스테이지 API(https://api.stage.koreatech.in) GET /bus/courses/shuttle 의 첫 노선 id"
+    },
+    {
+      "id": "bus-shuttle",
+      "route": "bus.shuttle.index.tsx",
+      "path": "/bus/shuttle",
+      "access": "public"
+    },
+    {
+      "id": "cafeteria",
+      "route": "cafeteria.index.tsx",
+      "path": "/cafeteria",
+      "access": "public"
+    },
+    {
+      "id": "callvan-postid-participants",
+      "route": "callvan.$postId.participants.index.tsx",
+      "path": "/callvan/:postId/participants",
+      "access": "authenticated",
+      "desktopGuard": "/",
+      "targetText": "참여자 리스트"
+    },
+    {
+      "id": "callvan-postid-report-userid",
+      "route": "callvan.$postId.report.$userId.index.tsx",
+      "path": "/callvan/:postId/report/:userId",
+      "access": "authenticated",
+      "desktopGuard": "/",
+      "targetText": "신고하기"
+    },
+    {
+      "id": "callvan-add",
+      "route": "callvan.add.index.tsx",
+      "path": "/callvan/add",
+      "access": "authenticated",
+      "targetText": "출발지 선택"
+    },
+    {
+      "id": "callvan-chat-id",
+      "route": "callvan.chat.$id.index.tsx",
+      "path": "/callvan/chat/:postId",
+      "access": "authenticated",
+      "desktopGuard": "/",
+      "target": "textarea[placeholder='메세지 보내기']"
+    },
+    {
+      "id": "callvan",
+      "route": "callvan.index.tsx",
+      "path": "/callvan",
+      "access": "authenticated",
+      "desktopGuard": "/",
+      "targetText": "콜밴팟"
+    },
+    {
+      "id": "callvan-notifications",
+      "route": "callvan.notifications.index.tsx",
+      "path": "/callvan/notifications",
+      "access": "authenticated",
+      "desktopGuard": "/",
+      "targetText": "알림"
+    },
+    {
+      "id": "campusinfo",
+      "route": "campusinfo.index.tsx",
+      "path": "/campusinfo",
+      "access": "public"
+    },
+    {
+      "id": "category",
+      "route": "category.index.tsx",
+      "path": "/category",
+      "access": "public"
+    },
+    {
+      "id": "clubs-id-event-edit-eventid",
+      "route": "clubs.$id.event.edit.$eventId.index.tsx",
+      "path": "/clubs/39/event/edit/112",
+      "access": "public",
+      "source": "스테이지 API(https://api.stage.koreatech.in) GET /clubs/39/events?eventType=RECENT 의 첫 행사 id"
+    },
+    {
+      "id": "clubs-id",
+      "route": "clubs.$id.index.tsx",
+      "path": "/clubs/39",
+      "access": "public",
+      "source": "스테이지 API(https://api.stage.koreatech.in) GET /clubs 목록 중 모집 공고와 행사가 있는 동아리 id"
+    },
+    {
+      "id": "clubs-edit-id",
+      "route": "clubs.edit.$id.index.tsx",
+      "path": "/clubs/edit/39",
+      "access": "public",
+      "source": "스테이지 API(https://api.stage.koreatech.in) GET /clubs 목록의 동아리 id"
+    },
+    {
+      "id": "clubs-event-id",
+      "route": "clubs.event.$id.index.tsx",
+      "path": "/clubs/event/39",
+      "access": "public",
+      "source": "스테이지 API(https://api.stage.koreatech.in) GET /clubs 목록의 동아리 id"
+    },
+    {
+      "id": "clubs",
+      "route": "clubs.index.tsx",
+      "path": "/clubs",
+      "access": "public"
+    },
+    {
+      "id": "clubs-new",
+      "route": "clubs.new.index.tsx",
+      "path": "/clubs/new",
+      "access": "public"
+    },
+    {
+      "id": "clubs-recruitment-id",
+      "route": "clubs.recruitment.$id.index.tsx",
+      "path": "/clubs/recruitment/39",
+      "access": "public",
+      "source": "스테이지 API(https://api.stage.koreatech.in) GET /clubs 목록의 동아리 id"
+    },
+    {
+      "id": "clubs-recruitment-edit-id",
+      "route": "clubs.recruitment.edit.$id.index.tsx",
+      "path": "/clubs/recruitment/edit/39",
+      "access": "public",
+      "source": "스테이지 API(https://api.stage.koreatech.in) GET /clubs/39/recruitment 가 공고를 돌려주는 동아리 id"
+    },
+    {
+      "id": "course",
+      "route": "course.index.tsx",
+      "path": "/course",
+      "access": "public"
+    },
+    {
+      "id": "department-category",
+      "route": "department.$category.index.tsx",
+      "path": "/department/ACADEMIC",
+      "access": "public",
+      "source": "api/departmentContact/entity.ts의 DEPARTMENT_CONTACT_CATEGORIES 첫 값"
+    },
+    {
+      "id": "department",
+      "route": "department.index.tsx",
+      "path": "/department",
+      "access": "public"
+    },
+    {
+      "id": "graduation",
+      "route": "graduation.index.tsx",
+      "path": "/graduation",
+      "access": "public"
+    },
+    {
+      "id": "home",
+      "route": "index.tsx",
+      "path": "/",
+      "access": "public"
+    },
+    {
+      "id": "lost-item-id",
+      "route": "lost-item.$id.index.tsx",
+      "path": "/lost-item/22419",
+      "access": "public",
+      "source": "스테이지 API(https://api.stage.koreatech.in) GET /articles/lost-item/v2?page=1&limit=10 의 첫 글 id"
+    },
+    {
+      "id": "lost-item-chat",
+      "route": "lost-item.chat.index.tsx",
+      "path": "/lost-item/chat",
+      "access": "authenticated",
+      "targetText": "쪽지"
+    },
+    {
+      "id": "lost-item-edit-id",
+      "route": "lost-item.edit.$id.index.tsx",
+      "path": "/lost-item/edit/22419",
+      "access": "public",
+      "source": "스테이지 API(https://api.stage.koreatech.in) GET /articles/lost-item/v2?page=1&limit=10 의 첫 글 id"
+    },
+    {
+      "id": "lost-item-found",
+      "route": "lost-item.found.index.tsx",
+      "path": "/lost-item/found",
+      "access": "public"
+    },
+    {
+      "id": "lost-item",
+      "route": "lost-item.index.tsx",
+      "path": "/lost-item",
+      "access": "public"
+    },
+    {
+      "id": "lost-item-lost",
+      "route": "lost-item.lost.index.tsx",
+      "path": "/lost-item/lost",
+      "access": "public"
+    },
+    {
+      "id": "lost-item-report-id",
+      "route": "lost-item.report.$id.index.tsx",
+      "path": "/lost-item/report/22419",
+      "access": "public",
+      "source": "스테이지 API(https://api.stage.koreatech.in) GET /articles/lost-item/v2?page=1&limit=10 의 첫 글 id"
+    },
+    {
+      "id": "order-cancel-paymentid",
+      "route": "order.cancel.$paymentId.index.tsx",
+      "path": "/order/cancel/1",
+      "access": "disabled",
+      "reason": "NEXT_PUBLIC_ORDER_ENABLED가 true가 아니면 루트 beforeLoad(isDisabledOrderPath)가 주문 경로를 NotFound로 막는다",
+      "source": "결제 id는 로그인 없이 조회할 수 없어 실제 값이 아니다. 주문 경로는 조회 전에 막힌다"
+    },
+    {
+      "id": "order-cart",
+      "route": "order.cart.index.tsx",
+      "path": "/order/cart",
+      "access": "disabled",
+      "reason": "NEXT_PUBLIC_ORDER_ENABLED가 true가 아니면 루트 beforeLoad(isDisabledOrderPath)가 주문 경로를 NotFound로 막는다"
+    },
+    {
+      "id": "order-checkout",
+      "route": "order.checkout.index.tsx",
+      "path": "/order/checkout",
+      "access": "disabled",
+      "reason": "NEXT_PUBLIC_ORDER_ENABLED가 true가 아니면 루트 beforeLoad(isDisabledOrderPath)가 주문 경로를 NotFound로 막는다"
+    },
+    {
+      "id": "order-delivery-campus",
+      "route": "order.delivery.campus.index.tsx",
+      "path": "/order/delivery/campus",
+      "access": "disabled",
+      "reason": "NEXT_PUBLIC_ORDER_ENABLED가 true가 아니면 루트 beforeLoad(isDisabledOrderPath)가 주문 경로를 NotFound로 막는다"
+    },
+    {
+      "id": "order-delivery-outside-detail",
+      "route": "order.delivery.outside.detail.index.tsx",
+      "path": "/order/delivery/outside/detail",
+      "access": "disabled",
+      "reason": "NEXT_PUBLIC_ORDER_ENABLED가 true가 아니면 루트 beforeLoad(isDisabledOrderPath)가 주문 경로를 NotFound로 막는다"
+    },
+    {
+      "id": "order-delivery-outside",
+      "route": "order.delivery.outside.index.tsx",
+      "path": "/order/delivery/outside",
+      "access": "disabled",
+      "reason": "NEXT_PUBLIC_ORDER_ENABLED가 true가 아니면 루트 beforeLoad(isDisabledOrderPath)가 주문 경로를 NotFound로 막는다"
+    },
+    {
+      "id": "order",
+      "route": "order.index.tsx",
+      "path": "/order",
+      "access": "disabled",
+      "reason": "NEXT_PUBLIC_ORDER_ENABLED가 true가 아니면 루트 beforeLoad(isDisabledOrderPath)가 주문 경로를 NotFound로 막는다"
+    },
+    {
+      "id": "order-orders",
+      "route": "order.orders.index.tsx",
+      "path": "/order/orders",
+      "access": "disabled",
+      "reason": "NEXT_PUBLIC_ORDER_ENABLED가 true가 아니면 루트 beforeLoad(isDisabledOrderPath)가 주문 경로를 NotFound로 막는다"
+    },
+    {
+      "id": "order-result-paymentid",
+      "route": "order.result.$paymentId.index.tsx",
+      "path": "/order/result/1",
+      "access": "disabled",
+      "reason": "NEXT_PUBLIC_ORDER_ENABLED가 true가 아니면 루트 beforeLoad(isDisabledOrderPath)가 주문 경로를 NotFound로 막는다",
+      "source": "결제 id는 로그인 없이 조회할 수 없어 실제 값이 아니다. 주문 경로는 조회 전에 막힌다"
+    },
+    {
+      "id": "order-shops-id",
+      "route": "order.shops.$id.index.tsx",
+      "path": "/order/shops/11",
+      "access": "disabled",
+      "reason": "NEXT_PUBLIC_ORDER_ENABLED가 true가 아니면 루트 beforeLoad(isDisabledOrderPath)가 주문 경로를 NotFound로 막는다",
+      "source": "스테이지 API(https://api.stage.koreatech.in) GET /order/shop/11/summary 가 응답하는 주문 가능 상점 id"
+    },
+    {
+      "id": "order-shops-id-info",
+      "route": "order.shops.$id.info.index.tsx",
+      "path": "/order/shops/11/info",
+      "access": "disabled",
+      "reason": "NEXT_PUBLIC_ORDER_ENABLED가 true가 아니면 루트 beforeLoad(isDisabledOrderPath)가 주문 경로를 NotFound로 막는다",
+      "source": "스테이지 API(https://api.stage.koreatech.in) GET /order/shop/11/summary 가 응답하는 주문 가능 상점 id"
+    },
+    {
+      "id": "order-shops-id-menus-menuid",
+      "route": "order.shops.$id.menus.$menuId.index.tsx",
+      "path": "/order/shops/11/menus/1",
+      "access": "disabled",
+      "reason": "NEXT_PUBLIC_ORDER_ENABLED가 true가 아니면 루트 beforeLoad(isDisabledOrderPath)가 주문 경로를 NotFound로 막는다",
+      "source": "스테이지 API(https://api.stage.koreatech.in) GET /order/shop/11/menus 가 메뉴를 돌려주지 않아 menuId는 실제 값이 아니다. 주문 경로는 조회 전에 막힌다"
+    },
+    {
+      "id": "order-shops-id-reviews",
+      "route": "order.shops.$id.reviews.index.tsx",
+      "path": "/order/shops/11/reviews",
+      "access": "disabled",
+      "reason": "NEXT_PUBLIC_ORDER_ENABLED가 true가 아니면 루트 beforeLoad(isDisabledOrderPath)가 주문 경로를 NotFound로 막는다",
+      "source": "스테이지 API(https://api.stage.koreatech.in) GET /order/shop/11/summary 가 응답하는 주문 가능 상점 id"
+    },
+    {
+      "id": "policy",
+      "route": "policy.index.tsx",
+      "path": "/policy",
+      "access": "public"
+    },
+    {
+      "id": "profile",
+      "route": "profile.index.tsx",
+      "path": "/profile",
+      "access": "public"
+    },
+    {
+      "id": "report-review-shopid-id-reviewid-reviewid",
+      "route": "report.review.shopid.$id.reviewid.$reviewid.index.tsx",
+      "path": "/report/review/shopid/:shopId/reviewid/:otherReviewId",
+      "access": "authenticated",
+      "targetText": "신고 이유를 선택해주세요."
+    },
+    {
+      "id": "room-id",
+      "route": "room.$id.index.tsx",
+      "path": "/room/2",
+      "access": "public",
+      "source": "스테이지 API(https://api.stage.koreatech.in) GET /lands 의 첫 원룸 id"
+    },
+    {
+      "id": "room",
+      "route": "room.index.tsx",
+      "path": "/room",
+      "access": "public"
+    },
+    {
+      "id": "setting",
+      "route": "setting.index.tsx",
+      "path": "/setting",
+      "access": "public"
+    },
+    {
+      "id": "setting-language",
+      "route": "setting.language.index.tsx",
+      "path": "/setting/language",
+      "access": "public"
+    },
+    {
+      "id": "setting-policy-type",
+      "route": "setting.policy.$type.index.tsx",
+      "path": "/setting/policy/privacy",
+      "access": "public",
+      "source": "라우트 파일의 POLICY_TYPES 첫 값"
+    },
+    {
+      "id": "store-id-events",
+      "route": "store.$id.events.index.tsx",
+      "path": "/store/11/events",
+      "access": "public",
+      "source": "스테이지 API(https://api.stage.koreatech.in) GET /shops 의 첫 상점 id"
+    },
+    {
+      "id": "store-id",
+      "route": "store.$id.index.tsx",
+      "path": "/store/11",
+      "access": "public",
+      "source": "스테이지 API(https://api.stage.koreatech.in) GET /shops 의 첫 상점 id"
+    },
+    {
+      "id": "store-id-info",
+      "route": "store.$id.info.index.tsx",
+      "path": "/store/11/info",
+      "access": "public",
+      "source": "스테이지 API(https://api.stage.koreatech.in) GET /shops 의 첫 상점 id"
+    },
+    {
+      "id": "store-id-reviews",
+      "route": "store.$id.reviews.index.tsx",
+      "path": "/store/11/reviews",
+      "access": "public",
+      "source": "스테이지 API(https://api.stage.koreatech.in) GET /shops 의 첫 상점 id"
+    },
+    {
+      "id": "store",
+      "route": "store.index.tsx",
+      "path": "/store",
+      "access": "public"
+    },
+    {
+      "id": "store-review-id",
+      "route": "store.review.$id.index.tsx",
+      "path": "/store/review/:shopId",
+      "access": "authenticated",
+      "targetText": "내용"
+    },
+    {
+      "id": "store-review-edit-id-reviewid",
+      "route": "store.review.edit.$id.$reviewid.index.tsx",
+      "path": "/store/review/edit/:shopId/:ownReviewId",
+      "access": "authenticated",
+      "targetText": "내용"
+    },
+    {
+      "id": "store-search",
+      "route": "store.search.index.tsx",
+      "path": "/store/search",
+      "access": "public"
+    },
+    {
+      "id": "team-chat",
+      "route": "team.chat.index.tsx",
+      "path": "/team/chat",
+      "access": "login"
+    },
+    {
+      "id": "team",
+      "route": "team.index.tsx",
+      "path": "/team",
+      "access": "public"
+    },
+    {
+      "id": "team-my-applications",
+      "route": "team.my-applications.index.tsx",
+      "path": "/team/my-applications",
+      "access": "login"
+    },
+    {
+      "id": "team-my-created-posts",
+      "route": "team.my-created-posts.index.tsx",
+      "path": "/team/my-created-posts",
+      "access": "login"
+    },
+    {
+      "id": "team-notifications",
+      "route": "team.notifications.index.tsx",
+      "path": "/team/notifications",
+      "access": "login"
+    },
+    {
+      "id": "team-profile-create",
+      "route": "team.profile.create.index.tsx",
+      "path": "/team/profile/create",
+      "access": "login"
+    },
+    {
+      "id": "team-profile-edit",
+      "route": "team.profile.edit.index.tsx",
+      "path": "/team/profile/edit",
+      "access": "login"
+    },
+    {
+      "id": "team-profile",
+      "route": "team.profile.index.tsx",
+      "path": "/team/profile",
+      "access": "login"
+    },
+    {
+      "id": "team-recruitment-postid-applicants-applicantid",
+      "route": "team.recruitment.$postId.applicants.$applicantId.index.tsx",
+      "path": "/team/recruitment/109/applicants/1",
+      "access": "login",
+      "source": "스테이지 API(https://api.stage.koreatech.in) GET /team-recruitments?page=1&limit=10 의 첫 글 id. applicantId는 로그인 없이 조회할 수 없어 실제 값이 아니다"
+    },
+    {
+      "id": "team-recruitment-postid-applicants",
+      "route": "team.recruitment.$postId.applicants.index.tsx",
+      "path": "/team/recruitment/109/applicants",
+      "access": "login",
+      "source": "스테이지 API(https://api.stage.koreatech.in) GET /team-recruitments?page=1&limit=10 의 첫 글 id"
+    },
+    {
+      "id": "team-recruitment-postid-apply",
+      "route": "team.recruitment.$postId.apply.index.tsx",
+      "path": "/team/recruitment/109/apply",
+      "access": "login",
+      "source": "스테이지 API(https://api.stage.koreatech.in) GET /team-recruitments?page=1&limit=10 의 첫 글 id"
+    },
+    {
+      "id": "team-recruitment-postid-edit",
+      "route": "team.recruitment.$postId.edit.index.tsx",
+      "path": "/team/recruitment/109/edit",
+      "access": "login",
+      "source": "스테이지 API(https://api.stage.koreatech.in) GET /team-recruitments?page=1&limit=10 의 첫 글 id"
+    },
+    {
+      "id": "team-recruitment-postid",
+      "route": "team.recruitment.$postId.index.tsx",
+      "path": "/team/recruitment/109",
+      "access": "public",
+      "source": "스테이지 API(https://api.stage.koreatech.in) GET /team-recruitments?page=1&limit=10 의 첫 글 id"
+    },
+    {
+      "id": "team-recruitment-new",
+      "route": "team.recruitment.new.index.tsx",
+      "path": "/team/recruitment/new",
+      "access": "login"
+    },
+    {
+      "id": "timetable",
+      "route": "timetable.index.tsx",
+      "path": "/timetable",
+      "access": "public"
+    },
+    {
+      "id": "timetable-list",
+      "route": "timetable.list.index.tsx",
+      "path": "/timetable/list",
+      "access": "public"
+    },
+    {
+      "id": "timetable-modify",
+      "route": "timetable.modify.index.tsx",
+      "path": "/timetable/modify",
+      "access": "public"
+    },
+    {
+      "id": "webview-campusinfo",
+      "route": "webview.campusinfo.index.tsx",
+      "path": "/webview/campusinfo",
+      "access": "public"
+    }
+  ]
+}

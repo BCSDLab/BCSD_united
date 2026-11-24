@@ -4,8 +4,9 @@ import Image from 'components/ui/Image';
 import { useBodyScrollLock } from 'utils/hooks/ui/useBodyScrollLock';
 import { useEscapeKeyDown } from 'utils/hooks/ui/useEscapeKeyDown';
 import { useOutsideClick } from 'utils/hooks/ui/useOutsideClick';
+import useServerMessage from 'utils/language/useServerMessage';
 
-import styles from './DetailModal.module.scss';
+import styles from './DetailModal.module.css';
 
 interface DetailModalProps {
   dining: Dining | null;
@@ -13,6 +14,7 @@ interface DetailModalProps {
 }
 
 export default function DetailModal({ dining, closeModal }: DetailModalProps) {
+  const message = useServerMessage();
   const { backgroundRef } = useOutsideClick({ onOutsideClick: closeModal });
   useEscapeKeyDown({ onEscape: closeModal });
   useBodyScrollLock();
@@ -24,9 +26,11 @@ export default function DetailModal({ dining, closeModal }: DetailModalProps) {
       <div className={styles.modal}>
         <div className={styles['modal-header']}>
           <div className={styles['modal-header__place-chip']}>
-            <div className={styles['modal-header__place']}>{dining.place}</div>
+            <div className={styles['modal-header__place']}>{dining.display_place ?? dining.place}</div>
             {dining.soldout_at && (
-              <span className={`${styles['modal-header__chip']} ${styles['modal-header__chip--sold-out']}`}>품절</span>
+              <span className={`${styles['modal-header__chip']} ${styles['modal-header__chip--sold-out']}`}>
+                {message('status', 'SOLD_OUT', '품절')}
+              </span>
             )}
             {!dining.soldout_at && dining.changed_at && (
               <span className={`${styles['modal-header__chip']} ${styles['modal-header__chip--changed']}`}>변경됨</span>
@@ -49,7 +53,7 @@ export default function DetailModal({ dining, closeModal }: DetailModalProps) {
         {dining.image_url && (
           <Image
             src={dining.image_url}
-            alt={`${dining.place} 식단 상세`}
+            alt={`${dining.display_place ?? dining.place} 식단 상세`}
             priority
             sizes="(max-width: 740px) calc(100vw - 68px), 672px"
             className={styles.modal__image}

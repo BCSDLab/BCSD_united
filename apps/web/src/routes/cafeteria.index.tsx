@@ -32,7 +32,7 @@ import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
 import { kstDayOfWeek, kstTimeOn } from 'utils/ts/calendar';
 
-import styles from 'pages/cafeteria/Cafeteria.module.scss';
+import styles from 'pages/cafeteria/Cafeteria.module.css';
 
 const SOLDOUT_REPORT_AB_TEST_VARIABLE = 'icon_location';
 const SOLDOUT_REPORT_VARIANT_HEADER = 'soldout_design_A';

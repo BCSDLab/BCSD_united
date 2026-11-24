@@ -2,33 +2,64 @@ import { useEffect, useState } from 'react';
 
 const NAVER_MAP_SCRIPT_ID = 'naver-map-script';
 
-export default function useNaverMapScript() {
-  const [isLoaded, setIsLoaded] = useState(() => {
-    if (typeof window === 'undefined') return false;
+type MapScriptStatus = 'loading' | 'loaded' | 'error';
 
-    return !!window.naver?.maps;
-  });
+export default function useNaverMapScript(enabled = true) {
+  const [status, setStatus] = useState<MapScriptStatus>(() =>
+    typeof window !== 'undefined' && window.naver?.maps ? 'loaded' : 'loading',
+  );
 
   useEffect(() => {
-    if (isLoaded) return;
+    if (!enabled) return;
     const clientId = process.env.NEXT_PUBLIC_NAVER_MAPS_CLIENT_ID;
-    if (!clientId) return;
+    const mapWindow = window as Window & { navermap_authFailure?: () => void };
+    const previousAuthFailure = mapWindow.navermap_authFailure;
+    let isActive = true;
+    let script = document.getElementById(NAVER_MAP_SCRIPT_ID) as HTMLScriptElement | null;
 
-    const existingScript = document.getElementById(NAVER_MAP_SCRIPT_ID);
-    if (existingScript) {
-      const handleLoad = () => setIsLoaded(true);
-      existingScript.addEventListener('load', handleLoad);
+    const updateStatus = (nextStatus: MapScriptStatus) => {
+      if (!isActive) return;
+      if (script) script.dataset.mapLoadStatus = nextStatus;
+      setStatus(nextStatus);
+    };
+    const handleLoad = () =>
+      updateStatus(script?.dataset.mapLoadStatus !== 'error' && window.naver?.maps ? 'loaded' : 'error');
+    const handleError = () => updateStatus('error');
+    const handleAuthFailure = () => {
+      previousAuthFailure?.();
+      handleError();
+    };
+    mapWindow.navermap_authFailure = handleAuthFailure;
 
-      return () => existingScript.removeEventListener('load', handleLoad);
+    if (script?.dataset.mapLoadStatus === 'error') {
+      handleError();
+    } else if (window.naver?.maps) {
+      updateStatus('loaded');
+    } else if (!clientId) {
+      handleError();
+    } else {
+      const shouldAppend = !script;
+      if (!script) {
+        script = document.createElement('script');
+        script.id = NAVER_MAP_SCRIPT_ID;
+        script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${clientId}`;
+        script.async = true;
+        script.dataset.mapLoadStatus = 'loading';
+      }
+      script.addEventListener('load', handleLoad);
+      script.addEventListener('error', handleError);
+      if (shouldAppend) document.head.appendChild(script);
     }
 
-    const script = document.createElement('script');
-    script.id = NAVER_MAP_SCRIPT_ID;
-    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${clientId}`;
-    script.async = true;
-    script.onload = () => setIsLoaded(true);
-    document.head.appendChild(script);
-  }, [isLoaded]);
+    return () => {
+      isActive = false;
+      script?.removeEventListener('load', handleLoad);
+      script?.removeEventListener('error', handleError);
+      if (mapWindow.navermap_authFailure === handleAuthFailure) {
+        mapWindow.navermap_authFailure = previousAuthFailure;
+      }
+    };
+  }, [enabled]);
 
-  return isLoaded;
+  return { isLoaded: enabled && status === 'loaded', hasError: enabled && status === 'error' };
 }

@@ -10,3 +10,7 @@ export function getErrorStatus(error: unknown): number | undefined {
 export function isUnauthorizedError(error: unknown) {
   return getErrorStatus(error) === 401;
 }
+
+export function isNotFoundKoinError(error: unknown): boolean {
+  return isKoinError(error) && error.status === 404;
+}

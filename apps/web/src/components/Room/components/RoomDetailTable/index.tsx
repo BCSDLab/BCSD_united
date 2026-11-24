@@ -1,14 +1,16 @@
+import useServerMessage from 'utils/language/useServerMessage';
+
 import styles from './RoomDetailTable.module.scss';
 
 interface RoomDetailTableProps {
-  monthlyFee: string;
-  roomType: string;
-  charterFee: string;
-  deposit: string;
+  monthlyFee: string | null;
+  roomType: string | null;
+  charterFee: string | null;
+  deposit: string | null;
   floor: null | number;
-  managementFee: string;
-  size: number;
-  phone: string;
+  managementFee: string | null;
+  size: string | null;
+  phone: string | null;
 }
 
 interface TableData {
@@ -30,12 +32,13 @@ function RoomDetailTable({
   size,
   phone,
 }: RoomDetailTableProps) {
+  const message = useServerMessage();
   const tableData: TableData[] = [
     {
       leftTitle: '월세',
       leftValue: monthlyFee,
       rightTitle: '방 종류',
-      rightValue: roomType,
+      rightValue: message('land.room_type', roomType),
     },
     {
       leftTitle: '전세',

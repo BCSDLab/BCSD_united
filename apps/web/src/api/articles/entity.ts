@@ -68,6 +68,8 @@ export interface ArticleAiSummaryItem {
 export interface ArticleAiSummary {
   status: ArticleAiSummaryStatus;
   items: ArticleAiSummaryItem[];
+  /** 요약 번역 원문 버전. 번역 요청의 `expected_source_version`으로 넘긴다. */
+  translation_source_version?: string | null;
 }
 
 export interface ArticleResponse extends Article, APIResponse {
@@ -154,6 +156,8 @@ export interface SingleLostItemArticleResponseDTO extends APIResponse {
   next_id: number | null;
   registered_at: string; // yyyy-MM-dd
   updated_at: string; // yyyy-MM-dd HH:mm:ss
+  /** 습득 장소·내용의 번역 원문 버전. 번역 요청의 `expected_source_version`으로 넘긴다. */
+  translation_source_version?: string | null;
 }
 
 export interface LostItemResponse extends APIResponse {
@@ -227,28 +231,6 @@ export interface LostItemChatroomDetailResponse {
 }
 
 export type LostItemChatroomPostResponse = LostItemChatroomDetailResponse;
-
-interface LostItemChatroomResponse {
-  article_title: string;
-  recent_message_content: string;
-  lost_item_image_url: string;
-  unread_message_count: number;
-  last_message_at: string;
-  article_id: number;
-  chat_room_id: number;
-}
-
-export type LostItemChatroomListResponse = LostItemChatroomResponse[];
-
-export interface LostItemChatroomDetailMessage {
-  user_id: number;
-  user_nickname: string;
-  content: string;
-  timestamp: string;
-  is_image: boolean;
-}
-
-export type LostItemChatroomDetailMessagesResponse = LostItemChatroomDetailMessage[];
 
 export interface LostItemStatResponse {
   found_count: number;

@@ -9,8 +9,9 @@ import type { Portal } from 'components/modal/Modal/PortalProvider';
 import { DINING_TYPE_MAP, SOLDOUT_REPORT_PLACES } from 'static/cafeteria';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useModalPortal from 'utils/hooks/layout/useModalPortal';
+import useServerMessage from 'utils/language/useServerMessage';
 
-import styles from './MobileDiningBlocks.module.scss';
+import styles from './MobileDiningBlocks.module.css';
 
 interface MobileDiningBlocksProps {
   diningType: DiningType;
@@ -18,6 +19,7 @@ interface MobileDiningBlocksProps {
 }
 
 export default function MobileDiningBlocks({ diningType, onReportSoldout }: MobileDiningBlocksProps) {
+  const message = useServerMessage();
   const logger = useLogger();
   const portalManager = useModalPortal();
   const { date } = useCafeteriaParams();
@@ -45,18 +47,20 @@ export default function MobileDiningBlocks({ diningType, onReportSoldout }: Mobi
           <div className={styles['category__menu-list-row']}>
             <div className={styles.category__type}>
               <div className={styles['category__type--title']}>
-                {dining.place}
+                {dining.display_place ?? dining.place}
                 {onReportSoldout && SOLDOUT_REPORT_PLACES.includes(dining.place) && (
                   <button
                     type="button"
                     className={styles['category__report-button']}
-                    aria-label={`${dining.place} 품절 제보하기`}
+                    aria-label={`${dining.display_place ?? dining.place} 품절 제보하기`}
                     onClick={() => onReportSoldout(dining.place)}
                   >
                     <SoldoutReportIcon />
                   </button>
                 )}
-                {dining.soldout_at && <span className={styles['category__block--sold-out']}>품절</span>}
+                {dining.soldout_at && (
+                  <span className={styles['category__block--sold-out']}>{message('status', 'SOLD_OUT', '품절')}</span>
+                )}
                 {!dining.soldout_at && dining.changed_at && (
                   <span className={styles['category__block--changed']}>변경됨</span>
                 )}

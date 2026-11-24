@@ -15,7 +15,7 @@ import useUploadFile from 'utils/hooks/uploadFile/useUploadFile';
 
 import PhotoCapture from './components/PhotoCapture';
 import useCreateSoldoutReport from './hooks/useCreateSoldoutReport';
-import styles from './SoldoutReportModal.module.scss';
+import styles from './SoldoutReportModal.module.css';
 
 interface SoldoutReportModalProps {
   initialPlace?: DiningPlace;

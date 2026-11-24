@@ -20,6 +20,7 @@ import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
+import useServerMessage from 'utils/language/useServerMessage';
 import { redirectToLogin } from 'utils/ts/auth';
 
 import styles from './CallvanCard.module.scss';
@@ -50,6 +51,7 @@ function formatTime(timeStr: string): string {
 }
 
 export default function CallvanCard({ post }: CallvanCardProps) {
+  const message = useServerMessage();
   const router = useRouter();
   const routeLocation = useLocation();
   const isLoggedIn = useIsLoggedIn();
@@ -160,8 +162,8 @@ export default function CallvanCard({ post }: CallvanCardProps) {
   const renderActionButton = () => {
     if (post.status === 'COMPLETED') {
       return (
-        <button type="button" className={styles['card__badge--closed']} disabled aria-label="이용완료">
-          이용완료
+        <button type="button" className={styles['card__badge--closed']} disabled>
+          {message('callvan.status', post.status, '이용완료')}
         </button>
       );
     }
@@ -236,8 +238,8 @@ export default function CallvanCard({ post }: CallvanCardProps) {
 
     if (post.status === 'CLOSED') {
       return (
-        <button type="button" className={styles['card__badge--closed']} disabled aria-label="모집마감">
-          모집마감
+        <button type="button" className={styles['card__badge--closed']} disabled>
+          {message('callvan.status', post.status, '모집마감')}
         </button>
       );
     }
@@ -298,11 +300,11 @@ export default function CallvanCard({ post }: CallvanCardProps) {
               <div className={styles['card__main-text']}>
                 <div className={styles.card__location}>
                   <span className={styles['card__location-label']}>출발:</span>
-                  <span className={styles['card__location-value']}>{post.departure}</span>
+                  <span className={styles['card__location-value']}>{post.display_departure ?? post.departure}</span>
                 </div>
                 <div className={styles.card__location}>
                   <span className={styles['card__location-label']}>도착:</span>
-                  <span className={styles['card__location-value']}>{post.arrival}</span>
+                  <span className={styles['card__location-value']}>{post.display_arrival ?? post.arrival}</span>
                 </div>
               </div>
             </div>

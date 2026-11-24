@@ -9,7 +9,7 @@ import OrderMenuDetailPage from 'components/Order/OrderMenuDetailPage';
 import StoreMobileHeader from 'components/Store/mobile/common/StoreMobileHeader';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { createPageLoader, definePageLoad, STORE_PUBLIC_SSR_CACHE_CONTROL } from 'utils/ssr/pageLoader';
-import { isNotFoundKoinError } from 'utils/ts/isr';
+import { isNotFoundKoinError } from 'utils/ts/httpError';
 
 interface Props {
   id: string;

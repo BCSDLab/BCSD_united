@@ -7,9 +7,6 @@ import {
   getArticle,
   getArticles,
   getArticlesHotKeyword,
-  getLostItemChatroomDetail,
-  getLostItemChatroomList,
-  getLostItemChatroomMessagesV2,
   getHotArticles,
   getLostItemArticles,
   getLostItemSearch,
@@ -48,13 +45,6 @@ export const articleQueryKeys = {
     ['lostItem', 'detail', articleId, getViewerScope(isLoggedIn)] as const,
   lostItemSearch: (params: LostItemSearchParams) => ['lostItem', 'search', params] as const,
   lostItemChatroomAll: ['chatroom', 'lost-item'] as const,
-  lostItemChatroomList: (isLoggedIn?: boolean) =>
-    ['chatroom', 'lost-item', 'list', getViewerScope(isLoggedIn)] as const,
-  lostItemChatroomDetail: (
-    articleId: number | string | null,
-    chatroomId: number | string | null,
-    isLoggedIn?: boolean,
-  ) => ['chatroom', 'lost-item', 'detail', articleId, chatroomId, getViewerScope(isLoggedIn)] as const,
   lostItemChatroomMessages: (
     articleId: number | string | null,
     chatroomId: number | string | null,
@@ -131,23 +121,5 @@ export const articleQueries = {
     queryOptions({
       queryKey: articleQueryKeys.lostItemSearch(params),
       queryFn: () => getLostItemSearch(params),
-    }),
-
-  lostItemChatroomList: (isLoggedIn: boolean) =>
-    queryOptions({
-      queryKey: articleQueryKeys.lostItemChatroomList(isLoggedIn),
-      queryFn: () => getLostItemChatroomList(),
-    }),
-
-  lostItemChatroomDetail: (isLoggedIn: boolean, articleId: number, chatroomId: number) =>
-    queryOptions({
-      queryKey: articleQueryKeys.lostItemChatroomDetail(articleId, chatroomId, isLoggedIn),
-      queryFn: () => getLostItemChatroomDetail(articleId, chatroomId),
-    }),
-
-  lostItemChatroomMessages: (isLoggedIn: boolean, articleId: number, chatroomId: number) =>
-    queryOptions({
-      queryKey: articleQueryKeys.lostItemChatroomMessages(articleId, chatroomId, isLoggedIn),
-      queryFn: () => getLostItemChatroomMessagesV2(articleId, chatroomId),
     }),
 };

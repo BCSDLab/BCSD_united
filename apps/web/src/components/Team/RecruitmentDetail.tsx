@@ -15,7 +15,10 @@ import LoginRequiredModal from 'components/modal/LoginRequiredModal';
 import DeleteConfirmModal from 'components/Team/components/DeleteConfirmModal';
 import OwnerActionMenu from 'components/Team/components/OwnerActionMenu';
 import { RecruitmentBadges } from 'components/Team/components/RecruitmentCard';
-import { formatRecruitmentDate, MEETING_TYPE_LABEL } from 'components/Team/utils/recruitmentDisplay';
+import { formatRecruitmentDate } from 'components/Team/utils/recruitmentDisplay';
+import useRecruitmentLabels from 'components/Team/utils/useRecruitmentLabels';
+import TranslateButton from 'components/translation/TranslateButton';
+import useContentTranslation, { translationSource } from 'components/translation/useContentTranslation';
 import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
@@ -75,13 +78,36 @@ interface DetailContentProps {
 
 function DetailContent({ recruitment, onEdit, onDelete }: DetailContentProps) {
   const router = useRouter();
+  const labels = useRecruitmentLabels();
   const logger = useLogger();
   const [isLoginModalOpen, openLoginModal, closeLoginModal] = useBooleanState(false);
   const primaryAction = getPrimaryAction(recruitment);
   const isActionDisabled = primaryAction.type === 'disabled';
   const isClosed = recruitment.status !== 'RECRUITING';
   const canManage = recruitment.is_author || recruitment.can_manage_applicants;
-  const qualifications = Array.from((recruitment.qualification ?? '').matchAll(/[^\r\n]+/g), (match) => ({
+  const isLoggedIn = useIsLoggedIn();
+  const translation = useContentTranslation<{
+    title?: string | null;
+    description?: string | null;
+    qualification?: string | null;
+  }>({
+    resourceType: 'RECRUITMENT',
+    resourceId: recruitment.id,
+    translatePath: `/team-recruitments/${recruitment.id}/translations`,
+    sourceVersion: recruitment.translation_source_version,
+    source: translationSource(
+      teamQueries.detail(recruitment.id, isLoggedIn),
+      (data) => data.translation_source_version,
+    ),
+  });
+  // 번역을 보여주는 동안에만 제목·소개·지원 자격을 번역문으로 바꾼다
+  const { translated } = translation;
+  const shown = {
+    title: translated?.title ?? recruitment.title,
+    description: translated?.description ?? recruitment.description,
+    qualification: translated?.qualification ?? recruitment.qualification,
+  };
+  const qualifications = Array.from((shown.qualification ?? '').matchAll(/[^\r\n]+/g), (match) => ({
     id: match.index,
     text: match[0].trim(),
   })).filter((qualification) => qualification.text !== '');
@@ -152,12 +178,17 @@ function DetailContent({ recruitment, onEdit, onDelete }: DetailContentProps) {
         <div className={styles['summary-row']}>
           <section className={cn({ [styles.summary]: true, [styles['summary--inline']]: canManage })}>
             <RecruitmentBadges category={recruitment.category} status={recruitment.status} dDay={recruitment.d_day} />
-            <h2 className={styles.summary__title}>{recruitment.title}</h2>
+            <h2 className={styles.summary__title}>{shown.title}</h2>
           </section>
-          {canManage && (
-            <button type="button" className={styles['manage-button']} onClick={navigateToApplicantManagement}>
-              지원자 관리
-            </button>
+          {(translation.canTranslate || canManage) && (
+            <div className={styles['summary-actions']}>
+              {translation.canTranslate && <TranslateButton state={translation.state} onClick={translation.toggle} />}
+              {canManage && (
+                <button type="button" className={styles['manage-button']} onClick={navigateToApplicantManagement}>
+                  지원자 관리
+                </button>
+              )}
+            </div>
           )}
         </div>
         <div className={styles.divider} />
@@ -165,7 +196,7 @@ function DetailContent({ recruitment, onEdit, onDelete }: DetailContentProps) {
           <div className={styles.body__main}>
             <section className={styles.section}>
               <h3 className={styles.section__title}>모집 소개</h3>
-              <p className={styles.section__text}>{recruitment.description}</p>
+              <p className={styles.section__text}>{shown.description}</p>
             </section>
             {qualifications.length > 0 && (
               <section className={styles.section}>
@@ -195,7 +226,7 @@ function DetailContent({ recruitment, onEdit, onDelete }: DetailContentProps) {
                   </span>
                   진행 방식
                 </dt>
-                <dd className={styles.information__value}>{MEETING_TYPE_LABEL[recruitment.meeting_type]}</dd>
+                <dd className={styles.information__value}>{labels.meetingType(recruitment.meeting_type)}</dd>
               </div>
               <div className={styles.information__row}>
                 <dt className={styles.information__label}>

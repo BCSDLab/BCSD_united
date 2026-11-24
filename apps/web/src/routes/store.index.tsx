@@ -225,7 +225,7 @@ function Store() {
                 width={50}
                 height={50}
               />
-              <span>{category.name}</span>
+              <span>{category.display_name ?? category.name}</span>
             </button>
           ))}
         </div>

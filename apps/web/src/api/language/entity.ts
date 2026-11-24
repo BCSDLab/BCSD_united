@@ -11,10 +11,34 @@ export interface LanguagesResponse extends APIResponse {
 }
 
 export interface MyLanguageResponse extends APIResponse {
-  /** 서버에 저장한 선호 언어. 설정한 적이 없으면 null이다. */
+  /** 서버에 저장한 선호 언어. 설정한 적이 없으면 `null`이다. */
   language: string | null;
 }
 
 export interface UpdateMyLanguageRequest {
   language: string;
+}
+
+/** `그룹.값` 키로 찾는 서버 값 표시 문구 사전. 예: `recruitment.status.RECRUITING`, `lost_item.category.카드` */
+export type MessagesResponse = Record<string, string>;
+
+export type PolicyType = 'privacy' | 'terms';
+
+export interface PolicySection {
+  id: number;
+  title: string;
+  content: string | string[];
+  items?: string[];
+  additionalContent?: string;
+  additionalItems?: string[];
+}
+
+export interface PolicyResponse extends APIResponse {
+  type: PolicyType;
+  requested_language: string;
+  /** 실제로 내려준 문서의 언어. 번역이 없으면 `ko-KR`이다. */
+  language: string;
+  /** 요청한 언어의 번역이 없어 한국어 원문을 대신 내려줬으면 `true`다. */
+  is_fallback: boolean;
+  sections: PolicySection[];
 }

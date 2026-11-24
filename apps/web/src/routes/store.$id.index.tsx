@@ -32,7 +32,7 @@ import { copyToClipboard } from 'utils/ts/copyToClipboard';
 import { isomorphicSessionStorage } from 'utils/ts/env';
 import getDayOfWeek from 'utils/ts/getDayOfWeek';
 import getElapsedSeconds from 'utils/ts/getElapsedSeconds';
-import { isNotFoundKoinError } from 'utils/ts/isr';
+import { isNotFoundKoinError } from 'utils/ts/httpError';
 import { parseQueryId } from 'utils/ts/parseServerSideParams';
 import showToast from 'utils/ts/showToast';
 
@@ -243,7 +243,7 @@ function StoreDetailPage({ id }: Props) {
         <div className={styles['section__store-info']}>
           {storeDetail && (
             <div className={styles.store}>
-              <div className={styles.store__name}>{storeDetail?.name}</div>
+              <div className={styles.store__name}>{storeDetail?.display_name ?? storeDetail?.name}</div>
               <div className={styles.store__detail}>
                 <span>전화번호</span>
                 {storeDetail?.phone}

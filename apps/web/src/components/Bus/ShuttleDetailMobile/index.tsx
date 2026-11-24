@@ -4,6 +4,7 @@ import type { ShuttleTimetableDetailInfoResponse } from 'api/bus/entity';
 import InformationIcon from 'assets/svg/Bus/info-gray.svg';
 import { BUS_FEEDBACK_FORM, SHUTTLE_ROUTE_TYPE_CLASS } from 'static/bus';
 import useLogger from 'utils/hooks/analytics/useLogger';
+import useServerMessage from 'utils/language/useServerMessage';
 
 import styles from './ShuttleDetailMobile.module.scss';
 
@@ -14,6 +15,7 @@ interface ShuttleDetailMobileProps {
 }
 
 export default function ShuttleDetailMobile({ timetable, selectedName, onSelect }: ShuttleDetailMobileProps) {
+  const message = useServerMessage();
   const logger = useLogger();
   const isMultiple = timetable.route_info.length > 2;
   const showDirections = !isMultiple && timetable.route_info.length > 1;
@@ -28,7 +30,9 @@ export default function ShuttleDetailMobile({ timetable, selectedName, onSelect 
           [styles['detail__heading--divided']]: !showDirections,
         })}
       >
-        <span className={`${styles['bus-type']} ${routeTypeClass ?? ''}`}>{timetable.route_type}</span>
+        <span className={`${styles['bus-type']} ${routeTypeClass ?? ''}`}>
+          {message('shuttle.type', timetable.route_type)}
+        </span>
         <h2 className={styles.detail__title}>{timetable.route_name} 시간표</h2>
         {timetable.sub_name && <p className={styles.detail__subtitle}>{timetable.sub_name}</p>}
       </div>
@@ -46,7 +50,7 @@ export default function ShuttleDetailMobile({ timetable, selectedName, onSelect 
               aria-pressed={selectedName === name}
               onClick={() => onSelect(name)}
             >
-              {name}
+              {message('shuttle.direction', name)}
             </button>
           ))}
         </div>
@@ -67,7 +71,7 @@ export default function ShuttleDetailMobile({ timetable, selectedName, onSelect 
                   <th scope="col">승하차장명</th>
                   {timetable.route_info.map(({ name, detail }) => (
                     <th key={name} scope="col">
-                      {name}
+                      {message('shuttle.direction', name)}
                       {detail && <span className={styles.timetable__description}>{detail}</span>}
                     </th>
                   ))}
@@ -75,7 +79,7 @@ export default function ShuttleDetailMobile({ timetable, selectedName, onSelect 
               ) : (
                 <>
                   <th scope="col">
-                    {selectedRoute?.name}
+                    {selectedRoute && message('shuttle.direction', selectedRoute.name)}
                     {selectedRoute?.detail && (
                       <span className={styles.timetable__description}>{selectedRoute.detail}</span>
                     )}
@@ -91,7 +95,7 @@ export default function ShuttleDetailMobile({ timetable, selectedName, onSelect 
                 {isMultiple ? (
                   <>
                     <th scope="row" className={styles.timetable__stop}>
-                      {node.name}
+                      {node.display_name ?? node.name}
                       {node.detail && <span className={styles.timetable__description}>{node.detail}</span>}
                     </th>
                     {timetable.route_info.map((route) => (
@@ -104,7 +108,7 @@ export default function ShuttleDetailMobile({ timetable, selectedName, onSelect 
                   <>
                     <td className={styles.timetable__time}>{selectedRoute?.arrival_time[nodeIndex]?.split('/')[0]}</td>
                     <th scope="row" className={styles.timetable__stop}>
-                      {node.name}
+                      {node.display_name ?? node.name}
                       {node.detail && ` ${node.detail}`}
                     </th>
                   </>
