@@ -6,16 +6,15 @@
 
 [등록 이슈 열기](https://github.com/BCSDLab/BCSD_united/issues/new?template=NEW_ERROR_SOURCE.md) → 담당자·검증 계약 합의 → 구현 PR → 보안 검토·운영 활성화 순서다. 등록 이슈나 문서 추가만으로 Worker가 새 저장소를 읽거나 수정하지 않는다.
 
-| 대상 | 현재 상태 | 구현자가 연결할 경계 |
-| --- | --- | --- |
-| `BCSDLab/BCSD_united`의 `apps/api` | Cloudflare API 오류 수정 경로는 존재하며 Sentry 수집은 web 전용 | API용 canonical 증거·안전한 GET 재현·기존 API 검증 프로필 |
-| `BCSDLab/KOIN_API_V2` | 별도 저장소라 고정 저장소 검사에서 거부 | 저장소별 App 설치/큐/브랜치 정책, Java 소스 근거와 Gradle 독립 검증 |
-| `BCSDLab/KOIN_ANDROID` | 추후 연동 구현 대상, 실행 비활성 | Kotlin/Android 소스 근거, 모듈별 소스·새 테스트 범위, 격리 SDK/JDK·Gradle 검증 |
+| 대상                               | 현재 상태                                                       | 구현자가 연결할 경계                                                           |
+| ---------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `BCSDLab/BCSD_united`의 `apps/api` | Cloudflare API 오류 수정 경로는 존재하며 Sentry 수집은 web 전용 | API용 canonical 증거·안전한 GET 재현·기존 API 검증 프로필                      |
+| `BCSDLab/KOIN_API_V2`              | 별도 저장소라 고정 저장소 검사에서 거부                         | 저장소별 App 설치/큐/브랜치 정책, Java 소스 근거와 Gradle 독립 검증            |
+| `BCSDLab/KOIN_ANDROID`             | 추후 연동 구현 대상, 실행 비활성                                | Kotlin/Android 소스 근거, 모듈별 소스·새 테스트 범위, 격리 SDK/JDK·Gradle 검증 |
 
 운영 API를 호출할 수 있는 권한과 해당 저장소를 읽고 수정 PR을 작성하는 권한은 별개다. 구현 요청에는 둘을 구분하며 운영 SSH·DB·사용자 데이터 쓰기나 자동 merge 권한을 암묵적으로 요구하지 않는다.
 
 Android 구현자는 대상 고정 SHA의 `koin/`, `domain/`, `data/`, `core/`, `feature/` 모듈과 wrapper·JDK·SDK 요구사항을 확인한다. 키스토어, 서명, Firebase 설정, `local.properties`, manifest·빌드 설정·의존성·생성물은 후보가 수정하지 못하게 한다. 관리자 소유 검증 이미지의 SDK 라이선스는 사람이 승인하며 `yes | sdkmanager --licenses` 같은 자동 동의 절차를 넣지 않는다. 네트워크·비밀 없이 실행할 unit/lint/assemble 범위와 실제 실행 증거를 구현 PR에 명시한 뒤 활성화한다.
-
 
 ```mermaid
 flowchart LR
