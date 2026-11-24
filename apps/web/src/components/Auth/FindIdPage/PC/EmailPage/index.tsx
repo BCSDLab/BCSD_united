@@ -42,6 +42,7 @@ function FindIdEmailPage() {
     stopTimer,
     isResendLocked,
     resendLockMessage,
+    isSendPending,
   } = useEmailVerification({ email });
 
   const onClickSendVerificationButton = () => {
@@ -112,7 +113,7 @@ function FindIdEmailPage() {
                       type="button"
                       onClick={() => checkEmailExists({ email })}
                       className={styles['check-button']}
-                      disabled={!field.value || isDisabled || isVerified || isResendLocked}
+                      disabled={!field.value || isDisabled || isVerified || isResendLocked || isSendPending}
                     >
                       인증번호 발송
                     </button>

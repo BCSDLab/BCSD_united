@@ -78,7 +78,11 @@ function MobileVerification({ onNext }: MobileVerificationProps) {
     }
   };
 
-  const { mutate: sendSMSToUser, isPending: isSendingSmsToUser } = useMutation({
+  const {
+    mutate: sendSMSToUser,
+    isPending: isSendingSmsToUser,
+    variables: sendingSmsToUser,
+  } = useMutation({
     mutationFn: smsSend,
     onSuccess: (data: SmsSendResponse, { phone_number }) => {
       markSent(phone_number);
@@ -138,7 +142,11 @@ function MobileVerification({ onNext }: MobileVerificationProps) {
     },
   });
 
-  const { mutate: checkPhoneNumber, isPending: isCheckingPhoneNumber } = useMutation({
+  const {
+    mutate: checkPhoneNumber,
+    isPending: isCheckingPhoneNumber,
+    variables: checkingPhoneNumber,
+  } = useMutation({
     mutationFn: checkPhone,
     onSuccess: () => {
       sendSMSToUser({ phone_number: phoneNumber });
@@ -185,6 +193,10 @@ function MobileVerification({ onNext }: MobileVerificationProps) {
   }, []);
 
   const shownPhoneMessage = getResendLockMessage(isTimer) ?? phoneMessage;
+  const isSendPending = [
+    isCheckingPhoneNumber && checkingPhoneNumber,
+    isSendingSmsToUser && sendingSmsToUser?.phone_number,
+  ].includes(phoneNumber);
 
   return (
     <div className={styles.container}>
@@ -245,11 +257,8 @@ function MobileVerification({ onNext }: MobileVerificationProps) {
                     isButton
                     disabled={isVerified}
                     buttonText="인증번호 발송"
-                    buttonDisabled={!field.value || isDisabled || isVerified || isResendLocked}
-                    buttonOnClick={withResendLock(
-                      () => checkPhoneNumber(phoneNumber),
-                      isCheckingPhoneNumber || isSendingSmsToUser,
-                    )}
+                    buttonDisabled={!field.value || isDisabled || isVerified || isResendLocked || isSendPending}
+                    buttonOnClick={withResendLock(() => checkPhoneNumber(phoneNumber), isSendPending)}
                     maxLength={11}
                   >
                     {shownPhoneMessage?.type === 'success' && (

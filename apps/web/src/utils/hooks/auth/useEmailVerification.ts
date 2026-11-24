@@ -68,7 +68,11 @@ function useEmailVerification({ email, onNext }: UseEmailVerificationProps) {
     setVerificationMessage(null);
   };
 
-  const { mutate: sendVerificationEmail, isPending: isSendingVerification } = useMutation({
+  const {
+    mutate: sendVerificationEmail,
+    isPending: isSendingVerification,
+    variables: sendingVerification,
+  } = useMutation({
     mutationFn: verificationEmailSend,
     onSuccess: ({ total_count, remaining_count, current_count }, { email: sentEmail }) => {
       markSent(sentEmail);
@@ -92,7 +96,11 @@ function useEmailVerification({ email, onNext }: UseEmailVerificationProps) {
     },
   });
 
-  const { mutate: checkEmailExists, isPending: isCheckingEmailExists } = useMutation({
+  const {
+    mutate: checkEmailExists,
+    isPending: isCheckingEmailExists,
+    variables: checkingEmailExists,
+  } = useMutation({
     mutationFn: emailExists,
     onSuccess: () => {
       sendVerificationEmail({ email });
@@ -157,13 +165,19 @@ function useEmailVerification({ email, onNext }: UseEmailVerificationProps) {
     },
   });
 
+  const isSendPending = [
+    isCheckingEmailExists && checkingEmailExists?.email,
+    isSendingVerification && sendingVerification?.email,
+  ].includes(email);
+
   return {
     emailMessage,
-    checkEmailExists: withResendLock(checkEmailExists, isCheckingEmailExists || isSendingVerification),
+    checkEmailExists: withResendLock(checkEmailExists, isSendPending),
     checkVerificationEmailVerify,
     isSendingVerification,
     isResendLocked,
     resendLockMessage: getResendLockMessage(isTimer),
+    isSendPending,
     findEmail,
     isDisabled,
     disableButton,

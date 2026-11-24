@@ -57,7 +57,11 @@ function usePhoneVerificationInFindId({ phoneNumber, onNext }: UsePhoneVerificat
 
   const { isResendLocked, markSent, withResendLock, getResendLockMessage } = useResendLock(phoneNumber);
 
-  const { mutate: sendVerificationSms, isPending: isSendingVerificationSms } = useMutation({
+  const {
+    mutate: sendVerificationSms,
+    isPending: isSendingVerificationSms,
+    variables: sendingVerificationSms,
+  } = useMutation({
     mutationFn: smsSend,
     onSuccess: ({ total_count, remaining_count, current_count }, { phone_number }) => {
       markSent(phone_number);
@@ -83,7 +87,11 @@ function usePhoneVerificationInFindId({ phoneNumber, onNext }: UsePhoneVerificat
     },
   });
 
-  const { mutate: checkPhoneExists, isPending: isCheckingPhoneExists } = useMutation({
+  const {
+    mutate: checkPhoneExists,
+    isPending: isCheckingPhoneExists,
+    variables: checkingPhoneExists,
+  } = useMutation({
     mutationFn: phoneExists, // 아이디, 비밀번호 찾기 때 사용되는 api
     onSuccess: () => {
       sendVerificationSms({ phone_number: phoneNumber });
@@ -117,7 +125,11 @@ function usePhoneVerificationInFindId({ phoneNumber, onNext }: UsePhoneVerificat
     },
   });
 
-  const { mutate: sendSMSToUser, isPending: isSendingSmsToUser } = useMutation({
+  const {
+    mutate: sendSMSToUser,
+    isPending: isSendingSmsToUser,
+    variables: sendingSmsToUser,
+  } = useMutation({
     mutationFn: smsSend,
     onSuccess: (data: SmsSendResponse, { phone_number }) => {
       markSent(phone_number);
@@ -143,7 +155,11 @@ function usePhoneVerificationInFindId({ phoneNumber, onNext }: UsePhoneVerificat
     },
   });
 
-  const { mutate: checkPhoneNumber, isPending: isCheckingPhoneNumber } = useMutation({
+  const {
+    mutate: checkPhoneNumber,
+    isPending: isCheckingPhoneNumber,
+    variables: checkingPhoneNumber,
+  } = useMutation({
     mutationFn: checkPhone, // 회원가입 할 때 사용되는 api
     onSuccess: () => {
       sendSMSToUser({ phone_number: phoneNumber });
@@ -194,8 +210,12 @@ function usePhoneVerificationInFindId({ phoneNumber, onNext }: UsePhoneVerificat
     },
   });
 
-  const isSendPending =
-    isCheckingPhoneExists || isSendingVerificationSms || isCheckingPhoneNumber || isSendingSmsToUser;
+  const isSendPending = [
+    isCheckingPhoneExists && checkingPhoneExists?.phone_number,
+    isSendingVerificationSms && sendingVerificationSms?.phone_number,
+    isCheckingPhoneNumber && checkingPhoneNumber,
+    isSendingSmsToUser && sendingSmsToUser?.phone_number,
+  ].includes(phoneNumber);
 
   return {
     phoneMessage,
@@ -203,6 +223,7 @@ function usePhoneVerificationInFindId({ phoneNumber, onNext }: UsePhoneVerificat
     checkVerificationSmsVerify,
     isResendLocked,
     resendLockMessage: getResendLockMessage(isTimer),
+    isSendPending,
     findId,
     isDisabled,
     disableButton,

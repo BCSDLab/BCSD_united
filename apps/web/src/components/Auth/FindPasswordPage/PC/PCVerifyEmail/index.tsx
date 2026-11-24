@@ -48,6 +48,7 @@ function PCVerifyEmail({ onNext, onBack, setContactType }: FindPasswordProps) {
     setIdMessage,
     isResendLocked,
     resendLockMessage,
+    isSendPending,
   } = useEmailVerification({ email, onNext });
 
   const onClickSendVerificationButton = () => {
@@ -160,7 +161,7 @@ function PCVerifyEmail({ onNext, onBack, setContactType }: FindPasswordProps) {
                     checkEmailExists({ email });
                   }}
                   className={styles['check-button']}
-                  disabled={!field.value || isDisabled || isVerified || isResendLocked}
+                  disabled={!field.value || isDisabled || isVerified || isResendLocked || isSendPending}
                 >
                   {isSendingVerification ? '...' : buttonText}
                 </button>

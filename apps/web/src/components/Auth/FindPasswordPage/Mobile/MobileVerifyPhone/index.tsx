@@ -44,6 +44,7 @@ function MobileVerifyPhone({ onNext, goToEmailStep, setContactType }: MobileFind
     setIdMessage,
     isResendLocked,
     resendLockMessage,
+    isSendPending,
   } = usePhoneVerification({ phoneNumber, onNext });
 
   const onClickSendVerificationButton = () => {
@@ -112,7 +113,7 @@ function MobileVerifyPhone({ onNext, goToEmailStep, setContactType }: MobileFind
                   isButton
                   disabled={isVerified}
                   buttonText="인증번호 발송"
-                  buttonDisabled={!field.value || isDisabled || isVerified || isResendLocked}
+                  buttonDisabled={!field.value || isDisabled || isVerified || isResendLocked || isSendPending}
                   onChange={(e) => {
                     field.onChange(e);
                     setPhoneMessage(null);

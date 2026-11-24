@@ -73,7 +73,11 @@ function usePhoneVerification({ phoneNumber, onNext, step }: UsePhoneVerificatio
     setVerificationMessage(null);
   };
 
-  const { mutate: sendVerificationSms, isPending: isSendingVerification } = useMutation({
+  const {
+    mutate: sendVerificationSms,
+    isPending: isSendingVerification,
+    variables: sendingVerification,
+  } = useMutation({
     mutationFn: smsSend,
     onSuccess: ({ total_count, remaining_count, current_count }, { phone_number }) => {
       markSent(phone_number);
@@ -104,7 +108,11 @@ function usePhoneVerification({ phoneNumber, onNext, step }: UsePhoneVerificatio
     },
   });
 
-  const { mutate: checkPhoneExists, isPending: isCheckingPhoneExists } = useMutation({
+  const {
+    mutate: checkPhoneExists,
+    isPending: isCheckingPhoneExists,
+    variables: checkingPhoneExists,
+  } = useMutation({
     mutationFn: phoneExists,
     onSuccess: () => {
       sendVerificationSms({ phone_number: phoneNumber });
@@ -159,7 +167,11 @@ function usePhoneVerification({ phoneNumber, onNext, step }: UsePhoneVerificatio
     },
   });
 
-  const { mutate: sendSMSToUser, isPending: isSendingSmsToUser } = useMutation({
+  const {
+    mutate: sendSMSToUser,
+    isPending: isSendingSmsToUser,
+    variables: sendingSmsToUser,
+  } = useMutation({
     mutationFn: smsSend,
     onSuccess: (data: SmsSendResponse, { phone_number }) => {
       markSent(phone_number);
@@ -188,7 +200,11 @@ function usePhoneVerification({ phoneNumber, onNext, step }: UsePhoneVerificatio
     },
   });
 
-  const { mutate: checkPhoneNumber, isPending: isCheckingPhoneNumber } = useMutation({
+  const {
+    mutate: checkPhoneNumber,
+    isPending: isCheckingPhoneNumber,
+    variables: checkingPhoneNumber,
+  } = useMutation({
     mutationFn: checkPhone, // 회원가입 할 때 사용되는 api
     onSuccess: () => {
       sendSMSToUser({ phone_number: phoneNumber });
@@ -246,7 +262,12 @@ function usePhoneVerification({ phoneNumber, onNext, step }: UsePhoneVerificatio
     },
   });
 
-  const isSendPending = isCheckingPhoneExists || isSendingVerification || isCheckingPhoneNumber || isSendingSmsToUser;
+  const isSendPending = [
+    isCheckingPhoneExists && checkingPhoneExists?.phone_number,
+    isSendingVerification && sendingVerification?.phone_number,
+    isCheckingPhoneNumber && checkingPhoneNumber,
+    isSendingSmsToUser && sendingSmsToUser?.phone_number,
+  ].includes(phoneNumber);
 
   return {
     phoneMessage,
@@ -255,6 +276,7 @@ function usePhoneVerification({ phoneNumber, onNext, step }: UsePhoneVerificatio
     isSendingVerification,
     isResendLocked,
     resendLockMessage: getResendLockMessage(isTimer),
+    isSendPending,
     findId,
     isDisabled,
     disableButton,

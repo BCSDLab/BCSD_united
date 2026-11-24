@@ -40,6 +40,7 @@ function MobileVerifyEmail({ onNext, setContactType }: MobileFindPasswordProps) 
     setIdMessage,
     isResendLocked,
     resendLockMessage,
+    isSendPending,
   } = useEmailVerification({ email, onNext });
 
   const onClickSendVerificationButton = () => {
@@ -109,7 +110,7 @@ function MobileVerifyEmail({ onNext, setContactType }: MobileFindPasswordProps) 
                   isButton
                   disabled={isVerified}
                   buttonText="인증번호 발송"
-                  buttonDisabled={!field.value || isDisabled || isVerified || isResendLocked}
+                  buttonDisabled={!field.value || isDisabled || isVerified || isResendLocked || isSendPending}
                   onChange={(e) => {
                     field.onChange(e);
                     setEmailMessage(null);

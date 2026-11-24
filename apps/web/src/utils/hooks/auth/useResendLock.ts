@@ -54,7 +54,10 @@ function useResendLock(target: string, lockSeconds = RESEND_LOCK_SECONDS) {
     });
   };
 
-  /** 잠겼거나 앞선 발송 요청이 아직 진행 중이면 보내지 않는다. 응답 전에 연달아 눌러도 한 번만 보낸다. */
+  /**
+   * 잠겼거나 앞선 발송 요청이 아직 진행 중이면 보내지 않는다. 응답 전에 연달아 눌러도 한 번만 보낸다.
+   * `isSending`에는 지금 입력한 값으로 보낸 요청만 넣는다. 다른 값의 요청까지 넣으면 값을 바꾼 뒤의 발송이 말없이 무시된다.
+   */
   const withResendLock =
     <Args extends unknown[]>(send: (...args: Args) => void, isSending = false) =>
     (...args: Args) => {

@@ -61,6 +61,7 @@ function Verification({ onNext, onBack, setUserType }: VerificationProps) {
     checkPhoneNumber,
     isResendLocked,
     resendLockMessage,
+    isSendPending,
   } = usePhoneVerification({ phoneNumber, onNext });
 
   const onClickSendVerificationButton = () => {
@@ -232,7 +233,7 @@ function Verification({ onNext, onBack, setUserType }: VerificationProps) {
                       });
                     }}
                     className={styles['check-button']}
-                    disabled={!field.value || isDisabled || isVerified || isResendLocked}
+                    disabled={!field.value || isDisabled || isVerified || isResendLocked || isSendPending}
                   >
                     {isSendingVerification ? '...' : buttonText}
                   </button>
