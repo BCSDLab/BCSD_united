@@ -98,7 +98,7 @@ function RoomDetailPage({ id }: RoomDetailPageProps) {
   if (isMobile) {
     return (
       <>
-        <MobilePageHeader title="복덕방" onBack={handleBack} />
+        <MobilePageHeader title="복덕방" className={styles['mobile-header']} onBack={handleBack} />
         {roomDetail && <MobileRoomDetail room={roomDetail} />}
       </>
     );
