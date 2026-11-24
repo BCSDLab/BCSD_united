@@ -110,12 +110,16 @@
 }
 
 .mobile-gallery {
-  position: absolute;
-  inset: 0;
+  position: relative;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  max-width: calc(100% - 68px);
   touch-action: none;
+
+  > .image {
+    position: static;
+    max-width: 100%;
+    max-height: calc(100dvh - 100px);
+  }
 
   &__tap {
     position: absolute;
