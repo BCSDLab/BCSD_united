@@ -15,7 +15,7 @@ import { isMobileView } from 'utils/hooks/layout/useMobileView';
 import { stringifySearch } from 'utils/routing/search';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
-import { ROOM_ISR_REVALIDATE_SECONDS, withStaticFetchRetry } from 'utils/ts/isr';
+import { ROOM_EDGE_CACHE_SECONDS, withStaticFetchRetry } from 'utils/ts/edgeCache';
 
 import styles from 'pages/room/search/RoomSearchPage.module.scss';
 
@@ -71,7 +71,7 @@ const loadPage = definePageLoad(async ({ queryClient, search }, cacheControl, se
     throw redirect({ href: ROUTES.Room() + stringifySearch(search), statusCode: 302 });
   }
   await withStaticFetchRetry('room.list', () => queryClient.fetchQuery(roomQueries.list()));
-  cacheControl.enablePublicCache(`public, s-maxage=${ROOM_ISR_REVALIDATE_SECONDS}, stale-while-revalidate=300`);
+  cacheControl.enablePublicCache(`public, s-maxage=${ROOM_EDGE_CACHE_SECONDS}, stale-while-revalidate=300`);
 
   return {};
 });

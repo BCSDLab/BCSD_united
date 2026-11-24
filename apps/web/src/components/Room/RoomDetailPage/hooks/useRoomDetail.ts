@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { notFound } from '@tanstack/react-router';
 
 import { roomQueries } from 'api/room/queries';
-import { isNotFoundKoinError } from 'utils/ts/isr';
+import { isNotFoundKoinError } from 'utils/ts/httpError';
 
 const useRoomDetail = (id: string) => {
   const { data: roomDetail, error } = useQuery(roomQueries.detail(id));
