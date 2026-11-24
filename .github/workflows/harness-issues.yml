@@ -1,0 +1,37 @@
+name: Publish confirmed stage harness issues
+
+on:
+  workflow_dispatch:
+    inputs:
+      baseline:
+        description: Reviewed normalized stage run JSON (not result.json)
+        type: string
+        required: true
+      confirmation:
+        description: Reviewed normalized direct rerun JSON on the same commits
+        type: string
+        required: true
+
+permissions: {}
+
+concurrency:
+  group: stage-harness-issue-writer
+  queue: max
+
+jobs:
+  publish:
+    if: github.repository == 'BCSDLab/BCSD_united' && github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Validate both runs and publish reproduced product faults
+        run: node scripts/development/issue-publisher.mjs --publish
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

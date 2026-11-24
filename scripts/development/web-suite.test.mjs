@@ -85,7 +85,7 @@ test('inventories with bad ids, duplicate ids, placeholder paths, or unexplained
   assert.throws(() => validateInventory({ screens: [{ ...screen, access: 'private' }] }), /unknown access/);
   assert.throws(() => validateInventory({ screens: [{ ...screen, access: 'disabled' }] }), /state its reason/);
   assert.throws(() => validateInventory({ screens: [{ ...screen, expect: 'error' }] }), /unknown expect/);
-  assert.throws(() => suite({ screens: SCREENS.slice(3) }), /no public screen/);
+  assert.throws(() => suite({ screens: SCREENS.slice(3) }), /no target screen/);
 });
 
 test('the bundled inventory is valid and names each route file once', async () => {
@@ -94,6 +94,19 @@ test('the bundled inventory is valid and names each route file once', async () =
   assert.equal(new Set(routes).size, routes.length);
   assert.equal(
     validateTask(suite({ screens }).task).scenarios.length,
-    screens.filter(({ access }) => access === 'public').length,
+    screens.filter(({ access }) => access === 'public' || access === 'authenticated').length,
   );
+});
+
+test('authenticated mobile targets retain a mandatory scenario and separate desktop guard evidence', async () => {
+  const screens = validateInventory(JSON.parse(await readFile(INVENTORY, 'utf8')));
+  const callvan = screens.find((screen) => screen.id === 'callvan-postid-report-userid');
+  assert.equal(callvan.access, 'authenticated');
+  assert.equal(callvan.desktopGuard, '/');
+  assert.equal(callvan.path, '/callvan/:postId/report/:userId');
+  const { task, profile } = suite({ screens: [callvan] });
+  assert.equal(task.scenarios[0].id, callvan.id);
+  assert.equal(profile.artifacts.filter((file) => file.endsWith('.png')).length, 2);
+  assert.throws(() => validateInventory({ screens: [{ ...callvan, targetText: undefined }] }), /rendered target/);
+  assert.throws(() => validateInventory({ screens: [{ ...callvan, path: '/callvan/:guess' }] }), /concrete URL path/);
 });
