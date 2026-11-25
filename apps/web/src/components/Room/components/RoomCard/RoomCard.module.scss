@@ -76,6 +76,7 @@
     font-size: tokens.$font-size-12;
     font-weight: 500;
     line-height: 1.6;
+    word-break: keep-all;
     overflow-wrap: anywhere;
   }
 
