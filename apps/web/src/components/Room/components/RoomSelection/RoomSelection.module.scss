@@ -1,15 +1,16 @@
 @use "src/utils/scss/media" as media;
+@use "src/utils/scss/tokens" as tokens;
 
 .panel {
   position: absolute;
-  top: 38px;
-  right: 19px;
+  top: 30px;
+  right: 30px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 16px;
   box-sizing: border-box;
-  width: 475px;
-  max-height: calc(100% - 79px);
+  width: 378px;
+  max-height: calc(100% - 60px);
   padding: 24px 32px;
   overflow: auto;
   border-radius: 16px;
@@ -23,6 +24,7 @@
     top: auto;
     right: 0;
     bottom: 0;
+    gap: 24px;
     width: 100%;
     min-height: 196px;
     max-height: 100%;
@@ -93,11 +95,11 @@
 .badges {
   display: flex;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 8px;
 }
 
 .name {
-  font-size: 28px;
+  font-size: tokens.$font-size-16;
   font-weight: 500;
   line-height: 1.6;
   overflow-wrap: anywhere;
@@ -109,17 +111,17 @@
   gap: 8px;
 
   h3 {
-    font-size: 22px;
+    font-size: tokens.$font-size-16;
     font-weight: 500;
-    line-height: 26px;
+    line-height: normal;
   }
 
   dl {
     display: grid;
-    grid-template-columns: 132px minmax(0, 1fr);
+    grid-template-columns: 110px minmax(0, 1fr);
     align-items: start;
-    gap: 8px;
-    font-size: 16px;
+    gap: 8px 0;
+    font-size: tokens.$font-size-12;
     line-height: 1.6;
   }
 
