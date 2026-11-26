@@ -164,18 +164,26 @@ function githubMock(t, state) {
       state.comments = [
         ...(state.comments ?? []),
         {
+          id: 1,
           body: JSON.parse(options.body).body,
           html_url: 'https://github.com/BCSDLab/BCSD_united/pull/3#issuecomment-1',
-          user: { login: 'bot[bot]' },
+          user: { login: 'bcsd-united-error-publisher[bot]', type: 'Bot' },
+          performed_via_github_app: { id: 5522353 },
           created_at: new Date().toISOString(),
         },
       ];
       return Response.json({ html_url: 'https://github.com/BCSDLab/BCSD_united/pull/3#issuecomment-1' });
     }
-    if (api === '/issues/comments/1' && method === 'PATCH') {
-      if (state.failCommentEdit) return new Response('{}', { status: 403 });
-      state.comments.at(-1).body = JSON.parse(options.body).body;
-      return Response.json({ id: 1 });
+    const commentId = /^\/issues\/comments\/([1-9][0-9]*)$/.exec(api)?.[1];
+    if (commentId) {
+      const comment = state.comments?.find((entry) => entry.id === Number(commentId));
+      if (!comment) return new Response('{}', { status: 404 });
+      if (method === 'GET') return Response.json(comment);
+      if (method === 'PATCH') {
+        if (state.failCommentEdit) return new Response('{}', { status: 403 });
+        comment.body = JSON.parse(options.body).body;
+        return Response.json(comment);
+      }
     }
     if (api.startsWith(`/commits/${head}/check-runs?per_page=100`)) {
       const page = Number(new URL(href).searchParams.get('page') ?? 1);
@@ -1119,6 +1127,60 @@ async function publishEmpty(h) {
   return (await h.queue.status(claim.runId)).result.commentUrl;
 }
 
+test('a verified review edits its App failure comment and never changes a human comment', async (t) => {
+  const h = queueHarness(t);
+  const failure = `자동 리뷰 실행 또는 독립 검증에 실패하여 PR head \`${head}\`를 변경하지 않았습니다. 수동으로 리뷰해 주세요.`;
+  h.state.comments = [
+    {
+      id: 41,
+      body: failure,
+      html_url: 'https://github.com/BCSDLab/BCSD_united/pull/3#issuecomment-41',
+      user: { login: 'bcsd-united-error-publisher[bot]', type: 'Bot' },
+      performed_via_github_app: { id: 5522353 },
+    },
+    {
+      id: 42,
+      body: failure,
+      html_url: 'https://github.com/BCSDLab/BCSD_united/pull/3#issuecomment-42',
+      user: { login: 'maintainer', type: 'User' },
+      performed_via_github_app: null,
+    },
+  ];
+  assert.equal(await publishEmpty(h), 'https://github.com/BCSDLab/BCSD_united/pull/3#issuecomment-41');
+  assert.equal(h.writes.filter((write) => write === 'POST /issues/3/comments').length, 0);
+  assert.match(h.state.comments[0].body, /## 자동 리뷰 결과/);
+  assert.match(h.state.comments[0].body, /### 자동 merge/);
+  assert.equal(h.state.comments[1].body, failure);
+});
+
+test('a failed run updates its existing App review without appending a failure comment', async (t) => {
+  const h = queueHarness(t);
+  h.state.comments = [
+    {
+      id: 41,
+      body: `<!-- pr-review:3:${head}:${base}:${sha256('old proof')} -->\nprevious review`,
+      html_url: 'https://github.com/BCSDLab/BCSD_united/pull/3#issuecomment-41',
+      user: { login: 'bcsd-united-error-publisher[bot]', type: 'Bot' },
+      performed_via_github_app: { id: 5522353 },
+    },
+  ];
+  await h.queue.enqueuePullRequest(identity3);
+  const claim = await h.queue.claim('f'.repeat(64));
+  await h.queue.result(claim.runId, {
+    version: 1,
+    executorId: 'koin-rocky-umpc',
+    leaseToken: claim.leaseToken,
+    outcome: 'failed',
+    reason: 'Independent verification failed',
+  });
+  assert.deepEqual(
+    h.writes.filter((write) => write.includes('/comments')),
+    ['PATCH /issues/comments/41'],
+  );
+  assert.match(h.state.comments[0].body, /<!-- pr-review-status:3 -->/);
+  assert.match(h.state.comments[0].body, /수동으로 리뷰해 주세요/);
+});
+
 test('only the App bot comment with the exact proof-bound marker deduplicates a lost-response publication', async (t) => {
   const marker = `<!-- pr-review:3:${head}:${base}:${await manifestDigest(emptyManifest)} -->`;
   const comment = (overrides) => ({
@@ -1132,11 +1194,7 @@ test('only the App bot comment with the exact proof-bound marker deduplicates a 
   const genuine = queueHarness(t);
   genuine.state.comments = [comment({})];
   assert.equal(await publishEmpty(genuine), 'https://github.com/BCSDLab/BCSD_united/pull/3#issuecomment-0');
-  assert.equal(
-    genuine.writes.filter((w) => w === 'POST /issues/3/comments').length,
-    1,
-    'a distinct auto-merge decision marker follows an immutable legacy review comment',
-  );
+  assert.equal(genuine.writes.filter((w) => w === 'POST /issues/3/comments').length, 0);
 
   // Forged markers by a human, another bot, another app, or for other proof never suppress the bot review.
   for (const forged of [
@@ -1240,10 +1298,19 @@ test('signed GitHub PR webhooks admit canonical pins, filter events, and update 
   assert.equal(h.writes.filter((write) => write === 'PUT /pulls/3/update-branch').length, 1);
 });
 
-test('update-branch conflicts leave one marker comment and no review job', async (t) => {
+test('update-branch conflicts edit the existing App status comment without adding another', async (t) => {
   const h = intakeHarness(t, { PR_REVIEW_AUTO: 'true' });
   h.state.behindBy = 2;
   h.state.updateConflict = true;
+  h.state.comments = [
+    {
+      id: 41,
+      body: '<!-- pr-review-status:3 -->\nprevious failure',
+      html_url: 'https://github.com/BCSDLab/BCSD_united/pull/3#issuecomment-41',
+      user: { login: 'bcsd-united-error-publisher[bot]', type: 'Bot' },
+      performed_via_github_app: { id: 5522353 },
+    },
+  ];
   const body = JSON.stringify({
     action: 'ready_for_review',
     installation: { id: 176455083 },
@@ -1268,7 +1335,7 @@ test('update-branch conflicts leave one marker comment and no review job', async
   assert.equal(h.admitted.length, 0);
   assert.deepEqual(
     h.writes.filter((write) => !write.endsWith('/access_tokens')),
-    ['PUT /pulls/3/update-branch', 'POST /issues/3/comments'],
+    ['PUT /pulls/3/update-branch', 'PATCH /issues/comments/41'],
   );
   assert.match(h.state.comments[0].body, /pr-update-conflict:3:/);
 });
@@ -1448,7 +1515,7 @@ test('branch update reservation persists per head across Durable Object instance
   assert.equal(h.db.prepare('SELECT count(*) AS count FROM pull_request_branch_updates').get().count, 2);
 });
 
-test('review outcome uses a marker follow-up when the review comment cannot be edited', async (t) => {
+test('review outcome edit rejection never appends a fallback comment', async (t) => {
   const h = queueHarness(t);
   h.state.failCommentEdit = true;
   await h.queue.enqueuePullRequest(identity3);
@@ -1456,10 +1523,11 @@ test('review outcome uses a marker follow-up when the review comment cannot be e
   await h.queue.model(claim.runId, claim.leaseToken, request);
   await h.queue.verificationStart(claim.runId, claim.leaseToken);
   await h.queue.result(claim.runId, await reviewed(claim.leaseToken, emptyManifest));
-  assert.equal(h.writes.filter((write) => write === 'POST /issues/3/comments').length, 2);
-  assert.match(h.state.comments.at(-1).body, /pr-auto-merge:3:/);
-  assert.match(h.state.comments.at(-1).body, /skipped:/);
-  assert.equal((await h.queue.status(claim.runId)).autoMerge.status, 'skipped');
+  assert.equal(h.writes.filter((write) => write === 'POST /issues/3/comments').length, 1);
+  assert.doesNotMatch(h.state.comments[0].body, /### 자동 merge/);
+  const outcome = (await h.queue.status(claim.runId)).autoMerge;
+  assert.equal(outcome.status, 'skipped');
+  assert.match(outcome.reason, /기존 리뷰 댓글 갱신에 실패/);
 });
 
 function mergeJob() {
@@ -1616,6 +1684,29 @@ test('pending checks are retried by a durable alarm until merged or timed out', 
       assert.equal(h.writes.includes('PUT /pulls/3/merge'), !timeout);
     });
   }
+});
+
+test('an older pending merge alarm cannot overwrite a newer review in the same comment', async (t) => {
+  const h = queueHarness(t);
+  h.state.pulls[3].title = 'Safe title';
+  h.state.files = ['apps/web/src/order/store.ts'];
+  h.state.pulls[3].changed_files = 1;
+  h.state.checks = {
+    total_count: 3,
+    check_runs: [{ ...QUALITY[0], status: 'in_progress', conclusion: null }, ...QUALITY.slice(1)],
+  };
+  await h.queue.enqueuePullRequest(identity3);
+  const claim = await h.queue.claim('f'.repeat(64));
+  await h.queue.model(claim.runId, claim.leaseToken, request);
+  await h.queue.verificationStart(claim.runId, claim.leaseToken);
+  await h.queue.result(claim.runId, await reviewed(claim.leaseToken, emptyManifest));
+  const newer = `<!-- pr-review:3:${movedHead}:${base}:${sha256('newer proof')} -->\nnewer review`;
+  h.state.comments[0].body = newer;
+  h.db.prepare('UPDATE pending_auto_merges SET next_at = ?, until_at = ?').run(Date.now() - 1, Date.now() - 1);
+  await h.restart().alarm();
+  assert.equal(h.state.comments[0].body, newer);
+  assert.equal(h.writes.filter((write) => write === 'POST /issues/3/comments').length, 1);
+  assert.equal((await h.queue.status(claim.runId)).autoMerge.status, 'skipped');
 });
 
 test('publisher-produced correction SHA is recorded before synchronize and ignored by webhook intake', async (t) => {

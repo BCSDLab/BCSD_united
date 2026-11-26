@@ -7,10 +7,9 @@ import { stripVTControlCharacters } from 'node:util';
 export const API_ORIGIN = 'http://127.0.0.1:4174';
 export const delay = (ms) => new Promise((done) => setTimeout(done, ms));
 
-// A head may ship the legacy Worker API gated off by default
-// (`"API_ENABLED": "false"` in wrangler.jsonc). Only the isolated local
-// Miniflare copies opt in, so the existing business routes stay verifiable;
-// configs without the gate are left untouched. Remote config never changes.
+// Only isolated Miniflare copies enable the legacy API and disable the AWS
+// gateway. This exercises real app/gate/D1 handlers, not production AWS routes.
+// Remote configuration and credentials are never changed.
 const apiEnabledDisabled = '"API_ENABLED": "false"';
 const apiEnabledForced = '"API_ENABLED": "true"';
 
@@ -20,6 +19,16 @@ export function declaresApiGate(configuration) {
   if (configuration.includes(apiEnabledForced) || ![0, 2].includes(count))
     throw new Error('API_ENABLED gate configuration changed; offline verification needs review');
   return count === 2;
+}
+
+export function offlineApiVars(configuration, { gate = 'enabled' } = {}) {
+  const gated = declaresApiGate(configuration);
+  if (gate === 'disabled' && !gated) throw new Error('API config declares no API_ENABLED gate to exercise');
+  const declarations = configuration.match(/"KOIN_DB_ENABLED"\s*:/g) ?? [];
+  const supported = configuration.match(/"KOIN_DB_ENABLED": "(?:true|false)"/g) ?? [];
+  if (![0, 2].includes(declarations.length) || declarations.length !== supported.length)
+    throw new Error('KOIN_DB_ENABLED configuration changed; offline verification needs review');
+  return { KOIN_DB_ENABLED: 'false', ...(gate === 'enabled' ? { API_ENABLED: 'true' } : {}) };
 }
 const instrumentedApi = `
 import worker from '../../src/index.ts';
@@ -56,14 +65,15 @@ export async function prepareWebApi() {
     original.includes(apiEnabledForced)
   )
     throw new Error('API configuration changed; offline auxiliary Worker needs review');
-  const gated = declaresApiGate(original);
+  const vars = offlineApiVars(original);
   await writeFile(join(directory, 'index.mjs'), instrumentedApi);
   await writeFile(
     join(directory, 'wrangler.jsonc'),
     original
       .replace(main, '"main": "index.mjs"')
       .replaceAll(migrations, '"migrations_dir": "../../drizzle"')
-      .replaceAll(apiEnabledDisabled, gated ? apiEnabledForced : apiEnabledDisabled),
+      .replaceAll(apiEnabledDisabled, vars.API_ENABLED === 'true' ? apiEnabledForced : apiEnabledDisabled)
+      .replaceAll(/"KOIN_DB_ENABLED": "(?:true|false)"/g, `"KOIN_DB_ENABLED": "${vars.KOIN_DB_ENABLED}"`),
   );
 }
 
@@ -153,16 +163,14 @@ export async function readJsonResponse(url) {
 }
 
 /**
- * Starts the isolated local API Worker. With `gate: 'enabled'` (default) the
- * local process is always opted in via `--var API_ENABLED:true` (a no-op for a
- * config without the gate, the only way a gated head serves business routes)
- * and readiness means the real `/health` ok body; with `gate: 'disabled'` a
- * gated config is left at its default so readiness means the gate's own 503
- * `API_DISABLED` answer, proving the disabled flag path without business IO.
+ * Starts an isolated legacy API Worker with KOIN_DB_ENABLED:false for the whole
+ * local runtime, including Durable Objects. No request is sent to the AWS gateway.
+ * With `gate: 'enabled'` (default), API_ENABLED:true exercises real business
+ * routes and readiness requires `/health` JSON. With `gate: 'disabled'`, the
+ * checked-in API gate stays disabled and readiness requires 503 API_DISABLED.
  */
 export async function startLocalApi({ gate = 'enabled' } = {}) {
-  const gated = declaresApiGate(await readFile(resolve('apps/api/wrangler.jsonc'), 'utf8'));
-  if (gate === 'disabled' && !gated) throw new Error('API config declares no API_ENABLED gate to exercise');
+  const vars = offlineApiVars(await readFile(resolve('apps/api/wrangler.jsonc'), 'utf8'), { gate });
   const registry = await mkdtemp(join(tmpdir(), 'autofix-worker-registry-'));
   const env = {
     ...process.env,
@@ -218,7 +226,7 @@ export async function startLocalApi({ gate = 'enabled' } = {}) {
         '9230',
         '--persist-to',
         persistence,
-        ...(gate === 'enabled' ? ['--var', 'API_ENABLED:true'] : []),
+        ...Object.entries(vars).flatMap(([name, value]) => ['--var', `${name}:${value}`]),
       ],
       env,
     );

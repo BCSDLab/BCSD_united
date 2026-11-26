@@ -17,6 +17,29 @@ import { applyManifest, assertSnapshotMatchesTree, exportTree, prepareScratch, v
 import { matchesRoute, webSmokeRoute } from './source-graph.mjs';
 import { parseJsonc, smokeConfiguration } from './bbot-smoke.mjs';
 import { declaresApiGate } from './local-api.mjs';
+import { waitForRenderedApplication } from './browser-readiness.mjs';
+
+test('browser smoke waits for an asynchronously rendered application after network idle', async () => {
+  const empty = { result: { value: { elements: 7, text: '' } } };
+  const rendered = { result: { value: { elements: 42, text: 'Actual application content' } } };
+  let reads = 0;
+  const snapshot = await waitForRenderedApplication(async () => [empty, rendered][reads++], {
+    attempts: 2,
+    intervalMs: 0,
+  });
+  assert.equal(reads, 2);
+  assert.equal(snapshot, rendered);
+});
+
+test('browser smoke never accepts a document that remains empty', async () => {
+  await assert.rejects(
+    waitForRenderedApplication(async () => ({ result: { value: { elements: 7, text: '' } } }), {
+      attempts: 2,
+      intervalMs: 0,
+    }),
+    /application render timed out/,
+  );
+});
 
 test('web smoke keeps the canonical event path and only offline checks may default to home', () => {
   assert.equal(webSmokeRoute({ app: 'web', route: '/articles/123' }), '/articles/123');

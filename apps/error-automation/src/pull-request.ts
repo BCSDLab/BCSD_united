@@ -550,6 +550,7 @@ export const PUBLISHER_LOGIN = 'bcsd-united-error-publisher[bot]';
 const PUBLISHER_APP_ID = 5522353;
 
 interface IssueComment {
+  id?: unknown;
   body?: unknown;
   html_url?: unknown;
   user?: { login?: unknown; type?: unknown };
@@ -589,9 +590,50 @@ async function findExistingComment(
   return null;
 }
 
+/** 기존 App 리뷰·실패 댓글을 갱신하고, 최초 결과에만 댓글을 생성한다. */
+export async function publishReviewComment(env: Env, token: string, pullNumber: number, body: string): Promise<string> {
+  let existing: IssueComment | undefined;
+  for (let page = 1; page <= 10; page++) {
+    const comments = await github<IssueComment[]>(
+      env,
+      token,
+      `/issues/${pullNumber}/comments?per_page=100&page=${page}`,
+    );
+    for (const comment of comments) {
+      if (
+        !isPublisherComment(comment) ||
+        !Number.isSafeInteger(comment.id) ||
+        (comment.id as number) < 1 ||
+        typeof comment.html_url !== 'string' ||
+        !comment.html_url.startsWith('https://github.com/') ||
+        typeof comment.body !== 'string'
+      )
+        continue;
+      const managed =
+        comment.body.startsWith(`<!-- pr-review:${pullNumber}:`) ||
+        comment.body.startsWith(`<!-- pr-review-status:${pullNumber} -->`) ||
+        comment.body.startsWith(`<!-- pr-update-conflict:${pullNumber}:`) ||
+        /^자동 리뷰 실행 또는 독립 검증에 실패하여 PR head `[0-9a-f]{40}`를 변경하지 않았습니다\. 수동으로 리뷰해 주세요\.$/.test(
+          comment.body,
+        );
+      if (managed && (!existing || (comment.id as number) > (existing.id as number))) existing = comment;
+    }
+    if (comments.length < 100) break;
+    if (page === 10) throw new Error('Review comment pagination exceeded its bound');
+  }
+  if (existing) {
+    await github(env, token, `/issues/comments/${existing.id}`, 'PATCH', { body });
+    return existing.html_url as string;
+  }
+  const comment = await github<{ html_url?: unknown }>(env, token, `/issues/${pullNumber}/comments`, 'POST', { body });
+  if (typeof comment.html_url !== 'string' || !comment.html_url.startsWith('https://github.com/'))
+    throw new Error('Comment receipt missing');
+  return comment.html_url;
+}
+
 /**
  * Publishes a verified correction (or none) onto the existing PR head by fast-forward only and
- * posts one evidence comment. Returns the receipt, or throws PullRequestRejected(409) when the
+ * updates the App's evidence comment (creating only its first result). Returns the receipt, or throws PullRequestRejected(409) when the
  * PR moved before any remote write.
  */
 export async function publishPullRequest(
@@ -664,9 +706,11 @@ export async function publishPullRequest(
   }
   const existing = await findExistingComment(env, token, job, proof);
   if (existing) return { url: current.htmlUrl, publishedHeadSha, commentUrl: existing };
-  const comment = await github<{ html_url: string }>(env, token, `/issues/${job.pullNumber}/comments`, 'POST', {
-    body: reviewComment(job, review, manifest, proof, publishedHeadSha),
-  });
-  if (typeof comment.html_url !== 'string') throw new Error('Comment receipt missing');
-  return { url: current.htmlUrl, publishedHeadSha, commentUrl: comment.html_url };
+  const commentUrl = await publishReviewComment(
+    env,
+    token,
+    job.pullNumber,
+    reviewComment(job, review, manifest, proof, publishedHeadSha),
+  );
+  return { url: current.htmlUrl, publishedHeadSha, commentUrl };
 }

@@ -16,6 +16,7 @@ import {
   parsePullRequestIdentity,
   pullRequestPolicy,
   PUBLISHER_LOGIN,
+  publishReviewComment,
 } from './pull-request';
 import { slackRequest, SlackRequestError } from './request';
 
@@ -310,21 +311,12 @@ async function githubWebhook(request: Request, env: Env, json: unknown): Promise
       }
       await stub.finishBranchUpdate(current.pullNumber, current.headSha, 'conflict');
       const marker = `<!-- pr-update-conflict:${current.pullNumber}:${current.headSha} -->`;
-      const comments = await github<
-        { body?: string; user?: { login?: string; type?: string }; performed_via_github_app?: { id?: number } }[]
-      >(env, write, `/issues/${current.pullNumber}/comments?per_page=100`);
-      if (
-        !comments.some(
-          (comment) =>
-            comment.body?.includes(marker) &&
-            comment.user?.login === PUBLISHER_LOGIN &&
-            comment.user.type === 'Bot' &&
-            comment.performed_via_github_app?.id === 5522353,
-        )
-      )
-        await github(env, write, `/issues/${current.pullNumber}/comments`, 'POST', {
-          body: `${marker}\n\n자동 리뷰를 위해 develop을 반영하려 했으나 충돌로 실패했습니다. 수동으로 브랜치를 갱신해 주세요.`,
-        });
+      await publishReviewComment(
+        env,
+        write,
+        current.pullNumber,
+        `${marker}\n\n자동 리뷰를 위해 develop을 반영하려 했으나 충돌로 실패했습니다. 수동으로 브랜치를 갱신해 주세요.`,
+      );
       return reply(200, { status: 'ignored' });
     }
     return reply(200, { status: 'branch-update-requested' });
