@@ -219,7 +219,7 @@ function LostItemDetailPage({ articleId }: LostItemDetailPageProps) {
               <div className={styles.article__guide}>
                 <p>분실물 수령을 희망하시는 분은 재실 시간 내에</p>
                 <p>
-                  <strong>{organization.location}</strong>해 주시기 바랍니다.
+                  <strong>{organization.location}</strong>로 방문해 주시기 바랍니다.
                 </p>
                 <p>재실 시간은 공지 사항을 참고해 주시기 바랍니다.</p>
               </div>
