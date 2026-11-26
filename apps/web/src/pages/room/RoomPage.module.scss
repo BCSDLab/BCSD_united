@@ -100,11 +100,12 @@
 
 .map-controls {
   position: absolute;
-  right: 516px;
-  bottom: 41px;
+  bottom: 25px;
+  left: 25px;
 
   @include media.media-breakpoint(mobile) {
     right: 12px;
+    left: auto;
     bottom: 426px;
   }
 }
