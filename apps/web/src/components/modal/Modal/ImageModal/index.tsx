@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { cn } from '@bcsdlab/utils';
 
-import PhotoNextIcon from 'assets/svg/Club/next-image-icon.svg';
-import PhotoPreviousIcon from 'assets/svg/Club/pre-image-icon.svg';
+import ChevronRightIcon from 'assets/svg/Team/chevron-right-icon.svg';
 import PhotoCloseIcon from 'assets/svg/Team/x-icon.svg';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useArrowKeyNavigation from 'utils/hooks/ui/useArrowKeyNavigation';
@@ -191,7 +190,7 @@ function ImageModal({
                     disabled={selectedIndex === 0}
                     onClick={() => handleArrowClick(-1)}
                   >
-                    <PhotoPreviousIcon aria-hidden />
+                    <ChevronRightIcon width={40} height={40} aria-hidden />
                   </button>
                   <button
                     type="button"
@@ -200,7 +199,7 @@ function ImageModal({
                     disabled={selectedIndex === imageList.length - 1}
                     onClick={() => handleArrowClick(1)}
                   >
-                    <PhotoNextIcon aria-hidden />
+                    <ChevronRightIcon width={40} height={40} aria-hidden />
                   </button>
                 </>
               )}

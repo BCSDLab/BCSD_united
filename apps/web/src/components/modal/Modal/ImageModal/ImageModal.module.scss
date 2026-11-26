@@ -215,11 +215,17 @@
     position: absolute;
     top: 50%;
     display: flex;
+    border-radius: 50%;
+    background: tokens.$neutral-500;
     transform: translateY(-50%);
     cursor: pointer;
 
-    > svg > rect {
-      fill: tokens.$neutral-500;
+    > svg {
+      transform: translateX(2px);
+
+      path {
+        fill: tokens.$white;
+      }
     }
 
     &:disabled {
@@ -234,6 +240,10 @@
 
   &__previous {
     left: -132px;
+
+    > svg {
+      transform: translateX(-2px) rotate(180deg);
+    }
   }
 
   &__next {
