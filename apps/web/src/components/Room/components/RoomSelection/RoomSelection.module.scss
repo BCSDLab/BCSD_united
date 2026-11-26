@@ -45,11 +45,6 @@
     fill: #000;
   }
 
-  &:focus-visible {
-    outline: 2px solid #b611f5;
-    outline-offset: 3px;
-  }
-
   @include media.media-breakpoint(mobile) {
     top: 20px;
   }
