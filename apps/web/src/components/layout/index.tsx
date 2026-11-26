@@ -11,6 +11,7 @@ import styles from './Layout.module.scss';
 
 interface SSRLayoutProps {
   children: React.ReactNode;
+  className?: string;
   mobileHeader?: MobileHeaderVariant;
   fitViewport?: boolean;
 }
@@ -19,15 +20,23 @@ interface LayoutProps extends SSRLayoutProps {
   hideLayout?: boolean;
 }
 
-function getRootClassName(mobileHeader: MobileHeaderVariant | undefined, fitViewport: boolean | undefined) {
-  if (mobileHeader !== 'page') return undefined;
+function getRootClassName(
+  mobileHeader: MobileHeaderVariant | undefined,
+  fitViewport: boolean | undefined,
+  className: string | undefined,
+) {
+  if (mobileHeader !== 'page') return className;
 
-  return cn({ [styles['root--page']]: true, [styles['root--fit-viewport']]: !!fitViewport });
+  return cn({
+    [styles['root--page']]: true,
+    [styles['root--fit-viewport']]: !!fitViewport,
+    [className ?? '']: !!className,
+  });
 }
 
-export function SSRLayout({ children, mobileHeader, fitViewport }: SSRLayoutProps) {
+export function SSRLayout({ children, className, mobileHeader, fitViewport }: SSRLayoutProps) {
   return (
-    <div id="root" className={getRootClassName(mobileHeader, fitViewport)}>
+    <div id="root" className={getRootClassName(mobileHeader, fitViewport, className)}>
       <Header mobileHeader={mobileHeader} />
       <PageHeaderLayoutProvider value={mobileHeader === 'page'}>{children}</PageHeaderLayoutProvider>
       <Footer />
@@ -35,7 +44,7 @@ export function SSRLayout({ children, mobileHeader, fitViewport }: SSRLayoutProp
   );
 }
 
-export default function Layout({ children, mobileHeader, fitViewport, hideLayout = false }: LayoutProps) {
+export default function Layout({ children, className, mobileHeader, fitViewport, hideLayout = false }: LayoutProps) {
   const isMobile = useMediaQuery();
   const isNativeWebView = typeof window !== 'undefined' && !!window.webkit?.messageHandlers;
 
@@ -44,7 +53,7 @@ export default function Layout({ children, mobileHeader, fitViewport, hideLayout
   }
 
   return (
-    <div id="root" className={getRootClassName(mobileHeader, fitViewport)}>
+    <div id="root" className={getRootClassName(mobileHeader, fitViewport, className)}>
       <Suspense fallback={null}>
         <Header mobileHeader={mobileHeader} />
       </Suspense>

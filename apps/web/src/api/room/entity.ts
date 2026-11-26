@@ -2,39 +2,39 @@ import type { APIResponse } from 'interfaces/APIResponse';
 
 export interface LandList {
   internal_name: string;
-  monthly_fee: string;
-  latitude: number;
-  longitude: number;
-  charter_fee: string;
+  monthly_fee: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  charter_fee: string | null;
   name: string;
   id: number;
-  softDeleted: boolean;
-  room_type: string;
+  room_type: string | null;
+  address: string | null;
+  is_monthly_available: boolean;
+  is_charter_available: boolean;
 }
 
 export interface LandDetailResponse extends APIResponse {
-  monthly_fee: string;
-  latitude: number;
-  longitude: number;
-  charter_fee: string;
+  monthly_fee: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  charter_fee: string | null;
   created_at: string;
-  description: string;
+  description: string | null;
   image_urls: null | string[];
-  softDeleted: boolean;
   internal_name: string;
   is_deleted: boolean;
   updated_at: string;
   id: number;
   floor: null | number;
-  management_fee: string;
-  address: string;
-  comments: [];
-  size: number;
-  phone: string;
+  management_fee: string | null;
+  address: string | null;
+  size: string | null;
+  phone: string | null;
   name: string;
-  deposit: string;
+  deposit: string | null;
   permalink: string;
-  room_type: string;
+  room_type: string | null;
   opt_electronic_door_locks: boolean;
   opt_tv: boolean;
   opt_elevator: boolean;

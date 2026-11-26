@@ -19,7 +19,7 @@ import useMount from 'utils/hooks/state/useMount';
 import useServerMessage from 'utils/language/useServerMessage';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { createPageLoader, definePageLoad } from 'utils/ssr/pageLoader';
-import { BUS_SHUTTLE_ISR_REVALIDATE_SECONDS, withStaticFetchRetry } from 'utils/ts/isr';
+import { BUS_SHUTTLE_EDGE_CACHE_SECONDS, withStaticFetchRetry } from 'utils/ts/edgeCache';
 
 import styles from 'pages/bus/shuttle/ShuttleBusTimetable.module.scss';
 
@@ -240,7 +240,7 @@ const loadPage = definePageLoad(async ({ queryClient }, cacheControl) => {
     queryClient.fetchQuery(busQueries.notice()),
   ]);
 
-  cacheControl.enablePublicCache(`public, s-maxage=${BUS_SHUTTLE_ISR_REVALIDATE_SECONDS}, stale-while-revalidate=300`);
+  cacheControl.enablePublicCache(`public, s-maxage=${BUS_SHUTTLE_EDGE_CACHE_SECONDS}, stale-while-revalidate=300`);
 
   return {};
 });

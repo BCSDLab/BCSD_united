@@ -244,7 +244,11 @@ iOS:
 
 ### 웹 전체 화면
 
-`scripts/development/screens/web.json`의 공개 화면을 데스크톱·모바일에서 검사한다. 로그인 화면은 비로그인 이동만 확인하고 기능은 미검증으로 남긴다. 비활성 주문 화면은 사유를 적고 건너뛴다. API·루트 셸은 화면 목록에서 제외한다.
+![서버별 하네스 실행, 증거 수집, 오류 처리와 이슈 발행 경로](harness-server-flow.png)
+
+`scripts/development/screens/web.json`은 공개 화면, 세션이 필요한 화면, 비로그인 이동만 확인하는 화면, 비활성 화면을 구분한다. 데스크톱에서 의도적으로 홈으로 보내는 화면은 이동 규칙만 검증한다. 해당 기능을 데스크톱에서 실행한 것으로 보지 않는다.
+
+인증 검사는 `http://localhost:3000`에서 실제 stage API 연결을 확인한 뒤 임시 Chrome 프로필로 로그인한다. 승인된 테스트 계정은 실행 프로세스의 `KOIN_STAGE_LOGIN_ID`, `MAESTRO_USER_PASSWORD`로만 전달한다. 명령 인자·프로필·보고서에 값을 넣지 않는다. `KOIN_STAGE_CALLVAN_POST_ID`는 해당 계정이 참여한 글, `KOIN_STAGE_SHOP_ID`는 테스트 상점을 가리킨다. 검사를 위해 글·리뷰·신고를 제출하지 않는다.
 
 ```sh
 pnpm development:web --sha <전체 SHA> --checkout <웹 체크아웃 절대 경로> --reviewer <리뷰어> --work "$WORK"
@@ -252,6 +256,28 @@ pnpm development run "$WORK/web.task.json" web "$WORK/web.profile.json" <전체 
 ```
 
 개발 서버 하나로 화면을 순회하며 문서 오류·오류 경계·예외·`console.error`·동일 출처 API의 5xx를 검사하고 캡처한다. 예상한 404는 목록에 명시한다. 상세 ID·데이터가 바뀌면 근거와 값을 갱신한다. 화면 진입만으로 검색·작성·결제 완료를 판정하지 않는다.
+
+### 재현된 웹 실패를 GitHub Issue로 전달
+
+Mac은 `result.json`과 캡처를 실행 디렉터리에 보관하고, 이슈 판정에는 정규화한 `screen-run.json`만 전달한다. 중앙 발행기는 운영 오류 자동 수정 Worker와 별개다. 이슈 쓰기 자격을 Mac에 설치하지 않는다.
+
+앱과 하네스는 커밋된 깨끗한 체크아웃이어야 한다. 같은 stage·앱 SHA·하네스 SHA에서 재검증할 때 첫 보고서의 경로를 `--parent-run`으로 넘긴다. 아래는 단일 화면 예시다.
+
+```sh
+OUT=apps/web/.wrangler/harness
+node scripts/development/web-scenario.mjs --checkout "$APP" --scenario screen:benefitstore --out "$OUT/first"
+node scripts/development/web-scenario.mjs --checkout "$APP" --scenario screen:benefitstore --parent-run "$APP/$OUT/first/screen-run.json" --out "$OUT/rerun"
+```
+
+승인된 운영자가 첫 실행과 재검증의 출처를 확인한 뒤 **두 보고서를 회수한 곳**에서 실행한다. 보고서는 서명된 기기 증명이 아니며, 외부 사용자가 올린 파일이나 PR 첨부물을 입력으로 쓰지 않는다.
+
+```sh
+node scripts/development/issue-publisher.mjs --dry-run --baseline first.json --confirmation rerun.json
+node scripts/development/issue-publisher.mjs --dispatch-inputs --baseline first.json --confirmation rerun.json > dispatch.json
+gh workflow run harness-issues.yml --repo BCSDLab/BCSD_united --ref develop --json < dispatch.json
+```
+
+마지막 명령만 발행을 요청한다. GitHub Actions와 Issues가 활성화돼 있고 조직 정책이 워크플로의 `issues: write`를 허용해야 한다. 로컬 검사 통과나 디스패치 접수만으로 이슈가 생성됐다고 보지 않는다. 작업이 취소되면 실행 결과를 확인한 뒤 같은 보고서로 다시 요청한다.
 
 ### Android 전체 흐름
 

@@ -31,10 +31,11 @@ interface MobileOnlyPageProps {
   device: DeviceClass;
   desktopHref: string;
   children: ReactNode;
+  className?: string;
 }
 
 /** 데스크톱 화면이 없는 모바일 전용 페이지. 모바일 화면 조건이 풀리면 `desktopHref`로 바꾼다. */
-export function MobileOnlyPage({ device, desktopHref, children }: MobileOnlyPageProps) {
+export function MobileOnlyPage({ device, desktopHref, children, className }: MobileOnlyPageProps) {
   const routeNavigate = useNavigate();
   const showMobile = useMobileView(device);
 
@@ -42,5 +43,9 @@ export function MobileOnlyPage({ device, desktopHref, children }: MobileOnlyPage
     if (!showMobile) routeNavigate({ href: desktopHref, replace: true });
   }, [showMobile, desktopHref, routeNavigate]);
 
-  return <SSRLayout mobileHeader="page">{children}</SSRLayout>;
+  return (
+    <SSRLayout mobileHeader="page" className={className}>
+      {children}
+    </SSRLayout>
+  );
 }

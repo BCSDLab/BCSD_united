@@ -42,6 +42,7 @@ export const MESSAGES = {
     INCORRECT: '인증번호가 일치하지 않습니다. 다시 입력해 주세요.',
     CORRECT: '인증번호가 일치합니다.',
     STOP: '1일 발송 한도를 초과했습니다. 24시간 이후 재시도 바랍니다.',
+    RESEND_LOCKED: '이미 인증번호를 발송했습니다. 잠시 후 다시 시도해 주세요.',
   },
   USERID: {
     AVAILABLE: '사용 가능한 아이디입니다.',

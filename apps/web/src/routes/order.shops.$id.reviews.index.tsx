@@ -11,7 +11,7 @@ import { storeReviewsQueries } from 'components/Store/mobile/StoreReviewsPage/qu
 import { parseReviewSort } from 'components/Store/mobile/StoreReviewsPage/utils/reviewSort';
 import { loadPageData, validatePageInput } from 'utils/ssr/pageData';
 import { createPageLoader, definePageLoad, STORE_PUBLIC_SSR_CACHE_CONTROL } from 'utils/ssr/pageLoader';
-import { isNotFoundKoinError } from 'utils/ts/isr';
+import { isNotFoundKoinError } from 'utils/ts/httpError';
 
 type Props = { isDesktop: true; shopId?: undefined } | { isDesktop: false; shopId: string };
 

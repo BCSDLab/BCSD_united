@@ -3,14 +3,14 @@ import useServerMessage from 'utils/language/useServerMessage';
 import styles from './RoomDetailTable.module.scss';
 
 interface RoomDetailTableProps {
-  monthlyFee: string;
-  roomType: string;
-  charterFee: string;
-  deposit: string;
+  monthlyFee: string | null;
+  roomType: string | null;
+  charterFee: string | null;
+  deposit: string | null;
   floor: null | number;
-  managementFee: string;
-  size: number;
-  phone: string;
+  managementFee: string | null;
+  size: string | null;
+  phone: string | null;
 }
 
 interface TableData {

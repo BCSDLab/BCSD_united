@@ -10,9 +10,10 @@ import type { InputMessage } from 'interfaces/InputMessage';
 import { GENDER_OPTIONS, MESSAGES, REGEX } from 'static/auth';
 import ROUTES from 'static/routes';
 import { useSessionLogger } from 'utils/hooks/analytics/useSessionLogger';
-import useResendLock from 'utils/hooks/auth/useResendLock';
+import useResendLock, { getSendLimitMessage } from 'utils/hooks/auth/useResendLock';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
 import useCountdownTimer from 'utils/hooks/ui/useCountdownTimer';
+import { getErrorStatus } from 'utils/ts/httpError';
 
 import styles from './MobileVerification.module.scss';
 
@@ -68,7 +69,7 @@ function MobileVerification({ onNext }: MobileVerificationProps) {
     },
   });
 
-  const { isResendLocked, markSent, withResendLock, resendButtonText } = useResendLock(phoneNumber);
+  const { isResendLocked, markSent, withResendLock, getResendLockMessage } = useResendLock(phoneNumber);
 
   const clearVerificationMessageTimer = () => {
     if (verificationMessageTimerRef.current) {
@@ -77,7 +78,11 @@ function MobileVerification({ onNext }: MobileVerificationProps) {
     }
   };
 
-  const { mutate: sendSMSToUser } = useMutation({
+  const {
+    mutate: sendSMSToUser,
+    isPending: isSendingSmsToUser,
+    variables: sendingSmsToUser,
+  } = useMutation({
     mutationFn: smsSend,
     onSuccess: (data: SmsSendResponse, { phone_number }) => {
       markSent(phone_number);
@@ -100,12 +105,13 @@ function MobileVerification({ onNext }: MobileVerificationProps) {
       }, 3000);
     },
     onError: (err) => {
+      if (getErrorStatus(err) === 429) {
+        setPhoneMessage({ type: 'error', content: getSendLimitMessage(err) });
+
+        return;
+      }
       if (isKoinError(err)) {
         if (err.status === 400) setPhoneMessage({ type: 'warning', content: MESSAGES.PHONE.INVALID });
-
-        if (err.status === 429) {
-          setPhoneMessage({ type: 'error', content: MESSAGES.VERIFICATION.STOP });
-        }
       }
     },
   });
@@ -136,7 +142,11 @@ function MobileVerification({ onNext }: MobileVerificationProps) {
     },
   });
 
-  const { mutate: checkPhoneNumber } = useMutation({
+  const {
+    mutate: checkPhoneNumber,
+    isPending: isCheckingPhoneNumber,
+    variables: checkingPhoneNumber,
+  } = useMutation({
     mutationFn: checkPhone,
     onSuccess: () => {
       sendSMSToUser({ phone_number: phoneNumber });
@@ -181,6 +191,12 @@ function MobileVerification({ onNext }: MobileVerificationProps) {
   useEffect(() => {
     return () => clearVerificationMessageTimer();
   }, []);
+
+  const shownPhoneMessage = getResendLockMessage(isTimer) ?? phoneMessage;
+  const isSendPending = [
+    isCheckingPhoneNumber && checkingPhoneNumber,
+    isSendingSmsToUser && sendingSmsToUser?.phone_number,
+  ].includes(phoneNumber);
 
   return (
     <div className={styles.container}>
@@ -237,25 +253,26 @@ function MobileVerification({ onNext }: MobileVerificationProps) {
                     }}
                     placeholder="- 없이 번호를 입력해 주세요."
                     isDelete={!isVerified}
-                    message={phoneMessage}
+                    message={shownPhoneMessage}
                     isButton
                     disabled={isVerified}
-                    buttonText={resendButtonText('인증번호 발송')}
-                    buttonDisabled={!field.value || isDisabled || isVerified || isResendLocked}
-                    buttonOnClick={withResendLock(() => checkPhoneNumber(phoneNumber))}
+                    buttonText="인증번호 발송"
+                    buttonDisabled={!field.value || isDisabled || isVerified || isResendLocked || isSendPending}
+                    buttonOnClick={withResendLock(() => checkPhoneNumber(phoneNumber), isSendPending)}
                     maxLength={11}
                   >
-                    {phoneMessage?.type === 'success' && (
+                    {shownPhoneMessage?.type === 'success' && (
                       <div className={styles['label-count-number']}>
                         {' '}
                         남은 횟수 ({smsSendCountData?.remaining_count}/{smsSendCountData?.total_count})
                       </div>
                     )}
-                    {phoneMessage?.type === 'error' && phoneMessage?.content === '이미 가입된 전화 번호입니다.' && (
-                      <a href={ROUTES.Auth()} className={styles['label-link-button']}>
-                        로그인하기
-                      </a>
-                    )}
+                    {shownPhoneMessage?.type === 'error' &&
+                      shownPhoneMessage?.content === '이미 가입된 전화 번호입니다.' && (
+                        <a href={ROUTES.Auth()} className={styles['label-link-button']}>
+                          로그인하기
+                        </a>
+                      )}
                   </CustomInput>
                 )}
               />

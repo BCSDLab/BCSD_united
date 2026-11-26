@@ -43,7 +43,8 @@ function MobileVerifyPhone({ onNext, goToEmailStep, setContactType }: MobileFind
     checkIdMatchPhone,
     setIdMessage,
     isResendLocked,
-    resendButtonText,
+    resendLockMessage,
+    isSendPending,
   } = usePhoneVerification({ phoneNumber, onNext });
 
   const onClickSendVerificationButton = () => {
@@ -79,6 +80,8 @@ function MobileVerifyPhone({ onNext, goToEmailStep, setContactType }: MobileFind
 
   const isFormFilled = loginId && phoneNumber && verificationCode;
 
+  const shownPhoneMessage = resendLockMessage ?? phoneMessage;
+
   return (
     <div className={styles.container}>
       <div className={styles['form-container']}>
@@ -106,11 +109,11 @@ function MobileVerifyPhone({ onNext, goToEmailStep, setContactType }: MobileFind
                   placeholder="- 없이 번호를 입력해 주세요."
                   maxLength={11}
                   isDelete={!isVerified}
-                  message={phoneMessage}
+                  message={shownPhoneMessage}
                   isButton
                   disabled={isVerified}
-                  buttonText={resendButtonText('인증번호 발송')}
-                  buttonDisabled={!field.value || isDisabled || isVerified || isResendLocked}
+                  buttonText="인증번호 발송"
+                  buttonDisabled={!field.value || isDisabled || isVerified || isResendLocked || isSendPending}
                   onChange={(e) => {
                     field.onChange(e);
                     setPhoneMessage(null);
@@ -124,7 +127,7 @@ function MobileVerifyPhone({ onNext, goToEmailStep, setContactType }: MobileFind
                     setIsVerificationSent(true);
                   }}
                 >
-                  {phoneMessage?.type === 'success' && (
+                  {shownPhoneMessage?.type === 'success' && (
                     <div className={styles['label-count-number']}>
                       남은 횟수 ({smsSendCountData?.remaining_count}/{smsSendCountData?.total_count})
                     </div>

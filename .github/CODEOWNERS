@@ -1,4 +1,5 @@
 # 자동화 권한·검증 정책은 저장소 관리자가 검토합니다.
 /apps/error-automation/ @SimYunSup
 /scripts/autofix/ @SimYunSup
+/scripts/development/issue-publisher.mjs @SimYunSup
 /.github/ @SimYunSup

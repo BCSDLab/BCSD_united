@@ -41,7 +41,8 @@ function MobileFindIdPhonePage() {
     timerValue,
     stopTimer,
     isResendLocked,
-    resendButtonText,
+    resendLockMessage,
+    isSendPending,
   } = usePhoneVerificationInFindId({ phoneNumber });
 
   const isFormFilled = phoneNumber && verificationCode;
@@ -63,6 +64,8 @@ function MobileFindIdPhonePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- phoneNumber 변경 시에만 재실행 (나머지는 훅이 반환하는 안정적 함수)
   }, [phoneNumber]);
 
+  const shownPhoneMessage = resendLockMessage ?? phoneMessage;
+
   return (
     <FormProvider {...methods}>
       <form onSubmit={methods.handleSubmit(onClickFindIdButton)} className={styles.container}>
@@ -80,14 +83,14 @@ function MobileFindIdPhonePage() {
                   maxLength={11}
                   placeholder="- 없이 번호를 입력해 주세요."
                   isDelete={!isVerified}
-                  message={phoneMessage}
+                  message={shownPhoneMessage}
                   isButton
                   disabled={isVerified}
-                  buttonText={resendButtonText('인증번호 발송')}
-                  buttonDisabled={!field.value || isDisabled || isVerified || isResendLocked}
+                  buttonText="인증번호 발송"
+                  buttonDisabled={!field.value || isDisabled || isVerified || isResendLocked || isSendPending}
                   buttonOnClick={() => checkPhoneExists({ phone_number: phoneNumber })}
                 >
-                  {phoneMessage?.type === 'default' && (
+                  {shownPhoneMessage?.type === 'default' && (
                     <button
                       className={styles['label-link-button']}
                       type="button"
@@ -96,7 +99,7 @@ function MobileFindIdPhonePage() {
                       이메일로 찾기
                     </button>
                   )}
-                  {phoneMessage?.type === 'success' && (
+                  {shownPhoneMessage?.type === 'success' && (
                     <div className={styles['label-count-number']}>
                       남은 횟수 ({smsSendCountData?.remaining_count}/{smsSendCountData?.total_count})
                     </div>

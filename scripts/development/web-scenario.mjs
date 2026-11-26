@@ -1,12 +1,24 @@
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { INVENTORY, validateInventory } from './web-suite.mjs';
+import { beginScreenRun, classifyVisit, normalizedScreenRun, verifyRevisions } from './web-screen-evidence.mjs';
+import {
+  authenticated,
+  openProfile,
+  screenChildEnv,
+  stageConfig,
+  stagePreflight,
+  targetClip,
+} from './web-screen-auth.mjs';
 
-const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
+const CHROME =
+  process.platform === 'darwin'
+    ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+    : 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const VIEWPORT = { width: 1440, height: 900 };
 const MEALS = [
   { type: 'BREAKFAST', label: '아침' },
@@ -498,7 +510,10 @@ async function watchPage(cdp) {
     record.activityAt = Date.now();
   };
   cdp.on('Network.loadingFinished', finished);
-  cdp.on('Network.loadingFailed', finished);
+  cdp.on('Network.loadingFailed', (event) => {
+    if (record && requests.has(event.requestId)) record.networkFailures += 1;
+    finished(event);
+  });
   cdp.on('Runtime.exceptionThrown', ({ exceptionDetails }) => {
     const message = exceptionDetails.exception?.description ?? exceptionDetails.text;
     record?.exceptions.push(String(message).slice(0, MAX_MESSAGE_LENGTH));
@@ -516,6 +531,7 @@ async function watchPage(cdp) {
         documentStatus: null,
         documentLoads: 0,
         failedRequests: [],
+        networkFailures: 0,
         consoleErrors: [],
         exceptions: [],
         pending: new Set(),
@@ -539,10 +555,14 @@ async function visitScreen({ cdp, page, monitor, origin }, screen) {
     monitor.stop();
     await cdp.send('Page.navigate', { url: 'about:blank' });
     await waitFor('a blank page', async () => (await page.evaluate('location.href')) === 'about:blank');
-    await cdp.send('Network.clearBrowserCookies');
-    await cdp.send('Storage.clearDataForOrigin', { origin, storageTypes: 'all' });
+    const signedIn = screen.access === 'authenticated';
+    if (!signedIn) {
+      await cdp.send('Network.clearBrowserCookies');
+      await cdp.send('Storage.clearDataForOrigin', { origin, storageTypes: 'all' });
+    }
     record = monitor.start();
-    ({ errorText: navigationError } = await cdp.send('Page.navigate', { url: `${origin}${screen.path}` }));
+    if (screen.id === 'auth-modifyinfo') await openProfile({ cdp, page, origin }, waitFor);
+    else ({ errorText: navigationError } = await cdp.send('Page.navigate', { url: `${origin}${screen.path}` }));
     const hydrated = async () => {
       const current = await page.evaluate(SCREEN_STATE);
       return current.ready && current.hydrated ? current : null;
@@ -605,18 +625,15 @@ function loginFailures(screen, origin, { record, state, navigationError }) {
 }
 
 const screenshotNames = (screen) =>
-  screen.access === 'public'
+  ['public', 'authenticated'].includes(screen.access)
     ? [`${screen.id}-desktop.png`, `${screen.id}-mobile.png`]
     : screen.access === 'login'
       ? [`${screen.id}-desktop.png`]
       : [];
 
 /** 개발 서버 하나로 화면들을 차례로 연다. 화면이 실패해도 멈추지 않고 화면별 결과를 모은다. */
-async function screensSweep(context, screens) {
-  const { cdp, page, origin, outDir } = context;
-  const monitor = await watchPage(cdp);
-  const userAgent = await page.evaluate('navigator.userAgent');
-  const entries = screens.map(({ id, route, path: screenPath, access, reason }) => ({
+function screenEntries(screens) {
+  return screens.map(({ id, route, path: screenPath, access, reason }) => ({
     id,
     route,
     path: screenPath,
@@ -625,30 +642,126 @@ async function screensSweep(context, screens) {
     ...(access === 'disabled' ? { reason } : {}),
     ...(access === 'login' ? { unverified: 'login required' } : {}),
   }));
-  for (const [name, viewport] of Object.entries(SCREEN_VIEWPORTS)) {
+}
+
+async function screensSweep(context, screens, entries, meta) {
+  const { cdp, page, origin, outDir } = context;
+  const { findings, routes } = await stagePreflight(context, screens, waitFor);
+  meta.preflight = findings;
+  console.error(`[web-scenario] stage preflight: ${JSON.stringify(findings)}`);
+  const monitor = await watchPage(cdp);
+  const userAgent = await page.evaluate('navigator.userAgent');
+  // Finish both protected viewports in the one preflight session. Anonymous visits then
+  // clear cookies/storage before every navigation; never copy a cookie into Node.
+  const batches = [true, false].flatMap((signedIn) => {
+    const group = [...screens.entries()].filter(([, spec]) => (spec.access === 'authenticated') === signedIn);
+    return group.length ? Object.entries(SCREEN_VIEWPORTS).map(([name, viewport]) => ({ group, name, viewport })) : [];
+  });
+  for (const { group, name, viewport } of batches) {
     await cdp.send('Emulation.setDeviceMetricsOverride', viewport);
     await cdp.send('Emulation.setUserAgentOverride', { userAgent: viewport.mobile ? MOBILE_USER_AGENT : userAgent });
     await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: viewport.mobile });
-    for (const [index, screen] of screens.entries()) {
+    for (const [index, spec] of group) {
+      let screen = spec;
       if (!screenshotNames(screen).includes(`${screen.id}-${name}.png`)) continue;
-      const visit = await visitScreen({ cdp, page, monitor, origin }, screen);
-      const failures = (screen.access === 'login' ? loginFailures : publicFailures)(screen, origin, visit);
+      const privateVisit = screen.access === 'authenticated';
+      const guard = name === 'desktop' && screen.desktopGuard;
+      let visit;
+      let clip;
+      let failures;
+      let session = false;
+      if (privateVisit && routes.get(spec.id).blocked) {
+        entries[index][name] = {
+          passed: false,
+          outcome: 'blocked',
+          coverage: guard ? 'desktop-guard' : 'target',
+          failures: [`Stage prerequisite unavailable: ${routes.get(spec.id).blocked}`],
+        };
+        entries[index].status = 'failed';
+        continue;
+      }
       const screenshot = `${screen.id}-${name}.png`;
-      await page
-        .screenshotFullPage(path.join(outDir, screenshot), MAX_CAPTURE_HEIGHT)
-        .catch(() => page.screenshotViewport(path.join(outDir, screenshot)));
+      try {
+        if (privateVisit) screen = { ...spec, path: routes.get(spec.id).path };
+        visit = await visitScreen({ cdp, page, monitor, origin }, screen);
+        if (privateVisit) {
+          // Keep error counts/statuses; authenticated URLs, console arguments and exception text can contain PII.
+          if (visit.navigationError) visit.navigationError = '[private]';
+          for (const key of ['consoleErrors', 'exceptions'])
+            visit.record[key] = visit.record[key].map(() => '[private]');
+          for (const request of visit.record.failedRequests) {
+            request.url = request.url.startsWith(`${origin}/api/`) ? `${origin}/api/[private]` : '[private]';
+          }
+          if (visit.state) visit.state.errorBoundaries = visit.state.errorBoundaries.map(() => '[private]');
+          const expected = guard || screen.path;
+          failures = publicFailures({ ...screen, path: expected }, origin, visit);
+          if (visit.state?.url?.replace(/\/$/, '') !== `${origin}${expected}`.replace(/\/$/, ''))
+            failures.push(guard ? 'desktop guard did not reach home' : 'authenticated target URL was not reached');
+          session = visit.state?.url?.startsWith(`${origin}/`) && (await authenticated(page));
+          if (!session) failures.push('stage session was not authenticated at destination');
+          if (visit.record.failedRequests.some((r) => r.url.startsWith(`${origin}/api/`) && r.status < 500))
+            failures.push('authenticated API request failed');
+          if (!failures.length) {
+            const marker = guard ? { targetText: '공지사항' } : screen;
+            await waitFor('visible authenticated target', async () => {
+              clip = await targetClip(page, marker);
+              return Boolean(clip);
+            }).catch(() => failures.push('expected visible target was not rendered'));
+          }
+        } else {
+          failures = (screen.access === 'login' ? loginFailures : publicFailures)(screen, origin, visit);
+        }
+        if (privateVisit && clip) {
+          const { data } = await cdp.send('Page.captureScreenshot', {
+            format: 'png',
+            captureBeyondViewport: true,
+            clip,
+          });
+          await writeFile(path.join(outDir, screenshot), Buffer.from(data, 'base64'));
+        } else if (!privateVisit) {
+          await page
+            .screenshotFullPage(path.join(outDir, screenshot), MAX_CAPTURE_HEIGHT)
+            .catch(() => page.screenshotViewport(path.join(outDir, screenshot)));
+        }
+      } catch {
+        monitor.stop();
+        entries[index][name] = {
+          passed: false,
+          outcome: 'harness-error',
+          coverage: guard ? 'desktop-guard' : 'target',
+          failures: ['Screen navigation, browser observation or evidence capture failed'],
+        };
+        entries[index].status = 'failed';
+        continue;
+      }
       entries[index][name] = {
         passed: failures.length === 0,
+        outcome: classifyVisit({
+          screen: spec,
+          origin,
+          expectedPath: guard || screen.path,
+          viewport: name,
+          session,
+          clip,
+          stage: findings.stageOrigin === 'verified',
+          visit,
+          passed: !failures.length,
+        }),
         failures,
-        finalUrl: visit.state?.url ?? null,
-        title: visit.state?.title ?? null,
+        ...(privateVisit && { coverage: guard ? 'desktop-guard' : 'target', requestedRoute: spec.path }),
+        finalUrl: privateVisit
+          ? visit.state?.url?.replace(/\/$/, '') === `${origin}${guard || screen.path}`.replace(/\/$/, '')
+            ? guard || spec.path
+            : null
+          : (visit.state?.url ?? null),
+        title: privateVisit ? null : (visit.state?.title ?? null),
         documentStatus: visit.record.documentStatus,
         documentLoads: visit.record.documentLoads,
         networkIdle: visit.networkIdle,
         failedRequests: visit.record.failedRequests,
         consoleErrors: visit.record.consoleErrors,
         exceptions: visit.record.exceptions,
-        screenshot,
+        ...((!privateVisit || clip) && { screenshot }),
       };
       if (failures.length > 0) entries[index].status = 'failed';
       else if (screen.access === 'login') entries[index].status = 'unverified';
@@ -657,6 +770,7 @@ async function screensSweep(context, screens) {
   }
   const count = (status) => entries.filter((entry) => entry.status === status).length;
   return {
+    screenshots: entries.flatMap((entry) => [entry.desktop?.screenshot, entry.mobile?.screenshot].filter(Boolean)),
     passed: count('failed') === 0,
     counts: {
       passed: count('passed'),
@@ -668,7 +782,7 @@ async function screensSweep(context, screens) {
   };
 }
 
-const USAGE = `Usage: web-scenario.mjs --checkout DIR --scenario NAME --out DIR [--port N]
+const USAGE = `Usage: web-scenario.mjs --checkout DIR --scenario NAME --out DIR [--port N] [--parent-run PATH]
   NAME: ${Object.keys(SCENARIOS).join(' | ')}
         screen:<id>                           one screen of screens/web.json
         screens --ids a,b,c | --all-public | --all   several screens with a single dev server
@@ -682,6 +796,7 @@ async function plan(values) {
     'dining-date-change': diningDateChange,
   }[values.scenario];
   if (dining) {
+    if (values['parent-run'] !== undefined) fail('--parent-run applies only to screen runs');
     return {
       files: SCENARIOS[values.scenario],
       meta: { route: '/cafeteria', viewport: VIEWPORT },
@@ -703,11 +818,18 @@ async function plan(values) {
   const screens = inventory.filter((screen) =>
     ids ? ids.includes(screen.id) : values.all || screen.access === 'public',
   );
+  const entries = screenEntries(screens);
+  const meta = {
+    viewports: SCREEN_VIEWPORTS,
+    stageAuthentication: screens.some((screen) => screen.access === 'authenticated'),
+  };
   return {
+    entries,
+    allowedIds: new Set(inventory.map((screen) => screen.id)),
     files: screens.flatMap(screenshotNames),
-    meta: { viewports: SCREEN_VIEWPORTS },
+    meta,
     timeoutMs: SWEEP_TIMEOUT_MS,
-    run: (context) => screensSweep(context, screens),
+    run: (context) => screensSweep(context, screens, entries, meta),
   };
 }
 
@@ -725,15 +847,21 @@ async function screenResult(outDir, id) {
   }
 }
 
-async function startServer(webDir, port) {
+async function startServer(webDir, port, config) {
   const vite = path.join(webDir, 'node_modules', 'vite', 'bin', 'vite.js');
-  const server = spawn(process.execPath, [vite, '--port', String(port), '--strictPort'], {
-    cwd: webDir,
-    shell: false,
-    windowsHide: true,
-    detached: process.platform !== 'win32',
-    stdio: ['ignore', 2, 2],
-  });
+  const server = spawn(
+    process.execPath,
+    [vite, '--port', String(port), '--strictPort', ...(config ? ['--config', config] : [])],
+    {
+      cwd: webDir,
+      env: screenChildEnv(),
+      shell: false,
+      windowsHide: true,
+      detached: process.platform !== 'win32',
+      // Framework SSR diagnostics may include response bodies. Do not archive the signed-in server stream.
+      stdio: config ? 'ignore' : ['ignore', 2, 2],
+    },
+  );
   server.once('error', () => {});
   return server;
 }
@@ -766,7 +894,7 @@ async function startChrome(profileDir, debugPort) {
       `--window-size=${VIEWPORT.width},${VIEWPORT.height}`,
       'about:blank',
     ],
-    { shell: false, windowsHide: true, detached: process.platform !== 'win32', stdio: 'ignore' },
+    { shell: false, env: screenChildEnv(), windowsHide: true, detached: process.platform !== 'win32', stdio: 'ignore' },
   );
   chrome.once('error', () => {});
   return chrome;
@@ -794,6 +922,7 @@ async function main() {
       ids: { type: 'string' },
       'all-public': { type: 'boolean' },
       all: { type: 'boolean' },
+      'parent-run': { type: 'string' },
     },
   });
   if (!values.checkout || !values.out || !values.scenario) fail(USAGE);
@@ -812,21 +941,46 @@ async function main() {
   });
   if (ignored.status !== 0) fail(`--out is not git-ignored in the checkout: ${relativeOut}`);
   const resultOf = /^result:(.+)$/.exec(values.scenario)?.[1];
-  if (resultOf) return screenResult(outDir, resultOf);
-  const { files, meta, timeoutMs, run: runScenario } = await plan(values);
+  if (resultOf) {
+    if (values['parent-run'] !== undefined) fail('--parent-run applies only to screen runs');
+    return screenResult(outDir, resultOf);
+  }
+  const { files, meta, timeoutMs, run: runScenario, entries, allowedIds } = await plan(values);
+  const identity =
+    entries &&
+    (await beginScreenRun(
+      checkout,
+      entries.map((s) => s.id),
+      allowedIds,
+      values['parent-run'],
+    ));
   await mkdir(outDir, { recursive: true });
-  for (const name of [...files, 'result.json']) await rm(path.join(outDir, name), { force: true });
+  if (
+    values['parent-run'] !== undefined &&
+    !path.relative(await realpath(outDir), path.dirname(await realpath(values['parent-run'])))
+  )
+    fail('Use a different --out directory to preserve the parent run');
+  for (const name of [...files, 'result.json', 'screen-run.json']) await rm(path.join(outDir, name), { force: true });
 
   const origin = `http://localhost:${port}`;
   const profileDir = await mkdtemp(path.join(os.tmpdir(), 'koin-web-scenario-'));
   const startedAt = new Date().toISOString();
   let server;
+  let configDir;
   let chrome;
   let cdp;
   let timer;
   try {
     const run = async () => {
-      server = await startServer(path.join(checkout, 'apps', 'web'), port);
+      const webDir = path.join(checkout, 'apps', 'web');
+      let config;
+      if (entries && process.env.AUTOFIX_OFFLINE_SMOKE !== '1') {
+        const runtimeDir = path.join(webDir, '.wrangler');
+        await mkdir(runtimeDir, { recursive: true });
+        configDir = await mkdtemp(path.join(runtimeDir, 'stage-harness-'));
+        config = await stageConfig(configDir, webDir);
+      }
+      server = await startServer(webDir, port, config);
       await waitForServer(server, origin);
       const debugPort = await freePort();
       chrome = await startChrome(profileDir, debugPort);
@@ -836,7 +990,24 @@ async function main() {
     const timeout = new Promise((_, reject) => {
       timer = setTimeout(() => reject(new Error(`Scenario exceeded the ${timeoutMs}ms total limit`)), timeoutMs);
     });
-    const outcome = await Promise.race([run(), timeout]);
+    let outcome;
+    try {
+      outcome = await Promise.race([run(), timeout]);
+    } catch (error) {
+      if (!entries) throw error;
+      // Preserve completed observations; startup, capture, CDP and timeout errors
+      // can never become product evidence merely because a viewport is missing.
+      outcome = {
+        passed: false,
+        harnessError: 'Screen run interrupted',
+        screens: entries,
+        screenshots: entries.flatMap((entry) => [entry.desktop?.screenshot, entry.mobile?.screenshot].filter(Boolean)),
+      };
+      for (const entry of entries) {
+        if (['desktop', 'mobile'].some((v) => screenshotNames(entry).includes(`${entry.id}-${v}.png`) && !entry[v]))
+          entry.status = 'failed';
+      }
+    }
     const result = {
       scenario: values.scenario,
       passed: true,
@@ -847,6 +1018,11 @@ async function main() {
       ...outcome,
     };
     await writeFile(path.join(outDir, 'result.json'), `${JSON.stringify(result, null, 2)}\n`);
+    if (identity) {
+      verifyRevisions(checkout, identity);
+      const normalized = normalizedScreenRun(identity, entries, allowedIds);
+      await writeFile(path.join(outDir, 'screen-run.json'), `${JSON.stringify(normalized, null, 2)}\n`);
+    }
     console.log(JSON.stringify(result, null, 2));
     if (!result.passed) {
       const failed = result.screens.filter(({ status }) => status === 'failed').map(({ id }) => id);
@@ -857,6 +1033,7 @@ async function main() {
     cdp?.close();
     killTree(server);
     killChrome(chrome, profileDir);
+    if (configDir) await rm(configDir, { recursive: true, force: true });
     await rm(profileDir, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
   }
 }

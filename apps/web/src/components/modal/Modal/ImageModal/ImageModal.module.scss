@@ -1,4 +1,5 @@
 @use "src/utils/scss/media" as media;
+@use "src/utils/scss/tokens" as tokens;
 
 .background {
   position: fixed;
@@ -20,6 +21,11 @@
   margin: auto;
   transition: transform 0.1s ease;
   touch-action: none;
+
+  &--large {
+    max-width: min(822px, calc(100vw - 160px));
+    max-height: calc(100vh - 96px);
+  }
 
   @include media.media-breakpoint(mobile) {
     max-width: calc(100% - 68px);
@@ -100,5 +106,140 @@
     &:hover {
       background-color: transparent;
     }
+  }
+}
+
+.mobile-gallery {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+
+  &__tap {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 25%;
+
+    &:focus-visible {
+      outline: 2px solid #b611f5;
+      outline-offset: -2px;
+    }
+
+    &--previous {
+      left: 0;
+    }
+
+    &--next {
+      right: 0;
+    }
+  }
+}
+
+.background--desktop-gallery {
+  box-sizing: border-box;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 80px;
+  padding: 60px;
+  overflow-y: auto;
+}
+
+.desktop-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  align-self: stretch;
+
+  &__text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    line-height: 1.6;
+  }
+
+  &__title {
+    color: tokens.$white;
+    font-size: tokens.$font-size-28;
+    font-weight: tokens.$font-weight-bold;
+  }
+
+  &__description {
+    color: tokens.$neutral-400;
+    font-size: tokens.$font-size-24;
+    font-weight: tokens.$font-weight-medium;
+  }
+
+  &__close {
+    display: flex;
+    cursor: pointer;
+
+    > svg > path {
+      stroke: tokens.$white;
+    }
+
+    &:focus-visible {
+      outline: 2px solid tokens.$white;
+      outline-offset: 4px;
+    }
+  }
+}
+
+.desktop-gallery {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+  flex-shrink: 0;
+  max-width: 100%;
+
+  &__stage {
+    position: relative;
+  }
+
+  &__image {
+    display: block;
+    position: static;
+    max-width: min(1016px, calc(100vw - 384px));
+    max-height: max(160px, 100dvh - 354px);
+  }
+
+  &__previous,
+  &__next {
+    position: absolute;
+    top: 50%;
+    display: flex;
+    transform: translateY(-50%);
+    cursor: pointer;
+
+    > svg > rect {
+      fill: tokens.$neutral-500;
+    }
+
+    &:disabled {
+      cursor: default;
+    }
+
+    &:focus-visible {
+      outline: 2px solid tokens.$white;
+      outline-offset: 4px;
+    }
+  }
+
+  &__previous {
+    left: -132px;
+  }
+
+  &__next {
+    right: -132px;
+  }
+
+  &__count {
+    color: tokens.$white;
+    font-size: tokens.$font-size-24;
+    font-weight: tokens.$font-weight-bold;
+    line-height: 1.6;
   }
 }

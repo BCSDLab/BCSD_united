@@ -1,0 +1,192 @@
+@use "src/utils/scss/media" as media;
+
+.card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 175px;
+  padding: 12px 24px;
+  border: 1px solid #e1e1e1;
+  border-radius: 16px;
+  background: #fff;
+  color: #1f1f1f;
+  text-align: left;
+  text-decoration: none;
+
+  &:hover {
+    border-color: #b611f5;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #b611f5;
+    outline-offset: 3px;
+  }
+
+  &__content {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  &__details {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  &__heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 24px;
+  }
+
+  &__name {
+    min-width: 0;
+    font-size: 28px;
+    font-weight: 500;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+  }
+
+  &__type {
+    color: #727272;
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+  }
+
+  &__address-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  &__address {
+    min-width: 0;
+    color: #727272;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+  }
+
+  &__fees {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  &__fee {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  &__badge {
+    flex-shrink: 0;
+    padding: 4px 12px;
+    border-radius: 100px;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.6;
+
+    &--monthly {
+      background: #e5f5ec;
+      color: #0c9d61;
+    }
+
+    &--charter {
+      background: #fff9ee;
+      color: #ffad0d;
+    }
+  }
+
+  &__inquiry {
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 1.6;
+  }
+
+  &__arrow--pc {
+    display: flex;
+    flex-shrink: 0;
+  }
+
+  &__arrow--mobile {
+    display: none;
+    flex-shrink: 0;
+    margin-left: auto;
+
+    path {
+      fill: #6f6f6f;
+    }
+  }
+
+  @include media.media-breakpoint(mobile) {
+    min-height: 81px;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    color: #323232;
+
+    &__details {
+      gap: 4px;
+    }
+
+    &__heading {
+      gap: 4px 8px;
+    }
+
+    &__name {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    &__type {
+      color: #6f6f6f;
+      font-size: 10px;
+      font-weight: 400;
+    }
+
+    &__address {
+      color: #6f6f6f;
+      font-size: 12px;
+      font-weight: 400;
+    }
+
+    &__fees {
+      flex-flow: row wrap;
+      gap: 4px 8px;
+    }
+
+    &__fee {
+      gap: 4px;
+    }
+
+    &__badge {
+      padding: 1px 8px;
+      font-size: 10px;
+      font-weight: 500;
+    }
+
+    &__inquiry {
+      font-size: 12px;
+    }
+
+    &__arrow--pc {
+      display: none;
+    }
+
+    &__arrow--mobile {
+      display: flex;
+    }
+  }
+}
