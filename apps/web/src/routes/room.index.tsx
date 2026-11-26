@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
 import { createServerFn } from '@tanstack/react-start';
 
 import type { LandList } from 'api/room/entity';
@@ -32,7 +32,7 @@ const LOCATION = { latitude: 36.764617, longitude: 127.283154 };
 function RoomPage() {
   const { rooms, results, keyword, searchRooms } = useRoomSearch();
   const logger = useLogger();
-  const handleBack = useRoomBack('room_list');
+  const goBack = useRoomBack('room_list');
   const isSearchEmpty = !!keyword && results?.length === 0;
   const [rentType, setRentType] = useState<RoomRentType>('all');
   const [selectedRoom, setSelectedRoom] = useState<LandList | null>(null);
@@ -40,6 +40,38 @@ function RoomPage() {
   const [returnFocusRoomId, setReturnFocusRoomId] = useState<number | null>(null);
   const [previousKeyword, setPreviousKeyword] = useState(keyword);
   const mapControlsRef = useRef<HTMLDivElement>(null);
+  const closeSelection = () => {
+    setSelectedRoom(null);
+    setClusterRoomIds(null);
+  };
+  const hasSelection = selectedRoom !== null || clusterRoomIds !== null;
+  const handleBack = () => {
+    if (!hasSelection) {
+      goBack();
+
+      return;
+    }
+
+    logger.actionEventClick({
+      event_name: 'DA1',
+      event_label: 'real_estate__room_common__navigation__back__click',
+      value: '뒤로가기',
+      params: { source_screen: 'room_list' },
+    });
+    closeSelection();
+  };
+
+  useBlocker({
+    disabled: !hasSelection,
+    enableBeforeUnload: false,
+    shouldBlockFn: ({ action }) => {
+      if (action !== 'BACK') return false;
+      handleBack();
+
+      return true;
+    },
+  });
+
   const handleSelectRoom = (room: LandList) => {
     setReturnFocusRoomId(room.id);
     setSelectedRoom(room);
@@ -121,10 +153,7 @@ function RoomPage() {
           <RoomSelection
             key={selectedRoom.id}
             room={selectedRoom}
-            onClose={() => {
-              setSelectedRoom(null);
-              setClusterRoomIds(null);
-            }}
+            onClose={closeSelection}
             getMap={getMap}
             mapControlsRef={mapControlsRef}
           />
