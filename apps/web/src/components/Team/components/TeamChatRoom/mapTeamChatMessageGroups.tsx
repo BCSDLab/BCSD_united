@@ -1,24 +1,28 @@
-import { teamChatMessageTranslationPath } from 'api/team/APIDetail';
-import type { TeamChatMessage } from 'api/team/entity';
+import type { ChatMessageResponse } from 'api/chat/entity';
+import { fetchChatMessageSourceVersion, teamRecruitmentMessageTranslationPath } from 'api/chat/translation';
 import groupChatMessagesByDate from 'components/Team/utils/groupChatMessagesByDate';
 import type { ChatMessageListGroup, ChatMessageTranslation } from 'components/ui/Chat';
 import { formatChatTime } from 'utils/ts/chatTime';
 
 import TeamChatSenderAvatar from './TeamChatSenderAvatar';
 
+interface TeamChatRoomTranslationTarget {
+  roomId: string;
+  recruitmentId: number;
+  chatRoomId: number;
+}
+
 export default function mapTeamChatMessageGroups(
-  messages: TeamChatMessage[],
+  messages: ChatMessageResponse[],
   currentUserId: number | undefined,
-  room: {
-    recruitmentId: number;
-    chatRoomId: number;
-    /** 원문 버전이 바뀌었을 때(409) 해당 메시지를 다시 받아 새 버전을 돌려준다 */
-    refetchMessageVersion: (messageId: number) => Promise<string | null | undefined>;
-  },
+  room: TeamChatRoomTranslationTarget,
 ): ChatMessageListGroup[] {
-  // 상대가 보낸 텍스트 쪽지만 번역한다
-  const getTranslation = (message: TeamChatMessage): ChatMessageTranslation | undefined => {
-    // 내 정보를 받기 전에는 내 메시지인지 알 수 없으므로 붙이지 않는다
+  const nextMessageIds = new Map(
+    messages.map((message, index) => [message.message_id, messages[index + 1]?.message_id]),
+  );
+
+  // 상대가 보낸 텍스트 쪽지만 번역한다. 내 정보를 받기 전에는 내 메시지인지 알 수 없으므로 붙이지 않는다.
+  const getTranslation = (message: ChatMessageResponse): ChatMessageTranslation | undefined => {
     if (currentUserId === undefined || message.user_id === currentUserId || message.is_image) return undefined;
 
     return {
@@ -26,9 +30,12 @@ export default function mapTeamChatMessageGroups(
       resourceId: message.message_id,
       parentId: room.recruitmentId,
       roomId: room.chatRoomId,
-      translatePath: teamChatMessageTranslationPath(room.recruitmentId, room.chatRoomId, message.message_id),
+      translatePath: teamRecruitmentMessageTranslationPath(room.recruitmentId, room.chatRoomId, message.message_id),
       sourceVersion: message.translation_source_version,
-      refetchSourceVersion: () => room.refetchMessageVersion(message.message_id),
+      source: {
+        refetchVersion: () =>
+          fetchChatMessageSourceVersion(room.roomId, message.message_id, nextMessageIds.get(message.message_id)),
+      },
     };
   };
 
@@ -44,7 +51,7 @@ export default function mapTeamChatMessageGroups(
       timeLabel: formatChatTime(message.timestamp),
       unreadCount: message.unread_count,
       senderId: message.user_id,
-      senderName: message.user_nickname,
+      senderName: message.user_nickname ?? undefined,
       senderAvatar: <TeamChatSenderAvatar />,
       translation: getTranslation(message),
     })),

@@ -1,11 +1,8 @@
-import { cn } from '@bcsdlab/utils';
-
 import type { Dining } from 'api/dinings/entity';
 import NoMeals from 'assets/svg/no-meals-pc.svg';
-import NoPhoto from 'assets/svg/no-photography-pc.svg';
 import Image from 'components/ui/Image';
 
-import styles from './PCMealImage.module.scss';
+import styles from './PCMealImage.module.css';
 
 interface PCMealImageProps {
   dining: Dining;
@@ -19,14 +16,13 @@ export default function PCMealImage({ dining, isThisWeek, handleImageClick }: PC
   const isBreakfast = dining.type === 'BREAKFAST';
   const isBoxVisible = isThisWeek && isABC && (!isBreakfast || hasImage);
   if (!isBoxVisible) return null;
+  if (!hasImage) return <span className={styles['photo-status']}>사진 미등록</span>;
 
   return (
     <button
       type="button"
-      className={cn({
-        [styles.image]: true,
-        [styles['image--no-image']]: !hasImage,
-      })}
+      className={styles.image}
+      aria-label={`${dining.place} 식단 사진 크게 보기`}
       onClick={() => handleImageClick(dining)}
     >
       {dining.soldout_at && (
@@ -35,18 +31,14 @@ export default function PCMealImage({ dining, isThisWeek, handleImageClick }: PC
           품절된 메뉴입니다.
         </span>
       )}
-      {hasImage ? (
-        <Image
-          src={dining.image_url!}
-          alt="식단 상세"
-          width={252}
-          height={158}
-          sizes="252px"
-          className={styles.image__img}
-        />
-      ) : (
-        <NoPhoto />
-      )}
+      <Image
+        src={dining.image_url!}
+        alt={`${dining.place} 식단`}
+        width={252}
+        height={158}
+        sizes="(max-width: 1184px) 30vw, 318px"
+        className={styles.image__img}
+      />
     </button>
   );
 }

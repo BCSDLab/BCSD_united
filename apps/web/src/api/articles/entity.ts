@@ -232,32 +232,6 @@ export interface LostItemChatroomDetailResponse {
 
 export type LostItemChatroomPostResponse = LostItemChatroomDetailResponse;
 
-interface LostItemChatroomResponse {
-  article_title: string;
-  recent_message_content: string;
-  lost_item_image_url: string;
-  unread_message_count: number;
-  last_message_at: string;
-  article_id: number;
-  chat_room_id: number;
-}
-
-export type LostItemChatroomListResponse = LostItemChatroomResponse[];
-
-export interface LostItemChatroomDetailMessage {
-  /** 기기에 저장해 둔 예전 메시지에는 없을 수 있다 */
-  message_id?: number;
-  /** 텍스트 쪽지의 번역 원문 버전. 이미지는 `null`이다. */
-  translation_source_version?: string | null;
-  user_id: number;
-  user_nickname: string;
-  content: string;
-  timestamp: string;
-  is_image: boolean;
-}
-
-export type LostItemChatroomDetailMessagesResponse = LostItemChatroomDetailMessage[];
-
 export interface LostItemStatResponse {
   found_count: number;
   not_found_count: number;

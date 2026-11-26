@@ -43,7 +43,7 @@ export interface ChatMessageListItem {
   isImage: boolean;
   timeLabel: string;
   unreadCount?: number;
-  senderId: number;
+  senderId: number | null;
   senderName?: string;
   senderAvatar?: ReactNode;
   /** 번역 버튼을 붙일 메시지의 번역 정보. 상대가 보낸 텍스트 쪽지에만 넘긴다. */

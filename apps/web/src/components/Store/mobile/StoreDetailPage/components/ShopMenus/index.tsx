@@ -3,6 +3,7 @@ import { cn } from '@bcsdlab/utils';
 
 import EmptyThumbnailIcon from 'assets/svg/empty-thumbnail.svg';
 import SoldOutIcon from 'assets/svg/Store/sold-out-icon.svg';
+import useServerMessage from 'utils/language/useServerMessage';
 import { formatNumber } from 'utils/ts/formatPrice';
 
 import styles from './ShopMenus.module.scss';
@@ -49,6 +50,7 @@ export default function ShopMenus({
   shopMenus,
   onMenuClick,
 }: ShopMenusProps) {
+  const message = useServerMessage();
   const visibleMap = useRef<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -141,7 +143,7 @@ export default function ShopMenus({
                   {menu.isSoldOut && (
                     <div className={styles['menu__sold-out']}>
                       <SoldOutIcon className={styles.icon} />
-                      <span className={styles['menu__sold-out-text']}>품절</span>
+                      <span className={styles['menu__sold-out-text']}>{message('status', 'SOLD_OUT', '품절')}</span>
                     </div>
                   )}
                   {!menu.thumbnailImage && (

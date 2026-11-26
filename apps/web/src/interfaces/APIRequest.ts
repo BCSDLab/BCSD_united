@@ -35,4 +35,6 @@ export interface APIRequest<R extends APIResponse> {
   /** 서비스 쿠키를 보내면 안 되는 요청(예: S3 presigned URL로의 직접 업로드). 기본값 true. */
   withCredentials?: boolean;
   signal?: AbortSignal;
+  /** 응답을 기다릴 최대 시간(ms). 없으면 APIClient 기본값을 쓴다. */
+  timeout?: number;
 }

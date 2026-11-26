@@ -1,12 +1,14 @@
+@use "src/utils/scss/tokens" as tokens;
+
 .logo {
   display: flex;
   align-items: center;
   width: 116px;
   height: 37px;
-  color: #1f1f1f;
+  color: tokens.$neutral-725;
 
   &--muted {
-    color: #cacaca;
+    color: tokens.$neutral-400;
   }
 
   &__title {
@@ -14,7 +16,7 @@
     height: 25px;
     font-family: "Segoe UI", sans-serif;
     font-size: 28px;
-    font-weight: 600;
+    font-weight: tokens.$font-weight-semibold;
     line-height: 22px;
     text-align: center;
   }

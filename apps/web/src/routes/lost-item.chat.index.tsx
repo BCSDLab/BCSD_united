@@ -1,10 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createFileRoute, useNavigate, useSearch, useParams } from '@tanstack/react-router';
 
-import { lostItemMessageTranslationPath } from 'api/articles/ChatAPIDetailV2';
-import type { LostItemChatroomDetailMessage } from 'api/articles/entity';
-import { articleQueries } from 'api/articles/queries';
+import type { ChatMessageResponse } from 'api/chat/entity';
+import { fetchChatMessageSourceVersion, lostItemMessageTranslationPath } from 'api/chat/translation';
 import BlockIcon from 'assets/svg/Articles/block.svg';
 import DefaultPhotoIcon from 'assets/svg/Articles/default-photo.svg';
 import DefaultPhotoUrl from 'assets/svg/Articles/default-photo.svg?url';
@@ -13,6 +11,7 @@ import { useChatLogger } from 'components/Articles/hooks/useChatLogger';
 import ChatHeaderMenu from 'components/Articles/LostItemChatPage/components/ChatHeaderMenu';
 import DeleteModal from 'components/Articles/LostItemChatPage/components/DeleteModal';
 import useChatPolling from 'components/Articles/LostItemChatPage/hooks/useChatPolling';
+import LoadingSpinner from 'components/feedback/LoadingSpinner';
 import Layout from 'components/layout';
 import MobilePageHeader from 'components/layout/MobilePageHeader';
 import {
@@ -24,6 +23,7 @@ import {
   type ChatMessageTranslation,
 } from 'components/ui/Chat';
 import ROUTES from 'static/routes';
+import type { CachedChatMessage } from 'utils/db/chatDB';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
@@ -41,12 +41,36 @@ interface LostItemChatPageProps {
   chatRoomIdParam: string | null;
 }
 
+interface PreviousMessagesScrollSnapshot {
+  roomKey: string;
+  oldestMessageId: string | undefined;
+  anchorTop: number | undefined;
+  scrollTop: number;
+}
+
+function findLastVisibleMessageId(container: HTMLDivElement): string | undefined {
+  const bounds = container.getBoundingClientRect();
+  const visibleTop = Math.max(bounds.top, 0);
+  const visibleBottom = Math.min(bounds.bottom, window.innerHeight);
+  if (bounds.width === 0 || visibleTop >= visibleBottom) return undefined;
+
+  const messageElements = container.querySelectorAll<HTMLElement>('[data-message-id]');
+  for (let index = messageElements.length - 1; index >= 0; index -= 1) {
+    const element = messageElements[index];
+    const messageBounds = element.getBoundingClientRect();
+    if (messageBounds.bottom > visibleTop && messageBounds.top < visibleBottom) {
+      return element.dataset.messageId;
+    }
+  }
+
+  return undefined;
+}
+
 function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageProps) {
   const isMobile = useMediaQuery();
   const isOnline = useNetworkStatus();
   const { data: userInfo } = useUser();
-  const isLoggedIn = useIsLoggedIn();
-  const queryClient = useQueryClient();
+  const userId = userInfo?.id ?? null;
 
   const { imgRef, saveImgFile } = useImageUpload({ domain: 'LOST_ITEMS' });
 
@@ -55,25 +79,82 @@ function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageP
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const { logMessageListSelcetClick } = useChatLogger();
 
-  const showList = !isMobile || !chatRoomIdParam;
-  const showDetail = !isMobile || !!chatRoomIdParam;
+  const requestedDetail = !isMobile || !!chatRoomIdParam;
 
   const {
+    roomId,
     chatroomDetail,
     chatroomList,
     messages,
+    isLoadingChat,
+    hasPreviousMessages,
+    isLoadingPreviousMessages,
+    loadPreviousMessages,
+    getCachedOldestMessageId,
     defaultChatroomId: chatroomId,
     defaultArticleId: articleId,
     sendMessage: sendChatMessage,
     sendMessageAsync: sendChatMessageAsync,
+    markVisibleMessagesRead,
   } = useChatPolling({
+    userId,
     articleId: articleIdParam,
     chatroomId: chatRoomIdParam,
     isOnline,
-    autoSelectFirst: showDetail,
+    autoSelectFirst: requestedDetail,
   });
+  const showDetail = !isMobile || (requestedDetail && (isLoadingChat || (articleId !== null && chatroomId !== null)));
+  const showList = !isMobile || !showDetail;
+  const isChatroomOpen = showDetail && !!chatroomDetail;
+  const showChatContent = messages !== undefined && (chatroomDetail !== undefined || !isOnline);
 
   const prevMessagesLengthRef = useRef(0);
+  const previousRoomKeyRef = useRef<string | null>(null);
+  const roomKey = `${userId}:${articleId}:${chatroomId}`;
+  const previousMessagesScrollRef = useRef<PreviousMessagesScrollSnapshot | null>(null);
+
+  useLayoutEffect(() => {
+    return () => {
+      // 방이나 사용자가 바뀐 뒤에는 이전 요청의 완료 처리가 현재 화면에 적용되지 않는다.
+      previousMessagesScrollRef.current = null;
+    };
+  }, [roomKey]);
+
+  const loadPreviousMessagesOnScroll = async (event: React.UIEvent<HTMLDivElement>) => {
+    const container = event.currentTarget;
+    if (
+      container.scrollTop > 0 ||
+      !isOnline ||
+      !hasPreviousMessages ||
+      isLoadingPreviousMessages ||
+      previousMessagesScrollRef.current
+    ) {
+      return;
+    }
+
+    const scrollSnapshot = {
+      roomKey,
+      oldestMessageId: messages?.[0]?.message_id,
+      anchorTop: container.querySelector<HTMLElement>('[data-message-id]')?.getBoundingClientRect().top,
+      scrollTop: container.scrollTop,
+    };
+    previousMessagesScrollRef.current = scrollSnapshot;
+
+    try {
+      await loadPreviousMessages();
+    } catch {
+      // 조회 오류는 공통 mutation에서 표시하고, 다음 스크롤에서 다시 시도할 수 있게 한다.
+    } finally {
+      // 앞쪽 메시지가 캐시에 추가됐으면 다음 렌더의 layout effect가 위치를 보정하고 스냅샷을 해제한다.
+      // 캐시가 없거나 앞쪽 메시지가 추가되지 않았으면 보정할 대상이 없으므로 여기서 해제한다.
+      if (previousMessagesScrollRef.current === scrollSnapshot) {
+        const cachedOldestId = getCachedOldestMessageId();
+        if (cachedOldestId === undefined || cachedOldestId === scrollSnapshot.oldestMessageId) {
+          previousMessagesScrollRef.current = null;
+        }
+      }
+    }
+  };
 
   const uploadImage = async () => {
     try {
@@ -86,7 +167,7 @@ function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageP
       const imageUrlList = await saveImgFile();
       for (const imageUrl of imageUrlList) {
         try {
-          await sendChatMessageAsync({ content: imageUrl, isImage: true });
+          await sendChatMessageAsync({ content: imageUrl, is_image: true });
         } catch {
           continue;
         }
@@ -103,7 +184,7 @@ function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageP
       return false;
     }
 
-    sendChatMessage({ content: inputValue });
+    sendChatMessage({ content: inputValue, is_image: false });
     setInputValue('');
 
     return true;
@@ -113,15 +194,67 @@ function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageP
     e.currentTarget.src = DefaultPhotoUrl;
   };
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const currentLength = messages?.length ?? 0;
     const hasNewMessages = currentLength > prevMessagesLengthRef.current;
     prevMessagesLengthRef.current = currentLength;
+    const container = chatContainerRef.current;
+    if (!container) {
+      previousMessagesScrollRef.current = null;
 
-    if (hasNewMessages && chatContainerRef.current) {
-      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+      return;
     }
-  }, [messages]);
+    const hasRoomChanged = previousRoomKeyRef.current !== roomKey;
+    previousRoomKeyRef.current = roomKey;
+
+    const scrollSnapshot = previousMessagesScrollRef.current;
+    if (scrollSnapshot?.roomKey === roomKey) {
+      if (messages?.[0]?.message_id !== scrollSnapshot.oldestMessageId) {
+        const anchor = container.querySelector<HTMLElement>(`[data-message-id="${scrollSnapshot.oldestMessageId}"]`);
+        if (anchor && scrollSnapshot.anchorTop !== undefined) {
+          // 뒤에 새 메시지가 추가돼도 기존 메시지의 위치를 기준으로 보정한다.
+          container.scrollTop =
+            scrollSnapshot.scrollTop + anchor.getBoundingClientRect().top - scrollSnapshot.anchorTop;
+        }
+        previousMessagesScrollRef.current = null;
+      }
+
+      return;
+    }
+    previousMessagesScrollRef.current = null;
+
+    if (hasNewMessages || hasRoomChanged) container.scrollTop = container.scrollHeight;
+  }, [messages, roomKey, isChatroomOpen]);
+
+  useEffect(() => {
+    const container = chatContainerRef.current;
+    if (!showDetail || !container) return;
+    let animationFrame: number | undefined;
+
+    const markVisibleMessages = () => {
+      animationFrame = undefined;
+      if (document.visibilityState !== 'visible') return;
+      const lastVisibleMessageId = findLastVisibleMessageId(container);
+      if (lastVisibleMessageId) markVisibleMessagesRead(lastVisibleMessageId);
+    };
+    const scheduleRead = () => {
+      if (animationFrame === undefined) animationFrame = window.requestAnimationFrame(markVisibleMessages);
+    };
+
+    scheduleRead();
+    container.addEventListener('scroll', scheduleRead);
+    container.addEventListener('load', scheduleRead, true);
+    document.addEventListener('visibilitychange', scheduleRead);
+    window.addEventListener('resize', scheduleRead);
+
+    return () => {
+      if (animationFrame !== undefined) window.cancelAnimationFrame(animationFrame);
+      container.removeEventListener('scroll', scheduleRead);
+      container.removeEventListener('load', scheduleRead, true);
+      document.removeEventListener('visibilitychange', scheduleRead);
+      window.removeEventListener('resize', scheduleRead);
+    };
+  }, [showDetail, messages, markVisibleMessagesRead]);
 
   const chatRoomItems = (chatroomList ?? []).map(
     ({
@@ -154,33 +287,26 @@ function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageP
     }),
   );
 
-  // 상대가 보낸 텍스트 쪽지만 번역한다. 기기에 저장해 둔 예전 메시지는 ID가 없어 번역할 수 없다.
-  const getMessageTranslation = (message: LostItemChatroomDetailMessage): ChatMessageTranslation | undefined => {
+  // 상대가 보낸 텍스트 쪽지만 번역한다. 기기에 저장해 둔 메시지는 원문 버전이 없어 번역 버튼을 붙이지 않는다.
+  const getMessageTranslation = (
+    message: ChatMessageResponse | CachedChatMessage,
+    nextMessageId: string | undefined,
+  ): ChatMessageTranslation | undefined => {
     const messageId = message.message_id;
     // 내 정보를 받기 전에는 내 메시지인지 알 수 없으므로 붙이지 않는다
-    if (messageId == null || userInfo?.id == null || message.user_id === userInfo.id || message.is_image) {
-      return undefined;
-    }
-    if (articleId == null || chatroomId == null) return undefined;
+    if (!messageId || !roomId || userId === null || message.user_id === userId || message.is_image) return undefined;
+    if (!('translation_source_version' in message) || articleId == null || chatroomId == null) return undefined;
     const roomArticleId = Number(articleId);
-    const roomId = Number(chatroomId);
+    const roomChatroomId = Number(chatroomId);
 
     return {
       resourceType: 'LOST_ITEM_MESSAGE',
       resourceId: messageId,
       parentId: roomArticleId,
-      roomId,
-      translatePath: lostItemMessageTranslationPath(roomArticleId, roomId, messageId),
+      roomId: roomChatroomId,
+      translatePath: lostItemMessageTranslationPath(roomArticleId, roomChatroomId, messageId),
       sourceVersion: message.translation_source_version,
-      // 원문 버전이 바뀌었으면 쪽지 목록을 다시 받아 같은 메시지의 새 버전을 찾는다
-      refetchSourceVersion: async () => {
-        const latest = await queryClient.query({
-          ...articleQueries.lostItemChatroomMessages(isLoggedIn, roomArticleId, roomId),
-          staleTime: 0,
-        });
-
-        return latest.find((item) => item.message_id === messageId)?.translation_source_version;
-      },
+      source: { refetchVersion: () => fetchChatMessageSourceVersion(roomId, messageId, nextMessageId) },
     };
   };
 
@@ -201,7 +327,7 @@ function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageP
           <PersonIcon />
         </div>
       ),
-      translation: getMessageTranslation(message),
+      translation: getMessageTranslation(message, messages?.[index + 1]?.message_id),
     };
     const lastGroup = groups[groups.length - 1];
 
@@ -220,8 +346,6 @@ function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageP
     return groups;
   }, []);
 
-  const isChatroomOpen = showDetail && !!chatroomDetail;
-
   return (
     <>
       <MobilePageHeader
@@ -239,38 +363,51 @@ function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageP
         >
           {showDetail && (
             <>
-              {!(chatroomDetail && messages) && (
+              {isLoadingChat && (
+                <div className={styles.chat__empty} role="status" aria-label="채팅방을 불러오는 중입니다.">
+                  <LoadingSpinner size="50px" />
+                </div>
+              )}
+              {!isLoadingChat && !showChatContent && (
                 <div className={styles.chat__empty}>
                   선택된 채팅방이 없습니다.
                   <br />
                   왼쪽 리스트에서 채팅방을 선택해주세요.🙇‍♂️
                 </div>
               )}
-              {chatroomDetail && messages && (
+              {!isLoadingChat && showChatContent && (
                 <>
-                  <div className={styles['chat-view--header']}>
-                    <div>
-                      {chatroomDetail.chat_partner_profile_image ? (
-                        <img
-                          src={chatroomDetail.chat_partner_profile_image}
-                          alt="분실물 이미지"
-                          className={styles['chat-list--item-profile']}
-                          onError={addErrorImage}
-                        />
-                      ) : (
-                        <div className={styles['chat-list--item-profile']}>
-                          <DefaultPhotoIcon />
-                        </div>
-                      )}
-                      <div className={styles['chat-view--title']}>{chatroomDetail.article_title}</div>
+                  {chatroomDetail && (
+                    <div className={styles['chat-view--header']}>
+                      <div>
+                        {chatroomDetail.chat_partner_profile_image ? (
+                          <img
+                            src={chatroomDetail.chat_partner_profile_image}
+                            alt="분실물 이미지"
+                            className={styles['chat-list--item-profile']}
+                            onError={addErrorImage}
+                          />
+                        ) : (
+                          <div className={styles['chat-list--item-profile']}>
+                            <DefaultPhotoIcon />
+                          </div>
+                        )}
+                        <div className={styles['chat-view--title']}>{chatroomDetail.article_title}</div>
+                      </div>
+                      <button type="button" className={styles['chat-block']} onClick={openDeleteModal}>
+                        <BlockIcon />
+                        <div>차단하기</div>
+                      </button>
                     </div>
-                    <button type="button" className={styles['chat-block']} onClick={openDeleteModal}>
-                      <BlockIcon />
-                      <div>차단하기</div>
-                    </button>
-                  </div>
+                  )}
 
-                  <div className={styles['message-container']} ref={chatContainerRef}>
+                  <div
+                    className={styles['message-container']}
+                    ref={chatContainerRef}
+                    onScroll={(event) => {
+                      void loadPreviousMessagesOnScroll(event);
+                    }}
+                  >
                     <ChatMessageList groups={messageGroups} />
                   </div>
                   <div className={styles['chat-input-container-wrapper']}>

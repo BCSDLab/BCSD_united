@@ -15,12 +15,20 @@ const withRetryAfter = <R extends TranslationResult<unknown>>({ data, headers }:
   retryAfterSeconds: parseRetryAfter(headers.get('Retry-After')),
 });
 
+export interface TranslationRequestOptions {
+  signal?: AbortSignal;
+  timeout?: number;
+}
+
 export class SourceLanguage<R extends TranslationResult<SourceLanguageData>> implements APIRequest<R> {
   method = HTTP_METHOD.POST;
 
   path = '/translations/source-language';
 
   response!: R;
+
+  // 비로그인도 보는 상세 화면을 열 때 사용자가 누르지 않아도 나가는 확인이다
+  authOptional = true;
 
   constructor(public data: SourceLanguageRequest) {}
 }
@@ -31,10 +39,18 @@ export class RequestTranslation<R extends TranslationResult<unknown>> implements
 
   response!: R;
 
+  signal?: AbortSignal;
+
+  timeout?: number;
+
   constructor(
     public path: string,
     public data: TranslationRequest,
-  ) {}
+    { signal, timeout }: TranslationRequestOptions = {},
+  ) {
+    this.signal = signal;
+    this.timeout = timeout;
+  }
 
   parse(result: APIResult<R>): R {
     return withRetryAfter(result);
@@ -48,8 +64,14 @@ export class TranslationById<R extends TranslationResult<unknown>> implements AP
 
   response!: R;
 
-  constructor(translationId: string) {
+  signal?: AbortSignal;
+
+  timeout?: number;
+
+  constructor(translationId: string, { signal, timeout }: TranslationRequestOptions = {}) {
     this.path = `/translations/${encodeURIComponent(translationId)}`;
+    this.signal = signal;
+    this.timeout = timeout;
   }
 
   parse(result: APIResult<R>): R {

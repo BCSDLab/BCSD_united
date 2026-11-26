@@ -1,0 +1,49 @@
+.photo-status {
+  align-self: flex-start;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #f8f8fa;
+  color: #6f6f6f;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.image {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 8 / 5;
+  border-radius: 12px;
+  background-color: transparent;
+  overflow: hidden;
+}
+
+.image__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.image--sold-out {
+  position: absolute;
+  inset: 0;
+  background: rgb(0 0 0 / 50%);
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+  color: white;
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.image--sold-out svg {
+  width: 42px;
+  height: 42px;
+}
+
+.image:focus-visible {
+  outline: 2px solid #b611f5;
+  outline-offset: 3px;
+}

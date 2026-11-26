@@ -1,13 +1,10 @@
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
 
 import { getViewerScope } from 'utils/ts/getViewerScope';
-import mergeChatMessages from 'utils/ts/teamChatMessages';
 
 import type {
   MyCreatedTeamRecruitmentListRequest,
   MyTeamRecruitmentApplicationListRequest,
-  TeamChatMessageListResponse,
-  TeamChatMessageListRequest,
   TeamRecruitmentApplicantListRequest,
   TeamRecruitmentListRequest,
   TeamRecruitmentNotificationListRequest,
@@ -16,9 +13,6 @@ import {
   getMyCreatedTeamRecruitments,
   getMyTeamRecruitmentApplications,
   getTeamRecruitmentApplicantDetail,
-  getTeamRecruitmentChatMessages,
-  getTeamRecruitmentChatRoom,
-  getTeamRecruitmentChatRoomList,
   getTeamRecruitmentApplicants,
   getTeamRecruitmentDetail,
   getTeamRecruitmentList,
@@ -29,8 +23,6 @@ const TEAM_LIST_LIMIT = 10;
 const TEAM_NOTIFICATION_LIMIT = 10;
 const TEAM_MY_APPLICATIONS_LIMIT = 10;
 const TEAM_MY_CREATED_LIMIT = 10;
-
-export const TEAM_CHAT_MESSAGE_LIMIT = 100;
 
 export const TEAM_CHAT_POLLING_INTERVAL = 1000;
 
@@ -60,14 +52,6 @@ export const teamQueryKeys = {
   myCreatedRoot: ['team', 'my-created'] as const,
   infiniteMyCreated: (isLoggedIn: boolean, params: MyCreatedTeamRecruitmentListRequest) =>
     [...teamQueryKeys.myCreatedRoot, 'infinite', getViewerScope(isLoggedIn), params] as const,
-  chatRoot: ['team', 'chat'] as const,
-  chatRoomList: (isLoggedIn: boolean) => [...teamQueryKeys.chatRoot, 'rooms', getViewerScope(isLoggedIn)] as const,
-  chatRoom: (isLoggedIn: boolean, recruitmentId: number, chatRoomId: number) =>
-    [...teamQueryKeys.chatRoot, 'room', getViewerScope(isLoggedIn), recruitmentId, chatRoomId] as const,
-  chatMessagesRoot: (isLoggedIn: boolean, recruitmentId: number, chatRoomId: number) =>
-    [...teamQueryKeys.chatRoot, 'messages', getViewerScope(isLoggedIn), recruitmentId, chatRoomId] as const,
-  chatMessages: (isLoggedIn: boolean, recruitmentId: number, chatRoomId: number, params: TeamChatMessageListRequest) =>
-    [...teamQueryKeys.chatMessagesRoot(isLoggedIn, recruitmentId, chatRoomId), params] as const,
 };
 
 export const teamQueries = {
@@ -151,42 +135,5 @@ export const teamQueries = {
 
         return undefined;
       },
-    }),
-
-  chatRoomList: (isLoggedIn: boolean) =>
-    queryOptions({
-      queryKey: teamQueryKeys.chatRoomList(isLoggedIn),
-      queryFn: () => getTeamRecruitmentChatRoomList(),
-      staleTime: 0,
-      refetchInterval: TEAM_CHAT_POLLING_INTERVAL,
-    }),
-
-  chatRoom: (isLoggedIn: boolean, recruitmentId: number, chatRoomId: number) =>
-    queryOptions({
-      queryKey: teamQueryKeys.chatRoom(isLoggedIn, recruitmentId, chatRoomId),
-      queryFn: () => getTeamRecruitmentChatRoom(recruitmentId, chatRoomId),
-      staleTime: 60000,
-    }),
-
-  chatMessages: (
-    isLoggedIn: boolean,
-    recruitmentId: number,
-    chatRoomId: number,
-    params: TeamChatMessageListRequest = {},
-  ) =>
-    queryOptions({
-      queryKey: teamQueryKeys.chatMessages(isLoggedIn, recruitmentId, chatRoomId, params),
-      queryFn: () =>
-        getTeamRecruitmentChatMessages(recruitmentId, chatRoomId, {
-          limit: TEAM_CHAT_MESSAGE_LIMIT,
-          ...params,
-        }),
-      staleTime: 0,
-      refetchInterval: params.beforeMessageId || params.afterMessageId ? false : TEAM_CHAT_POLLING_INTERVAL,
-      structuralSharing: (previousMessages, currentMessages) =>
-        mergeChatMessages(
-          Array.isArray(previousMessages) ? (previousMessages as TeamChatMessageListResponse) : [],
-          Array.isArray(currentMessages) ? (currentMessages as TeamChatMessageListResponse) : [],
-        ),
     }),
 };

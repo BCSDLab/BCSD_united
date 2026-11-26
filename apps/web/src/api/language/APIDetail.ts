@@ -2,6 +2,7 @@ import { type APIRequest, HTTP_METHOD } from 'interfaces/APIRequest';
 
 import type {
   LanguagesResponse,
+  MessagesResponse,
   MyLanguageResponse,
   PolicyResponse,
   PolicyType,
@@ -35,6 +36,18 @@ export class UpdateMyLanguage<R extends MyLanguageResponse> implements APIReques
   response!: R;
 
   constructor(public data: UpdateMyLanguageRequest) {}
+}
+
+export class Messages<R extends MessagesResponse> implements APIRequest<R> {
+  method = HTTP_METHOD.GET;
+
+  path: string;
+
+  response!: R;
+
+  constructor(language: string) {
+    this.path = `/languages/${encodeURIComponent(language)}/messages`;
+  }
 }
 
 export class Policy<R extends PolicyResponse> implements APIRequest<R> {

@@ -1,13 +1,13 @@
 import { captureError } from '@koin/telemetry/runtime';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { callvanMutations } from 'api/callvan/mutations';
+import { chatMutations } from 'api/chat/mutations';
 import { isKoinError } from 'interfaces/APIError';
 import showToast from 'utils/ts/showToast';
 
-const useSendCallvanChat = (postId: number) => {
+const useSendCallvanChat = (userId: number | null, roomId: string) => {
   const queryClient = useQueryClient();
-  const mutation = callvanMutations.sendChat(queryClient, postId);
+  const mutation = chatMutations.sendMessage(queryClient, userId, roomId);
 
   const { mutate, isPending } = useMutation({
     ...mutation,

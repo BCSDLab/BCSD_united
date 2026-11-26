@@ -5,6 +5,7 @@ import { cn } from '@bcsdlab/utils';
 import type { Dining, DiningPlace, DiningType } from 'api/dinings/entity';
 import { filterDinings } from 'components/cafeteria/utils/filter';
 import { DINING_TYPE_MAP } from 'static/cafeteria';
+import useServerMessage from 'utils/language/useServerMessage';
 
 import styles from './DiningCarousel.module.scss';
 
@@ -25,6 +26,8 @@ interface DiningCardProps {
 }
 
 function DiningCard({ place, dining, diningType, onClick, onInteract }: DiningCardProps) {
+  const message = useServerMessage();
+
   return (
     <button
       type="button"
@@ -36,7 +39,7 @@ function DiningCard({ place, dining, diningType, onClick, onInteract }: DiningCa
       onKeyDown={onInteract}
     >
       <div className={styles['meal-card__meta']}>
-        <span>{DINING_TYPE_MAP[diningType]}</span>
+        <span>{message('dining.type', diningType, DINING_TYPE_MAP[diningType])}</span>
         <span className={styles['meal-card__details']}>
           {!!dining.price_cash && <span>{`₩${dining.price_cash.toLocaleString('ko-KR')}`}</span>}
           {!!dining.price_cash && !!dining.kcal && <span>·</span>}
@@ -45,7 +48,9 @@ function DiningCard({ place, dining, diningType, onClick, onInteract }: DiningCa
       </div>
       <div className={styles['meal-card__title-row']}>
         <span className={styles['meal-card__title']}>{dining.display_place ?? place}</span>
-        {dining.soldout_at && <span className={styles['meal-card__soldout']}>품절</span>}
+        {dining.soldout_at && (
+          <span className={styles['meal-card__soldout']}>{message('status', 'SOLD_OUT', '품절')}</span>
+        )}
       </div>
       <p className={styles['meal-card__menu']}>
         {dining.menu

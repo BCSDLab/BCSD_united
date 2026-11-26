@@ -12,9 +12,6 @@ import type {
   ReportItemArticleRequestDTO,
   ReportItemArticleResponseDTO,
   LostItemChatroomPostResponse,
-  LostItemChatroomListResponse,
-  LostItemChatroomDetailResponse,
-  LostItemChatroomDetailMessagesResponse,
   LostItemStatResponse,
   LostItemArticlesRequest,
   UpdateLostItemArticleRequestDTO,
@@ -167,46 +164,6 @@ export class PostLostItemChatroom<R extends LostItemChatroomPostResponse> implem
 
   constructor(articleId: number) {
     this.path = `/chatroom/lost-item/${articleId}`;
-  }
-}
-
-export class GetLostItemChatroomList<R extends LostItemChatroomListResponse> implements APIRequest<R> {
-  method = HTTP_METHOD.GET;
-
-  path = '/chatroom/lost-item';
-
-  response!: R;
-
-  auth = true;
-}
-
-export class GetLostItemChatroomDetail<R extends LostItemChatroomDetailResponse> implements APIRequest<R> {
-  method = HTTP_METHOD.GET;
-
-  path: string;
-
-  response!: R;
-
-  auth = true;
-
-  constructor(articleId: number, chatroomId: number) {
-    this.path = `/chatroom/lost-item/${articleId}/${chatroomId}`;
-  }
-}
-
-export class GetLostItemChatroomDetailMessages<
-  R extends LostItemChatroomDetailMessagesResponse,
-> implements APIRequest<R> {
-  method = HTTP_METHOD.GET;
-
-  path: string;
-
-  response!: R;
-
-  auth = true;
-
-  constructor(articleId: number, chatroomId: number) {
-    this.path = `/chatroom/lost-item/${articleId}/${chatroomId}/messages`;
   }
 }
 

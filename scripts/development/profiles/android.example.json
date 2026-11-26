@@ -1,0 +1,45 @@
+{
+  "checkout": "/절대/경로/KOIN_ANDROID",
+  "repository": "BCSDLab/KOIN_ANDROID",
+  "timeoutMs": 900000,
+  "steps": [
+    {
+      "id": "build-stage-qa-apk",
+      "kind": "build",
+      "command": [
+        "node",
+        "/절대/경로/BCSD_united/scripts/development/github-run.mjs",
+        "--repo",
+        "BCSDLab/KOIN_ANDROID",
+        "--run-id",
+        "<Maestro 워크플로 런 ID>",
+        "--sha",
+        "<런의 커밋>",
+        "--job",
+        "Build stage QA APK"
+      ]
+    },
+    {
+      "id": "dining-view",
+      "kind": "scenario",
+      "scenarioId": "dining-view",
+      "command": [
+        "node",
+        "/절대/경로/BCSD_united/scripts/development/github-run.mjs",
+        "--repo",
+        "BCSDLab/KOIN_ANDROID",
+        "--run-id",
+        "<Maestro 워크플로 런 ID>",
+        "--sha",
+        "<런의 커밋>",
+        "--job",
+        "Maestro dining",
+        "--artifact",
+        "^maestro-dining-\\d{4}-\\d{2}-\\d{2}$",
+        "--out",
+        "build/harness/android/dining"
+      ]
+    }
+  ],
+  "artifacts": ["build/harness/android/dining/evidence.json"]
+}

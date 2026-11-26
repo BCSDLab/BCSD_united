@@ -1,5 +1,8 @@
+import { useEffect, useRef } from 'react';
+
 import FailedIcon from 'assets/svg/translation/modal-failed.svg';
 import UnavailableIcon from 'assets/svg/translation/modal-unavailable.svg';
+import { useBodyScrollLock } from 'utils/hooks/ui/useBodyScrollLock';
 import { useEscapeKeyDown } from 'utils/hooks/ui/useEscapeKeyDown';
 import { useOutsideClick } from 'utils/hooks/ui/useOutsideClick';
 
@@ -29,6 +32,24 @@ interface TranslationErrorModalProps {
 export default function TranslationErrorModal({ type, onClose }: TranslationErrorModalProps) {
   const { backgroundRef } = useOutsideClick({ onOutsideClick: onClose });
   useEscapeKeyDown({ onEscape: onClose });
+  useBodyScrollLock();
+  const confirmButtonRef = useRef<HTMLButtonElement>(null);
+  // 누를 수 있는 것이 확인 버튼 하나뿐이라 Tab은 늘 확인 버튼으로 보낸다
+  useEffect(() => {
+    const previouslyFocusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    confirmButtonRef.current?.focus();
+    const keepFocus = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab') return;
+      event.preventDefault();
+      confirmButtonRef.current?.focus();
+    };
+    document.addEventListener('keydown', keepFocus);
+
+    return () => {
+      document.removeEventListener('keydown', keepFocus);
+      if (previouslyFocusedElement?.isConnected) previouslyFocusedElement.focus();
+    };
+  }, []);
   const { title, description, cases } = CONTENT[type];
   const Icon = type === 'failed' ? FailedIcon : UnavailableIcon;
 
@@ -54,8 +75,7 @@ export default function TranslationErrorModal({ type, onClose }: TranslationErro
             ))}
           </ul>
         </div>
-        {/* eslint-disable-next-line jsx-a11y/no-autofocus -- 확인 버튼 하나뿐인 알림 모달이라 열리면 바로 닫을 수 있게 한다 */}
-        <button type="button" className={styles.modal__confirm} onClick={onClose} autoFocus>
+        <button type="button" className={styles.modal__confirm} onClick={onClose} ref={confirmButtonRef}>
           확인
         </button>
       </div>

@@ -1,4 +1,5 @@
 @use "src/utils/scss/media" as media;
+@use "src/utils/scss/tokens" as tokens;
 
 .chat-layout {
   display: grid;
@@ -13,10 +14,10 @@
   &__sidebar {
     box-sizing: border-box;
     overflow-y: auto;
-    border-top: 1px solid #eee;
-    border-bottom: 1px solid #eee;
-    border-left: 1px solid #eee;
-    background-color: #fff;
+    border-top: 1px solid tokens.$neutral-150;
+    border-bottom: 1px solid tokens.$neutral-150;
+    border-left: 1px solid tokens.$neutral-150;
+    background-color: tokens.$white;
   }
 
   &__panel {
@@ -24,8 +25,8 @@
     display: flex;
     min-width: 0;
     flex-direction: column;
-    border: 1px solid #eee;
-    background-color: #fafafa;
+    border: 1px solid tokens.$neutral-150;
+    background-color: tokens.$neutral-50;
   }
 }
 
@@ -37,14 +38,14 @@
     gap: 12px;
     width: 100%;
     padding: 18px 24px;
-    background: #fff;
+    background: tokens.$white;
 
     &:hover {
-      background: #eee;
+      background: tokens.$neutral-150;
     }
 
     &--active {
-      background: #f5f5f5;
+      background: tokens.$neutral-100;
     }
   }
 
@@ -56,9 +57,9 @@
     width: 48px;
     height: 48px;
     overflow: hidden;
-    border: 1px solid #eee;
-    border-radius: 12px;
-    background: #fafafa;
+    border: 1px solid tokens.$neutral-150;
+    border-radius: tokens.$radius-12;
+    background: tokens.$neutral-50;
 
     svg {
       width: 32px;
@@ -85,9 +86,9 @@
   &__title {
     min-width: 0;
     overflow: hidden;
-    color: #000;
-    font-size: 14px;
-    font-weight: 500;
+    color: tokens.$neutral-800;
+    font-size: tokens.$font-size-14;
+    font-weight: tokens.$font-weight-medium;
     line-height: 160%;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -95,8 +96,8 @@
 
   &__time {
     flex-shrink: 0;
-    color: #727272;
-    font-size: 12px;
+    color: tokens.$neutral-500;
+    font-size: tokens.$font-size-12;
     line-height: 160%;
   }
 
@@ -104,8 +105,8 @@
     min-width: 0;
     flex: 1;
     overflow: hidden;
-    color: #727272;
-    font-size: 12px;
+    color: tokens.$neutral-500;
+    font-size: tokens.$font-size-12;
     line-height: 160%;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -121,10 +122,10 @@
     height: 20px;
     padding: 0 6px;
     border-radius: 999px;
-    background: #175c8e;
-    color: #fff;
-    font-size: 12px;
-    font-weight: 500;
+    background: tokens.$blue-500;
+    color: tokens.$white;
+    font-size: tokens.$font-size-12;
+    font-weight: tokens.$font-weight-medium;
     line-height: 160%;
   }
 
@@ -132,9 +133,9 @@
     margin-top: 48px;
     width: 100%;
     text-align: center;
-    color: #727272;
-    font-size: 16px;
-    font-weight: 500;
+    color: tokens.$neutral-500;
+    font-size: tokens.$font-size-16;
+    font-weight: tokens.$font-weight-medium;
     line-height: 160%;
   }
 }
@@ -148,15 +149,15 @@
 
   &__date-label {
     padding: 4px 12px;
-    border-radius: 16px;
-    background: #eee;
-    color: #10477a;
-    font-size: 14px;
-    font-weight: 500;
+    border-radius: tokens.$radius-16;
+    background: tokens.$neutral-150;
+    color: tokens.$blue-600;
+    font-size: tokens.$font-size-14;
+    font-weight: tokens.$font-weight-medium;
     line-height: 160%;
 
     @include media.media-breakpoint(mobile) {
-      color: #4b4b4b;
+      color: tokens.$neutral-600;
     }
   }
 
@@ -189,8 +190,8 @@
 
   &__sender-name {
     overflow: hidden;
-    color: #4b4b4b;
-    font-size: 12px;
+    color: tokens.$neutral-600;
+    font-size: tokens.$font-size-12;
     line-height: 160%;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -201,7 +202,6 @@
     align-items: flex-end;
     gap: 8px;
 
-    // 번역 버튼이 있으면 PC는 시간 위, 모바일은 말풍선 아래에 둔다
     &--with-action {
       display: grid;
       grid-template:
@@ -240,15 +240,15 @@
     display: block;
     max-width: 360px;
     padding: 8px 12px;
-    border-radius: 8px;
-    color: #000;
-    font-size: 14px;
+    border-radius: tokens.$radius-8;
+    color: tokens.$neutral-800;
+    font-size: tokens.$font-size-14;
     line-height: 160%;
     white-space: pre-wrap;
     overflow-wrap: break-word;
 
     @include media.media-breakpoint(mobile) {
-      font-size: 12px;
+      font-size: tokens.$font-size-12;
     }
 
     &--mine {
@@ -256,10 +256,10 @@
     }
 
     &--other {
-      background: #f1f8ff;
+      background: tokens.$blue-50;
 
       @include media.media-breakpoint(mobile) {
-        background: #f5f5f5;
+        background: tokens.$neutral-100;
       }
     }
 
@@ -267,7 +267,7 @@
     // 화면별로 덧붙인 말풍선 색보다 앞서도록 클래스 두 개로 고른다.
     &--other#{&}--translated {
       @include media.media-breakpoint(mobile) {
-        background: #e1e1e1;
+        background: tokens.$neutral-300;
       }
     }
   }
@@ -276,14 +276,14 @@
     display: flex;
     max-width: 360px;
     overflow: hidden;
-    border-radius: 8px;
+    border-radius: tokens.$radius-8;
   }
 
   &__image {
     width: 300px;
     max-width: 100%;
     height: auto;
-    border-radius: 8px;
+    border-radius: tokens.$radius-8;
     object-fit: contain;
   }
 
@@ -300,14 +300,14 @@
   }
 
   &__unread-count {
-    color: #1f1f1f;
-    font-size: 12px;
+    color: tokens.$neutral-725;
+    font-size: tokens.$font-size-12;
     line-height: 160%;
   }
 
   &__time {
-    color: #727272;
-    font-size: 12px;
+    color: tokens.$neutral-500;
+    font-size: tokens.$font-size-12;
     line-height: 160%;
   }
 }
@@ -321,8 +321,8 @@
   width: 100%;
   min-height: 80px;
   padding: 16px 12px;
-  border-top: 1px solid #eee;
-  background-color: #f5f5f5;
+  border-top: 1px solid tokens.$neutral-150;
+  background-color: tokens.$neutral-100;
 
   &__image-button,
   &__send-button {
@@ -334,19 +334,19 @@
     height: 48px;
     padding: 0;
     border: none;
-    border-radius: 12px;
-    background-color: #e4f2ff;
+    border-radius: tokens.$radius-12;
+    background-color: tokens.$blue-100;
     cursor: pointer;
 
     svg path {
-      fill: #10477a;
+      fill: tokens.$blue-600;
     }
 
     @include media.media-breakpoint(mobile) {
-      background-color: #fff;
+      background-color: tokens.$white;
 
       svg path {
-        fill: #980ac9;
+        fill: tokens.$primary-600;
       }
     }
 
@@ -365,12 +365,12 @@
 
   &__image-button {
     svg path {
-      stroke: #10477a;
+      stroke: tokens.$blue-600;
     }
 
     @include media.media-breakpoint(mobile) {
       svg path {
-        stroke: #980ac9;
+        stroke: tokens.$primary-600;
       }
     }
   }
@@ -389,28 +389,28 @@
     padding: 8px 16px;
     overflow-y: auto;
     border: none;
-    border-radius: 12px;
+    border-radius: tokens.$radius-12;
     outline: none;
-    background-color: #fff;
-    color: #000;
+    background-color: tokens.$white;
+    color: tokens.$neutral-800;
     font-family: inherit;
-    font-size: 18px;
+    font-size: tokens.$font-size-18;
     font-style: normal;
-    font-weight: 400;
+    font-weight: tokens.$font-weight-regular;
     line-height: 160%;
     resize: none;
 
     &:focus-visible {
-      outline: 2px solid #175c8e;
+      outline: 2px solid tokens.$blue-500;
       outline-offset: 2px;
     }
 
     &::placeholder {
-      color: #727272;
+      color: tokens.$neutral-500;
     }
 
     &:disabled {
-      background-color: #eee;
+      background-color: tokens.$neutral-150;
     }
   }
 

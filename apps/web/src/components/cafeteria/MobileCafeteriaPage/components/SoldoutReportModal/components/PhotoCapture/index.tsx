@@ -2,7 +2,7 @@ import { useRef } from 'react';
 
 import CameraAddIcon from 'assets/svg/cafeteria/soldout-report-camera-icon.svg';
 
-import styles from './PhotoCapture.module.scss';
+import styles from './PhotoCapture.module.css';
 
 interface PhotoCaptureProps {
   previewUrl: string | null;

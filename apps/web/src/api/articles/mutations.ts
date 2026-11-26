@@ -1,5 +1,8 @@
 import { mutationOptions, type QueryClient } from '@tanstack/react-query';
 
+import { authQueries } from 'api/auth/queries';
+import { chatQueryKeys } from 'api/chat/queries';
+
 import type {
   LostItemArticlesRequestDTO,
   ReportItemArticleRequestDTO,
@@ -19,8 +22,20 @@ import { articleQueryKeys } from './queries';
 const invalidateLostItemAll = (queryClient: QueryClient) =>
   queryClient.invalidateQueries({ queryKey: articleQueryKeys.lostItemAll });
 
-const invalidateLostItemChatroomAll = (queryClient: QueryClient) =>
-  queryClient.invalidateQueries({ queryKey: articleQueryKeys.lostItemChatroomAll });
+const invalidateLostItemChatroomAll = async (queryClient: QueryClient) => {
+  const userId = queryClient.getQueryData(authQueries.userInfo(true).queryKey)?.id;
+  await queryClient.invalidateQueries({ queryKey: articleQueryKeys.lostItemChatroomAll });
+  if (userId === undefined) return;
+
+  await Promise.all([
+    queryClient.invalidateQueries({
+      queryKey: chatQueryKeys.rooms(userId, 'LOST_ITEM'),
+      exact: true,
+      refetchType: 'all',
+    }),
+    queryClient.invalidateQueries({ queryKey: chatQueryKeys.rooms(userId), exact: true, refetchType: 'all' }),
+  ]);
+};
 
 export const articleMutations = {
   createLostItem: (queryClient: QueryClient) =>

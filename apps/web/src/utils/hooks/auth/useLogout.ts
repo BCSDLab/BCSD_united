@@ -4,6 +4,7 @@ import { getWebSession, webLogout } from 'api/auth';
 import { STORAGE_KEY } from 'static/auth';
 import ROUTES from 'static/routes';
 import { ANONYMOUS_SESSION, hasSessionCookie, SESSION_QUERY_KEY } from 'utils/auth/session';
+import { clearAllChatCache } from 'utils/db/chatDB';
 import { isomorphicSessionStorage } from 'utils/ts/env';
 
 export const useLogout = () => {
@@ -20,6 +21,7 @@ export const useLogout = () => {
     isomorphicSessionStorage.removeItem(STORAGE_KEY.MODAL_SESSION_SHOWN);
     queryClient.clear();
     queryClient.setQueryData(SESSION_QUERY_KEY, ANONYMOUS_SESSION);
+    await clearAllChatCache();
     window.location.href = ROUTES.Main();
   };
 

@@ -17,7 +17,7 @@ $app-hover-background: rgb(156 69 187 / 20%);
   white-space: nowrap;
   cursor: pointer;
 
-  &:disabled {
+  &[aria-disabled="true"] {
     cursor: default;
   }
 
@@ -30,7 +30,6 @@ $app-hover-background: rgb(156 69 187 / 20%);
     color: $app-color;
   }
 
-  // 글 상세: 테두리가 있는 알약 버튼
   &--content {
     padding: 8px 12px;
     border: 1px solid #4590bb;
@@ -40,7 +39,7 @@ $app-hover-background: rgb(156 69 187 / 20%);
     line-height: 1.6;
 
     @media (hover: hover) {
-      &:hover:not(:disabled) {
+      &:hover:not([aria-disabled="true"]) {
         border-color: $web-color;
         background: rgb(69 144 187 / 20%);
       }
@@ -55,7 +54,7 @@ $app-hover-background: rgb(156 69 187 / 20%);
       font-weight: 400;
 
       @media (hover: hover) {
-        &:hover:not(:disabled) {
+        &:hover:not([aria-disabled="true"]) {
           border-color: $app-color;
           background: $app-hover-background;
         }
@@ -63,7 +62,6 @@ $app-hover-background: rgb(156 69 187 / 20%);
     }
   }
 
-  // 쪽지: 테두리 없이 글자만 있는 버튼
   &--message {
     gap: 4px;
     padding: 0;
@@ -73,7 +71,7 @@ $app-hover-background: rgb(156 69 187 / 20%);
     line-height: 1.6;
 
     @media (hover: hover) {
-      &:hover:not(:disabled) {
+      &:hover:not([aria-disabled="true"]) {
         text-decoration: underline;
       }
     }
@@ -83,7 +81,7 @@ $app-hover-background: rgb(156 69 187 / 20%);
       border-radius: 8px;
 
       @media (hover: hover) {
-        &:hover:not(:disabled) {
+        &:hover:not([aria-disabled="true"]) {
           background: $app-hover-background;
           text-decoration: none;
         }

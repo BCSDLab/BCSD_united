@@ -1,5 +1,6 @@
 import { WEB_AUTH_CSRF_COOKIE_KEY } from 'static/url';
 import { ANONYMOUS_SESSION, SESSION_QUERY_KEY, type Session } from 'utils/auth/session';
+import { clearAllChatCache } from 'utils/db/chatDB';
 import { getCookie } from 'utils/ts/cookie';
 import { queryClient } from 'utils/ts/queryClient';
 
@@ -26,11 +27,18 @@ export function prepareSessionFetch(cookie: string | undefined) {
     });
     queryClient.setQueryData(SESSION_QUERY_KEY, ANONYMOUS_SESSION);
     confirmedCookie = undefined;
+    void clearAllChatCache();
   }
 }
 
 export function confirmSession(cookie: string | undefined, session: Session) {
   if (cookie !== sessionCookie()) throw new Error('Session cookie changed during request');
+  if (
+    session.status === 'anonymous' &&
+    queryClient.getQueryData<Session>(SESSION_QUERY_KEY)?.status === 'authenticated'
+  ) {
+    void clearAllChatCache();
+  }
   confirmedCookie = cookie;
 
   return session;

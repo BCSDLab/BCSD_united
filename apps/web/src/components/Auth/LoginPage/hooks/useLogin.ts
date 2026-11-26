@@ -6,6 +6,7 @@ import { webLogin } from 'api/auth';
 import type { WebAuthResponse } from 'api/auth/entity';
 import { isKoinError } from 'interfaces/APIError';
 import { authenticatedSession, SESSION_QUERY_KEY } from 'utils/auth/session';
+import { clearAllChatCache } from 'utils/db/chatDB';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import { useLoginRedirect } from 'utils/hooks/auth/useLoginRedirect';
 import showToast from 'utils/ts/showToast';
@@ -26,7 +27,7 @@ export const useLogin = (state: IsAutoLogin) => {
 
   const postLogin = useMutation({
     mutationFn: webLogin,
-    onSuccess: (data: WebAuthResponse) => {
+    onSuccess: async (data: WebAuthResponse) => {
       logger.actionEventClick({
         event_name: 'DA2',
         event_label: 'account__login__login__confirm__click',
@@ -36,6 +37,7 @@ export const useLogin = (state: IsAutoLogin) => {
       // 이전 사용자의 시간표·쪽지 같은 캐시가 그대로 렌더된다. 로그인은 client-side
       // 이동이라(`useLoginRedirect`의 클라이언트 내비게이션) 캐시가 살아남는다. 아예 비운다.
       queryClient.clear();
+      await clearAllChatCache();
 
       // clear가 세션까지 지우므로 반드시 clear 뒤에 로그인 세션을 심는다.
       queryClient.setQueryData(SESSION_QUERY_KEY, authenticatedSession(data.user_type));

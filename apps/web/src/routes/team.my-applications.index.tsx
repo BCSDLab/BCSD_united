@@ -20,7 +20,7 @@ import MobilePageHeader from 'components/layout/MobilePageHeader';
 import Seo from 'components/seo/Seo';
 import MyApplicationFilterPanel from 'components/Team/components/MyApplicationFilterPanel';
 import RecruitmentCard from 'components/Team/components/RecruitmentCard';
-import formatApplicationStatus from 'components/Team/utils/formatApplicationStatus';
+import useRecruitmentLabels from 'components/Team/utils/useRecruitmentLabels';
 import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
@@ -43,6 +43,7 @@ interface ApplicationsListSectionProps {
 
 function ApplicationsListSection({ requestParams, onFilterOpen, onChatClick }: ApplicationsListSectionProps) {
   const logger = useLogger();
+  const labels = useRecruitmentLabels();
   const isLoggedIn = useIsLoggedIn();
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useSuspenseInfiniteQuery(
     teamQueries.infiniteMyApplications(isLoggedIn, requestParams),
@@ -96,7 +97,7 @@ function ApplicationsListSection({ requestParams, onFilterOpen, onChatClick }: A
                       [styles[APPLICATION_STATUS_CLASS[application.status]]]: true,
                     })}
                   >
-                    {formatApplicationStatus(application.status)}
+                    {labels.applicationStatus(application.status)}
                   </span>
                 }
                 footerAction={

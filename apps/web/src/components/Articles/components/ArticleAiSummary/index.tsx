@@ -1,10 +1,11 @@
 import { cn } from '@bcsdlab/utils';
+import { useQuery } from '@tanstack/react-query';
 
-import { getArticle } from 'api/articles';
 import type { ArticleAiSummary as ArticleAiSummaryData, ArticleAiSummaryItem } from 'api/articles/entity';
+import { articleQueries } from 'api/articles/queries';
 import AiSummaryIcon from 'assets/svg/Articles/ai-summary.svg';
 import TranslateButton from 'components/translation/TranslateButton';
-import useContentTranslation from 'components/translation/useContentTranslation';
+import useContentTranslation, { translationSource } from 'components/translation/useContentTranslation';
 
 import styles from './ArticleAiSummary.module.scss';
 
@@ -13,19 +14,26 @@ interface ArticleAiSummaryProps {
   aiSummary: ArticleAiSummaryData;
 }
 
-export default function ArticleAiSummary({ articleId, aiSummary }: ArticleAiSummaryProps) {
+export default function ArticleAiSummary({ articleId, aiSummary: initialAiSummary }: ArticleAiSummaryProps) {
+  // 409로 글을 다시 받았으면 새 요약을 그려 번역문·아이콘과 원문 버전을 맞춘다
+  const { data: refetchedArticle } = useQuery({ ...articleQueries.detail(String(articleId)), enabled: false });
+  const aiSummary = refetchedArticle?.ai_summary ?? initialAiSummary;
   const isNonSuccessStatus = aiSummary.status !== 'SUCCESS';
-  const translation = useContentTranslation<{ items: ArticleAiSummaryItem[] }>({
+  const translation = useContentTranslation<{ items?: ArticleAiSummaryItem[] | null }>({
     resourceType: 'ARTICLE_SUMMARY',
     resourceId: articleId,
     translatePath: `/v2/articles/${articleId}/ai-summary/translations`,
     // 요약이 끝난 뒤에만 번역할 수 있다
     sourceVersion: aiSummary.status === 'SUCCESS' ? aiSummary.translation_source_version : null,
-    refetchSourceVersion: async () => (await getArticle(String(articleId))).ai_summary.translation_source_version,
+    source: translationSource(
+      articleQueries.detail(String(articleId)),
+      (data) => data.ai_summary.translation_source_version,
+    ),
   });
   // 번역을 보여주는 동안에만 요약 문장을 번역문으로 바꾼다. 아이콘은 같은 순서의 원문 아이콘을 쓴다.
-  const items = translation.translated
-    ? translation.translated.items.map((item, index) => ({ ...item, icon: aiSummary.items[index]?.icon ?? item.icon }))
+  const translatedItems = translation.translated?.items;
+  const items = translatedItems
+    ? translatedItems.map((item, index) => ({ ...item, icon: aiSummary.items[index]?.icon ?? item.icon }))
     : aiSummary.items;
 
   return (

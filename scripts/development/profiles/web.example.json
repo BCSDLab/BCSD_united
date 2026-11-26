@@ -1,0 +1,90 @@
+{
+  "checkout": "/절대/경로/BCSD_united",
+  "repository": "BCSDLab/BCSD_united",
+  "timeoutMs": 900000,
+  "steps": [
+    {
+      "id": "typecheck",
+      "kind": "build",
+      "command": ["corepack", "pnpm", "--filter", "@koin/web", "typecheck"]
+    },
+    {
+      "id": "dining-view",
+      "kind": "scenario",
+      "scenarioId": "dining-view",
+      "command": [
+        "node",
+        "/절대/경로/BCSD_united/scripts/development/web-scenario.mjs",
+        "--checkout",
+        "/절대/경로/BCSD_united",
+        "--scenario",
+        "dining-view",
+        "--out",
+        "apps/web/.wrangler/harness/dining-view"
+      ]
+    },
+    {
+      "id": "dining-meal-change",
+      "kind": "scenario",
+      "scenarioId": "dining-meal-change",
+      "command": [
+        "node",
+        "/절대/경로/BCSD_united/scripts/development/web-scenario.mjs",
+        "--checkout",
+        "/절대/경로/BCSD_united",
+        "--scenario",
+        "dining-meal-change",
+        "--out",
+        "apps/web/.wrangler/harness/dining-meal-change"
+      ]
+    },
+    {
+      "id": "dining-date-change",
+      "kind": "scenario",
+      "scenarioId": "dining-date-change",
+      "command": [
+        "node",
+        "/절대/경로/BCSD_united/scripts/development/web-scenario.mjs",
+        "--checkout",
+        "/절대/경로/BCSD_united",
+        "--scenario",
+        "dining-date-change",
+        "--out",
+        "apps/web/.wrangler/harness/dining-date-change"
+      ]
+    },
+    {
+      "id": "dining-view-design-qa",
+      "kind": "scenario",
+      "scenarioId": "dining-view",
+      "command": [
+        "node",
+        "/절대/경로/BCSD_united/scripts/development/design-qa.mjs",
+        "--out",
+        "apps/web/.wrangler/harness/design-qa",
+        "--koin-qa",
+        "/절대/경로/KOIN_DESIGN_QA_AGENT/.venv/bin/koin-qa",
+        "--",
+        "compare",
+        "--config",
+        "/절대/경로/작업-디렉터리/design-qa.web.yaml",
+        "--screen",
+        "cafeteria",
+        "--image",
+        "apps/web/.wrangler/harness/dining-view/dining-view.png"
+      ]
+    }
+  ],
+  "artifacts": [
+    "apps/web/.wrangler/harness/dining-view/dining-view.png",
+    "apps/web/.wrangler/harness/dining-view/result.json",
+    "apps/web/.wrangler/harness/dining-meal-change/dining-meal-change-before.png",
+    "apps/web/.wrangler/harness/dining-meal-change/dining-meal-change-after.png",
+    "apps/web/.wrangler/harness/dining-meal-change/result.json",
+    "apps/web/.wrangler/harness/dining-date-change/dining-date-change-before.png",
+    "apps/web/.wrangler/harness/dining-date-change/dining-date-change-after.png",
+    "apps/web/.wrangler/harness/dining-date-change/result.json",
+    "apps/web/.wrangler/harness/design-qa/report.json",
+    "apps/web/.wrangler/harness/design-qa/report.md"
+  ]
+}
