@@ -37,7 +37,8 @@ function MobileFindIdEmailPage() {
     timerValue,
     stopTimer,
     isResendLocked,
-    resendButtonText,
+    resendLockMessage,
+    isSendPending,
   } = useEmailVerification({ email });
 
   const onClickSendVerificationButton = () => {
@@ -62,6 +63,8 @@ function MobileFindIdEmailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- email 변경 시에만 재실행 (나머지는 훅이 반환하는 안정적 함수)
   }, [email]);
 
+  const shownEmailMessage = resendLockMessage ?? emailMessage;
+
   return (
     <FormProvider {...methods}>
       <form onSubmit={methods.handleSubmit(onClickFindIdButton)} className={styles.container}>
@@ -78,14 +81,14 @@ function MobileFindIdEmailPage() {
                   {...field}
                   placeholder="등록된 이메일을 입력해 주세요."
                   isDelete={!isVerified}
-                  message={emailMessage}
+                  message={shownEmailMessage}
                   isButton
                   disabled={isVerified}
-                  buttonText={resendButtonText('인증번호 발송')}
-                  buttonDisabled={!field.value || isDisabled || isVerified || isResendLocked}
+                  buttonText="인증번호 발송"
+                  buttonDisabled={!field.value || isDisabled || isVerified || isResendLocked || isSendPending}
                   buttonOnClick={() => checkEmailExists({ email: field.value })}
                 >
-                  {emailMessage?.type === 'success' && (
+                  {shownEmailMessage?.type === 'success' && (
                     <div className={styles['label-count-number']}>
                       남은 횟수 ({emailSendCountData?.remaining_count}/{emailSendCountData?.total_count})
                     </div>

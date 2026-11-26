@@ -39,7 +39,8 @@ function MobileVerifyEmail({ onNext, setContactType }: MobileFindPasswordProps) 
     idMessage,
     setIdMessage,
     isResendLocked,
-    resendButtonText,
+    resendLockMessage,
+    isSendPending,
   } = useEmailVerification({ email, onNext });
 
   const onClickSendVerificationButton = () => {
@@ -75,6 +76,8 @@ function MobileVerifyEmail({ onNext, setContactType }: MobileFindPasswordProps) 
 
   const isFormFilled = loginId && email && verificationCode && isCodeCorrect;
 
+  const shownEmailMessage = resendLockMessage ?? emailMessage;
+
   return (
     <div className={styles.container}>
       <div className={styles['form-container']}>
@@ -103,11 +106,11 @@ function MobileVerifyEmail({ onNext, setContactType }: MobileFindPasswordProps) 
                   {...field}
                   placeholder="이메일을 입력해 주세요."
                   isDelete={!isVerified}
-                  message={emailMessage}
+                  message={shownEmailMessage}
                   isButton
                   disabled={isVerified}
-                  buttonText={resendButtonText('인증번호 발송')}
-                  buttonDisabled={!field.value || isDisabled || isVerified || isResendLocked}
+                  buttonText="인증번호 발송"
+                  buttonDisabled={!field.value || isDisabled || isVerified || isResendLocked || isSendPending}
                   onChange={(e) => {
                     field.onChange(e);
                     setEmailMessage(null);
@@ -119,7 +122,7 @@ function MobileVerifyEmail({ onNext, setContactType }: MobileFindPasswordProps) 
                     checkEmailExists({ email });
                   }}
                 >
-                  {emailMessage?.type === 'success' && (
+                  {shownEmailMessage?.type === 'success' && (
                     <div className={styles['label-count-number']}>
                       남은 횟수 ({emailSendCountData?.remaining_count}/{emailSendCountData?.total_count})
                     </div>

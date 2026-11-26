@@ -48,7 +48,8 @@ function PCVerifyPhone({ onNext, onBack, goToEmailStep, setContactType }: FindPa
     checkIdExists,
     checkIdMatchPhone,
     isResendLocked,
-    resendButtonText,
+    resendLockMessage,
+    isSendPending,
   } = usePhoneVerification({ phoneNumber, onNext });
 
   const onClickSendVerificationButton = () => {
@@ -96,6 +97,8 @@ function PCVerifyPhone({ onNext, onBack, goToEmailStep, setContactType }: FindPa
   };
 
   const isFormFilled = loginId && phoneNumber && verificationCode && isCorrect;
+
+  const shownPhoneMessage = resendLockMessage ?? phoneMessage;
 
   return (
     <div className={styles.container}>
@@ -146,7 +149,7 @@ function PCVerifyPhone({ onNext, onBack, goToEmailStep, setContactType }: FindPa
                     onChange={(e) => handlePhoneNumberChange(e, field.onChange)}
                     placeholder="숫자만 입력해 주세요."
                     isRequired
-                    message={phoneMessage}
+                    message={shownPhoneMessage}
                     disabled={isDisabled || isVerified}
                     isDelete={!isVerified}
                     onClear={() => {
@@ -154,7 +157,7 @@ function PCVerifyPhone({ onNext, onBack, goToEmailStep, setContactType }: FindPa
                       setButtonText('인증번호 발송');
                     }}
                   >
-                    {phoneMessage?.type === 'success' && smsSendCountData && (
+                    {shownPhoneMessage?.type === 'success' && smsSendCountData && (
                       <div className={styles['label-count-number']}>
                         {' '}
                         남은 횟수 ({smsSendCountData?.remaining_count}/{smsSendCountData?.total_count})
@@ -169,9 +172,9 @@ function PCVerifyPhone({ onNext, onBack, goToEmailStep, setContactType }: FindPa
                       setIsVerificationSent(true);
                     }}
                     className={styles['check-button']}
-                    disabled={!field.value || isDisabled || isVerified || isResendLocked}
+                    disabled={!field.value || isDisabled || isVerified || isResendLocked || isSendPending}
                   >
-                    {isSendingVerification ? '...' : resendButtonText(buttonText)}
+                    {isSendingVerification ? '...' : buttonText}
                   </button>
                 </div>
                 {!isVerificationSent && !isCorrect && (
