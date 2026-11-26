@@ -50,12 +50,12 @@ const ICONS = {
 interface TranslateButtonProps {
   state: TranslateButtonState;
   onClick: () => void;
-  /** `large`는 글 상세, `small`은 쪽지 메시지 옆에 쓴다 */
-  size?: 'large' | 'small';
+  /** `content`는 글 상세, `message`는 쪽지에 쓴다. 모바일에서는 같은 종류의 앱 디자인으로 바뀐다. */
+  variant?: 'content' | 'message';
   className?: string;
 }
 
-export default function TranslateButton({ state, onClick, size = 'large', className }: TranslateButtonProps) {
+export default function TranslateButton({ state, onClick, variant = 'content', className }: TranslateButtonProps) {
   const { language } = useLanguage();
   const Icon = ICONS[state];
 
@@ -64,7 +64,8 @@ export default function TranslateButton({ state, onClick, size = 'large', classN
       type="button"
       className={cn({
         [styles.button]: true,
-        [styles[`button--${size}`]]: true,
+        [styles[`button--${variant}`]]: true,
+        [styles['button--translated']]: state === 'translated',
         [className ?? '']: !!className,
       })}
       onClick={state === 'translating' ? undefined : onClick}

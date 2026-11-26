@@ -206,7 +206,6 @@ function LostItemDetailPage({ articleId }: LostItemDetailPageProps) {
                 <TranslateButton
                   state={translation.state}
                   onClick={translation.toggle}
-                  size={isMobile ? 'small' : 'large'}
                   className={styles.header__translate}
                 />
               )}

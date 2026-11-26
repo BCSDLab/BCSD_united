@@ -42,6 +42,8 @@ export interface UseContentTranslationOptions {
   /** 원문 조회 응답의 `translation_source_version`. 없으면 버튼을 보여주지 않는다. */
   sourceVersion: string | null | undefined;
   source: TranslationSource;
+  /** `false`면 원문 언어를 확인하지 않아 버튼을 보여주지 않는다. 쪽지처럼 많은 원문을 화면에 보일 때만 확인할 때 쓴다. */
+  enabled?: boolean;
 }
 
 /**
@@ -60,6 +62,7 @@ export default function useContentTranslation<T>({
   translatePath,
   sourceVersion,
   source,
+  enabled = true,
 }: UseContentTranslationOptions) {
   const { language } = useLanguage();
   const isLanguageSettled = useIsLanguageSettled();
@@ -84,7 +87,7 @@ export default function useContentTranslation<T>({
       sourceVersion,
     ),
     // 화면 언어가 정해지기 전에 조회하면 바뀌기 전 언어로 한 번 더 나간다. 원문 버전이 없으면 번역을 요청할 수 없으니 조회하지 않는다.
-    enabled: isLanguageSettled && !!sourceVersion,
+    enabled: enabled && isLanguageSettled && !!sourceVersion,
   });
 
   const contentQuery = (version: string) =>

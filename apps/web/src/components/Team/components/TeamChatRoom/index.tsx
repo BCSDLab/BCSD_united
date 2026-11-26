@@ -189,7 +189,11 @@ function TeamChatRoomDetail({ selectedRoom, chatRooms, userId }: TeamChatRoomDet
   }));
 
   const isTeamRoom = chatRoom.room_type === 'GROUP';
-  const messageGroups = mapTeamChatMessageGroups(messages, userId);
+  const messageGroups = mapTeamChatMessageGroups(messages, userId, {
+    roomId,
+    recruitmentId: selectedRoom.context_id,
+    chatRoomId: selectedRoom.chat_room_id,
+  });
   const memberCount = isTeamRoom && chatRoom.member_count !== null && chatRoom.max_member_count !== null && (
     <span
       className={cn({

@@ -1,10 +1,18 @@
+@use "utils/scss/media.scss" as media;
+
+// PC는 웹 컴포넌트, 모바일은 앱 컴포넌트를 따른다. 두 디자인은 색과 크기가 다르다.
+// 터치 기기는 탭한 뒤에도 :hover가 남으므로, hover 효과는 마우스를 올릴 수 있는 기기에서만 준다.
+$web-color: #175c8e;
+$app-color: #b611f5;
+$app-hover-background: rgb(156 69 187 / 20%);
+
 .button {
   display: inline-flex;
   flex-shrink: 0;
   gap: 8px;
   align-items: center;
   box-sizing: border-box;
-  color: #175c8e;
+  color: $web-color;
   font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
@@ -14,11 +22,15 @@
   }
 
   &:focus-visible {
-    outline: 2px solid #175c8e;
+    outline: 2px solid currentcolor;
     outline-offset: 2px;
   }
 
-  &--large {
+  @include media.media-breakpoint(mobile) {
+    color: $app-color;
+  }
+
+  &--content {
     padding: 8px 12px;
     border: 1px solid #4590bb;
     border-radius: 9999px;
@@ -26,13 +38,31 @@
     font-size: 18px;
     line-height: 1.6;
 
-    &:hover:not([aria-disabled="true"]) {
-      border-color: #175c8e;
-      background: rgb(69 144 187 / 20%);
+    @media (hover: hover) {
+      &:hover:not([aria-disabled="true"]) {
+        border-color: $web-color;
+        background: rgb(69 144 187 / 20%);
+      }
+    }
+
+    @include media.media-breakpoint(mobile) {
+      gap: 2px;
+      padding: 4px 8px;
+      border-color: $app-color;
+      background: none;
+      font-size: 14px;
+      font-weight: 400;
+
+      @media (hover: hover) {
+        &:hover:not([aria-disabled="true"]) {
+          border-color: $app-color;
+          background: $app-hover-background;
+        }
+      }
     }
   }
 
-  &--small {
+  &--message {
     gap: 4px;
     padding: 0;
     border: none;
@@ -40,8 +70,22 @@
     font-size: 12px;
     line-height: 1.6;
 
-    &:hover:not([aria-disabled="true"]) {
-      text-decoration: underline;
+    @media (hover: hover) {
+      &:hover:not([aria-disabled="true"]) {
+        text-decoration: underline;
+      }
+    }
+
+    @include media.media-breakpoint(mobile) {
+      padding: 0 4px;
+      border-radius: 8px;
+
+      @media (hover: hover) {
+        &:hover:not([aria-disabled="true"]) {
+          background: $app-hover-background;
+          text-decoration: none;
+        }
+      }
     }
   }
 
@@ -55,9 +99,30 @@
     }
   }
 
-  &--small &__icon {
+  &--content &__icon {
+    @include media.media-breakpoint(mobile) {
+      width: 20px;
+      height: 20px;
+    }
+  }
+
+  &--message &__icon {
     width: 16px;
     height: 16px;
+  }
+
+  // 앱 디자인의 「원문 보기」는 아이콘이 조금 작고 글자와 간격이 넓다
+  &--content#{&}--translated {
+    @include media.media-breakpoint(mobile) {
+      gap: 8px;
+    }
+  }
+
+  &--content#{&}--translated &__icon {
+    @include media.media-breakpoint(mobile) {
+      width: 18px;
+      height: 18px;
+    }
   }
 }
 

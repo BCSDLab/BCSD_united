@@ -201,6 +201,39 @@
     display: flex;
     align-items: flex-end;
     gap: 8px;
+
+    &--with-action {
+      display: grid;
+      grid-template:
+        "bubble ." 1fr
+        "bubble action" auto
+        "bubble meta" auto
+        / auto auto;
+      gap: 0 8px;
+      justify-content: start;
+
+      @include media.media-breakpoint(mobile) {
+        grid-template-areas:
+          "bubble meta"
+          "action action";
+        grid-template-rows: auto auto;
+        gap: 6px 8px;
+      }
+
+      > :first-child {
+        grid-area: bubble;
+      }
+    }
+  }
+
+  &__action {
+    display: flex;
+    grid-area: action;
+  }
+
+  &__row--with-action &__meta {
+    grid-area: meta;
+    align-self: end;
   }
 
   &__bubble {
@@ -214,12 +247,28 @@
     white-space: pre-wrap;
     overflow-wrap: break-word;
 
+    @include media.media-breakpoint(mobile) {
+      font-size: tokens.$font-size-12;
+    }
+
     &--mine {
       background: rgb(245 245 245 / 80%);
     }
 
     &--other {
       background: tokens.$blue-50;
+
+      @include media.media-breakpoint(mobile) {
+        background: tokens.$neutral-100;
+      }
+    }
+
+    // 앱 디자인처럼 모바일에서 번역 중이거나 번역된 말풍선은 색을 진하게 한다.
+    // 화면별로 덧붙인 말풍선 색보다 앞서도록 클래스 두 개로 고른다.
+    &--other#{&}--translated {
+      @include media.media-breakpoint(mobile) {
+        background: tokens.$neutral-300;
+      }
     }
   }
 

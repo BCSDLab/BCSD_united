@@ -41,6 +41,8 @@ export interface ChatMessageResponse extends APIResponse {
   is_image: boolean;
   unread_count: number;
   is_left_user: boolean;
+  /** 텍스트 쪽지의 번역 원문 버전. 이미지는 `null`이다. */
+  translation_source_version?: string | null;
 }
 
 export type ChatMessageListResponse = ChatMessageResponse[];

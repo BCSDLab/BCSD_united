@@ -1,6 +1,8 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createFileRoute, useNavigate, useSearch, useParams } from '@tanstack/react-router';
 
+import type { ChatMessageResponse } from 'api/chat/entity';
+import { fetchChatMessageSourceVersion, lostItemMessageTranslationPath } from 'api/chat/translation';
 import BlockIcon from 'assets/svg/Articles/block.svg';
 import DefaultPhotoIcon from 'assets/svg/Articles/default-photo.svg';
 import DefaultPhotoUrl from 'assets/svg/Articles/default-photo.svg?url';
@@ -18,8 +20,10 @@ import {
   ChatMessageList,
   ChatRoomList,
   type ChatMessageListGroup,
+  type ChatMessageTranslation,
 } from 'components/ui/Chat';
 import ROUTES from 'static/routes';
+import type { CachedChatMessage } from 'utils/db/chatDB';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useBooleanState from 'utils/hooks/state/useBooleanState';
 import useIsLoggedIn from 'utils/hooks/state/useIsLoggedIn';
@@ -78,6 +82,7 @@ function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageP
   const requestedDetail = !isMobile || !!chatRoomIdParam;
 
   const {
+    roomId,
     chatroomDetail,
     chatroomList,
     messages,
@@ -282,6 +287,29 @@ function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageP
     }),
   );
 
+  // 상대가 보낸 텍스트 쪽지만 번역한다. 기기에 저장해 둔 메시지는 원문 버전이 없어 번역 버튼을 붙이지 않는다.
+  const getMessageTranslation = (
+    message: ChatMessageResponse | CachedChatMessage,
+    nextMessageId: string | undefined,
+  ): ChatMessageTranslation | undefined => {
+    const messageId = message.message_id;
+    // 내 정보를 받기 전에는 내 메시지인지 알 수 없으므로 붙이지 않는다
+    if (!messageId || !roomId || userId === null || message.user_id === userId || message.is_image) return undefined;
+    if (!('translation_source_version' in message) || articleId == null || chatroomId == null) return undefined;
+    const roomArticleId = Number(articleId);
+    const roomChatroomId = Number(chatroomId);
+
+    return {
+      resourceType: 'LOST_ITEM_MESSAGE',
+      resourceId: messageId,
+      parentId: roomArticleId,
+      roomId: roomChatroomId,
+      translatePath: lostItemMessageTranslationPath(roomArticleId, roomChatroomId, messageId),
+      sourceVersion: message.translation_source_version,
+      source: { refetchVersion: () => fetchChatMessageSourceVersion(roomId, messageId, nextMessageId) },
+    };
+  };
+
   const messageGroups = (messages ?? []).reduce<ChatMessageListGroup[]>((groups, message, index) => {
     const dateLabel = formatChatDate(message.timestamp);
     const timeLabel = formatChatTime(message.timestamp);
@@ -299,6 +327,7 @@ function LostItemChatPage({ articleIdParam, chatRoomIdParam }: LostItemChatPageP
           <PersonIcon />
         </div>
       ),
+      translation: getMessageTranslation(message, messages?.[index + 1]?.message_id),
     };
     const lastGroup = groups[groups.length - 1];
 

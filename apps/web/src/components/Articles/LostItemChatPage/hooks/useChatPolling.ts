@@ -269,6 +269,7 @@ const useChatPolling = ({
   }, [userId, roomId, isOnline, visible, leaveRoom]);
 
   return {
+    roomId,
     chatroomList,
     chatroomDetail,
     messages,
