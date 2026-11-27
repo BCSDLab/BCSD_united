@@ -1,16 +1,17 @@
 @use "src/utils/scss/media" as media;
+@use "src/utils/scss/tokens" as tokens;
 
 .panel {
   position: absolute;
-  top: 38px;
-  right: 30px;
-  bottom: 41px;
+  top: 28px;
+  right: 52px;
+  bottom: 51px;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  gap: 24px;
+  gap: 20px;
   box-sizing: border-box;
-  width: 464px;
-  padding: 24px 32px;
+  width: 306px;
+  padding: 24px 28px;
   border-radius: 16px;
   background: #fff;
   box-shadow:
@@ -40,7 +41,7 @@
 
   &__count {
     color: #1f1f1f;
-    font-size: 28px;
+    font-size: tokens.$font-size-20;
     font-weight: 500;
     line-height: 1.6;
   }
@@ -90,12 +91,13 @@
 
   &__button {
     box-sizing: border-box;
-    height: 40px;
-    padding: 0 16px;
+    width: 55px;
+    height: 37px;
+    padding: 0;
     border-color: #b611f5;
     border-radius: 24px;
     box-shadow: none;
-    font-size: 15px;
+    font-size: tokens.$font-size-13;
     line-height: 1.6;
 
     &:focus-visible {
@@ -132,7 +134,7 @@
 .list {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
   box-sizing: border-box;
   min-width: 0;
 
