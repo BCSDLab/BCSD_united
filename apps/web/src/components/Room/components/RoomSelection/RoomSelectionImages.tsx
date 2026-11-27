@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import type { Swiper as SwiperInstance } from 'swiper';
+import { Swiper, SwiperSlide } from 'swiper/react';
 
 import SleepIcon from 'assets/svg/common/sleep-bbico.svg';
 import ExpandIcon from 'assets/svg/Room/expand.svg';
@@ -7,6 +9,7 @@ import useRoomPhotoModal from 'components/Room/RoomDetailPage/hooks/useRoomPhoto
 import Image from 'components/ui/Image';
 import useLogger from 'utils/hooks/analytics/useLogger';
 
+import 'swiper/css';
 import styles from './RoomSelectionImages.module.scss';
 
 interface RoomSelectionImagesProps {
@@ -17,6 +20,7 @@ interface RoomSelectionImagesProps {
 export default function RoomSelectionImages({ imageUrls, name }: RoomSelectionImagesProps) {
   const images = imageUrls?.filter(Boolean) ?? [];
   const [imageIndex, setImageIndex] = useState(0);
+  const swiperRef = useRef<SwiperInstance | null>(null);
   const openRoomPhotoModal = useRoomPhotoModal();
   const logger = useLogger();
   const currentIndex = Math.min(imageIndex, Math.max(0, images.length - 1));
@@ -31,7 +35,7 @@ export default function RoomSelectionImages({ imageUrls, name }: RoomSelectionIm
   }
 
   const slide = (direction: -1 | 1) => {
-    setImageIndex(currentIndex + direction);
+    swiperRef.current?.slideTo(currentIndex + direction);
     logger.actionEventClick({
       event_name: 'DA1',
       event_label: 'real_estate__room_detail__photo_view__slide__click',
@@ -53,13 +57,21 @@ export default function RoomSelectionImages({ imageUrls, name }: RoomSelectionIm
 
   return (
     <div className={styles.gallery}>
-      <Image
-        className={styles.photo}
-        src={images[currentIndex]}
-        alt={`${name} 건물 사진 ${currentIndex + 1}`}
-        fill
-        sizes="411px"
-      />
+      <Swiper
+        className={styles.slides}
+        allowTouchMove={false}
+        onSwiper={(swiper) => {
+          swiperRef.current = swiper;
+        }}
+        onSlideChange={({ activeIndex }) => setImageIndex(activeIndex)}
+      >
+        {images.map((src, index) => (
+          // eslint-disable-next-line react/no-array-index-key -- 사진 순서가 고정되어 있고 같은 URL이 중복될 수 있다.
+          <SwiperSlide key={index} aria-hidden={index !== currentIndex}>
+            <Image className={styles.photo} src={src} alt={`${name} 건물 사진 ${index + 1}`} fill sizes="411px" />
+          </SwiperSlide>
+        ))}
+      </Swiper>
       {images.length > 1 && (
         <>
           <button

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { cn } from '@bcsdlab/utils';
+import type { Swiper as SwiperInstance } from 'swiper';
+import { Swiper, SwiperSlide } from 'swiper/react';
 
 import ChevronRightIcon from 'assets/svg/Team/chevron-right-icon.svg';
 import PhotoCloseIcon from 'assets/svg/Team/x-icon.svg';
@@ -7,10 +9,10 @@ import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useArrowKeyNavigation from 'utils/hooks/ui/useArrowKeyNavigation';
 import { useBodyScrollLock } from 'utils/hooks/ui/useBodyScrollLock';
 import { useEscapeKeyDown } from 'utils/hooks/ui/useEscapeKeyDown';
-import useImageSwipe from 'utils/hooks/ui/useImageSwipe';
 import { useOutsideClick } from 'utils/hooks/ui/useOutsideClick';
 import { createTouchHandlers } from 'utils/ts/touchHandler';
 
+import 'swiper/css';
 import styles from './ImageModal.module.scss';
 
 export interface ImageModalProps {
@@ -43,6 +45,7 @@ function ImageModal({
   const isMobile = useMediaQuery();
   const isMobileNavigation = mobileNavigation && isMobile;
   const isDesktopGallery = imageSize === 'large' && !isMobile;
+  const isRoomGallery = isMobileNavigation || isDesktopGallery;
   const [selectedIndex, setSelectedIndex] = useState(imageIndex);
   const [scale, setScale] = useState(1);
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
@@ -50,25 +53,26 @@ function ImageModal({
   const startTranslateRef = useRef({ x: 0, y: 0 });
   const startTouchRef = useRef<{ x: number; y: number } | null>(null);
   const imageRef = useRef<HTMLImageElement>(null);
+  const swiperRef = useRef<SwiperInstance | null>(null);
   const mobileContainerRef = useRef<HTMLDivElement | null>(null);
 
   const navigateImage = useCallback(
     (move: number) => {
       if (isMobileNavigation && scale !== 1) return;
+      const swiper = swiperRef.current;
+      if (isRoomGallery && swiper) {
+        swiper.slideTo(Math.max(0, Math.min(swiper.activeIndex + move, imageList.length - 1)));
+
+        return;
+      }
       setSelectedIndex((prevIndex) => {
         const newIndex = prevIndex + move;
 
         return Math.max(0, Math.min(newIndex, imageList.length - 1));
       });
     },
-    [imageList.length, scale, isMobileNavigation],
+    [imageList.length, scale, isMobileNavigation, isRoomGallery],
   );
-
-  const { handlers, onButtonClick } = useImageSwipe({
-    enabled: isMobileNavigation && scale === 1,
-    onPrevious: () => navigateImage(-1),
-    onNext: () => navigateImage(1),
-  });
 
   const handleArrowClick = (direction: -1 | 1) => {
     navigateImage(direction);
@@ -109,24 +113,73 @@ function ImageModal({
       imageEl.removeEventListener('touchmove', handleTouchMove);
       imageEl.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [scale, translate, isMobileNavigation, isDesktopGallery]);
+  }, [scale, translate, isMobileNavigation, isDesktopGallery, selectedIndex]);
 
-  const image = (
+  const renderImage = (src: string, isSelected = true) => (
     // 이미지마다 크기가 다르고 핀치 줌이 DOM ref를 직접 사용한다.
     <img
-      ref={imageRef}
+      ref={isSelected ? imageRef : undefined}
       className={cn({
         [styles.image]: true,
         [styles['image--large']]: imageSize === 'large',
         [styles['desktop-gallery__image']]: isDesktopGallery,
       })}
-      src={imageList[selectedIndex]}
+      src={src}
       alt={imageAlt}
       draggable={isMobileNavigation ? false : undefined}
+      onLoad={isRoomGallery ? () => swiperRef.current?.updateAutoHeight() : undefined}
       style={{
         transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
       }}
     />
+  );
+
+  const image = isRoomGallery ? (
+    <Swiper
+      className={styles.slides}
+      initialSlide={selectedIndex}
+      autoHeight
+      allowTouchMove={isMobileNavigation && scale === 1}
+      touchEventsTarget="container"
+      focusableElements="input, select, option, textarea, video, label"
+      onSwiper={(swiper) => {
+        swiperRef.current = swiper;
+      }}
+      onSlideChange={({ activeIndex }) => setSelectedIndex(activeIndex)}
+    >
+      {imageList.map((src, index) => (
+        <SwiperSlide
+          // eslint-disable-next-line react/no-array-index-key -- 같은 URL의 사진도 각 순서의 슬라이드로 구분한다.
+          key={index}
+          aria-hidden={index !== selectedIndex}
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) onClose();
+          }}
+        >
+          {renderImage(src, index === selectedIndex)}
+        </SwiperSlide>
+      ))}
+      {isMobileNavigation && scale === 1 && imageList.length > 1 && (
+        <div slot="container-end">
+          <button
+            type="button"
+            className={`${styles['mobile-gallery__tap']} ${styles['mobile-gallery__tap--previous']}`}
+            aria-label="이전 건물 사진"
+            aria-disabled={selectedIndex === 0}
+            onClick={() => navigateImage(-1)}
+          />
+          <button
+            type="button"
+            className={`${styles['mobile-gallery__tap']} ${styles['mobile-gallery__tap--next']}`}
+            aria-label="다음 건물 사진"
+            aria-disabled={selectedIndex === imageList.length - 1}
+            onClick={() => navigateImage(1)}
+          />
+        </div>
+      )}
+    </Swiper>
+  ) : (
+    renderImage(imageList[selectedIndex])
   );
 
   return (
@@ -213,33 +266,8 @@ function ImageModal({
         </>
       )}
       {isMobileNavigation && (
-        <div
-          {...handlers}
-          ref={(element) => {
-            mobileContainerRef.current = element;
-            handlers.ref(element);
-          }}
-          className={styles['mobile-gallery']}
-        >
+        <div ref={mobileContainerRef} className={styles['mobile-gallery']}>
           {image}
-          {scale === 1 && imageList.length > 1 && (
-            <>
-              <button
-                type="button"
-                className={`${styles['mobile-gallery__tap']} ${styles['mobile-gallery__tap--previous']}`}
-                aria-label="이전 건물 사진"
-                aria-disabled={selectedIndex === 0}
-                onClick={onButtonClick(() => navigateImage(-1))}
-              />
-              <button
-                type="button"
-                className={`${styles['mobile-gallery__tap']} ${styles['mobile-gallery__tap--next']}`}
-                aria-label="다음 건물 사진"
-                aria-disabled={selectedIndex === imageList.length - 1}
-                onClick={onButtonClick(() => navigateImage(1))}
-              />
-            </>
-          )}
         </div>
       )}
       {!isDesktopGallery && !isMobileNavigation && image}

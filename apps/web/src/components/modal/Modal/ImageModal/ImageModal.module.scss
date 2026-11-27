@@ -33,6 +33,21 @@
   }
 }
 
+.slides {
+  width: 100%;
+  z-index: 0;
+
+  > [class~="swiper-wrapper"] {
+    align-items: center;
+  }
+
+  .image {
+    display: block;
+    position: static;
+    max-width: 100%;
+  }
+}
+
 .arrow-button {
   width: 60px;
   height: 60px;
@@ -112,17 +127,16 @@
 .mobile-gallery {
   position: relative;
   display: flex;
-  max-width: calc(100% - 68px);
+  width: calc(100% - 68px);
   touch-action: none;
 
-  > .image {
-    position: static;
-    max-width: 100%;
+  .image {
     max-height: calc(100dvh - 100px);
   }
 
   &__tap {
     position: absolute;
+    z-index: 1;
     top: 0;
     bottom: 0;
     width: 25%;
@@ -198,15 +212,14 @@
   gap: 28px;
   flex-shrink: 0;
   max-width: 100%;
+  margin-block: auto;
 
   &__stage {
     position: relative;
+    width: min(1016px, calc(100vw - 384px));
   }
 
   &__image {
-    display: block;
-    position: static;
-    max-width: min(1016px, calc(100vw - 384px));
     max-height: max(160px, 100dvh - 354px);
   }
 

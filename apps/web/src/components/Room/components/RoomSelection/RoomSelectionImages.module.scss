@@ -10,6 +10,11 @@
   object-fit: cover;
 }
 
+.slides {
+  height: 100%;
+  z-index: 0;
+}
+
 .empty {
   display: flex;
   flex-direction: column;
