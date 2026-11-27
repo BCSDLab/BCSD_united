@@ -9,6 +9,10 @@
     border: 1px solid #e1e1e1;
     border-radius: 8px;
 
+    &:focus-within {
+      outline: none;
+    }
+
     @include media.media-breakpoint(mobile) {
       height: 36px;
       border-radius: 40px;

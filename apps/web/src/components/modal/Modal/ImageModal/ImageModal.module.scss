@@ -33,6 +33,21 @@
   }
 }
 
+.slides {
+  width: 100%;
+  z-index: 0;
+
+  > [class~="swiper-wrapper"] {
+    align-items: center;
+  }
+
+  .image {
+    display: block;
+    position: static;
+    max-width: 100%;
+  }
+}
+
 .arrow-button {
   width: 60px;
   height: 60px;
@@ -110,15 +125,18 @@
 }
 
 .mobile-gallery {
-  position: absolute;
-  inset: 0;
+  position: relative;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  width: calc(100% - 68px);
   touch-action: none;
+
+  .image {
+    max-height: calc(100dvh - 100px);
+  }
 
   &__tap {
     position: absolute;
+    z-index: 1;
     top: 0;
     bottom: 0;
     width: 25%;
@@ -194,15 +212,14 @@
   gap: 28px;
   flex-shrink: 0;
   max-width: 100%;
+  margin-block: auto;
 
   &__stage {
     position: relative;
+    width: min(1016px, calc(100vw - 384px));
   }
 
   &__image {
-    display: block;
-    position: static;
-    max-width: min(1016px, calc(100vw - 384px));
     max-height: max(160px, 100dvh - 354px);
   }
 
@@ -211,11 +228,17 @@
     position: absolute;
     top: 50%;
     display: flex;
+    border-radius: 50%;
+    background: tokens.$neutral-500;
     transform: translateY(-50%);
     cursor: pointer;
 
-    > svg > rect {
-      fill: tokens.$neutral-500;
+    > svg {
+      transform: translateX(2px);
+
+      path {
+        fill: tokens.$white;
+      }
     }
 
     &:disabled {
@@ -230,6 +253,10 @@
 
   &__previous {
     left: -132px;
+
+    > svg {
+      transform: translateX(-2px) rotate(180deg);
+    }
   }
 
   &__next {

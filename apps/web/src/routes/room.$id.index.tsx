@@ -15,6 +15,7 @@ import RoomDetailOption from 'components/Room/components/RoomDetailOption';
 import RoomDetailTable from 'components/Room/components/RoomDetailTable';
 import useRoomDetail from 'components/Room/RoomDetailPage/hooks/useRoomDetail';
 import useRoomBack from 'components/Room/RoomPage/hooks/useRoomBack';
+import ROUTES from 'static/routes';
 import useLogger from 'utils/hooks/analytics/useLogger';
 import useMediaQuery from 'utils/hooks/layout/useMediaQuery';
 import useScrollToTop from 'utils/hooks/ui/useScrollToTop';
@@ -92,13 +93,13 @@ function MobileRoomDetail({ room }: { room: LandDetailResponse }) {
 function RoomDetailPage({ id }: RoomDetailPageProps) {
   const isMobile = useMediaQuery();
   const { roomDetail, roomOptions } = useRoomDetail(id);
-  const handleBack = useRoomBack('room_detail');
+  const handleBack = useRoomBack('room_detail', ROUTES.Room());
   useScrollToTop();
 
   if (isMobile) {
     return (
       <>
-        <MobilePageHeader title="복덕방" onBack={handleBack} />
+        <MobilePageHeader title="복덕방" className={styles['mobile-header']} onBack={handleBack} />
         {roomDetail && <MobileRoomDetail room={roomDetail} />}
       </>
     );

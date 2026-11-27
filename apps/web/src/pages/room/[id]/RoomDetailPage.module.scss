@@ -6,6 +6,12 @@
   }
 }
 
+.mobile-header {
+  box-sizing: border-box;
+  height: 44px;
+  padding: 0 24px;
+}
+
 .mobile {
   padding-bottom: calc(96px + env(safe-area-inset-bottom));
   color: #1f1f1f;
